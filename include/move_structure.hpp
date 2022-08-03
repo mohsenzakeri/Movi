@@ -24,11 +24,17 @@ class MoveStructure {
         MoveStructure() { }
         MoveStructure(char* input_file);
         uint32_t LF(uint32_t row_number);
-        void build();
+        void build(std::ifstream &bwt_file);
     private:
-        char* bwt;
         std::string bwt_string;
-        uint64_t length;
+        uint32_t length;
+
+        std::vector<unsigned char> alphabet;
+        std::vector<uint32_t> counts;
+        std::map<unsigned char, uint32_t> alphamap;
+
+        std::vector<sdsl::bit_vector*> occs;
+        std::vector<sdsl::rank_support_v<>*> occs_rank;
 
         std::vector<move_row*> rlbwt;
 };
