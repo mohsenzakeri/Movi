@@ -14,7 +14,8 @@ uint32_t MoveStructure::LF(uint32_t row_number) {
         lf += counts[i];
     }
     auto& occ_rank = *occs_rank[alphabet_index];
-    lf += occ_rank(row_number);    
+    lf += occ_rank(row_number);
+    if (lf > 0) lf -= 1;  
     return lf;
 }
 
@@ -37,7 +38,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     length = bwt_string.length();
     std::cerr<<"length: " << length << "\n";
 
-    // Building auxilary structures
+    // Building the auxilary structures
     uint32_t alphabet_index = 0;
     for (uint32_t i = 0; i < all_chars_count; i++) {
         if (all_chars[i] != 0) {
@@ -80,16 +81,14 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         else if (bwt_string[i] == bwt_string[i+1])
             len += 1;
     }
-
+    std::cerr<<"bits: " << bits << "\n";
     sdsl::rank_support_v<> rbits(&bits);
     for (auto& row: rlbwt) {
         uint32_t set_bit = row->pp;
+        // Walk back untill the first preceeding 1
         while (set_bit > 0 and bits[set_bit] == 0)
             set_bit -= 1;
-        if (set_bit == 0 and bits[set_bit] == 0)
-            row->id = 0;
-        else
-            row->id = rbits(set_bit) - 1;
+        row->id = rbits(set_bit);
         // std::cerr<< row->c << " offset: " << row->p << " len: " << row->n << 
         //                     " lf_pp: " << row->pp << " pp_id: " << row->id << "\n";
     }
