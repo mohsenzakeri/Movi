@@ -1,7 +1,11 @@
 #ifndef __MOVE_STRUCTURE__
 #define __MOVE_STRUCTURE__
 
+#include <fstream>
+
 #include <sdsl/bit_vectors.hpp>
+
+#include "move_query.hpp"
 
 struct move_row{
     move_row(uint32_t p, uint32_t n, 
@@ -23,8 +27,11 @@ class MoveStructure {
     public:
         MoveStructure() { }
         MoveStructure(char* input_file);
+
+        void build(std::ifstream &bwt_file);        
         uint32_t LF(uint32_t row_number);
-        void build(std::ifstream &bwt_file);
+        uint32_t fast_forward(uint32_t pointer, uint32_t index);
+        void query_ms(MoveQuery& mq);
     private:
         std::string bwt_string;
         uint32_t length;

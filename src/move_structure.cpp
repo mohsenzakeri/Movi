@@ -1,5 +1,3 @@
-#include <fstream>
-
 #include "move_structure.hpp"
 
 MoveStructure::MoveStructure(char* input_file) {
@@ -91,6 +89,64 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         row->id = rbits(set_bit);
         // std::cerr<< row->c << " offset: " << row->p << " len: " << row->n << 
         //                     " lf_pp: " << row->pp << " pp_id: " << row->id << "\n";
+    }
+
+}
+
+uint32_t MoveStructure::fast_forward(uint32_t pointer, uint32_t index) {
+
+    std::cerr << index << " + " << rlbwt[index]->p << " + " << rlbwt[index]->n << "\n";
+    while (index < rlbwt.size() - 1 and pointer > rlbwt[index]->p + rlbwt[index]->n)
+        index += 1;
+    return index;
+}
+
+void MoveStructure::query_ms(MoveQuery& mq) {
+    srand(time(0));
+    std::string R = mq.query();
+    int32_t pos_on_r = R.length() - 1;
+
+    uint32_t index = rlbwt.size() - 1;
+    // uint32_t index = std::rand() % rlbwt.size();
+    uint32_t pointer = rlbwt[index]->p;
+    uint32_t match_len = 0;
+    while (pos_on_r > -1) {
+        auto& row = rlbwt[index];
+        if (row->c == R[pos_on_r]) {
+            // Case 1
+            match_len += 1;
+
+            index = row->id;
+            pointer = row->pp + (pointer - row->p);
+        } else {
+            // Case 2
+            // Jumping randomly up or down
+            uint32_t jump = std::rand() % 2;
+            if ( (jump == 1 and index > 0) or index == rlbwt.size()-1) {
+                // jumping up
+                while (index > 0 and rlbwt[index]->c != R[pos_on_r]) {
+                    index -= 1;
+                }
+            } else {
+                // jumping down
+                while (index < rlbwt.size() - 1 and rlbwt[index]->c != R[pos_on_r]) {
+                    index += 1;
+                }
+            }
+            if (rlbwt[index]->c == R[pos_on_r]) {
+                // Observing a match after the jump
+                // The right match_len should be:
+                // min(new_lcp, match_len + 1)
+                // But we cannot compute lcp here
+                pointer = rlbwt[index]->pp + (row->p - rlbwt[index]->p);
+                index = fast_forward(pointer, index);
+                match_len += 1;
+            } else {
+                match_len -= 1;
+            }
+        }
+        pos_on_r -= 1;
+        mq.add_ms(match_len);
     }
 
 }
