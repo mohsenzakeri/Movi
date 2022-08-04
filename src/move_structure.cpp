@@ -13,7 +13,6 @@ uint32_t MoveStructure::LF(uint32_t row_number) {
     }
     auto& occ_rank = *occs_rank[alphabet_index];
     lf += occ_rank(row_number);
-    if (lf > 0) lf -= 1;  
     return lf;
 }
 
@@ -26,20 +25,25 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     uint32_t all_chars_count = 256;
     std::vector<uint32_t> all_chars(all_chars_count, 0);
     uint32_t current_char = bwt_file.get();
+    r = 0;
     while (current_char != EOF)
     {
         bwt_string += current_char;
 
         all_chars[static_cast<uint32_t>(current_char)] += 1;
         current_char = bwt_file.get();
+        if (current_char != bwt_string.back() and current_char != EOF) r += 1;
     }
+    std::cerr<< "r: " << r << "\n";
     length = bwt_string.length();
     std::cerr<<"length: " << length << "\n";
+    rlbwt.resize(r);
 
     // Building the auxilary structures
     uint32_t alphabet_index = 0;
-    for (uint32_t i = 0; i < all_chars_count; i++) {
+    for (uint32_t i = 33; i < 127; i++) {
         if (all_chars[i] != 0) {
+            std::cerr<< "i is " << i << ".\n";
             auto current_char = static_cast<unsigned char>(i);
             std::cerr<< i << "\t" << current_char << "\t" << all_chars[i] << "\n";
 
@@ -63,6 +67,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     // Building the move structure rows
     uint32_t len = 0;
     uint32_t offset = 0;
+    uint32_t r_idx = 0;
     sdsl::bit_vector bits(length, 0);
     for (uint32_t i = 0; i < length; i++) {
         if (i == length - 1 or bwt_string[i] != bwt_string[i+1]) {
@@ -70,35 +75,52 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             uint32_t lf  = 0;
             if (alphamap[bwt_string[i]] != 0)
                 lf = LF(offset);
-            move_row* row = new move_row(offset, len, lf, i, bwt_string[i]);
             bits[offset] = 1;
-            rlbwt.push_back(row);
+            rlbwt[r_idx].init(offset, len, lf, i, bwt_string[i]);
+
             offset += len;
             len = 0;
+            r_idx += 1;
         }
         else if (bwt_string[i] == bwt_string[i+1])
             len += 1;
     }
     std::cerr<<"bits: " << bits << "\n";
     sdsl::rank_support_v<> rbits(&bits);
+    uint32_t idx = 0;
     for (auto& row: rlbwt) {
-        uint32_t set_bit = row->pp;
+        uint32_t set_bit = row.pp;
         // Walk back untill the first preceeding 1
         while (set_bit > 0 and bits[set_bit] == 0)
             set_bit -= 1;
-        row->id = rbits(set_bit);
-        // std::cerr<< row->c << " offset: " << row->p << " len: " << row->n << 
-        //                     " lf_pp: " << row->pp << " pp_id: " << row->id << "\n";
+        row.id = rbits(set_bit);
+        std::cerr<< idx << " " << row.c << " offset: " << row.p << " len: " << 
+                    row.n << " lf_pp: " << row.pp << " pp_id: " << row.id << "\n";
+        idx += 1;
     }
 
 }
 
-uint32_t MoveStructure::fast_forward(uint32_t pointer, uint32_t index) {
+uint32_t MoveStructure::fast_forward(uint32_t pointer, uint32_t idx) {
 
-    std::cerr << index << " + " << rlbwt[index]->p << " + " << rlbwt[index]->n << "\n";
-    while (index < rlbwt.size() - 1 and pointer > rlbwt[index]->p + rlbwt[index]->n)
-        index += 1;
-    return index;
+    std::cerr << idx << " + " << rlbwt[idx].p << " + " << rlbwt[idx].n << "\n";
+    while (idx < r - 1 and pointer > rlbwt[idx].p + rlbwt[idx].n)
+        idx += 1;
+    return idx;
+}
+
+uint32_t MoveStructure::jump_up(uint32_t idx, char c) {
+    while (idx > 0 and rlbwt[idx].c != c) {
+        idx -= 1;
+    }
+    return idx;
+}
+
+uint32_t MoveStructure::jump_down(uint32_t idx, char c) {
+    while (idx < r - 1 and rlbwt[idx].c != c) {
+        idx += 1;
+    }
+    return idx;
 }
 
 void MoveStructure::query_ms(MoveQuery& mq) {
@@ -106,47 +128,93 @@ void MoveStructure::query_ms(MoveQuery& mq) {
     std::string R = mq.query();
     int32_t pos_on_r = R.length() - 1;
 
-    uint32_t index = rlbwt.size() - 1;
-    // uint32_t index = std::rand() % rlbwt.size();
-    uint32_t pointer = rlbwt[index]->p;
+    uint32_t idx = r - 1;
+    // uint32_t idx = std::rand() % r;
+    uint32_t pointer = rlbwt[idx].p;
     uint32_t match_len = 0;
+    
+    std::cerr<< "beginning of the search:\n";
+    std::cerr<< "query: " << mq.query() << "\n";
+    std::cerr<< "idx(r-1): " << idx << " pointer: " << pointer << "\n";
     while (pos_on_r > -1) {
-        auto& row = rlbwt[index];
-        if (row->c == R[pos_on_r]) {
+        std::cerr<< "Searching position " << pos_on_r << " of the read:\n";
+        
+        auto& row = rlbwt[idx];
+        if (alphamap.find(R[pos_on_r]) == alphamap.end()) {
+            // The character from the read does not exist in the reference
+            match_len = 0;
+            mq.add_ms(match_len);
+            pos_on_r -= 1;
+            
+            std::cerr<< "The character " << R[pos_on_r] << " does not exist.\n";
+        } else if (row.c == R[pos_on_r]) {
+            std::cerr<< "It was a match. \n" << "Continue the search...\n";
+
             // Case 1
             match_len += 1;
+            mq.add_ms(match_len);
+            pos_on_r -= 1;
 
-            index = row->id;
-            pointer = row->pp + (pointer - row->p);
+            idx = row.id;
+            pointer = row.pp + (pointer - row.p);
+            std::cerr<<"Case 1 idx: " << idx << " pointer: " << pointer << "\n";
+            idx = fast_forward(pointer, idx);
+            std::cerr<<"fast forwarding: " << idx << "\n";
         } else {
+            std::cerr<< "Not a match, looking for a match either up or down...\n";
+
             // Case 2
             // Jumping randomly up or down
+            uint32_t saved_idx = idx;
             uint32_t jump = std::rand() % 2;
-            if ( (jump == 1 and index > 0) or index == rlbwt.size()-1) {
+            bool up = false;
+            if ( (jump == 1 and idx > 0) or idx == r - 1) {
+                std::cerr<< "Jumping up randomly:\n";
+
                 // jumping up
-                while (index > 0 and rlbwt[index]->c != R[pos_on_r]) {
-                    index -= 1;
+                up = true;
+                idx = jump_up(saved_idx, R[pos_on_r]);
+                std::cerr<<"idx after jump: " << idx << "\n";
+                if (rlbwt[idx].c != R[pos_on_r]) {
+                    std::cerr<< "Up didn't work, try jumping down:\n";
+
+                    // jump down
+                    up = false;
+                    idx = jump_down(saved_idx, R[pos_on_r]);
+                    std::cerr<<"idx after jump: " << idx << "\n";
                 }
             } else {
+                std::cerr<< "Jumping down randomly:\n";
+
                 // jumping down
-                while (index < rlbwt.size() - 1 and rlbwt[index]->c != R[pos_on_r]) {
-                    index += 1;
+                up = false;
+                idx = jump_down(saved_idx, R[pos_on_r]);
+                std::cerr<<"idx after jump: " << idx << "\n";
+                if (rlbwt[idx].c != R[pos_on_r]) {
+                    std::cerr<< "Down didn't work, try jumping up:\n";
+
+                    // jump up
+                    up = true;
+                    idx = jump_up(saved_idx, R[pos_on_r]);
+                    std::cerr<<"idx after jump: " << idx << "\n";
                 }
             }
-            if (rlbwt[index]->c == R[pos_on_r]) {
+            // sanity check
+            if (rlbwt[idx].c == R[pos_on_r]) {
                 // Observing a match after the jump
                 // The right match_len should be:
                 // min(new_lcp, match_len + 1)
                 // But we cannot compute lcp here
-                pointer = rlbwt[index]->pp + (row->p - rlbwt[index]->p);
-                index = fast_forward(pointer, index);
-                match_len += 1;
+                if (up)
+                    pointer = rlbwt[idx].p + rlbwt[idx].n - 1;
+                else
+                    pointer = rlbwt[idx].p;
+                match_len = 0;
+                std::cerr<<"Case 2 idx: " << idx << " pointer: " << pointer << "\n";
             } else {
-                match_len -= 1;
+                std::cerr << "This should not happen!\n";
+                exit(0);
             }
         }
-        pos_on_r -= 1;
-        mq.add_ms(match_len);
     }
-
 }
