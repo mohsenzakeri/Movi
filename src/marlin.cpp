@@ -13,7 +13,8 @@ int main(int argc, char* argv[]) {
 
         std::string query = argv[3];
         MoveQuery mq(query);
-        mv_.query_ms(mq);
+        bool random = true;
+        mv_.query_ms(mq, random);
         std::cerr<<mq<<"\n";
     }
 }

@@ -29,6 +29,20 @@ std::string MoveStructure::reconstruct() {
     return orig_string;
 }
 
+uint32_t MoveStructure::naive_lcp(uint32_t row1, uint32_t row2) {
+    if (row1 >= r or row2 >= r)
+        return 0;
+
+    if (!reconstructed)
+        orig_string = reconstruct();
+    uint32_t lcp = 0;
+    while (orig_string[row1 + lcp] == orig_string[row2 + lcp]) {
+        lcp += 1;
+    }
+    return lcp;
+}
+
+
 void MoveStructure::build(std::ifstream &bwt_file) {
     bwt_file.clear();
     bwt_file.seekg(0);
@@ -130,6 +144,8 @@ uint32_t MoveStructure::fast_forward(uint32_t pointer, uint32_t idx) {
 }
 
 uint32_t MoveStructure::jump_up(uint32_t idx, char c) {
+    if (idx == 0)
+        return r + 1;
     while (idx > 0 and rlbwt[idx].c != c) {
         idx -= 1;
     }
@@ -137,13 +153,15 @@ uint32_t MoveStructure::jump_up(uint32_t idx, char c) {
 }
 
 uint32_t MoveStructure::jump_down(uint32_t idx, char c) {
+    if (idx == r - 1)
+        return r + 1;
     while (idx < r - 1 and rlbwt[idx].c != c) {
         idx += 1;
     }
     return idx;
 }
 
-void MoveStructure::query_ms(MoveQuery& mq) {
+void MoveStructure::query_ms(MoveQuery& mq, bool random) {
     srand(time(0));
     std::string R = mq.query();
     int32_t pos_on_r = R.length() - 1;
@@ -191,49 +209,9 @@ void MoveStructure::query_ms(MoveQuery& mq) {
                 std::cerr<< "Not a match, looking for a match either up or down...\n";
 
             // Case 2
-            // Jumping randomly up or down
-            uint32_t saved_idx = idx;
-            uint32_t jump = std::rand() % 2;
-            bool up = false;
-            if ( (jump == 1 and idx > 0) or idx == r - 1) {
-                if (verbose)
-                    std::cerr<< "Jumping up randomly:\n";
+            // Jumping randomly up or down or with naive lcp computation
+            bool up = random ? jump_randomly(idx, R[pos_on_r]) : jump_naive_lcp(idx, R[pos_on_r]);
 
-                // jumping up
-                up = true;
-                idx = jump_up(saved_idx, R[pos_on_r]);
-                if (verbose)
-                    std::cerr<<"idx after jump: " << idx << "\n";
-                if (rlbwt[idx].c != R[pos_on_r]) {
-                    if (verbose)
-                        std::cerr<< "Up didn't work, try jumping down:\n";
-
-                    // jump down
-                    up = false;
-                    idx = jump_down(saved_idx, R[pos_on_r]);
-                    if (verbose)
-                        std::cerr<<"idx after jump: " << idx << "\n";
-                }
-            } else {
-                if (verbose)
-                    std::cerr<< "Jumping down randomly:\n";
-
-                // jumping down
-                up = false;
-                idx = jump_down(saved_idx, R[pos_on_r]);
-                if (verbose)
-                    std::cerr<<"idx after jump: " << idx << "\n";
-                if (rlbwt[idx].c != R[pos_on_r]) {
-                    if (verbose)
-                        std::cerr<< "Down didn't work, try jumping up:\n";
-
-                    // jump up
-                    up = true;
-                    idx = jump_up(saved_idx, R[pos_on_r]);
-                    if (verbose)
-                        std::cerr<<"idx after jump: " << idx << "\n";
-                }
-            }
             // sanity check
             if (rlbwt[idx].c == R[pos_on_r]) {
                 // Observing a match after the jump
@@ -252,5 +230,66 @@ void MoveStructure::query_ms(MoveQuery& mq) {
                 exit(0);
             }
         }
+    }
+}
+
+bool MoveStructure::jump_randomly(uint32_t& idx, char r_char) {
+    uint32_t saved_idx = idx;
+    uint32_t jump = std::rand() % 2;
+    bool up = false;
+
+    if ( (jump == 1 and idx > 0) or idx == r - 1) {
+        if (verbose)
+            std::cerr<< "Jumping up randomly:\n";
+
+        // jumping up
+        up = true;
+        idx = jump_up(saved_idx, r_char);
+        if (verbose)
+            std::cerr<<"idx after jump: " << idx << "\n";
+        if (rlbwt[idx].c != r_char) {
+            if (verbose)
+                std::cerr<< "Up didn't work, try jumping down:\n";
+
+            // jump down
+            up = false;
+            idx = jump_down(saved_idx, r_char);
+            if (verbose)
+                std::cerr<<"idx after jump: " << idx << "\n";
+        }
+    } else {
+        if (verbose)
+            std::cerr<< "Jumping down randomly:\n";
+
+        // jumping down
+        up = false;
+        idx = jump_down(saved_idx, r_char);
+        if (verbose)
+            std::cerr<<"idx after jump: " << idx << "\n";
+        if (rlbwt[idx].c != r_char) {
+            if (verbose)
+                std::cerr<< "Down didn't work, try jumping up:\n";
+
+            // jump up
+            up = true;
+            idx = jump_up(saved_idx, r_char);
+            if (verbose)
+                std::cerr<<"idx after jump: " << idx << "\n";
+        }
+    }
+    return up;
+}
+
+bool MoveStructure::jump_naive_lcp(uint32_t& idx, char r_char) {
+    uint32_t up_idx = jump_up(idx, r_char);
+    uint32_t down_idx = jump_down(idx, r_char);
+    uint32_t lcp_up = naive_lcp(idx, up_idx);
+    uint32_t lcp_down = naive_lcp(idx, down_idx);
+    if (lcp_up >= lcp_down) {
+        idx = up_idx;
+        return true;
+    } else {
+        idx = down_idx;
+        return false;
     }
 }

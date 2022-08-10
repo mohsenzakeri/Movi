@@ -40,13 +40,16 @@ class MoveStructure {
         MoveStructure(char* input_file, bool verbose_ = false);
 
         void build(std::ifstream &bwt_file);        
-        void query_ms(MoveQuery& mq);
+        void query_ms(MoveQuery& mq, bool random);
         std::string reconstruct();
 
         uint32_t LF(uint32_t row_number);
         uint32_t fast_forward(uint32_t pointer, uint32_t index);
+        uint32_t naive_lcp(uint32_t row1, uint32_t row2);
         uint32_t jump_up(uint32_t idx, char c);
         uint32_t jump_down(uint32_t idx, char c);
+        bool jump_randomly(uint32_t& idx, char r_char);
+        bool jump_naive_lcp(uint32_t& idx, char r_char);
     private:
         std::string bwt_string;
         std::string orig_string;
