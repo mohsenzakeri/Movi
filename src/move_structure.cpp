@@ -1,6 +1,8 @@
 #include "move_structure.hpp"
 
-MoveStructure::MoveStructure(char* input_file) {
+MoveStructure::MoveStructure(char* input_file, bool verbose_) {
+    verbose = verbose_;
+    reconstructed = false;
     std::ifstream bwt_file(input_file);
     build(bwt_file);
 }
@@ -16,6 +18,17 @@ uint32_t MoveStructure::LF(uint32_t row_number) {
     return lf;
 }
 
+std::string MoveStructure::reconstruct() {
+    if (!reconstructed) {
+        orig_string = "";
+        orig_string += END_CHARACTER;
+        for (uint32_t bwt_row = 0; bwt_row != end_bwt_row; bwt_row = LF(bwt_row)) {
+            orig_string = bwt_string[bwt_row] + orig_string;
+        }
+    }
+    return orig_string;
+}
+
 void MoveStructure::build(std::ifstream &bwt_file) {
     bwt_file.clear();
     bwt_file.seekg(0);
@@ -26,13 +39,13 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::vector<uint32_t> all_chars(all_chars_count, 0);
     uint32_t current_char = bwt_file.get();
     r = 0;
-    while (current_char != EOF)
+    while (current_char != EOF and current_char != 10)
     {
+        if (bwt_string.length() > 0 and current_char != bwt_string.back()) r += 1;
         bwt_string += current_char;
-
         all_chars[static_cast<uint32_t>(current_char)] += 1;
+
         current_char = bwt_file.get();
-        if (current_char != bwt_string.back() and current_char != EOF) r += 1;
     }
     std::cerr<< "r: " << r << "\n";
     length = bwt_string.length();
@@ -43,9 +56,9 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     uint32_t alphabet_index = 0;
     for (uint32_t i = 33; i < 127; i++) {
         if (all_chars[i] != 0) {
-            std::cerr<< "i is " << i << ".\n";
             auto current_char = static_cast<unsigned char>(i);
-            std::cerr<< i << "\t" << current_char << "\t" << all_chars[i] << "\n";
+            if (verbose)
+                std::cerr<< "i is " << i << "\t" << current_char << "\t" << all_chars[i] << "\n";
 
             alphabet.push_back(current_char);
             counts.push_back(all_chars[i]);
@@ -61,6 +74,8 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         bit_vec[i] = 1;
     }
     for (auto& occ: occs) {
+        if (verbose)
+            std::cerr<< *occ << "\n";
         occs_rank.push_back(new sdsl::rank_support_v<>(occ));
     }
 
@@ -70,6 +85,9 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     uint32_t r_idx = 0;
     sdsl::bit_vector bits(length, 0);
     for (uint32_t i = 0; i < length; i++) {
+        if (bwt_string[i] == END_CHARACTER) {
+            end_bwt_row = i;
+        }
         if (i == length - 1 or bwt_string[i] != bwt_string[i+1]) {
             len += 1;
             uint32_t lf  = 0;
@@ -85,7 +103,8 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         else if (bwt_string[i] == bwt_string[i+1])
             len += 1;
     }
-    std::cerr<<"bits: " << bits << "\n";
+    if (verbose)
+        std::cerr<<"bits: " << bits << "\n";
     sdsl::rank_support_v<> rbits(&bits);
     uint32_t idx = 0;
     for (auto& row: rlbwt) {
@@ -94,7 +113,8 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         while (set_bit > 0 and bits[set_bit] == 0)
             set_bit -= 1;
         row.id = rbits(set_bit);
-        std::cerr<< idx << " " << row.c << " offset: " << row.p << " len: " << 
+        if (verbose)
+            std::cerr<< idx << " " << row.c << " offset: " << row.p << " len: " << 
                     row.n << " lf_pp: " << row.pp << " pp_id: " << row.id << "\n";
         idx += 1;
     }
@@ -102,8 +122,8 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 }
 
 uint32_t MoveStructure::fast_forward(uint32_t pointer, uint32_t idx) {
-
-    std::cerr << idx << " + " << rlbwt[idx].p << " + " << rlbwt[idx].n << "\n";
+    if (verbose)
+        std::cerr << idx << " + " << rlbwt[idx].p << " + " << rlbwt[idx].n << "\n";
     while (idx < r - 1 and pointer > rlbwt[idx].p + rlbwt[idx].n)
         idx += 1;
     return idx;
@@ -135,9 +155,11 @@ void MoveStructure::query_ms(MoveQuery& mq) {
     
     std::cerr<< "beginning of the search:\n";
     std::cerr<< "query: " << mq.query() << "\n";
-    std::cerr<< "idx(r-1): " << idx << " pointer: " << pointer << "\n";
+    if (verbose)
+        std::cerr<< "idx(r-1): " << idx << " pointer: " << pointer << "\n";
     while (pos_on_r > -1) {
-        std::cerr<< "Searching position " << pos_on_r << " of the read:\n";
+        if (verbose)
+            std::cerr<< "Searching position " << pos_on_r << " of the read:\n";
         
         auto& row = rlbwt[idx];
         if (alphamap.find(R[pos_on_r]) == alphamap.end()) {
@@ -145,9 +167,11 @@ void MoveStructure::query_ms(MoveQuery& mq) {
             match_len = 0;
             mq.add_ms(match_len);
             pos_on_r -= 1;
-            
+
+        if (verbose)
             std::cerr<< "The character " << R[pos_on_r] << " does not exist.\n";
         } else if (row.c == R[pos_on_r]) {
+        if (verbose)
             std::cerr<< "It was a match. \n" << "Continue the search...\n";
 
             // Case 1
@@ -157,11 +181,14 @@ void MoveStructure::query_ms(MoveQuery& mq) {
 
             idx = row.id;
             pointer = row.pp + (pointer - row.p);
-            std::cerr<<"Case 1 idx: " << idx << " pointer: " << pointer << "\n";
+            if (verbose)
+                std::cerr<<"Case 1 idx: " << idx << " pointer: " << pointer << "\n";
             idx = fast_forward(pointer, idx);
-            std::cerr<<"fast forwarding: " << idx << "\n";
+            if (verbose)
+                std::cerr<<"fast forwarding: " << idx << "\n";
         } else {
-            std::cerr<< "Not a match, looking for a match either up or down...\n";
+            if (verbose)
+                std::cerr<< "Not a match, looking for a match either up or down...\n";
 
             // Case 2
             // Jumping randomly up or down
@@ -169,34 +196,42 @@ void MoveStructure::query_ms(MoveQuery& mq) {
             uint32_t jump = std::rand() % 2;
             bool up = false;
             if ( (jump == 1 and idx > 0) or idx == r - 1) {
-                std::cerr<< "Jumping up randomly:\n";
+                if (verbose)
+                    std::cerr<< "Jumping up randomly:\n";
 
                 // jumping up
                 up = true;
                 idx = jump_up(saved_idx, R[pos_on_r]);
-                std::cerr<<"idx after jump: " << idx << "\n";
+                if (verbose)
+                    std::cerr<<"idx after jump: " << idx << "\n";
                 if (rlbwt[idx].c != R[pos_on_r]) {
-                    std::cerr<< "Up didn't work, try jumping down:\n";
+                    if (verbose)
+                        std::cerr<< "Up didn't work, try jumping down:\n";
 
                     // jump down
                     up = false;
                     idx = jump_down(saved_idx, R[pos_on_r]);
-                    std::cerr<<"idx after jump: " << idx << "\n";
+                    if (verbose)
+                        std::cerr<<"idx after jump: " << idx << "\n";
                 }
             } else {
-                std::cerr<< "Jumping down randomly:\n";
+                if (verbose)
+                    std::cerr<< "Jumping down randomly:\n";
 
                 // jumping down
                 up = false;
                 idx = jump_down(saved_idx, R[pos_on_r]);
-                std::cerr<<"idx after jump: " << idx << "\n";
+                if (verbose)
+                    std::cerr<<"idx after jump: " << idx << "\n";
                 if (rlbwt[idx].c != R[pos_on_r]) {
-                    std::cerr<< "Down didn't work, try jumping up:\n";
+                    if (verbose)
+                        std::cerr<< "Down didn't work, try jumping up:\n";
 
                     // jump up
                     up = true;
                     idx = jump_up(saved_idx, R[pos_on_r]);
-                    std::cerr<<"idx after jump: " << idx << "\n";
+                    if (verbose)
+                        std::cerr<<"idx after jump: " << idx << "\n";
                 }
             }
             // sanity check
@@ -210,7 +245,8 @@ void MoveStructure::query_ms(MoveQuery& mq) {
                 else
                     pointer = rlbwt[idx].p;
                 match_len = 0;
-                std::cerr<<"Case 2 idx: " << idx << " pointer: " << pointer << "\n";
+                if (verbose)
+                    std::cerr<<"Case 2 idx: " << idx << " pointer: " << pointer << "\n";
             } else {
                 std::cerr << "This should not happen!\n";
                 exit(0);

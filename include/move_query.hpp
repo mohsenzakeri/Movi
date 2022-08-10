@@ -11,6 +11,7 @@ class MoveQuery {
         void add_ms(uint32_t len) { ms_lens.push_back(len); }
 
         friend std::ostream& operator<<(std::ostream& output, const MoveQuery& dt) {
+            output << "The matching statistics are:\n";
             for (auto& ms: dt.ms_lens) {
                 output << ms << " ";
             }

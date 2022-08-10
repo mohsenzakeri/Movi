@@ -7,6 +7,8 @@
 
 #include "move_query.hpp"
 
+#define END_CHARACTER '$'
+
 struct move_row{
     move_row () { p = 0; n = 0; pp = 0; id = 0; c = 0; }
     move_row(uint32_t p, uint32_t n, 
@@ -35,10 +37,11 @@ struct move_row{
 class MoveStructure {
     public:
         MoveStructure() { }
-        MoveStructure(char* input_file);
+        MoveStructure(char* input_file, bool verbose_ = false);
 
         void build(std::ifstream &bwt_file);        
         void query_ms(MoveQuery& mq);
+        std::string reconstruct();
 
         uint32_t LF(uint32_t row_number);
         uint32_t fast_forward(uint32_t pointer, uint32_t index);
@@ -46,8 +49,12 @@ class MoveStructure {
         uint32_t jump_down(uint32_t idx, char c);
     private:
         std::string bwt_string;
+        std::string orig_string;
+        bool reconstructed;
         uint32_t length;
         uint32_t r;
+        uint32_t end_bwt_row;
+        bool verbose;
 
         std::vector<unsigned char> alphabet;
         std::vector<uint32_t> counts;
