@@ -12,7 +12,8 @@ class MoveQuery {
 
         friend std::ostream& operator<<(std::ostream& output, const MoveQuery& dt) {
             output << "The matching statistics are:\n";
-            for (auto& ms: dt.ms_lens) {
+            for (int32_t i = dt.ms_lens.size() - 1; i >= 0; i--) {
+                auto ms = dt.ms_lens[i];
                 output << ms << " ";
             }
             return output;

@@ -45,11 +45,17 @@ class MoveStructure {
 
         uint32_t LF(uint32_t row_number);
         uint32_t fast_forward(uint32_t pointer, uint32_t index);
+
         uint32_t naive_lcp(uint32_t row1, uint32_t row2);
+        uint32_t naive_sa(uint32_t bwt_row);
+
         uint32_t jump_up(uint32_t idx, char c);
         uint32_t jump_down(uint32_t idx, char c);
         bool jump_randomly(uint32_t& idx, char r_char);
-        bool jump_naive_lcp(uint32_t& idx, char r_char);
+        bool jump_naive_lcp(uint32_t& idx, uint32_t pointer, char r_char, uint32_t& lcp);
+
+        void seralize(char* output_dir);
+        void deseralize(char* index_dir);
     private:
         std::string bwt_string;
         std::string orig_string;
@@ -65,6 +71,8 @@ class MoveStructure {
 
         std::vector<sdsl::bit_vector*> occs;
         std::vector<sdsl::rank_support_v<>*> occs_rank;
+        sdsl::bit_vector bits;
+        sdsl::rank_support_v<> rbits;
 
         std::vector<move_row> rlbwt;
 };
