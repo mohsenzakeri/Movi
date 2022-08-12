@@ -68,7 +68,7 @@ class MoveStructure {
 
         std::vector<unsigned char> alphabet;
         std::vector<uint32_t> counts;
-        std::map<unsigned char, uint32_t> alphamap;
+        std::vector<uint32_t> alphamap;
 
         std::vector<sdsl::bit_vector*> occs;
         std::vector<sdsl::rank_support_v<>*> occs_rank;

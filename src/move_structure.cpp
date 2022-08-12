@@ -84,7 +84,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
     // Building the auxilary structures
     uint32_t alphabet_index = 0;
-    for (uint32_t i = 33; i < 127; i++) {
+    for (uint32_t i = 0; i < all_chars_count; i++) {
         if (all_chars[i] != 0) {
             auto current_char = static_cast<unsigned char>(i);
             if (verbose)
@@ -102,6 +102,9 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     }
 
     for (uint32_t i = 0; i < length; i++) {
+        auto x = alphamap[static_cast<uint32_t>(bwt_string[i])];
+        if (x >= occs.size())
+            std::cerr<<occs.size() << " " << x << "\n";
 	    auto& bit_vec = *occs[alphamap[static_cast<uint32_t>(bwt_string[i])]];
         bit_vec[i] = 1;
     }
@@ -340,35 +343,35 @@ void MoveStructure::seralize(char* output_dir) {
     mkdir(output_dir,0777);
     std::string fname = static_cast<std::string>(output_dir) + "/rlbwt.bin";
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
-
-    fout.write((char*) &length, sizeof(length));
-    fout.write((char*) &r, sizeof(r));
-    fout.write((char*) &end_bwt_row, sizeof(end_bwt_row));
+    std::cerr<< "length: " << length << " r: " << r << " end_bwt_row: " << end_bwt_row << "\n";
+    fout.write(reinterpret_cast<char*>(&length), sizeof(length));
+    fout.write(reinterpret_cast<char*>(&r), sizeof(r));
+    fout.write(reinterpret_cast<char*>(&end_bwt_row), sizeof(end_bwt_row));
 
     uint32_t alphamap_size = alphamap.size();
-    fout.write((char*) &alphamap_size, sizeof(alphamap_size));
+    fout.write(reinterpret_cast<char*>(&alphamap_size), sizeof(alphamap_size));
     for (uint32_t alphamap_item : alphamap) {
-        fout.write((char*) &alphamap_item, sizeof(alphamap_item));
+        fout.write(reinterpret_cast<char*>(&alphamap_item), sizeof(alphamap_item));
     }
 
-    for (uint64_t i = 0; i < r; i++) {
+    for (uint32_t i = 0; i < r; i++) {
 	    unsigned char curr_char = rlbwt[i].c;
-        fout.write((char*) &curr_char, sizeof(curr_char));
+        fout.write(reinterpret_cast<char*>(&curr_char), sizeof(curr_char));
         uint32_t curr_p = rlbwt[i].p;
-        fout.write((char*) &curr_p, sizeof(curr_p));
+        fout.write(reinterpret_cast<char*>(&curr_p), sizeof(curr_p));
         uint32_t curr_n = rlbwt[i].n;
-        fout.write((char*) &curr_n, sizeof(curr_n));
+        fout.write(reinterpret_cast<char*>(&curr_n), sizeof(curr_n));
         uint32_t curr_pp = rlbwt[i].pp;
-        fout.write((char*) &curr_pp, sizeof(curr_pp));
+        fout.write(reinterpret_cast<char*>(&curr_pp), sizeof(curr_pp));
         uint32_t curr_id = rlbwt[i].id;
-        fout.write((char*) &curr_id, sizeof(curr_id));
+        fout.write(reinterpret_cast<char*>(&curr_id), sizeof(curr_id));
     }
 
-    fout.write((char*) &bwt_string[0], length);
+    fout.write(reinterpret_cast<char*>(&bwt_string[0]), length);
     size_t orig_size = orig_string.size();
-    fout.write((char*) &orig_size, sizeof(orig_size));
-    fout.write((char*) &orig_string[0], orig_size);
-    fout.write((char*) &reconstructed, sizeof(reconstructed));
+    fout.write(reinterpret_cast<char*>(&orig_size), sizeof(orig_size));
+    fout.write(reinterpret_cast<char*>(&orig_string[0]), orig_size);
+    fout.write(reinterpret_cast<char*>(&reconstructed), sizeof(reconstructed));
 
     fout.close();
 }
@@ -376,41 +379,45 @@ void MoveStructure::seralize(char* output_dir) {
 void MoveStructure::deseralize(char* index_dir) {
     std::string fname = static_cast<std::string>(index_dir) + "/rlbwt.bin";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
-
-    fin.read((char*) &length, sizeof(length));
-    fin.read((char*) &r, sizeof(r));
-    rlbwt.resize(r);
-    fin.read((char*) &end_bwt_row, sizeof(end_bwt_row));
-
+    uint32_t a, b, c;
+    fin.seekg(0, std::ios::beg); 
+    fin.read(reinterpret_cast<char*>(&length), sizeof(length));
+    fin.read(reinterpret_cast<char*>(&r), sizeof(r));
+    fin.read(reinterpret_cast<char*>(&end_bwt_row), sizeof(end_bwt_row));
+    std::cerr<< "length: " << length << " r: " << r << " end_bwt_row: " << end_bwt_row << "\n";
     uint32_t alphamap_size;
-    fin.read((char*) &alphamap_size, sizeof(alphamap_size));
+    fin.read(reinterpret_cast<char*>(&alphamap_size), sizeof(alphamap_size));
     alphamap.resize(alphamap_size);
     for (uint32_t i = 0; i < alphamap_size; i++) {
         uint32_t alphamap_item;
-        fin.read((char*) &alphamap_item, sizeof(alphamap_item));
+        fin.read(reinterpret_cast<char*>(&alphamap_item), sizeof(alphamap_item));
         alphamap[i] = alphamap_item;
     }
 
     unsigned char curr_char;
     uint32_t curr_p, curr_n, curr_pp, curr_id;
     for(uint32_t i = 0; i < r; i++) {
-        fin.read((char*) &curr_char, sizeof(curr_char));
-        fin.read((char*) &curr_p, sizeof(curr_p));
-        fin.read((char*) &curr_n, sizeof(curr_n));
-        fin.read((char*) &curr_pp, sizeof(curr_pp));
-        fin.read((char*) &curr_id, sizeof(curr_id));
-        rlbwt[i].init(curr_p, curr_n, curr_pp, curr_id, curr_char);
+        if (i%10000 == 0) std::cerr<< i << "\r";
+        fin.read(reinterpret_cast<char*>(&curr_char), sizeof(curr_char));
+        fin.read(reinterpret_cast<char*>(&curr_p), sizeof(curr_p));
+        fin.read(reinterpret_cast<char*>(&curr_n), sizeof(curr_n));
+        fin.read(reinterpret_cast<char*>(&curr_pp), sizeof(curr_pp));
+        fin.read(reinterpret_cast<char*>(&curr_id), sizeof(curr_id));
+        move_row mr(curr_p, curr_n, curr_pp, curr_id, curr_char);
+        rlbwt.push_back(mr);
         for (uint32_t j = 0; j < curr_n; j++)
             bwt_string += curr_char;
     }
+    std::cerr << "All the move rows are read.\n";
 
     bwt_string.resize(length);
-    fin.read((char*) &bwt_string[0], length);
+    fin.read(reinterpret_cast<char*>(&bwt_string[0]), length);
     size_t orig_size;
-    fin.read((char*) &orig_size, sizeof(orig_size));
+    fin.read(reinterpret_cast<char*>(&orig_size), sizeof(orig_size));
     orig_string.resize(orig_size);
-    fin.read((char*) &orig_string[0], orig_size);
-    fin.read((char*) &reconstructed, sizeof(reconstructed));
+    fin.read(reinterpret_cast<char*>(&orig_string[0]), orig_size);
+    fin.read(reinterpret_cast<char*>(&reconstructed), sizeof(reconstructed));
+    reconstructed = false;
 
     fin.close();
 }
