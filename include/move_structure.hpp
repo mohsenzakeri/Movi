@@ -37,6 +37,7 @@ struct move_row{
 class MoveStructure {
     public:
         MoveStructure() { }
+        MoveStructure(bool verbose_ = false) { verbose = verbose_; }
         MoveStructure(char* input_file, bool verbose_ = false);
 
         void build(std::ifstream &bwt_file);        

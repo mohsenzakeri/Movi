@@ -27,6 +27,7 @@ std::string MoveStructure::reconstruct() {
         for (uint32_t bwt_row = 0; bwt_row != end_bwt_row; bwt_row = LF(bwt_row)) {
             orig_string = bwt_string[bwt_row] + orig_string;
         }
+        reconstructed = true;
     }
     return orig_string;
 }
@@ -332,12 +333,13 @@ bool MoveStructure::jump_naive_lcp(uint32_t& idx, uint32_t pointer, char r_char,
 }
 
 void MoveStructure::seralize(char* output_dir) {
-    /*mkdir(output_dir,0777);
+    mkdir(output_dir,0777);
     std::string fname = static_cast<std::string>(output_dir) + "/rlbwt.bin";
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
 
     fout.write((char*) &length, sizeof(length));
     fout.write((char*) &r, sizeof(r));
+    fout.write((char*) &end_bwt_row, sizeof(end_bwt_row));
     for(uint64_t i = 0; i < r; i++) {
 	    unsigned char curr_char = rlbwt[i].c;
         fout.write((char*) &curr_char, sizeof(curr_char));
@@ -350,27 +352,44 @@ void MoveStructure::seralize(char* output_dir) {
         uint32_t curr_id = rlbwt[i].id;
         fout.write((char*) &curr_id, sizeof(curr_id));        
     }
-    fout.close();*/
+
+    fout.write((char*) &bwt_string[0], length);
+    size_t orig_size = orig_string.size();
+    fout.write((char*) &orig_size, sizeof(orig_size));
+    fout.write((char*) &orig_string[0], orig_size);
+    fout.write((char*) &reconstructed, sizeof(reconstructed));
+    
+    fout.close();
 }
 
 void MoveStructure::deseralize(char* index_dir) {
-    /*std::string fname = static_cast<std::string>(index_dir) + "/rlbwt.bin";
+    std::string fname = static_cast<std::string>(index_dir) + "/rlbwt.bin";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
 
     fin.read((char*) &length, sizeof(length));
     fin.read((char*) &r, sizeof(r));
     rlbwt.resize(r);
+    fin.read((char*) &end_bwt_row, sizeof(end_bwt_row));
     unsigned char curr_char;
-    uint32_t curr_p, cur_n, curr_pp, curr_id;
+    uint32_t curr_p, curr_n, curr_pp, curr_id;
     for(uint32_t i = 0; i < r; i++) {
         fin.read((char*) &curr_char, sizeof(curr_char));
         fin.read((char*) &curr_p, sizeof(curr_p));
-        fin.read((char*) &cur_n, sizeof(cur_n));
+        fin.read((char*) &curr_n, sizeof(curr_n));
         fin.read((char*) &curr_pp, sizeof(curr_pp));
         fin.read((char*) &curr_id, sizeof(curr_id));
-        rlbwt[r_idx].init(curr_p, cur_n, curr_pp, curr_id, curr_char);
+        rlbwt[i].init(curr_p, curr_n, curr_pp, curr_id, curr_char);
         for (uint32_t j = 0; j < curr_n; j++)
             bwt_string += curr_char;
     }
-    fin.close();*/
+
+    bwt_string.resize(length);
+    fin.read((char*) &bwt_string[0], length);
+    size_t orig_size;
+    fin.read((char*) &orig_size, sizeof(orig_size));
+    orig_string.resize(orig_size);
+    fin.read((char*) &orig_string[0], orig_size);
+    fin.read((char*) &reconstructed, sizeof(reconstructed));
+
+    fin.close();
 }
