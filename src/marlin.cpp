@@ -11,7 +11,7 @@ int main(int argc, char* argv[]) {
         std::cerr<<"The move structure is successfully built!\n";
         std::cerr<<"The original string is:\n" << mv_.reconstruct() << "\n";
         mv_.seralize(argv[3]);
-
+        std::cerr<<"The move structure is successfully stored at ./" << argv[3] << "/\n";
     } else if (command == "query") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         MoveStructure mv_(verbose);

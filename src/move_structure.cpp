@@ -11,7 +11,7 @@ MoveStructure::MoveStructure(char* input_file, bool verbose_) {
 
 uint32_t MoveStructure::LF(uint32_t row_number) {
     uint32_t lf = 0;
-    uint32_t alphabet_index = alphamap[bwt_string[row_number]];
+    uint32_t alphabet_index = alphamap[static_cast<uint32_t>(bwt_string[row_number])];
     for (uint32_t i = 0; i < alphabet_index; i++) {
         lf += counts[i];
     }
@@ -64,6 +64,8 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     // Reading the BWT from the file
     bwt_string = "";
     uint32_t all_chars_count = 256;
+    alphamap.resize(all_chars_count);
+    std::fill(alphamap.begin(), alphamap.end(), alphamap.size());
     std::vector<uint32_t> all_chars(all_chars_count, 0);
     uint32_t current_char = bwt_file.get();
     r = 1;
@@ -91,17 +93,19 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
             alphabet.push_back(current_char);
             counts.push_back(all_chars[i]);
-            alphamap[current_char] = alphabet_index;
+            alphamap[i] = alphabet_index;
             alphabet_index += 1;
 
             sdsl::bit_vector* new_bit_vector = new sdsl::bit_vector(length, 0);
 	        occs.push_back(new_bit_vector);
         }
     }
+
     for (uint32_t i = 0; i < length; i++) {
-	    auto& bit_vec = *occs[alphamap[bwt_string[i]]];
+	    auto& bit_vec = *occs[alphamap[static_cast<uint32_t>(bwt_string[i])]];
         bit_vec[i] = 1;
     }
+
     for (auto& occ: occs) {
         if (verbose)
             std::cerr<< *occ << "\n";
@@ -121,7 +125,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         if (i == length - 1 or bwt_string[i] != bwt_string[i+1]) {
             len += 1;
             uint32_t lf  = 0;
-            if (alphamap[bwt_string[i]] != 0)
+            if (alphamap[static_cast<uint32_t>(bwt_string[i])] != 0)
                 lf = LF(offset);
             bits[offset] = 1;
             rlbwt[r_idx].init(offset, len, lf, i, bwt_string[i]);
@@ -198,7 +202,7 @@ void MoveStructure::query_ms(MoveQuery& mq, bool random) {
             std::cerr<< "Searching position " << pos_on_r << " of the read:\n";
 
         auto& row = rlbwt[idx];
-        if (alphamap.find(R[pos_on_r]) == alphamap.end()) { // not to use map
+        if (alphamap[static_cast<uint32_t>(R[pos_on_r])] == alphamap.size()) { // not to use map
             // The character from the read does not exist in the reference
             match_len = 0;
             mq.add_ms(match_len);
@@ -340,7 +344,14 @@ void MoveStructure::seralize(char* output_dir) {
     fout.write((char*) &length, sizeof(length));
     fout.write((char*) &r, sizeof(r));
     fout.write((char*) &end_bwt_row, sizeof(end_bwt_row));
-    for(uint64_t i = 0; i < r; i++) {
+
+    uint32_t alphamap_size = alphamap.size();
+    fout.write((char*) &alphamap_size, sizeof(alphamap_size));
+    for (uint32_t alphamap_item : alphamap) {
+        fout.write((char*) &alphamap_item, sizeof(alphamap_item));
+    }
+
+    for (uint64_t i = 0; i < r; i++) {
 	    unsigned char curr_char = rlbwt[i].c;
         fout.write((char*) &curr_char, sizeof(curr_char));
         uint32_t curr_p = rlbwt[i].p;
@@ -350,7 +361,7 @@ void MoveStructure::seralize(char* output_dir) {
         uint32_t curr_pp = rlbwt[i].pp;
         fout.write((char*) &curr_pp, sizeof(curr_pp));
         uint32_t curr_id = rlbwt[i].id;
-        fout.write((char*) &curr_id, sizeof(curr_id));        
+        fout.write((char*) &curr_id, sizeof(curr_id));
     }
 
     fout.write((char*) &bwt_string[0], length);
@@ -358,7 +369,7 @@ void MoveStructure::seralize(char* output_dir) {
     fout.write((char*) &orig_size, sizeof(orig_size));
     fout.write((char*) &orig_string[0], orig_size);
     fout.write((char*) &reconstructed, sizeof(reconstructed));
-    
+
     fout.close();
 }
 
@@ -370,6 +381,16 @@ void MoveStructure::deseralize(char* index_dir) {
     fin.read((char*) &r, sizeof(r));
     rlbwt.resize(r);
     fin.read((char*) &end_bwt_row, sizeof(end_bwt_row));
+
+    uint32_t alphamap_size;
+    fin.read((char*) &alphamap_size, sizeof(alphamap_size));
+    alphamap.resize(alphamap_size);
+    for (uint32_t i = 0; i < alphamap_size; i++) {
+        uint32_t alphamap_item;
+        fin.read((char*) &alphamap_item, sizeof(alphamap_item));
+        alphamap[i] = alphamap_item;
+    }
+
     unsigned char curr_char;
     uint32_t curr_p, curr_n, curr_pp, curr_id;
     for(uint32_t i = 0; i < r; i++) {
