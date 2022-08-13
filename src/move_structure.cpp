@@ -23,7 +23,7 @@ uint32_t MoveStructure::LF(uint32_t row_number) {
 std::string MoveStructure::reconstruct() {
     if (!reconstructed) {
         orig_string = "";
-        orig_string += END_CHARACTER;
+        orig_string += static_cast<char>(END_CHARACTER);
         for (uint32_t bwt_row = 0; bwt_row != end_bwt_row; bwt_row = LF(bwt_row)) {
             orig_string = bwt_string[bwt_row] + orig_string;
         }
@@ -121,7 +121,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     uint32_t r_idx = 0;
     bits = sdsl::bit_vector(length, 0);
     for (uint32_t i = 0; i < length; i++) {
-        if (bwt_string[i] == END_CHARACTER) {
+        if (bwt_string[i] == static_cast<char>(END_CHARACTER) ) {
             end_bwt_row = i;
         }
 

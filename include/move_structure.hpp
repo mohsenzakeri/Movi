@@ -7,8 +7,7 @@
 
 #include "move_query.hpp"
 
-#define END_CHARACTER '$'
-
+#define END_CHARACTER 0
 struct move_row{
     move_row () { p = 0; n = 0; pp = 0; id = 0; c = 0; }
     move_row(uint32_t p, uint32_t n, 
