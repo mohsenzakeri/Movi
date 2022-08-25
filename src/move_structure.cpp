@@ -69,11 +69,16 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::vector<uint64_t> all_chars(all_chars_count, 0);
     uint64_t current_char = bwt_file.get();
     r = 1;
+    //TODO Use a size based on the input size
+    bits = sdsl::bit_vector(10000000000, 0);
+    bits[0] = 1;
     while (current_char != EOF && current_char != 10) {
         if (r % 10000 == 0)
             std::cerr<< r << "\r";
-        if (bwt_string.length() > 0 && current_char != bwt_string.back())
+        if (bwt_string.length() > 0 && current_char != bwt_string.back()) {
             r += 1;
+            bits[bwt_string.length() + 1] = 1;
+        }
         bwt_string += current_char;
         all_chars[current_char] += 1;
 
@@ -83,6 +88,9 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     length = bwt_string.length();
     std::cerr<<"length: " << length << "\n";
     rlbwt.resize(r);
+    if (verbose and bits.size() < 1000)
+        std::cerr<<"bits: " << bits << "\n";
+    rbits = sdsl::rank_support_v<>(&bits);
 
     // Building the auxilary structures
     uint64_t alphabet_index = 0;
@@ -141,8 +149,11 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             uint64_t lf  = 0;
             if (alphamap[static_cast<uint64_t>(bwt_string[i])] != 0)
                 lf = LF(offset);
-            bits[offset] = 1;
-            rlbwt[r_idx].init(offset, len, lf, i, bwt_string[i]);
+            // bits[offset] = 1;
+            uint64_t pp_id = rbits(lf);
+            if (bits[lf] == 1)
+                pp_id += 1;
+            rlbwt[r_idx].init(offset, len, lf, pp_id, bwt_string[i]);
 
             offset += len;
             len = 0;
@@ -154,7 +165,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::cerr<< length << "\n";
     std::cerr<< "The first pass of move structure building is done.\n";
 
-    if (verbose and bits.size() < 1000)
+    /*if (verbose and bits.size() < 1000)
         std::cerr<<"bits: " << bits << "\n";
     rbits = sdsl::rank_support_v<>(&bits);
     uint64_t idx = 0;
@@ -171,7 +182,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                     row.n << " lf_pp: " << row.pp << " pp_id: " << row.id << "\n";
         idx += 1;
     }
-    std::cerr<< idx << "\n";
+    std::cerr<< idx << "\n";*/
 }
 
 uint64_t MoveStructure::fast_forward(uint64_t pointer, uint64_t idx) {
