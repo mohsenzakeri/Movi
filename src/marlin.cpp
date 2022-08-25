@@ -4,6 +4,9 @@
 
 int main(int argc, char* argv[]) {
     std::string command = argv[1];
+    std::cout<<SIZE_MAX<<"\n";
+    std::cout<<UINT64_MAX<<"\n";
+    std::cout<<UINT32_MAX<<"\n";
     if (command == "build") {
         std::cerr<<"The move structure is being built.\n";
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
@@ -27,4 +30,5 @@ int main(int argc, char* argv[]) {
         mv_.query_ms(mq, random_jump);
         std::cerr<<mq<<"\n";
     }
-}
+
+} 
