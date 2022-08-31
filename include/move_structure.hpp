@@ -9,35 +9,32 @@
 
 #define END_CHARACTER 0
 struct move_row{
-    move_row () { p = 0; n = 0; pp = 0; id = 0; c = 0; }
+    move_row () { p = 0; n = 0; pp = 0; id = 0;}
     move_row(uint64_t p, uint64_t n, 
-                 uint64_t pp, uint64_t id, char c) {
+                 uint64_t pp, uint64_t id) {
         this->p = p;
         this->n = n;
         this->pp = pp;
         this->id = id;
-        this->c = c;
     }
     void init(uint64_t p, uint64_t n, 
-                 uint64_t pp, uint64_t id, char c) {
+                 uint64_t pp, uint64_t id) {
         this->p = p;
         this->n = n;
         this->pp = pp;
         this->id = id;
-        this->c = c;
     }
     uint64_t p;
     uint64_t n;
     uint64_t pp;
     uint64_t id;
-    char c;
 };
 
 class MoveStructure {
     public:
         MoveStructure() { }
         MoveStructure(bool verbose_ = false) { verbose = verbose_; }
-        MoveStructure(char* input_file, bool verbose_ = false);
+        MoveStructure(char* input_file, bool two_bits_ = false, bool verbose_ = false);
 
         void build(std::ifstream &bwt_file);        
         void query_ms(MoveQuery& mq, bool random);
@@ -45,6 +42,7 @@ class MoveStructure {
 
         uint64_t LF(uint64_t row_number);
         uint64_t fast_forward(uint64_t pointer, uint64_t index);
+        char compute_char(uint64_t idx);
 
         uint64_t naive_lcp(uint64_t row1, uint64_t row2);
         uint64_t naive_sa(uint64_t bwt_row);
@@ -57,6 +55,7 @@ class MoveStructure {
         void seralize(char* output_dir);
         void deseralize(char* index_dir);
     private:
+        bool two_bits;
         std::string bwt_string;
         std::string orig_string;
         bool reconstructed;
@@ -75,6 +74,10 @@ class MoveStructure {
         sdsl::rank_support_v<> rbits;
 
         std::vector<move_row> rlbwt;
+        std::vector<char> rlbwt_chars;
+        uint64_t eof_row;
+        uint64_t two_bits_begin;
+        uint64_t two_bits_after_eof;
 };
 
 #endif

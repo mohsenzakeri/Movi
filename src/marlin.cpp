@@ -4,19 +4,17 @@
 
 int main(int argc, char* argv[]) {
     std::string command = argv[1];
-    std::cout<<SIZE_MAX<<"\n";
-    std::cout<<UINT64_MAX<<"\n";
-    std::cout<<UINT32_MAX<<"\n";
     if (command == "build") {
         std::cerr<<"The move structure is being built.\n";
-        bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
-        MoveStructure mv_(argv[2], verbose);
+        bool mode = argv[2] == "2bits" ? true : false;
+        bool verbose = (argc > 5 and std::string(argv[5]) == "verbose");
+        MoveStructure mv_(argv[3], mode, verbose);
         std::cerr<<"The move structure is successfully built!\n";
         // mv_.reconstruct();
         // std::cerr<<"The original string is reconstructed.\n";
         // std::cerr<<"The original string is:\n" << mv_.reconstruct() << "\n";
-        mv_.seralize(argv[3]);
-        std::cerr<<"The move structure is successfully stored at ./" << argv[3] << "/\n";
+        mv_.seralize(argv[4]);
+        std::cerr<<"The move structure is successfully stored at ./" << argv[4] << "/\n";
     } else if (command == "query") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         MoveStructure mv_(verbose);
@@ -30,5 +28,4 @@ int main(int argc, char* argv[]) {
         mv_.query_ms(mq, random_jump);
         std::cerr<<mq<<"\n";
     }
-
-} 
+}
