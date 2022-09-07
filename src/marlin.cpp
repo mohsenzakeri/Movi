@@ -1,6 +1,7 @@
 
 #include <zlib.h>
 #include <stdio.h>
+#include <chrono>
 
 #include "kseq.h"
 
@@ -26,8 +27,12 @@ int main(int argc, char* argv[]) {
     } else if (command == "query") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         MoveStructure mv_(verbose);
+        auto begin = std::chrono::system_clock::now();
         mv_.deseralize(argv[2]);
-        std::cerr<< "The move structure is read from the file successfully.\n";
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+        std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+        std::cerr << "The move structure is read from the file successfully.\n";
         // std::cerr<<"The original string is: " << mv_.reconstruct() << "\n";
         // std::string query = argv[3];
 
@@ -37,6 +42,7 @@ int main(int argc, char* argv[]) {
         int l;
         fp = gzopen(argv[3], "r"); // STEP 2: open the file handler
         seq = kseq_init(fp); // STEP 3: initialize seq
+        std::ofstream pmls_file(static_cast<std::string>(argv[3]) + ".mpml");
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
             /*printf("name: %s\n", seq->name.s);
             if (seq->comment.l) printf("comment: %s\n", seq->comment.s);
@@ -47,10 +53,11 @@ int main(int argc, char* argv[]) {
             MoveQuery mq(query_seq);
             bool random_jump = true;
             mv_.query_ms(mq, random_jump);
-            std::cerr << seq->name.s << "\n";
-            std::cerr << mq <<"\n";
+            pmls_file << seq->name.s << "\n";
+            pmls_file << mq <<"\n";
         }
-        printf("return value: %d\n", l);
+        pmls_file.close();
+        // printf("return value: %d\n", l);
         kseq_destroy(seq); // STEP 5: destroy seq
         gzclose(fp); // STEP 6: close the file handler
     }

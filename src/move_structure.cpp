@@ -88,7 +88,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     uint64_t current_char = bwt_file.get();
     r = 1;
     // TODO Use a size based on the input size
-    bits = sdsl::bit_vector(10000000000, 0);
+    bits = sdsl::bit_vector(100000000000, 0);
     bits[0] = 1;
     while (current_char != EOF && current_char != 10) {
         if (r % 10000 == 0)
@@ -185,7 +185,6 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                 two_bits_after_eof = alphamap[bwt_string[i+1]];
             }
 
-
             offset += len;
             len = 0;
             r_idx += 1;
@@ -261,8 +260,10 @@ void MoveStructure::query_ms(MoveQuery& mq, bool random) {
     uint64_t pointer = rlbwt[idx].p;
     uint64_t match_len = 0;
     
-    std::cerr<< "beginning of the search:\n";
-    std::cerr<< "query: " << mq.query() << "\n";
+    if (verbose) {
+        std::cerr<< "beginning of the search:\n";
+        std::cerr<< "query: " << mq.query() << "\n";
+    }
     if (verbose)
         std::cerr<< "idx(r-1): " << idx << " pointer: " << pointer << "\n";
     while (pos_on_r > -1) {
@@ -335,7 +336,7 @@ void MoveStructure::query_ms(MoveQuery& mq, bool random) {
 
 bool MoveStructure::jump_randomly(uint64_t& idx, char r_char) {
     uint64_t saved_idx = idx;
-    uint64_t jump = std::rand() % 2;
+    uint64_t jump = std::rand() % 2; // To replace with ...
     bool up = false;
 
     if (verbose)
