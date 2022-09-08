@@ -106,7 +106,8 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     length = bwt_string.length();
     std::cerr<<"length: " << length << "\n";
     rlbwt.resize(r);
-    rlbwt_chars.resize(r);
+    if (!two_bits)
+        rlbwt_chars.resize(r);
     if (verbose and bits.size() < 1000)
         std::cerr<<"bits: " << bits << "\n";
     rbits = sdsl::rank_support_v<>(&bits);
@@ -431,16 +432,17 @@ void MoveStructure::seralize(char* output_dir) {
     fout.write(reinterpret_cast<char*>(&alphabet_size), sizeof(alphabet_size));    
     fout.write(reinterpret_cast<char*>(&alphabet[0]), alphabet.size()*sizeof(alphabet[0]));
 
+    fout.write(reinterpret_cast<char*>(&two_bits), sizeof(two_bits));
     fout.write(reinterpret_cast<char*>(&rlbwt[0]), rlbwt.size()*sizeof(rlbwt[0]));
-    fout.write(reinterpret_cast<char*>(&rlbwt_chars[0]), rlbwt_chars.size()*sizeof(rlbwt_chars[0]));
-
+    if (!two_bits) {
+        fout.write(reinterpret_cast<char*>(&rlbwt_chars[0]), rlbwt_chars.size()*sizeof(rlbwt_chars[0]));
+    }
     fout.write(reinterpret_cast<char*>(&bwt_string[0]), length);
     size_t orig_size = orig_string.size();
     fout.write(reinterpret_cast<char*>(&orig_size), sizeof(orig_size));
     fout.write(reinterpret_cast<char*>(&orig_string[0]), orig_size);
     fout.write(reinterpret_cast<char*>(&reconstructed), sizeof(reconstructed));
 
-    fout.write(reinterpret_cast<char*>(&two_bits), sizeof(two_bits));
     fout.write(reinterpret_cast<char*>(&eof_row), sizeof(eof_row));
     fout.write(reinterpret_cast<char*>(&two_bits_begin), sizeof(two_bits_begin));
     fout.write(reinterpret_cast<char*>(&two_bits_after_eof), sizeof(two_bits_after_eof));
@@ -469,9 +471,12 @@ void MoveStructure::deseralize(char* index_dir) {
     fin.read(reinterpret_cast<char*>(&alphabet[0]), alphabet_size*sizeof(alphabet[0]));
 
     rlbwt.resize(r);
-    rlbwt_chars.resize(r);
+    fin.read(reinterpret_cast<char*>(&two_bits), sizeof(two_bits));
     fin.read(reinterpret_cast<char*>(&rlbwt[0]), r*sizeof(move_row));
-    fin.read(reinterpret_cast<char*>(&rlbwt_chars[0]), r*sizeof(char));
+    if (!two_bits) {
+        rlbwt_chars.resize(r);
+        fin.read(reinterpret_cast<char*>(&rlbwt_chars[0]), r*sizeof(char));
+    }
     std::cerr << "All the move rows are read.\n";
 
     bwt_string.resize(length);
@@ -483,7 +488,6 @@ void MoveStructure::deseralize(char* index_dir) {
     fin.read(reinterpret_cast<char*>(&reconstructed), sizeof(reconstructed));
     reconstructed = false;
 
-    fin.read(reinterpret_cast<char*>(&two_bits), sizeof(two_bits));
     fin.read(reinterpret_cast<char*>(&eof_row), sizeof(eof_row));
     fin.read(reinterpret_cast<char*>(&two_bits_begin), sizeof(two_bits_begin));
     fin.read(reinterpret_cast<char*>(&two_bits_after_eof), sizeof(two_bits_after_eof));
