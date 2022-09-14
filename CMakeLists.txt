@@ -12,5 +12,8 @@ find_package(ZLIB)
 set(move_lib_srcs src/move_structure.cpp)
 add_library(move STATIC ${move_lib_srcs})
 
+set(move_row_lib_srcs src/move_row.cpp)
+add_library(move_row STATIC ${move_row_lib_srcs})
+
 add_executable(marlin src/marlin.cpp)
-target_link_libraries(marlin move sdsl ZLIB::ZLIB)
+target_link_libraries(marlin move move_row sdsl ZLIB::ZLIB)

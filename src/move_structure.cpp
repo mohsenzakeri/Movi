@@ -106,6 +106,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     length = bwt_string.length();
     std::cerr<<"length: " << length << "\n";
     rlbwt.resize(r);
+    rlbwt_.resize(r);
     if (!two_bits)
         rlbwt_chars.resize(r);
     if (verbose and bits.size() < 1000)
@@ -158,7 +159,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
 
     // Building the move structure rows
-    uint64_t len = 0;
+    uint16_t len = 0;
     uint64_t offset = 0;
     uint64_t r_idx = 0;
     bits = sdsl::bit_vector(length, 0);
@@ -179,6 +180,19 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             if (bits[lf] == 1)
                 pp_id += 1;
             rlbwt[r_idx].init(offset, len, lf, pp_id);
+            rlbwt_[r_idx].init(offset, len, lf, pp_id);
+            assert(rlbwt[r_idx].p == rlbwt_[r_idx].get_p());
+            assert(rlbwt[r_idx].n == rlbwt_[r_idx].get_n());
+            if (rlbwt[r_idx].pp != rlbwt_[r_idx].get_pp()) {
+                std::cerr << r_idx << ": "
+                        << rlbwt[r_idx].pp << " " << rlbwt_[r_idx].get_pp() << "\n"
+                        << rlbwt[r_idx].p << " " << rlbwt_[r_idx].get_p() << "\n"
+                        << rlbwt[r_idx].id << " " << rlbwt_[r_idx].get_id() << "\n"
+                        << rlbwt[r_idx].n << " " << rlbwt_[r_idx].get_n() << "\n";
+            }
+            
+            assert(rlbwt[r_idx].pp == rlbwt_[r_idx].get_pp());
+            assert(rlbwt[r_idx].id == rlbwt_[r_idx].get_id());
             if (!two_bits)
                 rlbwt_chars[r_idx] = bwt_string[i];
             if (bwt_string[i] == alphabet[0]) {
@@ -219,7 +233,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 uint64_t MoveStructure::fast_forward(uint64_t pointer, uint64_t idx) {
     if (verbose)
         std::cerr << idx << " + " << rlbwt[idx].p << " + " << rlbwt[idx].n << "\n";
-    while (idx < r - 1 && pointer >= rlbwt[idx].p + rlbwt[idx].n)
+    while (idx < r - 1 && pointer >= rlbwt[idx].p + rlbwt[idx].n) 
         idx += 1;
     return idx;
 }

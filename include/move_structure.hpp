@@ -5,19 +5,20 @@
 
 #include <sdsl/bit_vectors.hpp>
 
+#include "move_row.hpp"
 #include "move_query.hpp"
 
 #define END_CHARACTER 0
 struct move_row{
     move_row () { p = 0; n = 0; pp = 0; id = 0;}
-    move_row(uint64_t p, uint64_t n, 
+    move_row(uint64_t p, uint16_t n, 
                  uint64_t pp, uint64_t id) {
         this->p = p;
         this->n = n;
         this->pp = pp;
         this->id = id;
     }
-    void init(uint64_t p, uint64_t n, 
+    void init(uint64_t p, uint16_t n, 
                  uint64_t pp, uint64_t id) {
         this->p = p;
         this->n = n;
@@ -25,7 +26,7 @@ struct move_row{
         this->id = id;
     }
     uint64_t p;
-    uint64_t n;
+    uint16_t n;
     uint64_t pp;
     uint64_t id;
 };
@@ -74,6 +75,7 @@ class MoveStructure {
         sdsl::rank_support_v<> rbits;
 
         std::vector<move_row> rlbwt;
+        std::vector<MoveRow> rlbwt_;
         std::vector<char> rlbwt_chars;
         uint64_t eof_row;
         uint64_t two_bits_begin;
