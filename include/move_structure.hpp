@@ -9,27 +9,6 @@
 #include "move_query.hpp"
 
 #define END_CHARACTER 0
-struct move_row{
-    move_row () { p = 0; n = 0; pp = 0; id = 0;}
-    move_row(uint64_t p, uint16_t n, 
-                 uint64_t pp, uint64_t id) {
-        this->p = p;
-        this->n = n;
-        this->pp = pp;
-        this->id = id;
-    }
-    void init(uint64_t p, uint16_t n, 
-                 uint64_t pp, uint64_t id) {
-        this->p = p;
-        this->n = n;
-        this->pp = pp;
-        this->id = id;
-    }
-    uint64_t p;
-    uint16_t n;
-    uint64_t pp;
-    uint64_t id;
-};
 
 class MoveStructure {
     public:
@@ -37,7 +16,7 @@ class MoveStructure {
         MoveStructure(bool verbose_ = false) { verbose = verbose_; }
         MoveStructure(char* input_file, bool two_bits_ = false, bool verbose_ = false);
 
-        void build(std::ifstream &bwt_file);        
+        void build(std::ifstream &bwt_file);
         void query_ms(MoveQuery& mq, bool random);
         std::string reconstruct();
 
@@ -74,8 +53,7 @@ class MoveStructure {
         sdsl::bit_vector bits;
         sdsl::rank_support_v<> rbits;
 
-        std::vector<move_row> rlbwt;
-        std::vector<MoveRow> rlbwt_;
+        std::vector<MoveRow> rlbwt;
         std::vector<char> rlbwt_chars;
         uint64_t eof_row;
         uint64_t two_bits_begin;
