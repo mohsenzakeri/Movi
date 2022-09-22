@@ -15,5 +15,8 @@ add_library(move STATIC ${move_lib_srcs})
 set(move_row_lib_srcs src/move_row.cpp)
 add_library(move_row STATIC ${move_row_lib_srcs})
 
+SET(COMPILE_FLAGS "-O2")
+SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
+
 add_executable(marlin src/marlin.cpp)
 target_link_libraries(marlin move move_row sdsl ZLIB::ZLIB)
