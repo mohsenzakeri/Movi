@@ -2,9 +2,9 @@
 
 #include "move_structure.hpp"
 
-MoveStructure::MoveStructure(char* input_file, bool two_bits_, bool verbose_) {
+MoveStructure::MoveStructure(char* input_file, bool bit1_, bool verbose_) {
     verbose = verbose_;
-    two_bits = two_bits_;
+    bit1 = bit1_;
     reconstructed = false;
     std::ifstream bwt_file(input_file);
     build(bwt_file);
@@ -12,15 +12,15 @@ MoveStructure::MoveStructure(char* input_file, bool two_bits_, bool verbose_) {
 
 char MoveStructure::compute_char(uint64_t idx) {
     if (verbose) {
-        std::cerr << idx << " two_bits_begin: " << two_bits_begin << "\n";
-        std::cerr << idx << " two_bits_after_eof: " << two_bits_after_eof << "\n";
+        std::cerr << idx << " bit1_begin: " << bit1_begin << "\n";
+        std::cerr << idx << " bit1_after_eof: " << bit1_after_eof << "\n";
         std::cerr << "alphabet.size(): " << alphabet.size() << "\n";
     }
     char row_c;
     if (idx < eof_row) {
-        row_c = idx%2 == 0 ? alphabet[two_bits_begin] : alphabet[1 + (two_bits_begin % 2)];
+        row_c = idx%2 == 0 ? alphabet[bit1_begin] : alphabet[1 + (bit1_begin % 2)];
     } else {
-        row_c = (idx - eof_row)%2 == 1 ? alphabet[two_bits_after_eof] : alphabet[1 + (two_bits_after_eof % 2)];
+        row_c = (idx - eof_row)%2 == 1 ? alphabet[bit1_after_eof] : alphabet[1 + (bit1_after_eof % 2)];
     }
     return row_c;
 }
@@ -104,7 +104,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     length = bwt_string.length();
     std::cerr<<"length: " << length << "\n";
     rlbwt.resize(r);
-    if (!two_bits)
+    if (!bit1)
         rlbwt_chars.resize(r);
     if (verbose and bits.size() < 1000)
         std::cerr<<"bits: " << bits << "\n";
@@ -130,8 +130,8 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     }
 
     if (alphabet.size() == 3) {
-        two_bits = true;
-        two_bits_begin = alphamap[bwt_string[0]];
+        bit1 = true;
+        bit1_begin = alphamap[bwt_string[0]];
 
     }
     std::cerr << "All the characters are indexed.\n";
@@ -178,11 +178,11 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                 pp_id += 1;
             rlbwt[r_idx].init(offset, len, lf, pp_id);
 
-            if (!two_bits)
+            if (!bit1)
                 rlbwt_chars[r_idx] = bwt_string[i];
             if (bwt_string[i] == alphabet[0]) {
                 eof_row = rlbwt.size();
-                two_bits_after_eof = alphamap[bwt_string[i+1]];
+                bit1_after_eof = alphamap[bwt_string[i+1]];
             }
 
             offset += len;
@@ -208,10 +208,10 @@ uint64_t MoveStructure::fast_forward(uint64_t pointer, uint64_t idx) {
 uint64_t MoveStructure::jump_up(uint64_t idx, char c) {
     if (idx == 0)
         return r;
-    char row_c = two_bits ? compute_char(idx) : rlbwt_chars[idx];
+    char row_c = bit1 ? compute_char(idx) : rlbwt_chars[idx];
     while (idx > 0 and row_c != c) {
         idx -= 1;
-        row_c = two_bits ? compute_char(idx) : rlbwt_chars[idx];
+        row_c = bit1 ? compute_char(idx) : rlbwt_chars[idx];
     }
     if (verbose) 
         std::cerr << "idx after the while in the jump" << idx << "\n";
@@ -221,10 +221,10 @@ uint64_t MoveStructure::jump_up(uint64_t idx, char c) {
 uint64_t MoveStructure::jump_down(uint64_t idx, char c) {
     if (idx == r - 1)
         return r;
-    char row_c = two_bits ? compute_char(idx) : rlbwt_chars[idx];
+    char row_c = bit1 ? compute_char(idx) : rlbwt_chars[idx];
     while (idx < r - 1 && row_c != c) {
         idx += 1;
-        row_c = two_bits ? compute_char(idx) : rlbwt_chars[idx];
+        row_c = bit1 ? compute_char(idx) : rlbwt_chars[idx];
     }
     if (verbose) 
         std::cerr << "idx after the while in the jump: " << idx << " " << c << " " << row_c << "\n";
@@ -254,7 +254,7 @@ void MoveStructure::query_ms(MoveQuery& mq, bool random) {
             std::cerr<< "Searching position " << pos_on_r << " of the read:\n";
 
         auto& row = rlbwt[idx];
-        char row_c = two_bits ? compute_char(idx) : rlbwt_chars[idx];
+        char row_c = bit1 ? compute_char(idx) : rlbwt_chars[idx];
             
         if (alphamap[static_cast<uint64_t>(R[pos_on_r])] == alphamap.size()) { // not to use map
             // The character from the read does not exist in the reference
@@ -297,7 +297,7 @@ void MoveStructure::query_ms(MoveQuery& mq, bool random) {
                 std::cerr<< "up: " << up << " lcp: " << lcp << " idx: " << idx << "\n";
 
             // sanity check
-            char c = two_bits ? compute_char(idx) : rlbwt_chars[idx];
+            char c = bit1 ? compute_char(idx) : rlbwt_chars[idx];
             if (c == R[pos_on_r]) {
                 // Observing a match after the jump
                 // The right match_len should be:
@@ -335,7 +335,7 @@ bool MoveStructure::jump_randomly(uint64_t& idx, char r_char) {
         idx = jump_up(saved_idx, r_char);
         if (verbose)
             std::cerr<<"idx after jump: " << idx << "\n";
-        char c = two_bits ? compute_char(idx) : rlbwt_chars[idx];
+        char c = bit1 ? compute_char(idx) : rlbwt_chars[idx];
         if (c != r_char) {
             if (verbose)
                 std::cerr<< "Up didn't work, try jumping down:\n";
@@ -355,7 +355,7 @@ bool MoveStructure::jump_randomly(uint64_t& idx, char r_char) {
         idx = jump_down(saved_idx, r_char);
         if (verbose)
             std::cerr<<"idx after jump: " << idx << "\n";
-        char c = two_bits ? compute_char(idx) : rlbwt_chars[idx];
+        char c = bit1 ? compute_char(idx) : rlbwt_chars[idx];
         if (c != r_char) {
             if (verbose)
                 std::cerr<< "Down didn't work, try jumping up:\n";
@@ -415,9 +415,9 @@ void MoveStructure::seralize(char* output_dir) {
     fout.write(reinterpret_cast<char*>(&alphabet_size), sizeof(alphabet_size));    
     fout.write(reinterpret_cast<char*>(&alphabet[0]), alphabet.size()*sizeof(alphabet[0]));
 
-    fout.write(reinterpret_cast<char*>(&two_bits), sizeof(two_bits));
+    fout.write(reinterpret_cast<char*>(&bit1), sizeof(bit1));
     fout.write(reinterpret_cast<char*>(&rlbwt[0]), rlbwt.size()*sizeof(rlbwt[0]));
-    if (!two_bits) {
+    if (!bit1) {
         fout.write(reinterpret_cast<char*>(&rlbwt_chars[0]), rlbwt_chars.size()*sizeof(rlbwt_chars[0]));
     }
     fout.write(reinterpret_cast<char*>(&bwt_string[0]), length);
@@ -427,8 +427,8 @@ void MoveStructure::seralize(char* output_dir) {
     fout.write(reinterpret_cast<char*>(&reconstructed), sizeof(reconstructed));
 
     fout.write(reinterpret_cast<char*>(&eof_row), sizeof(eof_row));
-    fout.write(reinterpret_cast<char*>(&two_bits_begin), sizeof(two_bits_begin));
-    fout.write(reinterpret_cast<char*>(&two_bits_after_eof), sizeof(two_bits_after_eof));
+    fout.write(reinterpret_cast<char*>(&bit1_begin), sizeof(bit1_begin));
+    fout.write(reinterpret_cast<char*>(&bit1_after_eof), sizeof(bit1_after_eof));
 
     fout.close();
 }
@@ -454,9 +454,9 @@ void MoveStructure::deseralize(char* index_dir) {
     fin.read(reinterpret_cast<char*>(&alphabet[0]), alphabet_size*sizeof(alphabet[0]));
 
     rlbwt.resize(r);
-    fin.read(reinterpret_cast<char*>(&two_bits), sizeof(two_bits));
+    fin.read(reinterpret_cast<char*>(&bit1), sizeof(bit1));
     fin.read(reinterpret_cast<char*>(&rlbwt[0]), r*sizeof(MoveRow));
-    if (!two_bits) {
+    if (!bit1) {
         rlbwt_chars.resize(r);
         fin.read(reinterpret_cast<char*>(&rlbwt_chars[0]), r*sizeof(char));
     }
@@ -472,8 +472,8 @@ void MoveStructure::deseralize(char* index_dir) {
     reconstructed = false;
 
     fin.read(reinterpret_cast<char*>(&eof_row), sizeof(eof_row));
-    fin.read(reinterpret_cast<char*>(&two_bits_begin), sizeof(two_bits_begin));
-    fin.read(reinterpret_cast<char*>(&two_bits_after_eof), sizeof(two_bits_after_eof));
+    fin.read(reinterpret_cast<char*>(&bit1_begin), sizeof(bit1_begin));
+    fin.read(reinterpret_cast<char*>(&bit1_after_eof), sizeof(bit1_after_eof));
 
     fin.close();
 }

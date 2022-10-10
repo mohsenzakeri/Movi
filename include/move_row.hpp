@@ -22,7 +22,7 @@ class MoveRow{
         uint16_t get_n() const;
         uint64_t get_pp() const;
         uint64_t get_id() const;
-    private:
+//    private:
         uint32_t p;
         uint16_t n;
         uint32_t pp;

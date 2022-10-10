@@ -15,7 +15,7 @@ int main(int argc, char* argv[]) {
     std::string command = argv[1];
     if (command == "build") {
         std::cerr<<"The move structure is being built.\n";
-        bool mode = argv[2] == "2bits" ? true : false;
+        bool mode = argv[2] == "1bit" ? true : false;
         bool verbose = (argc > 5 and std::string(argv[5]) == "verbose");
         MoveStructure mv_(argv[3], mode, verbose);
         std::cerr<<"The move structure is successfully built!\n";

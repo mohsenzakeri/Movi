@@ -14,7 +14,7 @@ class MoveStructure {
     public:
         MoveStructure() { }
         MoveStructure(bool verbose_ = false) { verbose = verbose_; }
-        MoveStructure(char* input_file, bool two_bits_ = false, bool verbose_ = false);
+        MoveStructure(char* input_file, bool bit1_ = false, bool verbose_ = false);
 
         void build(std::ifstream &bwt_file);
         void query_ms(MoveQuery& mq, bool random);
@@ -35,7 +35,7 @@ class MoveStructure {
         void seralize(char* output_dir);
         void deseralize(char* index_dir);
     private:
-        bool two_bits;
+        bool bit1;
         std::string bwt_string;
         std::string orig_string;
         bool reconstructed;
@@ -56,8 +56,8 @@ class MoveStructure {
         std::vector<MoveRow> rlbwt;
         std::vector<char> rlbwt_chars;
         uint64_t eof_row;
-        uint64_t two_bits_begin;
-        uint64_t two_bits_after_eof;
+        uint64_t bit1_begin;
+        uint64_t bit1_after_eof;
 };
 
 #endif
