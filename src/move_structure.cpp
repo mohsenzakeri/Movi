@@ -281,7 +281,12 @@ void MoveStructure::query_ms(MoveQuery& mq, bool random) {
             pointer = row.get_pp() + (pointer - row.get_p());
             if (verbose)
                 std::cerr<<"Case 1 idx: " << idx << " pointer: " << pointer << "\n";
-            idx = fast_forward(pointer, idx);
+
+
+            if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) 
+                idx = fast_forward(pointer, idx);
+            // idx = fast_forward(pointer, idx);
+
             if (verbose)
                 std::cerr<<"fast forwarding: " << idx << "\n";
         } else {
