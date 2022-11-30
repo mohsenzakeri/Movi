@@ -1,5 +1,6 @@
 #include <cstdint>
 #include <limits>
+#include <iostream>
 
 #include "move_row.hpp"
 
@@ -15,6 +16,11 @@ void MoveRow::init(uint64_t p_, uint16_t n_, uint64_t pp_, uint64_t id_) {
     this->set_id(id_);
 }
 
+std::ostream& operator<<(std::ostream& os, const MoveRow& mr)
+{
+    os << "p:" << mr.get_p() << " n:" << mr.get_n() << " pp:" << mr.get_pp() << " id:" << mr.get_id();
+    return os;
+}
 void MoveRow::set_p(uint64_t p_) {
     p = p_;
     overflow_bits = overflow_bits & mask_p;

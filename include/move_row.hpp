@@ -2,6 +2,7 @@
 #define __MOVE_ROW__
 
 #include <iostream>
+#include <vector>
 
 const uint32_t mask_p = ~((1U << 8) - 1);
 const uint32_t mask_pp = ~(((1U << 8) - 1) << 8);
@@ -12,6 +13,7 @@ class MoveRow{
         MoveRow () { p = 0; n = 0; pp = 0; id = 0; overflow_bits = 0;}
         MoveRow(uint64_t p_, uint16_t n_, uint64_t pp_, uint64_t id_);
         void init(uint64_t p_, uint16_t n_, uint64_t pp_, uint64_t id_);
+        friend std::ostream& operator<<(std::ostream& os, const MoveRow& mr);
 
         void set_p(uint64_t p_);
         void set_n(uint16_t n_);
@@ -28,6 +30,7 @@ class MoveRow{
         uint32_t pp;
         uint32_t id;
         uint32_t overflow_bits;
+        std::vector<uint64_t> thresholds;
 };
 
 inline uint64_t MoveRow::get_p() const{

@@ -1,3 +1,5 @@
+include(FetchContent)
+
 cmake_minimum_required(VERSION 3.0)
 
 project(marlin)
@@ -14,6 +16,24 @@ add_library(move STATIC ${move_lib_srcs})
 
 set(move_row_lib_srcs src/move_row.cpp)
 add_library(move_row STATIC ${move_row_lib_srcs})
+
+#----------------------------------------
+# Add sdsl
+#----------------------------------------
+FetchContent_Declare(
+  sdsl
+  # GIT_REPOSITORY https://github.com/elarielcl/sdsl-lite.git
+  GIT_REPOSITORY https://github.com/simongog/sdsl-lite
+)
+
+FetchContent_GetProperties(sdsl)
+if(NOT sdsl_POPULATED)
+  FetchContent_Populate(sdsl)
+
+  set(GENERATE_DOC OFF CACHE BOOL "Do not generate doxygen for sdsl-lite")
+  
+  add_subdirectory(${sdsl_SOURCE_DIR} ${sdsl_BINARY_DIR} EXCLUDE_FROM_ALL)
+endif()
 
 SET(COMPILE_FLAGS "-O2")
 SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")

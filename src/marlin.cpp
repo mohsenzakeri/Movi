@@ -1,9 +1,13 @@
-
+#include <cstdint>
 #include <zlib.h>
 #include <stdio.h>
 #include <chrono>
+#include <cstddef>
+#include <unistd.h>
+#include <sys/stat.h>
 
 #include "kseq.h"
+#include <sdsl/int_vector.hpp>
 
 #include "move_structure.hpp"
 #include "move_query.hpp"
@@ -21,7 +25,7 @@ int main(int argc, char* argv[]) {
         std::cerr<<"The move structure is successfully built!\n";
         // mv_.reconstruct();
         // std::cerr<<"The original string is reconstructed.\n";
-        // std::cerr<<"The original string is:\n" << mv_.reconstruct() << "\n";
+        // std::cerr<<"The original string is:\n" << mv_.R() << "\n";
         mv_.seralize(argv[4]);
         std::cerr<<"The move structure is successfully stored at " << argv[4] << "\n";
     } else if (command == "query") {
@@ -57,8 +61,11 @@ int main(int argc, char* argv[]) {
             pmls_file << mq <<"\n";
         }
         pmls_file.close();
+        std::cerr<<"pmls file closed!\n";
         // printf("return value: %d\n", l);
         kseq_destroy(seq); // STEP 5: destroy seq
+        std::cerr<<"kseq destroyed!\n";
         gzclose(fp); // STEP 6: close the file handler
+        std::cerr<<"fp file closed!\n";
     }
 }
