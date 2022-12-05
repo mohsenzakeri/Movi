@@ -14,7 +14,6 @@
 #include "kseq.h"
 #include <sdsl/int_vector.hpp>
 #include <sdsl/bit_vectors.hpp>
-// #include <sdsl/select_support.hpp>
 
 #include "move_row.hpp"
 #include "move_query.hpp"
@@ -37,7 +36,6 @@ class MoveStructure {
         char compute_char(uint64_t idx);
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
         uint32_t compute_index(char row_char, char lookup_char);
-
 
         uint64_t naive_lcp(uint64_t row1, uint64_t row2);
         uint64_t naive_sa(uint64_t bwt_row);
@@ -66,7 +64,6 @@ class MoveStructure {
 
         std::vector<sdsl::bit_vector*> occs;
         std::vector<sdsl::rank_support_v<>*> occs_rank;
-        // std::vector<sdsl::select_support_v<>*> occs_select;
         sdsl::bit_vector bits;
         sdsl::rank_support_v<> rbits;
         sdsl::int_vector<> thresholds;
