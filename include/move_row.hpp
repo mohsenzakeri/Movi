@@ -30,7 +30,8 @@ class MoveRow{
         uint32_t pp;
         uint32_t id;
         uint32_t overflow_bits;
-        uint64_t* thresholds;
+        uint64_t thresholds[4];
+        uint64_t threshold_1bit;
 };
 
 inline uint64_t MoveRow::get_p() const{

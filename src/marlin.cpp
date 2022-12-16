@@ -28,6 +28,7 @@ int main(int argc, char* argv[]) {
         // std::cerr<<"The original string is:\n" << mv_.R() << "\n";
         mv_.seralize(argv[4]);
         std::cerr<<"The move structure is successfully stored at " << argv[4] << "\n";
+
     } else if (command == "query") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         MoveStructure mv_(verbose);
@@ -56,6 +57,7 @@ int main(int argc, char* argv[]) {
             std::string query_seq = seq->seq.s;
             MoveQuery mq(query_seq);
             bool random_jump = true;
+            // std::cerr << seq->name.s << "\n";
             mv_.query_ms(mq, random_jump);
             pmls_file << seq->name.s << "\n";
             pmls_file << mq <<"\n";

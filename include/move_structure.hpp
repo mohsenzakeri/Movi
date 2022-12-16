@@ -24,7 +24,7 @@
 class MoveStructure {
     public:
         MoveStructure() { }
-        MoveStructure(bool verbose_ = false) { verbose = verbose_; }
+        MoveStructure(bool verbose_ = false) { verbose = verbose_; std::cerr<<"verbose: " <<verbose<<"\n";}
         MoveStructure(char* input_file, bool bit1_ = false, bool verbose_ = false);
 
         void build(std::ifstream &bwt_file);
