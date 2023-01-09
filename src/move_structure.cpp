@@ -274,9 +274,16 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
     if (bit1) {
         for (uint32_t i = 0; i < rlbwt.size() - 1; ++i) {
-            rlbwt[i].threshold_1bit = thresholds[i + 1];
+            if (thresholds[i + 1] >= rlbwt[i].get_p() + rlbwt[i].get_n()) {
+                rlbwt[i].threshold_1bit = rlbwt[i].get_n();
+            } else if (thresholds[i + 1] < rlbwt[i].get_p()) {
+                rlbwt[i].threshold_1bit = 0;
+            } else {
+                rlbwt[i].threshold_1bit = thresholds[i + 1] - rlbwt[i].get_p();
+            }
+            // rlbwt[i].threshold_1bit = thresholds[i + 1];
         }
-        rlbwt[r - 1].threshold_1bit = length;
+        rlbwt[r - 1].threshold_1bit = rlbwt[r - 1].get_n();
     } else {
         for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
             if (i % 100000 == 0)
@@ -284,7 +291,15 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
             char rlbwt_c = bit1 ? compute_char(i) : rlbwt_chars[i];
             for (uint64_t j = 0; j < alphabet.size(); j++) {
-                rlbwt[i].thresholds[j] = alphabet_thresholds[j];
+                if (alphabet_thresholds[j] >= rlbwt[i].get_p() + rlbwt[i].get_n()) {
+                    rlbwt[i].thresholds[j] = rlbwt[i].get_n();
+                } else if (alphabet_thresholds[j] < rlbwt[i].get_p()) {
+                    rlbwt[i].thresholds[j] = 0;
+                } else {
+                    rlbwt[i].thresholds[j] = alphabet_thresholds[j] - rlbwt[i].get_p();
+                }
+                // rlbwt[i].thresholds[j] = alphabet_thresholds[j];
+
                 if (alphabet[j] == rlbwt_c)
                     alphabet_thresholds[j] = thresholds[i];
             }
@@ -402,10 +417,10 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             // Case 2
             // Jumping randomly up or down or with naive lcp computation
             uint64_t lcp = 0;
-            // bool up = random ? jump_randomly(idx, R[pos_on_r]) : 
+            bool up = random ? jump_randomly(idx, R[pos_on_r]) : 
+                               jump_thresholds(idx, pointer, R[pos_on_r]);
             //                   jump_naive_lcp(idx, pointer, R[pos_on_r], lcp);
             auto saved_idx = idx;
-            bool up = jump_thresholds(idx, pointer, R[pos_on_r]);
             if (verbose)
                 std::cerr<< "up: " << up << " lcp: " << lcp << " idx: " << idx << "\n";
 
@@ -480,7 +495,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, char r_char
     /*if (verbose)
         exit(0);*/
     if (!bit1) {
-        if (pointer >= rlbwt[idx].thresholds[alphabet_index] and idx != r-1) {
+        if (pointer >= rlbwt[idx].get_p() + rlbwt[idx].thresholds[alphabet_index] and idx != r-1) {
             if (verbose)
                 std::cerr<< "Jumping down with thresholds:\n";
             idx = jump_down(saved_idx, r_char);
@@ -668,7 +683,7 @@ void MoveStructure::deseralize(char* index_dir) {
             fin.read(reinterpret_cast<char*>(&rlbwt[i].threshold_1bit), sizeof(&rlbwt[i].threshold_1bit));
         } else {
             for (uint32_t j = 0; j < alphabet.size(); j ++)
-                fin.read(reinterpret_cast<char*>(&(rlbwt[i].thresholds[j])), sizeof(uint64_t));
+                fin.read(reinterpret_cast<char*>(&(rlbwt[i].thresholds[j])), sizeof(uint16_t));
         }
     }
 

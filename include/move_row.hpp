@@ -25,13 +25,14 @@ class MoveRow{
         uint64_t get_pp() const;
         uint64_t get_id() const;
 //    private:
-        uint32_t p;
-        uint16_t n;
-        uint32_t pp;
-        uint32_t id;
+        uint32_t p; // bwt row of the head before the jump
+        uint16_t n; // length of the run
+        uint32_t pp; // bwt row of the head after the jump
+        uint32_t id; // bwt run after the jump
         uint32_t overflow_bits;
-        uint64_t thresholds[4];
-        uint64_t threshold_1bit;
+
+        uint16_t thresholds[4]; // 4*8 = 32 : 1.9 GB ---- 3 * 2 = 6 
+        uint16_t threshold_1bit; // 4 + 2 + 4 + 4 + 4 = 18
 };
 
 inline uint64_t MoveRow::get_p() const{

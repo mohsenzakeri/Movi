@@ -57,7 +57,7 @@ int main(int argc, char* argv[]) {
 
             std::string query_seq = seq->seq.s;
             MoveQuery mq(query_seq);
-            bool random_jump = true;
+            bool random_jump = false;
             // std::cerr << seq->name.s << "\n";
             ff_count += mv_.query_ms(mq, random_jump);
             pmls_file << seq->name.s << "\n";
