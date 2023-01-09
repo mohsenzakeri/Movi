@@ -28,7 +28,7 @@ class MoveStructure {
         MoveStructure(char* input_file, bool bit1_ = false, bool verbose_ = false);
 
         void build(std::ifstream &bwt_file);
-        void query_ms(MoveQuery& mq, bool random);
+        uint64_t query_ms(MoveQuery& mq, bool random);
         std::string reconstruct();
 
         uint64_t LF(uint64_t row_number);

@@ -50,6 +50,8 @@ MoveStructure::MoveStructure(char* input_file, bool bit1_, bool verbose_) {
 }
 
 char MoveStructure::compute_char(uint64_t idx) {
+    // return rlbwt_chars[idx];
+
     if (verbose) {
         std::cerr << idx << " bit1_begin: " << bit1_begin << "\n";
         std::cerr << idx << " bit1_after_eof: " << bit1_after_eof << "\n";
@@ -247,12 +249,9 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                 pp_id += 1;
             rlbwt[r_idx].init(offset, len, lf, pp_id);
 
-            if (!bit1) {
+            if (!bit1)
                 rlbwt_chars[r_idx] = bwt_string[i];
-                /*if (rlbwt_chars[r_idx] != 'A' and rlbwt_chars[r_idx] != 'C' and
-                    rlbwt_chars[r_idx] != 'G' and rlbwt_chars[r_idx] != 'T')
-                    std::cerr<<rlbwt_chars[r_idx]<<"-"<<r_idx<<"-"<<rlbwt[r_idx].get_p()<<"\n";*/
-            }
+
             if (bwt_string[i] == static_cast<unsigned char>(END_CHARACTER)) {
                 eof_row = r_idx;
                 bit1_after_eof = alphamap[bwt_string[i+1]];
@@ -301,9 +300,10 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 uint64_t MoveStructure::fast_forward(uint64_t pointer, uint64_t idx) {
     if (verbose)
         std::cerr << idx << " + " << rlbwt[idx].get_p() << " + " << rlbwt[idx].get_n() << "\n";
+    uint64_t idx_ = idx;
     while (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) 
         idx += 1;
-    return idx;
+    return idx - idx_;
 }
 
 uint64_t MoveStructure::jump_up(uint64_t idx, char c) {
@@ -332,11 +332,11 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c) {
     return (row_c == c) ? idx : r;
 }
 
-void MoveStructure::query_ms(MoveQuery& mq, bool random) {
+uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
     std::srand(time(0));
     std::string R = mq.query();
     int32_t pos_on_r = R.length() - 1;
-    uint64_t idx = r - 1; // std::rand() % r;
+    uint64_t idx = std::rand() % r; // r - 1
     if (verbose) std::cerr<< "Begin search from idx = " << idx << "\n";
     // uint64_t idx = std::rand() % r;
     uint64_t pointer = rlbwt[idx].get_p();
@@ -348,6 +348,7 @@ void MoveStructure::query_ms(MoveQuery& mq, bool random) {
     }
     if (verbose)
         std::cerr<< "idx(r-1): " << idx << " pointer: " << pointer << "\n";
+    uint64_t ff_count = 0;
     while (pos_on_r > -1) {
         /*std::cerr<<"thresholds: ";
         for(uint32_t k = 0; k < rlbwt[idx].thresholds.size(); k++)
@@ -386,9 +387,11 @@ void MoveStructure::query_ms(MoveQuery& mq, bool random) {
             if (verbose)
                 std::cerr<<"Case 1 idx: " << idx << " pointer: " << pointer << "\n";
 
-            if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) 
-                idx = fast_forward(pointer, idx);
-            // idx = fast_forward(pointer, idx);
+            if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) {
+                uint64_t idx_ = fast_forward(pointer, idx);
+                ff_count += idx_;
+                idx += idx_;
+            }
 
             if (verbose)
                 std::cerr<<"fast forwarding: " << idx << "\n";
@@ -455,6 +458,7 @@ void MoveStructure::query_ms(MoveQuery& mq, bool random) {
             }
         }
     }
+    return ff_count;
 }
 
 bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, char r_char) {
@@ -617,9 +621,9 @@ void MoveStructure::seralize(char* output_dir) {
                 fout.write(reinterpret_cast<char*>(&(rlbwt[i].thresholds[j])), sizeof(rlbwt[i].thresholds[j]));
         }
     }
-    if (!bit1) {
+    if (!bit1)
         fout.write(reinterpret_cast<char*>(&rlbwt_chars[0]), rlbwt_chars.size()*sizeof(rlbwt_chars[0]));
-    }
+
     size_t orig_size = orig_string.size();
     fout.write(reinterpret_cast<char*>(&orig_size), sizeof(orig_size));
     fout.write(reinterpret_cast<char*>(&reconstructed), sizeof(reconstructed));
@@ -679,7 +683,7 @@ void MoveStructure::deseralize(char* index_dir) {
 
     size_t orig_size;
     fin.read(reinterpret_cast<char*>(&orig_size), sizeof(orig_size));
-    
+
     /*orig_string.resize(orig_size);
     fin.read(reinterpret_cast<char*>(&orig_string[0]), orig_size);*/
 

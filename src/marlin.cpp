@@ -48,6 +48,7 @@ int main(int argc, char* argv[]) {
         fp = gzopen(argv[3], "r"); // STEP 2: open the file handler
         seq = kseq_init(fp); // STEP 3: initialize seq
         std::ofstream pmls_file(static_cast<std::string>(argv[3]) + ".mpml");
+        uint64_t ff_count = 0;
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
             /*printf("name: %s\n", seq->name.s);
             if (seq->comment.l) printf("comment: %s\n", seq->comment.s);
@@ -58,7 +59,7 @@ int main(int argc, char* argv[]) {
             MoveQuery mq(query_seq);
             bool random_jump = true;
             // std::cerr << seq->name.s << "\n";
-            mv_.query_ms(mq, random_jump);
+            ff_count += mv_.query_ms(mq, random_jump);
             pmls_file << seq->name.s << "\n";
             pmls_file << mq <<"\n";
         }
@@ -69,5 +70,6 @@ int main(int argc, char* argv[]) {
         std::cerr<<"kseq destroyed!\n";
         gzclose(fp); // STEP 6: close the file handler
         std::cerr<<"fp file closed!\n";
+        std::cerr<<"ff_count: " << ff_count << "\n";
     }
 }
