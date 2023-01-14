@@ -249,8 +249,13 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                 pp_id += 1;
             rlbwt[r_idx].init(offset, len, lf, pp_id);
 
-            if (!bit1)
+            if (!bit1){
                 rlbwt_chars[r_idx] = bwt_string[i];
+                rlbwt[r_idx].set_c(bwt_string[i]);
+                if (rlbwt_chars[r_idx] != rlbwt[r_idx].get_c()) {
+                    std::cerr << rlbwt_chars[r_idx] << " " << rlbwt[r_idx].get_c() << "\n";
+                }
+            }
 
             if (bwt_string[i] == static_cast<unsigned char>(END_CHARACTER)) {
                 eof_row = r_idx;
@@ -508,7 +513,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, char r_char
             return true;
         }
     } else {
-        if (pointer >= rlbwt[idx].threshold_1bit and idx != r-1) {
+        if (pointer >= rlbwt[idx].get_p() + rlbwt[idx].threshold_1bit and idx != r-1) {
             if (verbose)
                 std::cerr<< "Jumping down with thresholds:\n";
             idx = jump_down(saved_idx, r_char);
@@ -624,13 +629,13 @@ void MoveStructure::seralize(char* output_dir) {
     fout.write(reinterpret_cast<char*>(&bit1), sizeof(bit1));
     // fout.write(reinterpret_cast<char*>(&rlbwt[0]), rlbwt.size()*sizeof(rlbwt[0]));
     for (uint32_t i = 0; i < r; i++){
-        fout.write(reinterpret_cast<char*>(&rlbwt[i].p), sizeof(&rlbwt[i].p));
-        fout.write(reinterpret_cast<char*>(&rlbwt[i].n), sizeof(&rlbwt[i].n));
-        fout.write(reinterpret_cast<char*>(&rlbwt[i].pp), sizeof(&rlbwt[i].pp));
-        fout.write(reinterpret_cast<char*>(&rlbwt[i].id), sizeof(&rlbwt[i].id));
-        fout.write(reinterpret_cast<char*>(&rlbwt[i].overflow_bits), sizeof(&rlbwt[i].overflow_bits));
+        fout.write(reinterpret_cast<char*>(&rlbwt[i].p), sizeof(rlbwt[i].p));
+        fout.write(reinterpret_cast<char*>(&rlbwt[i].n), sizeof(rlbwt[i].n));
+        fout.write(reinterpret_cast<char*>(&rlbwt[i].pp), sizeof(rlbwt[i].pp));
+        fout.write(reinterpret_cast<char*>(&rlbwt[i].id), sizeof(rlbwt[i].id));
+        fout.write(reinterpret_cast<char*>(&rlbwt[i].overflow_bits), sizeof(rlbwt[i].overflow_bits));
         if (bit1) {
-            fout.write(reinterpret_cast<char*>(&rlbwt[i].threshold_1bit), sizeof(&rlbwt[i].threshold_1bit));
+            fout.write(reinterpret_cast<char*>(&rlbwt[i].threshold_1bit), sizeof(rlbwt[i].threshold_1bit));
         } else {
             for (uint32_t j = 0; j < alphabet.size(); j ++)
                 fout.write(reinterpret_cast<char*>(&(rlbwt[i].thresholds[j])), sizeof(rlbwt[i].thresholds[j]));
@@ -674,13 +679,13 @@ void MoveStructure::deseralize(char* index_dir) {
     fin.read(reinterpret_cast<char*>(&bit1), sizeof(bit1));
     // fin.read(reinterpret_cast<char*>(&rlbwt[0]), r*sizeof(MoveRow));
     for (uint32_t i = 0; i < r; i++){
-        fin.read(reinterpret_cast<char*>(&rlbwt[i].p), sizeof(&rlbwt[i].p));
-        fin.read(reinterpret_cast<char*>(&rlbwt[i].n), sizeof(&rlbwt[i].n));
-        fin.read(reinterpret_cast<char*>(&rlbwt[i].pp), sizeof(&rlbwt[i].pp));
-        fin.read(reinterpret_cast<char*>(&rlbwt[i].id), sizeof(&rlbwt[i].id));
-        fin.read(reinterpret_cast<char*>(&rlbwt[i].overflow_bits), sizeof(&rlbwt[i].overflow_bits));
+        fin.read(reinterpret_cast<char*>(&rlbwt[i].p), sizeof(rlbwt[i].p));
+        fin.read(reinterpret_cast<char*>(&rlbwt[i].n), sizeof(rlbwt[i].n));
+        fin.read(reinterpret_cast<char*>(&rlbwt[i].pp), sizeof(rlbwt[i].pp));
+        fin.read(reinterpret_cast<char*>(&rlbwt[i].id), sizeof(rlbwt[i].id));
+        fin.read(reinterpret_cast<char*>(&rlbwt[i].overflow_bits), sizeof(rlbwt[i].overflow_bits));
         if (bit1) {
-            fin.read(reinterpret_cast<char*>(&rlbwt[i].threshold_1bit), sizeof(&rlbwt[i].threshold_1bit));
+            fin.read(reinterpret_cast<char*>(&rlbwt[i].threshold_1bit), sizeof(rlbwt[i].threshold_1bit));
         } else {
             for (uint32_t j = 0; j < alphabet.size(); j ++)
                 fin.read(reinterpret_cast<char*>(&(rlbwt[i].thresholds[j])), sizeof(uint16_t));
