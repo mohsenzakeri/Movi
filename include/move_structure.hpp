@@ -22,11 +22,6 @@
 #define END_CHARACTER 0
 #define THRBYTES 5 
 
-uint32_t alphamap_3[4][4] = {{3, 0, 1, 2},
-                             {0, 3, 1, 2},
-                             {0, 1, 3, 2},
-                             {0, 1, 2, 3}};
-
 class MoveStructure {
     public:
         MoveStructure() { }
@@ -52,8 +47,8 @@ class MoveStructure {
         bool jump_randomly(uint64_t& idx, char r_char);
         bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
 
-        void seralize(char* output_dir);
-        void deseralize(char* index_dir);
+        void serialize(char* output_dir);
+        void deserialize(char* index_dir);
         
         std::map<uint32_t, uint32_t> jumps;
 

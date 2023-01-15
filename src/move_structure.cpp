@@ -2,6 +2,11 @@
 
 #include "move_structure.hpp"
 
+uint32_t alphamap_3[4][4] = {{3, 0, 1, 2},
+                             {0, 3, 1, 2},
+                             {0, 1, 3, 2},
+                             {0, 1, 2, 3}};
+
 void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
     int log_n = 100;
 
@@ -11,15 +16,12 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
     if ((fd = fopen(tmp_filename.c_str(), "r")) == nullptr)
         std::cerr<<("open() file " + tmp_filename + " failed");
 
-
     int fn = fileno(fd);
     if (fstat(fn, &filestat) < 0)
         std::cerr<<("stat() file " + tmp_filename + " failed");
 
-
     if (filestat.st_size % THRBYTES != 0)
         std::cerr<<("invilid file " + tmp_filename);
-
 
     size_t length_thr = filestat.st_size / THRBYTES;
     size_t threshold = 0;
@@ -620,7 +622,7 @@ bool MoveStructure::jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char,
     }
 }
 
-void MoveStructure::seralize(char* output_dir) {
+void MoveStructure::serialize(char* output_dir) {
     mkdir(output_dir,0777);
     std::string fname = static_cast<std::string>(output_dir) + "/rlbwt.bin";
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
@@ -666,7 +668,7 @@ void MoveStructure::seralize(char* output_dir) {
     fout.close();
 }
 
-void MoveStructure::deseralize(char* index_dir) {
+void MoveStructure::deserialize(char* index_dir) {
     std::string fname = static_cast<std::string>(index_dir) + "/rlbwt.bin";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
     fin.seekg(0, std::ios::beg); 

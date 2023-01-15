@@ -26,14 +26,14 @@ int main(int argc, char* argv[]) {
         // mv_.reconstruct();
         // std::cerr<<"The original string is reconstructed.\n";
         // std::cerr<<"The original string is:\n" << mv_.R() << "\n";
-        mv_.seralize(argv[4]);
+        mv_.serialize(argv[4]);
         std::cerr<<"The move structure is successfully stored at " << argv[4] << "\n";
 
     } else if (command == "query") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         MoveStructure mv_(verbose);
         auto begin = std::chrono::system_clock::now();
-        mv_.deseralize(argv[2]);
+        mv_.deserialize(argv[2]);
         auto end = std::chrono::system_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
         std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
@@ -71,5 +71,10 @@ int main(int argc, char* argv[]) {
         gzclose(fp); // STEP 6: close the file handler
         std::cerr<<"fp file closed!\n";
         std::cerr<<"ff_count: " << ff_count << "\n";
+        std::ofstream jumps_file(static_cast<std::string>(argv[3]) + ".jumps");
+        for (auto& jump : mv_.jumps) {
+            jumps_file <<jump.first << "\t" << jump.second << "\n";
+        }
+        jumps_file.close();
     }
 }
