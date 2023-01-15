@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <vector>
+#include <map>
 
 #include "kseq.h"
 #include <sdsl/int_vector.hpp>
@@ -20,6 +21,11 @@
 
 #define END_CHARACTER 0
 #define THRBYTES 5 
+
+uint32_t alphamap_3[4][4] = {{3, 0, 1, 2},
+                             {0, 3, 1, 2},
+                             {0, 1, 3, 2},
+                             {0, 1, 2, 3}};
 
 class MoveStructure {
     public:
@@ -48,6 +54,9 @@ class MoveStructure {
 
         void seralize(char* output_dir);
         void deseralize(char* index_dir);
+        
+        std::map<uint32_t, uint32_t> jumps;
+
     private:
         bool bit1;
         std::string bwt_string;
