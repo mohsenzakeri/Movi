@@ -69,7 +69,7 @@ class MoveStructure {
         sdsl::int_vector<> thresholds;
 
         std::vector<MoveRow> rlbwt;
-        std::vector<char> rlbwt_chars;
+        // std::vector<char> rlbwt_chars;
         uint64_t eof_row;
         uint64_t bit1_begin;
         uint64_t bit1_after_eof;
