@@ -38,6 +38,9 @@ class MoveRow{
         uint16_t thresholds[3]; // 4*8 = 32 : 1.9 GB ---- 3 * 2 = 6
         uint16_t threshold_1bit; // 4 + 2 + 4 + 4 + 4 = 18 : 534 MB
 
+        uint16_t next_up[3];
+        uint16_t next_down[3];
+
         // Why the number is close to 2 for 1bit?
         // -- 15.9M vs 51.4M -- tot: 24.6M vs 89.9M
         // --  1.3M vs  4.4M -- tot:  2.2M vs  7.7M

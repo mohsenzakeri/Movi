@@ -318,7 +318,38 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         }
     }
     std::cerr<< length << "\n";
+    std::cerr<<"Computing the next ups and downs.\n";
+    compute_nexts();
     std::cerr<< "The move structure building is done.\n";
+}
+
+void MoveStructure::compute_nexts() {
+    for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
+        if (i % 100000 == 0)
+            std::cerr<< i << "\r";
+
+        char rlbwt_c = bit1 ? compute_char(i) : rlbwt[i].get_c();
+        for (uint64_t j = 0; j < alphabet.size(); j++) {
+            if (alphabet[j] != rlbwt_c) {
+                auto alphabet_idx = alphamap_3[alphamap[rlbwt_c]][j];
+
+                auto idx = jump_up(i, alphabet[j]);
+                if (idx == r) {
+                    rlbwt[i].next_up[alphabet_idx] = std::numeric_limits<uint16_t>::max();
+                } else {
+                    rlbwt[i].next_up[alphabet_idx] = i - idx;
+                }
+
+                idx = jump_down(i, alphabet[j]);
+                if (idx == r) {
+                    rlbwt[i].next_down[alphabet_idx] = std::numeric_limits<uint16_t>::max();
+                } else {
+                    rlbwt[i].next_down[alphabet_idx] = idx - i;
+                }
+            }
+        }
+    }
+    std::cerr<< length << "\n";
 }
 
 uint64_t MoveStructure::fast_forward(uint64_t pointer, uint64_t idx) {
@@ -516,13 +547,20 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, char r_char
         if (pointer >= rlbwt[idx].get_p() + rlbwt[idx].thresholds[alphabet_index] and idx != r-1) {
             if (verbose)
                 std::cerr<< "Jumping down with thresholds:\n";
-            idx = jump_down(saved_idx, r_char);
+            // idx = jump_down(saved_idx, r_char);
+            if (rlbwt[saved_idx].next_down[alphabet_index] == std::numeric_limits<uint16_t>::max())
+                idx = r;
+            else
+                idx = saved_idx + rlbwt[saved_idx].next_down[alphabet_index];
             return false;
-        }
-        else {
+        } else {
             if (verbose)
                 std::cerr<< "Jumping up with thresholds:\n";
-            idx = jump_up(saved_idx, r_char);
+            // idx = jump_up(saved_idx, r_char);
+            if (rlbwt[saved_idx].next_up[alphabet_index] == std::numeric_limits<uint16_t>::max())
+                idx = r;
+            else
+                idx = saved_idx - rlbwt[idx].next_up[alphabet_index];
             return true;
         }
     } else {
@@ -531,8 +569,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, char r_char
                 std::cerr<< "Jumping down with thresholds:\n";
             idx = jump_down(saved_idx, r_char);
             return false;
-        }
-        else {
+        } else {
             if (verbose)
                 std::cerr<< "Jumping up with thresholds:\n";
             idx = jump_up(saved_idx, r_char);
@@ -650,8 +687,11 @@ void MoveStructure::serialize(char* output_dir) {
         if (bit1) {
             fout.write(reinterpret_cast<char*>(&rlbwt[i].threshold_1bit), sizeof(rlbwt[i].threshold_1bit));
         } else {
-            for (uint32_t j = 0; j < alphabet.size() - 1; j ++)
+            for (uint32_t j = 0; j < alphabet.size() - 1; j ++) {
                 fout.write(reinterpret_cast<char*>(&(rlbwt[i].thresholds[j])), sizeof(rlbwt[i].thresholds[j]));
+                fout.write(reinterpret_cast<char*>(&(rlbwt[i].next_up[j])), sizeof(rlbwt[i].next_up[j]));
+                fout.write(reinterpret_cast<char*>(&(rlbwt[i].next_down[j])), sizeof(rlbwt[i].next_down[j]));
+            }
         }
     }
     // if (!bit1)
@@ -700,8 +740,11 @@ void MoveStructure::deserialize(char* index_dir) {
         if (bit1) {
             fin.read(reinterpret_cast<char*>(&rlbwt[i].threshold_1bit), sizeof(rlbwt[i].threshold_1bit));
         } else {
-            for (uint32_t j = 0; j < alphabet.size() - 1; j ++)
+            for (uint32_t j = 0; j < alphabet.size() - 1; j ++){
                 fin.read(reinterpret_cast<char*>(&(rlbwt[i].thresholds[j])), sizeof(uint16_t));
+                fin.read(reinterpret_cast<char*>(&(rlbwt[i].next_up[j])), sizeof(uint16_t));
+                fin.read(reinterpret_cast<char*>(&(rlbwt[i].next_down[j])), sizeof(uint16_t));
+            }
         }
     }
 
