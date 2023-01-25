@@ -42,20 +42,12 @@ class MoveRow{
         uint16_t next_down[3];
 
         // Why the number is close to 2 for 1bit?
-        // -- 15.9M vs 51.4M -- tot: 24.6M vs 89.9M
-        // --  1.3M vs  4.4M -- tot:  2.2M vs  7.7M
-        //
-        //
         
         // Store the character bit in the remaining 8 bit of the overflow_bits
 
         // What's the bug for the big experiment (1bit)
 
         // can we reduce the size by converting 64 to 16 and then what happens in terms of the query times?
-        // -- query time remains similar
-        // -- 1.9 GB goes down to 1.3 GB
-        //
-        //
 
         // convinced to do the Nate suggestion, we need full bwt offset in order to interpret thresholds? or not? PML vs ML -- new branch?
 };
