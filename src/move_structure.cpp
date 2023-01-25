@@ -318,8 +318,8 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         }
     }
     std::cerr<< length << "\n";
-    std::cerr<<"Computing the next ups and downs.\n";
-    compute_nexts();
+    // std::cerr<<"Computing the next ups and downs.\n";
+    // compute_nexts();
     std::cerr<< "The move structure building is done.\n";
 }
 
@@ -547,20 +547,20 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, char r_char
         if (pointer >= rlbwt[idx].get_p() + rlbwt[idx].thresholds[alphabet_index] and idx != r-1) {
             if (verbose)
                 std::cerr<< "Jumping down with thresholds:\n";
-            // idx = jump_down(saved_idx, r_char);
-            if (rlbwt[saved_idx].next_down[alphabet_index] == std::numeric_limits<uint16_t>::max())
+            idx = jump_down(saved_idx, r_char);
+            /*if (rlbwt[saved_idx].next_down[alphabet_index] == std::numeric_limits<uint16_t>::max())
                 idx = r;
             else
-                idx = saved_idx + rlbwt[saved_idx].next_down[alphabet_index];
+                idx = saved_idx + rlbwt[saved_idx].next_down[alphabet_index];*/
             return false;
         } else {
             if (verbose)
                 std::cerr<< "Jumping up with thresholds:\n";
-            // idx = jump_up(saved_idx, r_char);
-            if (rlbwt[saved_idx].next_up[alphabet_index] == std::numeric_limits<uint16_t>::max())
+            idx = jump_up(saved_idx, r_char);
+            /*if (rlbwt[saved_idx].next_up[alphabet_index] == std::numeric_limits<uint16_t>::max())
                 idx = r;
             else
-                idx = saved_idx - rlbwt[idx].next_up[alphabet_index];
+                idx = saved_idx - rlbwt[idx].next_up[alphabet_index];*/
             return true;
         }
     } else {
@@ -689,8 +689,8 @@ void MoveStructure::serialize(char* output_dir) {
         } else {
             for (uint32_t j = 0; j < alphabet.size() - 1; j ++) {
                 fout.write(reinterpret_cast<char*>(&(rlbwt[i].thresholds[j])), sizeof(rlbwt[i].thresholds[j]));
-                fout.write(reinterpret_cast<char*>(&(rlbwt[i].next_up[j])), sizeof(rlbwt[i].next_up[j]));
-                fout.write(reinterpret_cast<char*>(&(rlbwt[i].next_down[j])), sizeof(rlbwt[i].next_down[j]));
+                // fout.write(reinterpret_cast<char*>(&(rlbwt[i].next_up[j])), sizeof(rlbwt[i].next_up[j]));
+                // fout.write(reinterpret_cast<char*>(&(rlbwt[i].next_down[j])), sizeof(rlbwt[i].next_down[j]));
             }
         }
     }
@@ -742,8 +742,8 @@ void MoveStructure::deserialize(char* index_dir) {
         } else {
             for (uint32_t j = 0; j < alphabet.size() - 1; j ++){
                 fin.read(reinterpret_cast<char*>(&(rlbwt[i].thresholds[j])), sizeof(uint16_t));
-                fin.read(reinterpret_cast<char*>(&(rlbwt[i].next_up[j])), sizeof(uint16_t));
-                fin.read(reinterpret_cast<char*>(&(rlbwt[i].next_down[j])), sizeof(uint16_t));
+                // fin.read(reinterpret_cast<char*>(&(rlbwt[i].next_up[j])), sizeof(uint16_t));
+                // gfin.read(reinterpret_cast<char*>(&(rlbwt[i].next_down[j])), sizeof(uint16_t));
             }
         }
     }
