@@ -323,35 +323,6 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::cerr<< "The move structure building is done.\n";
 }
 
-void MoveStructure::compute_nexts() {
-    for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
-        if (i % 100000 == 0)
-            std::cerr<< i << "\r";
-
-        char rlbwt_c = bit1 ? compute_char(i) : rlbwt[i].get_c();
-        for (uint64_t j = 0; j < alphabet.size(); j++) {
-            if (alphabet[j] != rlbwt_c) {
-                auto alphabet_idx = alphamap_3[alphamap[rlbwt_c]][j];
-
-                auto idx = jump_up(i, alphabet[j]);
-                if (idx == r) {
-                    rlbwt[i].next_up[alphabet_idx] = std::numeric_limits<uint16_t>::max();
-                } else {
-                    rlbwt[i].next_up[alphabet_idx] = i - idx;
-                }
-
-                idx = jump_down(i, alphabet[j]);
-                if (idx == r) {
-                    rlbwt[i].next_down[alphabet_idx] = std::numeric_limits<uint16_t>::max();
-                } else {
-                    rlbwt[i].next_down[alphabet_idx] = idx - i;
-                }
-            }
-        }
-    }
-    std::cerr<< length << "\n";
-}
-
 uint64_t MoveStructure::fast_forward(uint64_t pointer, uint64_t idx) {
     if (verbose)
         std::cerr << idx << " + " << rlbwt[idx].get_p() << " + " << rlbwt[idx].get_n() << "\n";
