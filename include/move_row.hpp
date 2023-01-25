@@ -38,16 +38,9 @@ class MoveRow{
         uint16_t thresholds[3]; // 4*8 = 32 : 1.9 GB ---- 3 * 2 = 6
         uint16_t threshold_1bit; // 4 + 2 + 4 + 4 + 4 = 18 : 534 MB
 
-        uint16_t next_up[3];
-        uint16_t next_down[3];
-
         // Why the number is close to 2 for 1bit?
         
-        // Store the character bit in the remaining 8 bit of the overflow_bits
-
         // What's the bug for the big experiment (1bit)
-
-        // can we reduce the size by converting 64 to 16 and then what happens in terms of the query times?
 
         // convinced to do the Nate suggestion, we need full bwt offset in order to interpret thresholds? or not? PML vs ML -- new branch?
 };
