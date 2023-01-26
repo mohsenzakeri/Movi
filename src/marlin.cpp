@@ -76,5 +76,30 @@ int main(int argc, char* argv[]) {
             jumps_file <<jump.first << "\t" << jump.second << "\n";
         }
         jumps_file.close();
+    } else if (command == "LF") {
+        bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
+        MoveStructure mv_(verbose);
+        auto begin = std::chrono::system_clock::now();
+        mv_.deserialize(argv[2]);
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+        std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+        std::cerr << "The move structure is read from the file successfully.\n";
+
+        std::string bwt_filename = argv[3] + std::string(".bwt");
+        std::cerr << bwt_filename << "\n";
+        std::ifstream bwt_file(bwt_filename);
+        mv_.all_lf_test(bwt_file);
+    } else if (command == "randomLF") {
+        bool verbose = (argc > 3 and std::string(argv[3]) == "verbose");
+        MoveStructure mv_(verbose);
+        auto begin = std::chrono::system_clock::now();
+        mv_.deserialize(argv[2]);
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+        std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+        std::cerr << "The move structure is read from the file successfully.\n";
+
+        mv_.random_lf_test();
     }
 }

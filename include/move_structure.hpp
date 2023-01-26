@@ -30,9 +30,12 @@ class MoveStructure {
 
         void build(std::ifstream &bwt_file);
         uint64_t query_ms(MoveQuery& mq, bool random);
+        void all_lf_test(std::ifstream &bwt_file);
+        void random_lf_test();
         std::string reconstruct();
 
         uint64_t LF(uint64_t row_number);
+        void LF_move(uint64_t& pointer, uint64_t& i);
         uint64_t fast_forward(uint64_t pointer, uint64_t index);
         char compute_char(uint64_t idx);
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);

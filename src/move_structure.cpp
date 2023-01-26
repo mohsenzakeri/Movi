@@ -135,6 +135,59 @@ uint32_t MoveStructure::compute_index(char row_char, char lookup_char) {
         return alpha_index+1;*/
 }
 
+void MoveStructure::LF_move(uint64_t& pointer, uint64_t& i) {
+    auto& row = rlbwt[i];
+    auto idx = row.get_id();
+    pointer = row.get_pp() + (pointer - row.get_p());
+
+    if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) {
+        uint64_t idx_ = fast_forward(pointer, idx);
+        idx += idx_;
+    }
+    i = idx;
+}
+
+void MoveStructure::all_lf_test(std::ifstream &bwt_file) {
+    bwt_file.clear();
+    bwt_file.seekg(0);
+    char  current_char = bwt_file.get();
+    char last_char = current_char;
+    uint64_t line_index = 0;
+    uint64_t row_index = 0;
+    while (current_char != EOF) { // && current_char != 10
+        if (line_index % 10000 == 0)
+            std::cerr<< line_index << "\r";
+
+        uint64_t pointer = line_index;
+        uint64_t i = row_index;
+        LF_move(pointer, i);
+
+        last_char = current_char;
+        current_char = bwt_file.get();
+        line_index += 1;
+        if (current_char != last_char) {
+            row_index += 1;
+        }
+    }
+    std::cerr<< line_index << "\r";
+    std::cerr<< "Finished performing LF query for all the BWT characters.\n";
+}
+
+void MoveStructure::random_lf_test() {
+
+    for (uint64_t i = 0; i < length; i++) {
+        if (i % 10000 == 0)
+            std::cerr<< i << "\r";
+
+        uint64_t idx = std::rand() % r;
+        auto& row = rlbwt[idx];
+        uint64_t pointer = row.get_p() + (std::rand() % row.get_n());
+        LF_move(pointer, idx);
+    }
+    std::cerr<< length << "\r";
+    std::cerr<< "Finished performing LF query for all the BWT characters.\n";
+}
+
 void MoveStructure::build(std::ifstream &bwt_file) {
     bwt_file.clear();
     bwt_file.seekg(0,std::ios_base::end);
@@ -319,7 +372,6 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     }
     std::cerr<< length << "\n";
     // std::cerr<<"Computing the next ups and downs.\n";
-    // compute_nexts();
     std::cerr<< "The move structure building is done.\n";
 }
 
@@ -519,19 +571,11 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, char r_char
             if (verbose)
                 std::cerr<< "Jumping down with thresholds:\n";
             idx = jump_down(saved_idx, r_char);
-            /*if (rlbwt[saved_idx].next_down[alphabet_index] == std::numeric_limits<uint16_t>::max())
-                idx = r;
-            else
-                idx = saved_idx + rlbwt[saved_idx].next_down[alphabet_index];*/
             return false;
         } else {
             if (verbose)
                 std::cerr<< "Jumping up with thresholds:\n";
             idx = jump_up(saved_idx, r_char);
-            /*if (rlbwt[saved_idx].next_up[alphabet_index] == std::numeric_limits<uint16_t>::max())
-                idx = r;
-            else
-                idx = saved_idx - rlbwt[idx].next_up[alphabet_index];*/
             return true;
         }
     } else {
@@ -660,8 +704,6 @@ void MoveStructure::serialize(char* output_dir) {
         } else {
             for (uint32_t j = 0; j < alphabet.size() - 1; j ++) {
                 fout.write(reinterpret_cast<char*>(&(rlbwt[i].thresholds[j])), sizeof(rlbwt[i].thresholds[j]));
-                // fout.write(reinterpret_cast<char*>(&(rlbwt[i].next_up[j])), sizeof(rlbwt[i].next_up[j]));
-                // fout.write(reinterpret_cast<char*>(&(rlbwt[i].next_down[j])), sizeof(rlbwt[i].next_down[j]));
             }
         }
     }
@@ -713,8 +755,6 @@ void MoveStructure::deserialize(char* index_dir) {
         } else {
             for (uint32_t j = 0; j < alphabet.size() - 1; j ++){
                 fin.read(reinterpret_cast<char*>(&(rlbwt[i].thresholds[j])), sizeof(uint16_t));
-                // fin.read(reinterpret_cast<char*>(&(rlbwt[i].next_up[j])), sizeof(uint16_t));
-                // gfin.read(reinterpret_cast<char*>(&(rlbwt[i].next_down[j])), sizeof(uint16_t));
             }
         }
     }
