@@ -166,6 +166,12 @@ uint64_t MoveStructure::LF_move(uint64_t& pointer, uint64_t& i) {
         ff_count += idx_;
     }
     i = idx;
+
+    if (ff_counts.find(ff_count) != ff_counts.end())
+        ff_counts[ff_count] += 1;
+    else
+        ff_counts[ff_count] = 1;
+
     return ff_count;
 }
 
@@ -198,6 +204,7 @@ void MoveStructure::all_lf_test(std::ifstream &bwt_file) {
 }
 
 void MoveStructure::random_lf_test() {
+    std::srand(time(0));
     uint64_t ff_count_tot = 0;
     for (uint64_t i = 0; i < length; i++) {
         if (i % 10000 == 0)

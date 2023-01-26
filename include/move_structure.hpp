@@ -10,7 +10,7 @@
 #include <unistd.h>
 #include <sys/stat.h>
 #include <vector>
-#include <map>
+#include <unordered_map>
 
 #include "kseq.h"
 #include <sdsl/int_vector.hpp>
@@ -55,7 +55,8 @@ class MoveStructure {
         void serialize(char* output_dir);
         void deserialize(char* index_dir);
         
-        std::map<uint32_t, uint32_t> jumps;
+        std::unordered_map<uint32_t, uint32_t> jumps;
+        std::unordered_map<uint32_t, uint32_t> ff_counts;
 
     private:
         bool bit1;

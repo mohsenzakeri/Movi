@@ -48,7 +48,7 @@ int main(int argc, char* argv[]) {
         fp = gzopen(argv[3], "r"); // STEP 2: open the file handler
         seq = kseq_init(fp); // STEP 3: initialize seq
         std::ofstream pmls_file(static_cast<std::string>(argv[3]) + ".mpml");
-        uint64_t ff_count = 0;
+        uint64_t all_ff_count = 0;
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
             /*printf("name: %s\n", seq->name.s);
             if (seq->comment.l) printf("comment: %s\n", seq->comment.s);
@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
             MoveQuery mq(query_seq);
             bool random_jump = false;
             // std::cerr << seq->name.s << "\n";
-            ff_count += mv_.query_ms(mq, random_jump);
+            all_ff_count += mv_.query_ms(mq, random_jump);
             pmls_file << seq->name.s << "\n";
             pmls_file << mq <<"\n";
         }
@@ -70,7 +70,7 @@ int main(int argc, char* argv[]) {
         std::cerr<<"kseq destroyed!\n";
         gzclose(fp); // STEP 6: close the file handler
         std::cerr<<"fp file closed!\n";
-        std::cerr<<"ff_count: " << ff_count << "\n";
+        std::cerr<<"all fast forward counts: " << all_ff_count << "\n";
         std::ofstream jumps_file(static_cast<std::string>(argv[3]) + ".jumps");
         for (auto& jump : mv_.jumps) {
             jumps_file <<jump.first << "\t" << jump.second << "\n";
@@ -90,6 +90,12 @@ int main(int argc, char* argv[]) {
         std::cerr << bwt_filename << "\n";
         std::ifstream bwt_file(bwt_filename);
         mv_.all_lf_test(bwt_file);
+        
+	std::ofstream ff_counts_file(static_cast<std::string>(argv[3]) + ".ff_counts");
+        for (auto& ff_count : mv_.ff_counts) {
+            ff_counts_file <<ff_count.first << "\t" << ff_count.second << "\n";
+        }
+        ff_counts_file.close();
     } else if (command == "randomLF") {
         bool verbose = (argc > 3 and std::string(argv[3]) == "verbose");
         MoveStructure mv_(verbose);
@@ -97,7 +103,7 @@ int main(int argc, char* argv[]) {
         mv_.deserialize(argv[2]);
         auto end = std::chrono::system_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-        std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+        std::printf("Time measured for loading the ind`ex: %.3f seconds.\n", elapsed.count() * 1e-9);
         std::cerr << "The move structure is read from the file successfully.\n";
 
         mv_.random_lf_test();
