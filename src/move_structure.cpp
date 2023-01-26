@@ -82,6 +82,25 @@ uint64_t MoveStructure::LF(uint64_t row_number) {
     return lf;
 }
 
+std::string MoveStructure::reconstruct_move() {
+    orig_string = "";
+    uint64_t bwt_index = 0;
+    uint64_t run_index = 0;
+    uint64_t i = 0;
+    uint64_t ff_count_tot = 0;
+    for (; bwt_index != end_bwt_row; ff_count_tot += LF_move(bwt_index, run_index)) {
+        if (i % 10000 == 0)
+            std::cerr<< i << "\r";
+        i += 1;
+        // orig_string = rlbwt[run_index].get_c() + orig_string;
+    }
+    std::cerr << i << " " << bwt_index << " " << run_index << "\n";
+    std::cerr << length << "\n";
+    std::cerr << "Finished reconstructing the original string.\n";
+    std::cerr << "Total fast forward: " << ff_count_tot << "\n";
+    return orig_string;
+}
+
 std::string MoveStructure::reconstruct() {
     if (bwt_string == "") {
         for (uint32_t i = 0; i < r; i++) {
@@ -135,16 +154,19 @@ uint32_t MoveStructure::compute_index(char row_char, char lookup_char) {
         return alpha_index+1;*/
 }
 
-void MoveStructure::LF_move(uint64_t& pointer, uint64_t& i) {
+uint64_t MoveStructure::LF_move(uint64_t& pointer, uint64_t& i) {
     auto& row = rlbwt[i];
     auto idx = row.get_id();
     pointer = row.get_pp() + (pointer - row.get_p());
+    uint64_t ff_count = 0;
 
     if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) {
         uint64_t idx_ = fast_forward(pointer, idx);
         idx += idx_;
+        ff_count += idx_;
     }
     i = idx;
+    return ff_count;
 }
 
 void MoveStructure::all_lf_test(std::ifstream &bwt_file) {
@@ -154,13 +176,14 @@ void MoveStructure::all_lf_test(std::ifstream &bwt_file) {
     char last_char = current_char;
     uint64_t line_index = 0;
     uint64_t row_index = 0;
+    uint64_t ff_count_tot = 0;
     while (current_char != EOF) { // && current_char != 10
         if (line_index % 10000 == 0)
             std::cerr<< line_index << "\r";
 
         uint64_t pointer = line_index;
         uint64_t i = row_index;
-        LF_move(pointer, i);
+        ff_count_tot += LF_move(pointer, i);
 
         last_char = current_char;
         current_char = bwt_file.get();
@@ -171,10 +194,11 @@ void MoveStructure::all_lf_test(std::ifstream &bwt_file) {
     }
     std::cerr<< line_index << "\r";
     std::cerr<< "Finished performing LF query for all the BWT characters.\n";
+    std::cerr << "Total fast forward: " << ff_count_tot << "\n";
 }
 
 void MoveStructure::random_lf_test() {
-
+    uint64_t ff_count_tot = 0;
     for (uint64_t i = 0; i < length; i++) {
         if (i % 10000 == 0)
             std::cerr<< i << "\r";
@@ -182,10 +206,12 @@ void MoveStructure::random_lf_test() {
         uint64_t idx = std::rand() % r;
         auto& row = rlbwt[idx];
         uint64_t pointer = row.get_p() + (std::rand() % row.get_n());
-        LF_move(pointer, idx);
+        
+        ff_count_tot += LF_move(pointer, idx);
     }
     std::cerr<< length << "\r";
     std::cerr<< "Finished performing LF query for all the BWT characters.\n";
+    std::cerr << "Total fast forward: " << ff_count_tot << "\n";
 }
 
 void MoveStructure::build(std::ifstream &bwt_file) {
