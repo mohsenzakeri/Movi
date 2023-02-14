@@ -38,9 +38,10 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
     std::cerr << "Finished reading " << i << " thresholds.\n";
 }
 
-MoveStructure::MoveStructure(char* input_file, bool bit1_, bool verbose_) {
+MoveStructure::MoveStructure(char* input_file, bool bit1_, bool verbose_, uint16_t splitting_ = false) {
     verbose = verbose_;
     bit1 = bit1_;
+    splitting = splitting_;
     reconstructed = false;
     std::string bwt_filename = input_file + std::string(".bwt");
     std::ifstream bwt_file(bwt_filename);
@@ -151,24 +152,41 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::vector<uint64_t> all_chars(all_chars_count, 0);
     uint64_t current_char = bwt_file.get();
     r = 1;
+    original_r = 1;
     // TODO Use a size based on the input size
 
-    bits = sdsl::bit_vector(static_cast<uint64_t>(end_pos) + 1, 0); // 5137858051
-    bits[0] = 1;
+    if (splitting) {
+        std::string splitting_filename = input_file + std::format(".{}_col", std::to_string(splitting));
+        std::ifstream splitting_file(splitting_filename);
+
+        bits.load(splitting_file);
+    }
+    else {
+        bits = sdsl::bit_vector(static_cast<uint64_t>(end_pos) + 1, 0); // 5137858051
+        bits[0] = 1;
+    }
+
     std::cerr<<"bit vector is built!\n";
     while (current_char != EOF) { // && current_char != 10
         if (r % 10000 == 0)
             std::cerr<< r << "\r";
         if (bwt_string.length() > 0 && current_char != bwt_string.back()) {
+            original_r += 1;
+            if (!splitting) bits[bwt_string.length()] = 1;
+        }
+        if (splitting && bwt_string.length() > 0 && bits[bwt_string.length()]) {
             r += 1;
-            bits[bwt_string.length()] = 1;
         }
         bwt_string += current_char;
         all_chars[current_char] += 1;
 
         current_char = bwt_file.get();
     }
+
+    if (!splitting) r = original_r;
+
     std::cerr<< "r: " << r << "\n";
+    std::cerr<< "original_r: " << original_r << "\n";
     length = bwt_string.length();
     std::cerr<<"length: " << length << "\n";
     rlbwt.resize(r);
@@ -238,7 +256,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             end_bwt_row = i;
         }
 
-        if (i == length - 1 or bwt_string[i] != bwt_string[i+1]) {
+        if (i == length - 1 or bwt_string[i] != bwt_string[i+1] or bits[i+1]) {
             len += 1;
             uint64_t lf  = 0;
             // if (bwt_string[i] != static_cast<unsigned char>(END_CHARACTER))
@@ -286,6 +304,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         }
         rlbwt[r - 1].threshold_1bit = rlbwt[r - 1].get_n();
     } else {
+        uint64_t thr_i = original_r - 1;
         for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
             if (i % 100000 == 0)
                 std::cerr<< i << "\r";
@@ -293,7 +312,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             char rlbwt_c = bit1 ? compute_char(i) : rlbwt[i].get_c();
             for (uint64_t j = 0; j < alphabet.size(); j++) {
                 if (alphabet[j] == rlbwt_c) {
-                    alphabet_thresholds[j] = thresholds[i];
+                    alphabet_thresholds[j] = thresholds[thr_i];
                 }
                 else {
                     if (alphabet_thresholds[j] >= rlbwt[i].get_p() + rlbwt[i].get_n()) {
@@ -311,6 +330,10 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                     }
                     // rlbwt[i].thresholds[j] = alphabet_thresholds[j];
                 }
+            }
+
+            if (i > 0 && rlbwt[i].get_c() != rlbwt[i - 1].get_c()) {
+                thr_i--;
             }
         }
         for (uint64_t j = 0; j < alphabet.size() - 1; j++) {

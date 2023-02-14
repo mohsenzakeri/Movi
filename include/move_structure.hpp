@@ -55,11 +55,13 @@ class MoveStructure {
 
     private:
         bool bit1;
+        uint16_t splitting;
         std::string bwt_string;
         std::string orig_string;
         bool reconstructed;
         uint64_t length;
         uint64_t r;
+        uint64_t original_r;
         uint64_t end_bwt_row;
         bool verbose;
 
