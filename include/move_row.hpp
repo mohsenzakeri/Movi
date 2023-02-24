@@ -30,11 +30,11 @@ class MoveRow{
         char get_c() const;
 //    private:
         uint32_t p; // bwt row of the head before the jump
-        uint16_t n; // length of the run
         uint32_t pp; // bwt row of the head after the jump
         uint32_t id; // bwt run after the jump
         uint32_t overflow_bits;
 
+        uint16_t n; // length of the run
         uint16_t thresholds[3]; // 4*8 = 32 : 1.9 GB ---- 3 * 2 = 6
         // uint16_t threshold_1bit; // 4 + 2 + 4 + 4 + 4 = 18 : 534 MB
 

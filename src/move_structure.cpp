@@ -38,6 +38,11 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
     std::cerr << "Finished reading " << i << " thresholds.\n";
 }
 
+MoveStructure::MoveStructure(bool verbose_, bool logs_) {
+    verbose = verbose_;
+    logs = logs_;
+}
+
 MoveStructure::MoveStructure(char* input_file, bool bit1_, bool verbose_) {
     verbose = verbose_;
     bit1 = bit1_;
@@ -166,11 +171,12 @@ uint64_t MoveStructure::LF_move(uint64_t& pointer, uint64_t& i) {
         ff_count += idx_;
     }
 
-    if (ff_counts.find(ff_count) != ff_counts.end())
-        ff_counts[ff_count] += 1;
-    else
-        ff_counts[ff_count] = 1;
-    
+    if (logs) {
+        if (ff_counts.find(ff_count) != ff_counts.end())
+            ff_counts[ff_count] += 1;
+        else
+            ff_counts[ff_count] = 1;
+    }
     i = idx;
     return ff_count;
 }
@@ -439,10 +445,12 @@ uint64_t MoveStructure::jump_up(uint64_t idx, char c) {
         idx -= 1;
         row_c = bit1 ? compute_char(idx) : rlbwt[idx].get_c();
     }
-    if (jumps.find(jump_count) != jumps.end())
-        jumps[jump_count] += 1;
-    else
-        jumps[jump_count] = 1;
+    if (logs) {
+        if (jumps.find(jump_count) != jumps.end())
+            jumps[jump_count] += 1;
+        else
+            jumps[jump_count] = 1;
+    }
     if (verbose) 
         std::cerr << "idx after the while in the jump" << idx << "\n";
     return (row_c == c) ? idx : r;
@@ -458,10 +466,12 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c) {
         idx += 1;
         row_c = bit1 ? compute_char(idx) : rlbwt[idx].get_c();
     }
-    if (jumps.find(jump_count) != jumps.end())
-        jumps[jump_count] += 1;
-    else
-        jumps[jump_count] = 1;
+    if (logs) {
+        if (jumps.find(jump_count) != jumps.end())
+            jumps[jump_count] += 1;
+        else
+            jumps[jump_count] = 1;
+    }
     if (verbose) 
         std::cerr << "idx after the while in the jump: " << idx << " " << c << " " << row_c << "\n";
     return (row_c == c) ? idx : r;
@@ -635,8 +645,9 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, char r_char
             idx = jump_up(saved_idx, r_char);
             return true;
         }*/
-
     }
+    // TODO: default return?
+    return false;
 }
 
 bool MoveStructure::jump_randomly(uint64_t& idx, char r_char) {

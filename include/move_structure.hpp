@@ -25,7 +25,7 @@
 class MoveStructure {
     public:
         MoveStructure() { }
-        MoveStructure(bool verbose_ = false) { verbose = verbose_; std::cerr<<"verbose: " <<verbose<<"\n";}
+        MoveStructure(bool verbose_ = false, bool logs_ = false);
         MoveStructure(char* input_file, bool bit1_ = false, bool verbose_ = false);
 
         void build(std::ifstream &bwt_file);
@@ -67,6 +67,7 @@ class MoveStructure {
         uint64_t r;
         uint64_t end_bwt_row;
         bool verbose;
+        bool logs;
 
         std::vector<unsigned char> alphabet;
         std::vector<uint64_t> counts;

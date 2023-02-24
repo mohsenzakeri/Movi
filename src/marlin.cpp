@@ -31,7 +31,8 @@ int main(int argc, char* argv[]) {
 
     } else if (command == "query") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
-        MoveStructure mv_(verbose);
+        bool logs = (argc > 4 and std::string(argv[4]) == "logs");
+        MoveStructure mv_(verbose, logs);
         auto begin = std::chrono::system_clock::now();
         mv_.deserialize(argv[2]);
         auto end = std::chrono::system_clock::now();
@@ -71,11 +72,13 @@ int main(int argc, char* argv[]) {
         gzclose(fp); // STEP 6: close the file handler
         std::cerr<<"fp file closed!\n";
         std::cerr<<"all fast forward counts: " << all_ff_count << "\n";
-        std::ofstream jumps_file(static_cast<std::string>(argv[3]) + ".jumps");
-        for (auto& jump : mv_.jumps) {
-            jumps_file <<jump.first << "\t" << jump.second << "\n";
+        if (logs) {
+            std::ofstream jumps_file(static_cast<std::string>(argv[3]) + ".jumps");
+            for (auto& jump : mv_.jumps) {
+                jumps_file <<jump.first << "\t" << jump.second << "\n";
+            }
+            jumps_file.close();
         }
-        jumps_file.close();
     } else if (command == "LF") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         MoveStructure mv_(verbose);
