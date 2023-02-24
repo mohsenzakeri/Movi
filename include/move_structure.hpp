@@ -30,8 +30,8 @@ class MoveStructure {
 
         void build(std::ifstream &bwt_file);
         uint64_t query_ms(MoveQuery& mq, bool random);
-        void all_lf_test(std::ifstream &bwt_file);
-        void random_lf_test();
+        void all_lf_test(/*std::ifstream &bwt_file*/);
+        uint64_t random_lf_test();
         std::string reconstruct();
         std::string reconstruct_move();
 

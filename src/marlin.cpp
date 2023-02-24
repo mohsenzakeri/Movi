@@ -86,16 +86,16 @@ int main(int argc, char* argv[]) {
         std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
         std::cerr << "The move structure is read from the file successfully.\n";
 
-        std::string bwt_filename = argv[3] + std::string(".bwt");
+        /*std::string bwt_filename = argv[3] + std::string(".bwt");
         std::cerr << bwt_filename << "\n";
-        std::ifstream bwt_file(bwt_filename);
-        mv_.all_lf_test(bwt_file);
+        std::ifstream bwt_file(bwt_filename);*/
+        mv_.all_lf_test(/*bwt_file*/);
         
-	std::ofstream ff_counts_file(static_cast<std::string>(argv[3]) + ".ff_counts");
+	    /*std::ofstream ff_counts_file(static_cast<std::string>(argv[3]) + ".ff_counts");
         for (auto& ff_count : mv_.ff_counts) {
             ff_counts_file <<ff_count.first << "\t" << ff_count.second << "\n";
         }
-        ff_counts_file.close();
+        ff_counts_file.close();*/
     } else if (command == "randomLF") {
         bool verbose = (argc > 3 and std::string(argv[3]) == "verbose");
         MoveStructure mv_(verbose);
@@ -106,7 +106,8 @@ int main(int argc, char* argv[]) {
         std::printf("Time measured for loading the ind`ex: %.3f seconds.\n", elapsed.count() * 1e-9);
         std::cerr << "The move structure is read from the file successfully.\n";
 
-        mv_.random_lf_test();
+        // mv_.random_lf_test();
+        std::cerr << mv_.random_lf_test() << "\n";
     } else if (command == "reconstruct") {
         bool verbose = (argc > 3 and std::string(argv[3]) == "verbose");
         MoveStructure mv_(verbose);
