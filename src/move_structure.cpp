@@ -334,9 +334,12 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
     // Building the move structure rows
     uint16_t len = 0;
-    uint64_t offset = 0;
+    uint64_t bwt_row = 0;
     uint64_t r_idx = 0;
-    // bits = sdsl::bit_vector(length, 0);
+    uint64_t offset = 0;
+    std::cerr<< "bits.size(): " << bits.size() << "\n";
+    std::cerr<< "rank_support_v<>(&bits)(bits.size()): " << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
+    sbits = sdsl::select_support_mcl<>(&bits);
     for (uint64_t i = 0; i < length; i++) {
         if (i % 10000 == 0)
             std::cerr<< i << "\r";
@@ -348,12 +351,30 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             len += 1;
             uint64_t lf  = 0;
             // if (bwt_string[i] != static_cast<unsigned char>(END_CHARACTER))
-                lf = LF(offset);
-            // bits[offset] = 1;
+                lf = LF(bwt_row);
+            // bits[bwt_row] = 1;
             uint64_t pp_id = rbits(lf) - 1;
             if (bits[lf] == 1)
                 pp_id += 1;
-            rlbwt[r_idx].init(offset, len, lf, pp_id);
+            
+
+            if (pp_id == 0) {
+                offset = 0;
+            } else {
+                // check the boundaries before performing select
+                if (pp_id >= r) {
+                    std::cerr << "pp_id: " << pp_id << "r: " << r << "i: " << i << "bwt_row: " << bwt_row << "lf: " << lf << "\n";
+                    exit(0);
+                }
+                if (lf < sbits(pp_id)) {
+                    std::cerr << lf << " " << sbits(pp_id);
+                    exit(0);
+                }
+
+                offset = lf - sbits(pp_id);
+            }
+
+            rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
 
             if (!bit1){
                 rlbwt[r_idx].set_c(bwt_string[i]);
@@ -364,7 +385,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                 bit1_after_eof = alphamap[bwt_string[i+1]];
             }
 
-            offset += len;
+            bwt_row += len;
             len = 0;
             r_idx += 1;
         } else if (bwt_string[i] == bwt_string[i+1]) {
@@ -428,10 +449,19 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::cerr<< "The move structure building is done.\n";
 }
 
-uint64_t MoveStructure::fast_forward(uint64_t pointer, uint64_t idx) {
+// uint64_t MoveStructure::fast_forward(uint64_t pointer, uint64_t idx) {
+//     uint64_t idx_ = idx;
+//     while (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) 
+//         idx += 1;
+//     return idx - idx_;
+// }
+
+uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx) {
     uint64_t idx_ = idx;
-    while (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) 
+    while (idx < r - 1 && offset > rlbwt[idx].get_n()) {
+        offset -= rlbwt[idx].get_n();
         idx += 1;
+    }
     return idx - idx_;
 }
 
@@ -484,6 +514,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
     uint64_t idx = std::rand() % r; // r - 1
     if (verbose) std::cerr<< "Begin search from idx = " << idx << "\n";
     uint64_t pointer = rlbwt[idx].get_p();
+    uint64_t offset = rlbwt[idx].get_offset();
     uint64_t match_len = 0;
 
     if (verbose) {
@@ -523,12 +554,14 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             // idx = row.id;
             idx = row.get_id();
             // pointer = row.pp + (pointer - row.p);
-            pointer = row.get_pp() + (pointer - row.get_p());
+            // pointer = row.get_pp() + (pointer - row.get_p());
+            offset = row.get_offset() + offset;
             if (verbose)
                 std::cerr<<"Case 1 idx: " << idx << " pointer: " << pointer << "\n";
 
-            if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) {
-                uint64_t idx_ = fast_forward(pointer, idx);
+
+            if (idx < r - 1 && offset > rlbwt[idx].get_n()) {
+                uint64_t idx_ = fast_forward(offset, idx);
                 ff_count += idx_;
                 idx += idx_;
             }
@@ -543,7 +576,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             // Jumping randomly up or down or with naive lcp computation
             uint64_t lcp = 0;
             bool up = random ? jump_randomly(idx, R[pos_on_r]) : 
-                               jump_thresholds(idx, pointer, R[pos_on_r]);
+                               jump_thresholds(idx, pointer, offset, R[pos_on_r]);
             //                   jump_naive_lcp(idx, pointer, R[pos_on_r], lcp);
             auto saved_idx = idx;
             if (verbose)
@@ -593,7 +626,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
                     std::cerr<<"\n";
                 }*/
                 verbose = true;
-                jump_thresholds(saved_idx, pointer, R[pos_on_r]);
+                jump_thresholds(saved_idx, pointer, offset, R[pos_on_r]);
                 exit(0);
             }
         }
@@ -601,7 +634,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
     return ff_count;
 }
 
-bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, char r_char) {
+bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, uint64_t offset, char r_char) {
     uint64_t saved_idx = idx;
     uint64_t alphabet_index = alphamap[static_cast<uint64_t>(r_char)];
     if (verbose)
