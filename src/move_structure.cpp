@@ -366,13 +366,23 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                     std::cerr << "pp_id: " << pp_id << "r: " << r << "i: " << i << "bwt_row: " << bwt_row << "lf: " << lf << "\n";
                     exit(0);
                 }
-                if (lf < sbits(pp_id)) {
-                    std::cerr << lf << " " << sbits(pp_id);
+                if (lf < sbits(pp_id + 1)) {
+                    std::cerr << lf << " " << sbits(pp_id + 1);
                     exit(0);
                 }
 
-                offset = lf - sbits(pp_id);
+                offset = lf - sbits(pp_id + 1);
             }
+            if (r_idx == 22264811 or r_idx == 12229779 or r_idx == 16549102 or r_idx == 23653824 or r_idx == 12599245)
+                std::cerr << "r_idx: " << r_idx 
+                          << " bwt_row: " << bwt_row
+                          << " len: " << len
+                          << " lf: " << lf 
+                          << " offset: " << offset
+                          << " pp_id: " << pp_id
+                          << " sbits(pp_id): " << sbits(pp_id)
+                          << " sbits(pp_id + 1): " << sbits(pp_id + 1)
+                          << " sbits(pp_id - 1): " << sbits(pp_id - 1) << "\n";
 
             rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
 
@@ -449,16 +459,16 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::cerr<< "The move structure building is done.\n";
 }
 
-// uint64_t MoveStructure::fast_forward(uint64_t pointer, uint64_t idx) {
-//     uint64_t idx_ = idx;
-//     while (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) 
-//         idx += 1;
-//     return idx - idx_;
-// }
-
-uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx) {
+uint64_t MoveStructure::fast_forward(uint64_t pointer, uint64_t idx) {
     uint64_t idx_ = idx;
-    while (idx < r - 1 && offset > rlbwt[idx].get_n()) {
+    while (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) 
+        idx += 1;
+    return idx - idx_;
+}
+
+uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx, uint64_t x) {
+    uint64_t idx_ = idx;
+    while (idx < r - 1 && offset >= rlbwt[idx].get_n()) {
         offset -= rlbwt[idx].get_n();
         idx += 1;
     }
@@ -511,10 +521,10 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
     std::srand(time(0));
     std::string R = mq.query();
     int32_t pos_on_r = R.length() - 1;
-    uint64_t idx = std::rand() % r; // r - 1
+    uint64_t idx = std::rand() % r; // r - 1 // 22264811
     if (verbose) std::cerr<< "Begin search from idx = " << idx << "\n";
     uint64_t pointer = rlbwt[idx].get_p();
-    uint64_t offset = rlbwt[idx].get_offset();
+    uint64_t offset = 0;
     uint64_t match_len = 0;
 
     if (verbose) {
@@ -522,7 +532,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
         std::cerr<< "query: " << mq.query() << "\n";
     }
     if (verbose)
-        std::cerr<< "idx(r-1): " << idx << " pointer: " << pointer << "\n";
+        std::cerr<< "idx(r-1): " << idx << " pointer: " << pointer << " pointer-p: " << pointer - rlbwt[idx].get_p() << " offset: " << offset << "\n";
     uint64_t ff_count = 0;
     while (pos_on_r > -1) {
         if (idx == r) std::cerr << idx << "\n";
@@ -531,7 +541,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
 
         auto& row = rlbwt[idx];
         char row_c = bit1 ? compute_char(idx) : row.get_c();
-            
+
         if (alphamap[static_cast<uint64_t>(R[pos_on_r])] == alphamap.size()) { // not to use map
             // The character from the read does not exist in the reference
             match_len = 0;
@@ -554,20 +564,27 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             // idx = row.id;
             idx = row.get_id();
             // pointer = row.pp + (pointer - row.p);
-            // pointer = row.get_pp() + (pointer - row.get_p());
+            pointer = row.get_pp() + (pointer - row.get_p());
             offset = row.get_offset() + offset;
-            if (verbose)
-                std::cerr<<"Case 1 idx: " << idx << " pointer: " << pointer << "\n";
-
-
-            if (idx < r - 1 && offset > rlbwt[idx].get_n()) {
-                uint64_t idx_ = fast_forward(offset, idx);
-                ff_count += idx_;
-                idx += idx_;
+            if (verbose) {
+                std::cerr<<"row.id: " << row.get_id() << " rlbwt[row.get_id()].get_p(): " << rlbwt[row.get_id()].get_p() << "\n";
+                std::cerr<<"row.get_pp: " << row.get_pp() << " row.get_p: " << row.get_p() << "\n";
+                std::cerr<<"Case 1 idx: " << idx << " pointer: " << pointer << " pointer-p: " << pointer - rlbwt[idx].get_p() << " offset: " << offset << "\n";
+                std::cerr<<"row.get_offset(): " << row.get_offset() << "\n";
             }
 
-            if (verbose)
-                std::cerr<<"fast forwarding: " << idx << "\n";
+            // if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) {
+            if (idx < r - 1 && offset > rlbwt[idx].get_n()) {
+                if (verbose)
+                    std::cerr<<"fast forwarding: " << idx << "\n";
+                uint64_t idx_ = fast_forward(pointer, idx);
+                uint64_t idx__ = fast_forward(offset, idx, 0);
+                if (idx_ != idx__) { std::cerr<< "ff doesn't match" << idx_ << " " << idx__ << "\n";}
+                ff_count += idx__;
+                idx += idx__;
+            }
+
+
         } else {
             if (verbose)
                 std::cerr<< "Not a match, looking for a match either up or down...\n";
@@ -589,13 +606,16 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
                 // The right match_len should be:
                 // min(new_lcp, match_len + 1)
                 // But we cannot compute lcp here
-                if (up)
+                if (up) {
                     pointer = rlbwt[idx].get_p() + rlbwt[idx].get_n() - 1;
-                else
+                    offset = rlbwt[idx].get_n() - 1;
+                } else {
                     pointer = rlbwt[idx].get_p();
+                    offset = 0;
+                }
                 match_len = random ? 0 : std::min(match_len, lcp);
                 if (verbose)
-                    std::cerr<<"Case 2 idx: " << idx << " pointer: " << pointer << "\n";
+                    std::cerr<<"Case 2 idx: " << idx << " pointer: " << pointer << " pointer-p: " << pointer - rlbwt[idx].get_p() << " offset: " << offset << "\n";
             } else {
                 std::cerr << saved_idx << " " << pointer << " " <<  R[pos_on_r] << "\n";
                 std::cerr<<up << " - " << bit1 << " - " << R[pos_on_r] << " - " << pos_on_r << "\n";
@@ -648,14 +668,15 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, uint64_t of
         std::cerr<<"alphabet_index: " << alphabet_index << " r_char:" << r_char << " rlbwt_char:" << rlbwt_char << "\n";
     if (verbose) {
         std::cerr << idx << " thresholds.size:" << sizeof(rlbwt[idx].thresholds) << "\n";
-        std::cerr << "pointer:" <<pointer << " threshold:" << rlbwt[idx].thresholds[alphabet_index] << "\n";
+        std::cerr << "pointer:" <<pointer << " pointer-p: " << pointer - rlbwt[idx].get_p() << " offset: " << offset << " threshold:" << rlbwt[idx].thresholds[alphabet_index] << "\n";
     }
     /*if (verbose)
         exit(0);*/
     if (!bit1) {
         alphabet_index = alphamap_3[alphamap[rlbwt_char]][alphabet_index];
         if (alphabet_index == 3) std::cerr << alphabet_index << "\n";
-        if (pointer >= rlbwt[idx].get_p() + rlbwt[idx].thresholds[alphabet_index] and idx != r-1) {
+        // if (pointer >= rlbwt[idx].get_p() + rlbwt[idx].thresholds[alphabet_index] and idx != r-1) {
+        if (offset >= rlbwt[idx].thresholds[alphabet_index] and idx != r-1) {
             if (verbose)
                 std::cerr<< "Jumping down with thresholds:\n";
             idx = jump_down(saved_idx, r_char);
@@ -811,6 +832,7 @@ void MoveStructure::serialize(char* output_dir) {
 }
 
 void MoveStructure::deserialize(char* index_dir) {
+    std::cerr << "verbose: " << verbose << "\n";
     std::string fname = static_cast<std::string>(index_dir) + "/rlbwt.bin";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
     fin.seekg(0, std::ios::beg); 

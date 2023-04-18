@@ -32,6 +32,7 @@ int main(int argc, char* argv[]) {
     } else if (command == "query") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         bool logs = (argc > 4 and std::string(argv[4]) == "logs");
+        std::cerr << verbose << " " << logs << "\n";
         MoveStructure mv_(verbose, logs);
         auto begin = std::chrono::system_clock::now();
         mv_.deserialize(argv[2]);
