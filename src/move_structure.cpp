@@ -402,7 +402,12 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                     alphabet_thresholds[j] = thresholds[i];
                 }
                 else {
-                    if (alphabet_thresholds[j] >= rlbwt[i].get_p() + rlbwt[i].get_n()) {
+                    if (rlbwt_c == END_CHARACTER) {
+	              if (verbose)
+		        std::cerr <<"observed END_CHAR!\n";
+	              rlbwt[i].thresholds[j] = 0;
+		      // continue;
+		    } else if (alphabet_thresholds[j] >= rlbwt[i].get_p() + rlbwt[i].get_n()) {
                         // rlbwt[i].thresholds[j] = rlbwt[i].get_n();
                         rlbwt[i].thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = rlbwt[i].get_n();
                         if (alphamap_3[alphamap[rlbwt_c]][j] == 3) std::cerr << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
