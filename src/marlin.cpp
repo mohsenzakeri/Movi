@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
             bool random_jump = false;
             // std::cerr << seq->name.s << "\n";
             all_ff_count += mv_.query_ms(mq, random_jump);
-            pmls_file << seq->name.s << "\n";
+            pmls_file << ">" << seq->name.s << "\n";
             pmls_file << mq <<"\n";
         }
         pmls_file.close();
