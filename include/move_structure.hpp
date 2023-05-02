@@ -66,6 +66,7 @@ class MoveStructure {
         uint64_t length;
         uint64_t r;
         uint64_t end_bwt_row;
+        uint64_t end_bwt_row_thresholds[4];
         bool verbose;
         bool logs;
 
