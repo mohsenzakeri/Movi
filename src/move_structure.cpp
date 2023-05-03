@@ -592,8 +592,8 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
                 uint64_t idx_ = fast_forward(pointer, idx);
                 uint64_t idx__ = fast_forward(offset, idx, 0);
                 if (idx_ != idx__) { std::cerr<< "ff doesn't match" << idx_ << " " << idx__ << "\n";}
-                ff_count += idx__;
-                idx += idx__;
+                ff_count += idx_;
+                idx += idx_;
             }
 
 
@@ -685,19 +685,19 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, uint64_t of
     }
 
     if (!bit1) {
-	if (pointer == end_bwt_row) {
-          if (pointer >= rlbwt[idx].get_p() + end_bwt_row_thresholds[alphabet_index] and idx != r-1) {
-            idx = jump_down(saved_idx, r_char);
-	    return false;
-          } else {
-            idx = jump_up(saved_idx, r_char);
-	    return true;
-          }
+	    if (pointer == end_bwt_row) {
+            if (pointer >= rlbwt[idx].get_p() + end_bwt_row_thresholds[alphabet_index] and idx != r-1) {
+                idx = jump_down(saved_idx, r_char);
+	            return false;
+            } else {
+                idx = jump_up(saved_idx, r_char);
+	            return true;
+            }
         }
         alphabet_index = alphamap_3[alphamap[rlbwt_char]][alphabet_index];
 
-	// if (pointer >= rlbwt[idx].get_p() + rlbwt[idx].thresholds[alphabet_index] and idx != r-1) {
-        if (offset >= rlbwt[idx].thresholds[alphabet_index] and idx != r-1) {
+	    if (pointer >= rlbwt[idx].get_p() + rlbwt[idx].thresholds[alphabet_index] and idx != r-1) {
+        // if (offset >= rlbwt[idx].thresholds[alphabet_index] and idx != r-1) {
             if (verbose)
                 std::cerr<< "Jumping down with thresholds:\n";
             idx = jump_down(saved_idx, r_char);
