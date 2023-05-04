@@ -428,36 +428,50 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                 std::cerr<< i << "\r";
 
             char rlbwt_c = bit1 ? compute_char(i) : rlbwt[i].get_c();
+            if (i >= rlbwt.size() - 10) 
+                std::cerr << "i: " << i << "\n"
+                    << "rlbwt[i].get_p(): " << rlbwt[i].get_p() << "\n "
+                    << "rlbwt[i].get_n(): " << rlbwt[i].get_n() << "\n"
+                    << "thresholds[i]: " << thresholds[i] << " "
+                    << "rlbwt_c: " << rlbwt_c << "\n";
+
             for (uint64_t j = 0; j < alphabet.size(); j++) {
                 if (alphabet[j] == rlbwt_c) {
                     alphabet_thresholds[j] = thresholds[i];
-                }
-                else {
-	            if (alphabet_thresholds[j] >= rlbwt[i].get_p() + rlbwt[i].get_n()) {
+                } else {
+	                if (alphabet_thresholds[j] >= rlbwt[i].get_p() + rlbwt[i].get_n()) {
                         // rlbwt[i].thresholds[j] = rlbwt[i].get_n();
                         if (rlbwt_c == END_CHARACTER) {
-                          end_bwt_row_thresholds[j] = rlbwt[i].get_n();
-                          continue;
+                            end_bwt_row_thresholds[j] = rlbwt[i].get_n();
+                            continue;
                         }
                         rlbwt[i].thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = rlbwt[i].get_n();
                         if (alphamap_3[alphamap[rlbwt_c]][j] == 3) std::cerr << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
                     } else if (alphabet_thresholds[j] < rlbwt[i].get_p()) {
                         // rlbwt[i].thresholds[j] = 0;
                         if (rlbwt_c == END_CHARACTER) {
-                          end_bwt_row_thresholds[j] = 0;
-                          continue;
-			}
+                            end_bwt_row_thresholds[j] = 0;
+                            continue;
+			            }
                         rlbwt[i].thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = 0;
                         if (alphamap_3[alphamap[rlbwt_c]][j] == 3) std::cerr << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
                     } else {
                         // rlbwt[i].thresholds[j] = alphabet_thresholds[j] - rlbwt[i].get_p();
                         if (rlbwt_c == END_CHARACTER) {
-                          end_bwt_row_thresholds[j] = alphabet_thresholds[j] - rlbwt[i].get_p();
-                          continue;
-			}
+                            end_bwt_row_thresholds[j] = alphabet_thresholds[j] - rlbwt[i].get_p();
+                            continue;
+			            }
                         rlbwt[i].thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = alphabet_thresholds[j] - rlbwt[i].get_p();
                         if (alphamap_3[alphamap[rlbwt_c]][j] == 3) std::cerr << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
                     }
+
+                    if (i >= rlbwt.size() - 10)
+                        std::cerr << "\t j: \t" << j << " "
+                            << "alphabet[j]: " << alphabet[j] << "  "
+                            << "alphamap_3[alphamap[rlbwt_c]][j]: " << alphamap_3[alphamap[rlbwt_c]][j] << " "
+                            << "alphabet_thresholds[j]: " << alphabet_thresholds[j] << " "
+                            << "rlbwt[i].thresholds[j]:" << rlbwt[i].thresholds[alphamap_3[alphamap[rlbwt_c]][j]] << "\n";
+
                     // rlbwt[i].thresholds[j] = alphabet_thresholds[j];
                 }
             }
@@ -504,7 +518,7 @@ uint64_t MoveStructure::jump_up(uint64_t idx, char c) {
             jumps[jump_count] = 1;
     }
     if (verbose) 
-        std::cerr << "idx after the while in the jump" << idx << "\n";
+        std::cerr << "\t \t \t \t idx after the while in the jump" << idx << "\n";
     return (row_c == c) ? idx : r;
 }
 
@@ -525,7 +539,7 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c) {
             jumps[jump_count] = 1;
     }
     if (verbose) 
-        std::cerr << "idx after the while in the jump: " << idx << " " << c << " " << row_c << "\n";
+        std::cerr << "\t \t \t \t idx after the while in the jump: " << idx << " " << c << " " << row_c << "\n";
     return (row_c == c) ? idx : r;
 }
 
@@ -539,12 +553,12 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
     uint64_t offset = 0;
     uint64_t match_len = 0;
 
-    if (verbose) {
-        std::cerr<< "beginning of the search:\n";
-        std::cerr<< "query: " << mq.query() << "\n";
-    }
     if (verbose)
-        std::cerr<< "idx(r-1): " << idx << " pointer: " << pointer << " pointer-p: " << pointer - rlbwt[idx].get_p() << " offset: " << offset << "\n";
+        std::cerr << "beginning of the search:\n query: " << mq.query() << "\n";
+
+    if (verbose)
+        std::cerr << "idx(r-1): " << idx << " pointer: " << pointer << " pointer-p: " 
+                  << pointer - rlbwt[idx].get_p() << " offset: " << offset << "\n";
     uint64_t ff_count = 0;
     while (pos_on_r > -1) {
         if (idx == r) std::cerr << idx << "\n";
@@ -561,15 +575,15 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             pos_on_r -= 1;
 
             if (verbose)
-                std::cerr<< "The character " << R[pos_on_r] << " does not exist.\n";
+                std::cerr<< "\t The character " << R[pos_on_r] << " does not exist.\n";
         } else if (row_c == R[pos_on_r]) {
             if (verbose)
-                std::cerr<< "It was a match. \n" << "Continue the search...\n";
+                std::cerr<< "\t Cas1: It was a match. \n" << "\t Continue the search...\n";
 
             // Case 1
             match_len += 1;
             if (verbose)
-                std::cerr<<"match: " << match_len << "\n";
+                std::cerr<<"\t match: " << match_len << "\n";
             mq.add_ms(match_len - 1);
             pos_on_r -= 1;
 
@@ -578,28 +592,26 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             // pointer = row.pp + (pointer - row.p);
             pointer = row.get_pp() + (pointer - row.get_p());
             offset = row.get_offset() + offset;
-            if (verbose) {
-                std::cerr<<"row.id: " << row.get_id() << " rlbwt[row.get_id()].get_p(): " << rlbwt[row.get_id()].get_p() << "\n";
-                std::cerr<<"row.get_pp: " << row.get_pp() << " row.get_p: " << row.get_p() << "\n";
-                std::cerr<<"Case 1 idx: " << idx << " pointer: " << pointer << " pointer-p: " << pointer - rlbwt[idx].get_p() << " offset: " << offset << "\n";
-                std::cerr<<"row.get_offset(): " << row.get_offset() << "\n";
-            }
+            if (verbose)
+                std::cerr << "\t row.id: " << row.get_id() << " row.get_pp: " << row.get_pp() << " row.get_p: " << row.get_p() << "\n"
+                          << "\t rlbwt[row.get_id()].get_p(): " << rlbwt[row.get_id()].get_p() << "\n"
+                          << "\t idx: " << idx << " pointer: " << pointer << " pointer-p: " << pointer - rlbwt[idx].get_p() << "\n"
+                          << " offset: " << offset << "\t row.get_offset(): " << row.get_offset() << "\n";
 
             // if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) {
             if (idx < r - 1 && offset > rlbwt[idx].get_n()) {
                 if (verbose)
-                    std::cerr<<"fast forwarding: " << idx << "\n";
+                    std::cerr<<"\t fast forwarding: " << idx << "\n";
                 uint64_t idx_ = fast_forward(pointer, idx);
                 uint64_t idx__ = fast_forward(offset, idx, 0);
-                if (idx_ != idx__) { std::cerr<< "ff doesn't match" << idx_ << " " << idx__ << "\n";}
+                if (idx_ != idx__) { std::cerr<< "\t ff doesn't match" << idx_ << " " << idx__ << "\n";}
                 ff_count += idx_;
                 idx += idx_;
             }
 
-
         } else {
             if (verbose)
-                std::cerr<< "Not a match, looking for a match either up or down...\n";
+                std::cerr<< "\t Case2: Not a match, looking for a match either up or down...\n";
 
             // Case 2
             // Jumping randomly up or down or with naive lcp computation
@@ -607,12 +619,12 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             bool up = random ? jump_randomly(idx, R[pos_on_r]) : 
                                jump_thresholds(idx, pointer, offset, R[pos_on_r]);
             //                   jump_naive_lcp(idx, pointer, R[pos_on_r], lcp);
-            auto saved_idx = idx;
-            if (verbose)
-                std::cerr<< "up: " << up << " lcp: " << lcp << " idx: " << idx << "\n";
-
-            // sanity check
             char c = bit1 ? compute_char(idx) : rlbwt[idx].get_c();
+            if (verbose)
+                std::cerr<< "\t up: " << up << " lcp: " << lcp << " idx: " << idx << " c:" << c << "\n";
+
+            auto saved_idx = idx;
+            // sanity check
             if (c == R[pos_on_r]) {
                 // Observing a match after the jump
                 // The right match_len should be:
@@ -627,10 +639,12 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
                 }
                 match_len = random ? 0 : std::min(match_len, lcp);
                 if (verbose)
-                    std::cerr<<"Case 2 idx: " << idx << " pointer: " << pointer << " pointer-p: " << pointer - rlbwt[idx].get_p() << " offset: " << offset << "\n";
+                    std::cerr<<"\t idx: " << idx << " pointer: " << pointer << " pointer-p: " << pointer - rlbwt[idx].get_p() << " offset: " << offset << "\n";
             } else {
-                std::cerr << saved_idx << " " << pointer << " " <<  R[pos_on_r] << "\n";
-                std::cerr<<up << " - " << bit1 << " - " << R[pos_on_r] << " - " << pos_on_r << "\n";
+                std::cerr << "\t \t This should not happen!\n";
+                std::cerr << "\t \t " << saved_idx << " " << pointer << " r[pos]:" <<  R[pos_on_r] << " t[pointer]:" << c << "\n";
+                std::cerr << "\t \t " << up << ", " << bit1 << ", " << R[pos_on_r] << ", " << pos_on_r << "\n";
+                std::cerr << "\t \t ";
                 for (int k = 10; k > 0; --k)
                     std::cerr << rlbwt[idx - k].get_c() << "-";
                 for (int k = 0; k < 10; k++)
@@ -650,7 +664,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
                     std::cerr<< alphabet[k] << " " << rlbwt[idx].thresholds[k] << " ";
                 }
                 std::cerr<<"\n";*/
-                std::cerr << "This should not happen!\n";
+                
                 /*for (uint32_t k = idx - 15; k < idx+1; k++) {
                     std::cerr<< k << " " << rlbwt_chars[k] << "\n";
                     for (uint32_t l = 0; l < 4; l++)
@@ -670,21 +684,20 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, uint64_t of
     uint64_t saved_idx = idx;
     uint64_t alphabet_index = alphamap[static_cast<uint64_t>(r_char)];
     if (verbose)
-        std::cerr<<"jumping with thresholds ... \n";
+        std::cerr<<"\t \t \t jumping with thresholds ... \n";
     char rlbwt_char = bit1 ? compute_char(idx) : rlbwt[idx].get_c();
     if (verbose)
-        std::cerr<<"alphabet_index: " << alphabet_index << " r_char:" << r_char << " rlbwt_char:" << rlbwt_char << "\n";
+        std::cerr<<"\t \t \t alphabet_index: " << alphabet_index << " r_char:" << r_char << " rlbwt_char:" << rlbwt_char << "\n";
     // if (r_char > rlbwt_char and rlbwt_char != static_cast<unsigned char>(END_CHARACTER))
     //    alphabet_index -= 1;
     if (verbose)
-        std::cerr<<"alphabet_index: " << alphabet_index << " r_char:" << r_char << " rlbwt_char:" << rlbwt_char << "\n";
-    if (verbose) {
-        std::cerr << idx << " thresholds.size:" << sizeof(rlbwt[idx].thresholds) << "\n";
-        std::cerr << "pointer:" <<pointer << " pointer-p: " << pointer - rlbwt[idx].get_p() << " offset: " << offset << " threshold:" << rlbwt[idx].thresholds[alphabet_index] << "\n";
-    }
+        std::cerr << "\t \t \t idx:" << idx << " pointer:" << pointer << " pointer-p: " << pointer - rlbwt[idx].get_p() << "\n"
+                  << "\t \t \t offset: " << offset << " threshold:" << rlbwt[idx].thresholds[alphabet_index] << "\n";
 
     if (!bit1) {
 	    if (pointer == end_bwt_row) {
+            if (verbose) std::cerr << "\t \t \t pointer == end_bwt_row" 
+                                   << "\n\t \t \t pointer: " << pointer << " end_bwt_row: " << end_bwt_row << "\n";
             if (pointer >= rlbwt[idx].get_p() + end_bwt_row_thresholds[alphabet_index] and idx != r-1) {
                 idx = jump_down(saved_idx, r_char);
 	            return false;
@@ -693,17 +706,21 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, uint64_t of
 	            return true;
             }
         }
+        if (verbose) std::cerr << "\t \t \t rlbwt[idx].get_p(): " << rlbwt[idx].get_p() 
+                               << " rlbwt[idx].thresholds[alphabet_index]: " << rlbwt[idx].thresholds[alphabet_index] 
+                               << "\n\t \t \t pointer: " << pointer << " idx:" << idx << "\n";
+
         alphabet_index = alphamap_3[alphamap[rlbwt_char]][alphabet_index];
 
-	    if (pointer >= rlbwt[idx].get_p() + rlbwt[idx].thresholds[alphabet_index] and idx != r-1) {
+	    if (pointer >= rlbwt[idx].get_p() + rlbwt[idx].thresholds[alphabet_index]) { //  and idx != r-1) {
         // if (offset >= rlbwt[idx].thresholds[alphabet_index] and idx != r-1) {
             if (verbose)
-                std::cerr<< "Jumping down with thresholds:\n";
+                std::cerr<< "\t \t \t Jumping down with thresholds:\n";
             idx = jump_down(saved_idx, r_char);
             return false;
         } else {
             if (verbose)
-                std::cerr<< "Jumping up with thresholds:\n";
+                std::cerr<< "\t \t \t Jumping up with thresholds:\n";
             idx = jump_up(saved_idx, r_char);
             return true;
         }
