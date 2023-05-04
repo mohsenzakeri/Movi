@@ -336,7 +336,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     uint16_t len = 0;
     uint64_t bwt_row = 0;
     uint64_t r_idx = 0;
-    uint64_t offset = 0;
+    uint16_t offset = 0;
     std::cerr<< "bits.size(): " << bits.size() << "\n";
     std::cerr<< "rank_support_v<>(&bits)(bits.size()): " << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
     sbits = sdsl::select_support_mcl<>(&bits);
@@ -496,7 +496,7 @@ uint64_t MoveStructure::fast_forward(uint64_t pointer, uint64_t idx) {
     return idx - idx_;
 }
 
-uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx, uint64_t x) {
+uint64_t MoveStructure::fast_forward(uint16_t& offset, uint64_t idx, uint64_t x) {
     uint64_t idx_ = idx;
     if (verbose) 
         std::cerr << " \t \t offset: " << offset << " n:" << rlbwt[idx].get_n() << "\n";
@@ -557,7 +557,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
     uint64_t idx = r - 1; // std::rand() % r; // r - 1
     if (verbose) std::cerr<< "Begin search from idx = " << idx << "\n";
     uint64_t pointer = rlbwt[idx].get_p();
-    uint64_t offset = 0;
+    uint16_t offset = 0;
     uint64_t match_len = 0;
 
     if (verbose)
@@ -686,7 +686,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
     return ff_count;
 }
 
-bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, uint64_t offset, char r_char) {
+bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, uint16_t offset, char r_char) {
     uint64_t saved_idx = idx;
     uint64_t alphabet_index = alphamap[static_cast<uint64_t>(r_char)];
     if (verbose)

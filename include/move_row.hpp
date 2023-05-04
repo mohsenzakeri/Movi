@@ -11,29 +11,29 @@ const uint32_t mask_c = ~(((1U << 8) - 1) << 24);
 
 class MoveRow{
     public:
-        MoveRow () { p = 0; n = 0; pp = 0; id = 0; overflow_bits = 0;}
-        MoveRow(uint64_t p_, uint16_t n_, uint64_t pp_, uint64_t offset_, uint64_t id_);
-        void init(uint64_t p_, uint16_t n_, uint64_t pp_, uint64_t offset_, uint64_t id_);
-        void init(uint64_t p_, uint16_t n_, uint64_t pp_, uint64_t offset_, uint64_t id_, char c_);
+        MoveRow () { /* p = 0; pp = 0; */ n = 0; id = 0; overflow_bits = 0;}
+        MoveRow(uint64_t p_, uint16_t n_, uint64_t pp_, uint16_t offset_, uint64_t id_);
+        void init(uint64_t p_, uint16_t n_, uint64_t pp_, uint16_t offset_, uint64_t id_);
+        void init(uint64_t p_, uint16_t n_, uint64_t pp_, uint16_t offset_, uint64_t id_, char c_);
         friend std::ostream& operator<<(std::ostream& os, const MoveRow& mr);
 
         void set_p(uint64_t p_);
         void set_n(uint16_t n_);
         void set_pp(uint64_t pp_);
-        void set_offset(uint64_t offset_);
+        void set_offset(uint16_t offset_);
         void set_id(uint64_t id_);
         void set_c(char c_);
 
         uint64_t get_p() const;
         uint16_t get_n() const;
         uint64_t get_pp() const;
-        uint64_t get_offset() const;
+        uint16_t get_offset() const;
         uint64_t get_id() const;
         char get_c() const;
 //    private:
-        uint32_t p; // bwt row of the head before the jump
-        uint32_t pp; // bwt row of the head after the jump
-        uint64_t offset; // offset of the bwt row head of the current run in the new run after the jump
+        // offset based: uint32_t p; // bwt row of the head before the jump
+        // offset based: uint32_t pp; // bwt row of the head after the jump
+        uint16_t offset; // offset of the bwt row head of the current run in the new run after the jump
         uint32_t id; // bwt run after the jump
         uint32_t overflow_bits;
 
@@ -49,7 +49,9 @@ class MoveRow{
 };
 
 inline uint64_t MoveRow::get_p() const{
-    if (overflow_bits != 0) {
+    return 0;
+    // offset based:
+    /*if (overflow_bits != 0) {
         uint32_t a = overflow_bits & (~mask_p);
         uint64_t b = a;
         b = (b << 32);
@@ -58,19 +60,21 @@ inline uint64_t MoveRow::get_p() const{
         return c;
     } else {
         return static_cast<uint32_t>(p);
-    }
+    }*/
 }
 
 inline uint16_t MoveRow::get_n() const{
     return n;
 }
 
-inline uint64_t MoveRow::get_offset() const{
+inline uint16_t MoveRow::get_offset() const{
     return offset;
 }
 
 inline uint64_t MoveRow::get_pp() const{
-    if (overflow_bits != 0) {
+    return 0;
+    // offset based:
+    /*if (overflow_bits != 0) {
         uint32_t a = (overflow_bits & (~mask_pp)) >> 8;
         uint64_t b = a;
         b = (b << 32);
@@ -79,7 +83,7 @@ inline uint64_t MoveRow::get_pp() const{
         return c;
     } else {
         return static_cast<uint32_t>(pp);
-    }
+    }*/
 }
 
 inline uint64_t MoveRow::get_id() const{
