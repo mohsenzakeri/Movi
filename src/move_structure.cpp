@@ -487,16 +487,23 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
 uint64_t MoveStructure::fast_forward(uint64_t pointer, uint64_t idx) {
     uint64_t idx_ = idx;
-    while (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) 
+    if (verbose) 
+        std::cerr << " \t \t pointer: " << pointer << " p + n:" <<  rlbwt[idx].get_p() + rlbwt[idx].get_n() << "\n";
+    while (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) {
         idx += 1;
+        if (verbose) std::cerr << "\t \t ff: +" << idx - idx_ << "\n";
+    }
     return idx - idx_;
 }
 
 uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx, uint64_t x) {
     uint64_t idx_ = idx;
+    if (verbose) 
+        std::cerr << " \t \t offset: " << offset << " n:" << rlbwt[idx].get_n() << "\n";
     while (idx < r - 1 && offset >= rlbwt[idx].get_n()) {
         offset -= rlbwt[idx].get_n();
         idx += 1;
+        if (verbose) std::cerr << "\t \t ff offset based: +" << idx - idx_ << "\n";
     }
     return idx - idx_;
 }
@@ -593,13 +600,13 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             pointer = row.get_pp() + (pointer - row.get_p());
             offset = row.get_offset() + offset;
             if (verbose)
-                std::cerr << "\t row.id: " << row.get_id() << " row.get_pp: " << row.get_pp() << " row.get_p: " << row.get_p() << "\n"
-                          << "\t rlbwt[row.get_id()].get_p(): " << rlbwt[row.get_id()].get_p() << "\n"
+                std::cerr << "\t row.id: " << row.get_id() << " row.get_pp: " << row.get_pp() << " row.get_p: " << row.get_p() << " row.get_n: " << row.get_n() << "\n"
+                          << "\t rlbwt[idx].get_pp: " << rlbwt[idx].get_pp() << " rlbwt[idx].get_p: " << rlbwt[idx].get_p() << " rlbwt[idx].get_n: " << rlbwt[idx].get_n() << "\n"
                           << "\t idx: " << idx << " pointer: " << pointer << " pointer-p: " << pointer - rlbwt[idx].get_p() << "\n"
-                          << " offset: " << offset << "\t row.get_offset(): " << row.get_offset() << "\n";
+                          << "\t offset: " << offset << "\t row.get_offset(): " << row.get_offset() << "\n";
 
-            // if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) {
-            if (idx < r - 1 && offset > rlbwt[idx].get_n()) {
+            if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) {
+            //if (idx < r - 1 && offset > rlbwt[idx].get_n()) {
                 if (verbose)
                     std::cerr<<"\t fast forwarding: " << idx << "\n";
                 uint64_t idx_ = fast_forward(pointer, idx);
@@ -698,7 +705,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, uint64_t of
 	    if (pointer == end_bwt_row) {
             if (verbose) std::cerr << "\t \t \t pointer == end_bwt_row" 
                                    << "\n\t \t \t pointer: " << pointer << " end_bwt_row: " << end_bwt_row << "\n";
-            if (pointer >= rlbwt[idx].get_p() + end_bwt_row_thresholds[alphabet_index] and idx != r-1) {
+            if (pointer >= rlbwt[idx].get_p() + end_bwt_row_thresholds[alphabet_index]) { // and idx != r-1) {
                 idx = jump_down(saved_idx, r_char);
 	            return false;
             } else {
@@ -712,7 +719,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t pointer, uint64_t of
 
         alphabet_index = alphamap_3[alphamap[rlbwt_char]][alphabet_index];
 
-	    if (pointer >= rlbwt[idx].get_p() + rlbwt[idx].thresholds[alphabet_index]) { //  and idx != r-1) {
+	    if (pointer >= rlbwt[idx].get_p() + rlbwt[idx].thresholds[alphabet_index]) { // and idx != r-1) {
         // if (offset >= rlbwt[idx].thresholds[alphabet_index] and idx != r-1) {
             if (verbose)
                 std::cerr<< "\t \t \t Jumping down with thresholds:\n";
