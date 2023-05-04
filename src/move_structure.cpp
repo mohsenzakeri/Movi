@@ -533,7 +533,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
     std::srand(time(0));
     std::string R = mq.query();
     int32_t pos_on_r = R.length() - 1;
-    uint64_t idx = std::rand() % r; // r - 1 // 22264811
+    uint64_t idx = r - 1; // std::rand() % r; // r - 1
     if (verbose) std::cerr<< "Begin search from idx = " << idx << "\n";
     uint64_t pointer = rlbwt[idx].get_p();
     uint64_t offset = 0;
@@ -570,7 +570,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             match_len += 1;
             if (verbose)
                 std::cerr<<"match: " << match_len << "\n";
-            mq.add_ms(match_len);
+            mq.add_ms(match_len - 1);
             pos_on_r -= 1;
 
             // idx = row.id;
@@ -604,7 +604,6 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             // Case 2
             // Jumping randomly up or down or with naive lcp computation
             uint64_t lcp = 0;
-	    if (idx == 130571) std::cerr << "pos_on_r: " << pos_on_r << " rlbwt p: " << rlbwt[idx].get_p() << " rlbwt n: " << rlbwt[idx].get_n() << " rlbwt c: " << rlbwt[idx].get_c() << " ---\n";
             bool up = random ? jump_randomly(idx, R[pos_on_r]) : 
                                jump_thresholds(idx, pointer, offset, R[pos_on_r]);
             //                   jump_naive_lcp(idx, pointer, R[pos_on_r], lcp);
