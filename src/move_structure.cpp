@@ -373,7 +373,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
                 offset = lf - sbits(pp_id + 1);
             }
-            if (r_idx == 22264811 or r_idx == 12229779 or r_idx == 16549102 or r_idx == 23653824 or r_idx == 12599245)
+            if (verbose and r_idx == 0) // or any run to be inspected
                 std::cerr << "r_idx: " << r_idx 
                           << " bwt_row: " << bwt_row
                           << " len: " << len
@@ -428,7 +428,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                 std::cerr<< i << "\r";
 
             char rlbwt_c = bit1 ? compute_char(i) : rlbwt[i].get_c();
-            if (i >= rlbwt.size() - 10) 
+            if (verbose and i >= rlbwt.size() - 10) 
                 std::cerr << "i: " << i << "\n"
                     << "rlbwt[i].get_p(): " << rlbwt[i].get_p() << "\n "
                     << "rlbwt[i].get_n(): " << rlbwt[i].get_n() << "\n"
@@ -465,7 +465,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                         if (alphamap_3[alphamap[rlbwt_c]][j] == 3) std::cerr << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
                     }
 
-                    if (i >= rlbwt.size() - 10)
+                    if (verbose and i >= rlbwt.size() - 10)
                         std::cerr << "\t j: \t" << j << " "
                             << "alphabet[j]: " << alphabet[j] << "  "
                             << "alphamap_3[alphamap[rlbwt_c]][j]: " << alphamap_3[alphamap[rlbwt_c]][j] << " "
