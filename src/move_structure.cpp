@@ -300,7 +300,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             alphabet_index += 1;
 
             sdsl::bit_vector* new_bit_vector = new sdsl::bit_vector(length, 0);
-	        occs.push_back(new_bit_vector);
+	        occs.emplace_back(std::unique_ptr<sdsl::bit_vector>(new_bit_vector));
         }
     }
 
@@ -326,7 +326,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         std::cerr<< occs_rank.size() << "\r";
         if (verbose and (*occ).size() < 1000)
             std::cerr<< *occ << "\n";
-        occs_rank.push_back(new sdsl::rank_support_v<>(occ));
+        occs_rank.emplace_back(std::unique_ptr<sdsl::rank_support_v<> >(new sdsl::rank_support_v<>(occ.get())));
     }
     std::cerr<< occs_rank.size() << "\n";
     std::cerr<<"All Occ rank vectors are built.\n";
@@ -557,7 +557,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
     uint64_t idx = r - 1; // std::rand() % r; // r - 1
     if (verbose) std::cerr<< "Begin search from idx = " << idx << "\n";
     uint64_t pointer = rlbwt[idx].get_p();
-    uint16_t offset = 0;
+    uint16_t offset = rlbwt[idx].get_n() - 1;
     uint64_t match_len = 0;
 
     if (verbose)

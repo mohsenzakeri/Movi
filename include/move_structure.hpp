@@ -75,8 +75,8 @@ class MoveStructure {
         std::vector<uint64_t> counts;
         std::vector<uint64_t> alphamap;
 
-        std::vector<sdsl::bit_vector*> occs;
-        std::vector<sdsl::rank_support_v<>*> occs_rank;
+        std::vector<std::unique_ptr<sdsl::bit_vector> > occs;
+        std::vector<std::unique_ptr<sdsl::rank_support_v<> > > occs_rank;
         sdsl::bit_vector bits;
         sdsl::rank_support_v<> rbits;
         sdsl::select_support_mcl<> sbits;
