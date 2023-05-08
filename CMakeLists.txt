@@ -36,10 +36,13 @@ if(NOT sdsl_POPULATED)
 endif()
 
 SET(COMPILE_FLAGS "-O2")
+# debug:
+# SET(COMPILE_FLAGS "-g")
+
 SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
 
 # compile with address sanitizer
-# add_compile_options(-fsanitize=address)^M
+# add_compile_options(-fsanitize=address)
 # add_link_options(-fsanitize=address)
 
 add_executable(marlin src/marlin.cpp)
