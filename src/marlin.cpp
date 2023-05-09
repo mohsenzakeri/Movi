@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
             }
             jumps_file.close();
         }
-    } else if (command == "LF") {
+    } /*else if (command == "LF") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         MoveStructure mv_(verbose);
         auto begin = std::chrono::system_clock::now();
@@ -98,16 +98,16 @@ int main(int argc, char* argv[]) {
         std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
         std::cerr << "The move structure is read from the file successfully.\n";
 
-        /*std::string bwt_filename = argv[3] + std::string(".bwt");
-        std::cerr << bwt_filename << "\n";
-        std::ifstream bwt_file(bwt_filename);*/
-        mv_.all_lf_test(/*bwt_file*/);
+        // std::string bwt_filename = argv[3] + std::string(".bwt");
+        // std::cerr << bwt_filename << "\n";
+        // std::ifstream bwt_file(bwt_filename);
+        mv_.all_lf_test();
         
-	    /*std::ofstream ff_counts_file(static_cast<std::string>(argv[3]) + ".ff_counts");
-        for (auto& ff_count : mv_.ff_counts) {
-            ff_counts_file <<ff_count.first << "\t" << ff_count.second << "\n";
-        }
-        ff_counts_file.close();*/
+	    // std::ofstream ff_counts_file(static_cast<std::string>(argv[3]) + ".ff_counts");
+        // for (auto& ff_count : mv_.ff_counts) {
+        //     ff_counts_file <<ff_count.first << "\t" << ff_count.second << "\n";
+        // }
+        // ff_counts_file.close();
     } else if (command == "randomLF") {
         bool verbose = (argc > 3 and std::string(argv[3]) == "verbose");
         MoveStructure mv_(verbose);
@@ -131,5 +131,5 @@ int main(int argc, char* argv[]) {
         std::cerr << "The move structure is read from the file successfully.\n";
 
         mv_.reconstruct_move();
-    }
+    }*/
 }

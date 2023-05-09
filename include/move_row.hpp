@@ -4,29 +4,32 @@
 #include <iostream>
 #include <vector>
 
-const uint32_t mask_p = ~((1U << 8) - 1);
-const uint32_t mask_pp = ~(((1U << 8) - 1) << 8);
-const uint32_t mask_id = ~(((1U << 8) - 1) << 16);
-const uint32_t mask_c = ~(((1U << 8) - 1) << 24);
+// const uint32_t mask_p = ~((1U << 8) - 1);
+// const uint32_t mask_pp = ~(((1U << 8) - 1) << 8);
+// const uint32_t mask_id = ~(((1U << 8) - 1) << 16);
+// const uint32_t mask_c = ~(((1U << 8) - 1) << 24);
+
+const uint32_t mask_id =  ~((1U << 8) - 1);
+const uint32_t mask_c = ~(((1U << 8) - 1) << 8);
 
 class MoveRow{
     public:
-        MoveRow () { /* p = 0; pp = 0; */ n = 0; id = 0; overflow_bits = 0;}
-        MoveRow(uint64_t p_, uint16_t n_, uint64_t pp_, uint16_t offset_, uint64_t id_);
-        void init(uint64_t p_, uint16_t n_, uint64_t pp_, uint16_t offset_, uint64_t id_);
-        void init(uint64_t p_, uint16_t n_, uint64_t pp_, uint16_t offset_, uint64_t id_, char c_);
+        MoveRow () {n = 0; id = 0; overflow_bits = 0;}
+        MoveRow(uint16_t n_, uint16_t offset_, uint64_t id_);
+        void init(uint16_t n_, uint16_t offset_, uint64_t id_);
+        void init(uint16_t n_, uint16_t offset_, uint64_t id_, char c_);
         friend std::ostream& operator<<(std::ostream& os, const MoveRow& mr);
 
-        void set_p(uint64_t p_);
+        // void set_p(uint64_t p_);
+        // void set_pp(uint64_t pp_);
         void set_n(uint16_t n_);
-        void set_pp(uint64_t pp_);
         void set_offset(uint16_t offset_);
         void set_id(uint64_t id_);
         void set_c(char c_);
 
-        uint64_t get_p() const;
+        // uint64_t get_p() const;
+        // uint64_t get_pp() const;
         uint16_t get_n() const;
-        uint64_t get_pp() const;
         uint16_t get_offset() const;
         uint64_t get_id() const;
         char get_c() const;
@@ -35,22 +38,13 @@ class MoveRow{
         // offset based: uint32_t pp; // bwt row of the head after the jump
         uint16_t offset; // offset of the bwt row head of the current run in the new run after the jump
         uint32_t id; // bwt run after the jump
-        uint32_t overflow_bits;
+        uint16_t overflow_bits;
 
         uint16_t n; // length of the run
-        uint16_t thresholds[3]; // 4*8 = 32 : 1.9 GB ---- 3 * 2 = 6
-        // uint16_t threshold_1bit; // 4 + 2 + 4 + 4 + 4 = 18 : 534 MB
-
-        // Why the number is close to 2 for 1bit?
-        
-        // What's the bug for the big experiment (1bit)
-
-        // convinced to do the Nate suggestion, we need full bwt offset in order to interpret thresholds? or not? PML vs ML -- new branch?
+        uint16_t thresholds[3];
 };
 
-inline uint64_t MoveRow::get_p() const{
-    return 0;
-    // offset based:
+/* inline uint64_t MoveRow::get_p() const{
     /*if (overflow_bits != 0) {
         uint32_t a = overflow_bits & (~mask_p);
         uint64_t b = a;
@@ -60,8 +54,8 @@ inline uint64_t MoveRow::get_p() const{
         return c;
     } else {
         return static_cast<uint32_t>(p);
-    }*/
-}
+    }
+}*/
 
 inline uint16_t MoveRow::get_n() const{
     return n;
@@ -71,10 +65,8 @@ inline uint16_t MoveRow::get_offset() const{
     return offset;
 }
 
-inline uint64_t MoveRow::get_pp() const{
-    return 0;
-    // offset based:
-    /*if (overflow_bits != 0) {
+/*inline uint64_t MoveRow::get_pp() const{
+    if (overflow_bits != 0) {
         uint32_t a = (overflow_bits & (~mask_pp)) >> 8;
         uint64_t b = a;
         b = (b << 32);
@@ -83,12 +75,12 @@ inline uint64_t MoveRow::get_pp() const{
         return c;
     } else {
         return static_cast<uint32_t>(pp);
-    }*/
-}
+    }
+}*/
 
 inline uint64_t MoveRow::get_id() const{
     if (overflow_bits != 0) {
-        uint32_t a = (overflow_bits & (~mask_id)) >> 16;
+        uint32_t a = overflow_bits & (~mask_id);
         uint64_t b = a;
         b = (b << 32);
         uint64_t c = id;
@@ -101,7 +93,7 @@ inline uint64_t MoveRow::get_id() const{
 }
 
 inline char MoveRow::get_c() const{
-    uint32_t a = (overflow_bits & (~mask_c)) >> 24;
+    uint32_t a = (overflow_bits & (~mask_c)) >> 8;
     char c = static_cast<char>(a);
     return c;
 }
