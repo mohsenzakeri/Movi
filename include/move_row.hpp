@@ -37,11 +37,11 @@ class MoveRow{
         // offset based: uint32_t p; // bwt row of the head before the jump
         // offset based: uint32_t pp; // bwt row of the head after the jump
         uint16_t offset; // offset of the bwt row head of the current run in the new run after the jump
-        uint32_t id; // bwt run after the jump
         uint16_t overflow_bits;
-
         uint16_t n; // length of the run
         uint16_t thresholds[3];
+        uint32_t id; // bwt run after the jump
+
 };
 
 /* inline uint64_t MoveRow::get_p() const{
