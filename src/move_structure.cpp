@@ -43,8 +43,9 @@ MoveStructure::MoveStructure(bool verbose_, bool logs_) {
     logs = logs_;
 }
 
-MoveStructure::MoveStructure(char* input_file, bool bit1_, bool verbose_) {
+MoveStructure::MoveStructure(char* input_file, bool bit1_, bool verbose_, bool logs_) {
     verbose = verbose_;
+    logs = logs_;
     bit1 = bit1_;
     reconstructed = false;
     std::string bwt_filename = input_file + std::string(".bwt");
@@ -333,10 +334,11 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
 
     // Building the move structure rows
-    uint16_t len = 0;
+    uint64_t len = 0;
     uint64_t bwt_row = 0;
     uint64_t r_idx = 0;
     uint16_t offset = 0;
+    uint64_t max_len = 0;
     std::cerr<< "bits.size(): " << bits.size() << "\n";
     std::cerr<< "rank_support_v<>(&bits)(bits.size()): " << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
     sbits = sdsl::select_support_mcl<>(&bits);
@@ -386,6 +388,15 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
             rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
 
+            if (len > max_len)
+                max_len = len;
+            if (logs) {
+                if (run_lengths.find(len) != run_lengths.end())
+                    run_lengths[len] += 1;
+                else
+                    run_lengths[len] = 1;
+            }
+
             if (!bit1){
                 rlbwt[r_idx].set_c(bwt_string[i]);
             }
@@ -403,6 +414,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         }
     }
     std::cerr<<"All the move rows are built!\n";
+    std::cerr<<"Max len: " << max_len << "\n";
 
     // compute the thresholds
     uint64_t alphabet_thresholds[4];

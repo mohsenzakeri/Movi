@@ -26,7 +26,7 @@ class MoveStructure {
     public:
         MoveStructure() { }
         MoveStructure(bool verbose_ = false, bool logs_ = false);
-        MoveStructure(char* input_file, bool bit1_ = false, bool verbose_ = false);
+        MoveStructure(char* input_file, bool bit1_ = false, bool verbose_ = false, bool logs_ = false);
 
         void build(std::ifstream &bwt_file);
         uint64_t query_ms(MoveQuery& mq, bool random);
@@ -58,6 +58,7 @@ class MoveStructure {
         
         std::unordered_map<uint32_t, uint32_t> jumps;
         std::unordered_map<uint32_t, uint32_t> ff_counts;
+        std::unordered_map<uint64_t, uint64_t> run_lengths;
 
     private:
         bool bit1;
