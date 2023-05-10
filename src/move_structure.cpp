@@ -417,6 +417,9 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             // does not fit in uint16_t
             if (len >= std::numeric_limits<uint16_t>::max()) {
                 n_overflow.push_back(len);
+                if (n_overflow.size() - 1 >= std::numeric_limits<uint16_t>::max()) {
+                    std::cerr << "Warning: the number of runs with overflow n is beyond uint16_t! " << n_overflow.size() - 1 << "\n";
+                }
                 rlbwt[r_idx].set_n(n_overflow.size() - 1);
                 // std::cerr << r_idx << " " << len << " is_overflow_n: " << rlbwt[r_idx].is_overflow_n() << "\n";
                 rlbwt[r_idx].set_overflow_n();
@@ -424,6 +427,9 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             }
             if (offset >= std::numeric_limits<uint16_t>::max()) {
                 offset_overflow.push_back(offset);
+                if (offset_overflow.size() - 1 >= std::numeric_limits<uint16_t>::max()) {
+                    std::cerr << "Warning: the number of runs with overflow offset is beyond uint16_t! " << offset_overflow.size() - 1 << "\n";
+                }
                 rlbwt[r_idx].set_offset(offset_overflow.size() - 1);
                 // std::cerr << r_idx << " " << len << " is_overflow_offset: " << rlbwt[r_idx].is_overflow_offset() << "\n";
                 rlbwt[r_idx].set_overflow_offset();
@@ -543,6 +549,8 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                 rlbwt[i].thresholds[0] = thresholds_overflow.size();
                 rlbwt[i].thresholds[1] = thresholds_overflow.size();
                 rlbwt[i].thresholds[2] = thresholds_overflow.size();
+                if (thresholds_overflow.size() >= std::numeric_limits<uint16_t>::max())
+                    std::cerr << "Warning: the number of runs with overflow thresholds is beyond uint16_t! " << thresholds_overflow.size() << "\n";
 
                 thresholds_overflow.push_back(current_thresholds);
             }

@@ -76,8 +76,13 @@ class MoveStructure {
         bool verbose;
         bool logs;
 
+        // Map from 2bit encoded character to the actual character
+        // Example: alphabet[0] -> A, alphabet[1] -> C
         std::vector<unsigned char> alphabet;
+        // Number of each character
         std::vector<uint64_t> counts;
+        // Map from the character to the index of the character
+        // Example: alphamap[A] -> 0, alphamap[C] -> 1
         std::vector<uint64_t> alphamap;
 
         std::vector<std::unique_ptr<sdsl::bit_vector> > occs;
@@ -93,7 +98,7 @@ class MoveStructure {
         uint64_t bit1_begin;
         uint64_t bit1_after_eof;
 
-        // auxilary datastructures for the length overflow
+        // auxilary datastructures for the length, offset and thresholds overflow
         std::vector<uint64_t> n_overflow;
         std::vector<uint64_t> offset_overflow;
         std::vector<std::vector<uint64_t> > thresholds_overflow;
