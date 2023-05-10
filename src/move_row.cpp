@@ -8,7 +8,7 @@ MoveRow::MoveRow(uint16_t n_, uint16_t offset_, uint64_t id_) {
     this->init(n_, offset_, id_);
 }
 void MoveRow::init(uint16_t n_, uint16_t offset_, uint64_t id_) {
-    overflow_bits = std::numeric_limits<uint32_t>::max();
+    overflow_bits = std::numeric_limits<uint16_t>::max();
     // this->set_p(p_);
     // this->set_pp(pp_);
     this->set_n(n_);
@@ -17,7 +17,7 @@ void MoveRow::init(uint16_t n_, uint16_t offset_, uint64_t id_) {
 }
 
 void MoveRow::init(uint16_t n_, uint16_t offset_, uint64_t id_, char c_) {
-    overflow_bits = std::numeric_limits<uint32_t>::max();
+    overflow_bits = std::numeric_limits<uint16_t>::max();
     // this->set_p(p_);
     // this->set_pp(pp_);
     this->set_n(n_);
@@ -43,9 +43,24 @@ void MoveRow::set_n(uint16_t n_) {
     n = n_;
 }
 
+void MoveRow::set_overflow_n() {
+    std::cerr<< std::bitset<16>(overflow_bits)<<"\n";
+    overflow_bits = overflow_bits & mask_overflow_n;
+    overflow_bits = overflow_bits | (1 >> 10);
+    std::cerr<< std::bitset<16>(overflow_bits)<<"\n";
+}
+
 void MoveRow::set_offset(uint16_t offset_) {
     offset = offset_;
 }
+
+void MoveRow::set_overflow_offset() {
+    std::cerr<< std::bitset<16>(overflow_bits)<<"\n";
+    overflow_bits = overflow_bits & mask_overflow_offset;
+    overflow_bits = overflow_bits | (1 >> 11);
+    std::cerr<< std::bitset<16>(overflow_bits)<<"\n";
+}
+
 
 /* void MoveRow::set_pp(uint64_t pp_) {
     pp = pp_;

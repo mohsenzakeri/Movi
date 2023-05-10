@@ -335,7 +335,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     uint64_t len = 0;
     uint64_t bwt_row = 0;
     uint64_t r_idx = 0;
-    uint16_t offset = 0;
+    uint64_t offset = 0;
     uint64_t max_len = 0;
     std::cerr<< "bits.size(): " << bits.size() << "\n";
     std::cerr<< "rank_support_v<>(&bits)(bits.size()): " << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
@@ -387,7 +387,25 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                           << " sbits(pp_id - 1): " << sbits(pp_id - 1) << "\n";
 
             // rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
+            
             rlbwt[r_idx].init(len, offset, pp_id);
+            // To take care of cases where length of the run 
+            // does not fit in uint16_t
+            if (len >= std::numeric_limits<uint16_t>::max()) {
+                std::cerr << std::numeric_limits<uint16_t>::max() << "\n";
+                n_overflow.push_back(len);
+                rlbwt[r_idx].set_n(n_overflow.size() - 1);
+                std::cerr << r_idx << " " << len << " is_overflow_n: " << rlbwt[r_idx].is_overflow_n() << "\n";
+                rlbwt[r_idx].set_overflow_n();
+                std::cerr << r_idx << " " << len << " is_overflow_n: " << rlbwt[r_idx].is_overflow_n() << "\n";
+            }
+            if (offset >= std::numeric_limits<uint16_t>::max()) {
+                offset_overflow.push_back(offset);
+                rlbwt[r_idx].set_offset(offset_overflow.size() - 1);
+                std::cerr << r_idx << " " << len << " is_overflow_offset: " << rlbwt[r_idx].is_overflow_offset() << "\n";
+                rlbwt[r_idx].set_overflow_offset();
+                std::cerr << r_idx << " " << len << " is_overflow_offset: " << rlbwt[r_idx].is_overflow_offset() << "\n";
+            }
 
             if (len > max_len)
                 max_len = len;
@@ -881,6 +899,12 @@ void MoveStructure::serialize(char* output_dir) {
     }*/
     // if (!bit1)
     //    fout.write(reinterpret_cast<char*>(&rlbwt_chars[0]), rlbwt_chars.size()*sizeof(rlbwt_chars[0]));
+    uint64_t n_overflow_size = n_overflow.size();
+    fout.write(reinterpret_cast<char*>(&n_overflow_size), sizeof(n_overflow_size));
+    fout.write(reinterpret_cast<char*>(&n_overflow[0]), n_overflow.size()*sizeof(uint64_t));
+    uint64_t offset_overflow_size = offset_overflow.size();
+    fout.write(reinterpret_cast<char*>(&offset_overflow_size), sizeof(offset_overflow_size));
+    fout.write(reinterpret_cast<char*>(&offset_overflow[0]), offset_overflow.size()*sizeof(uint64_t));
 
     size_t orig_size = orig_string.size();
     fout.write(reinterpret_cast<char*>(&orig_size), sizeof(orig_size));
@@ -933,7 +957,12 @@ void MoveStructure::deserialize(char* index_dir) {
             }
         }
     }*/
-
+    uint64_t n_overflow_size;
+    fin.read(reinterpret_cast<char*>(&n_overflow_size), sizeof(n_overflow_size));
+    fin.read(reinterpret_cast<char*>(&n_overflow[0]), n_overflow_size*sizeof(uint64_t));
+    uint64_t offset_overflow_size;
+    fin.read(reinterpret_cast<char*>(&offset_overflow_size), sizeof(offset_overflow_size));
+    fin.read(reinterpret_cast<char*>(&offset_overflow[0]), offset_overflow_size*sizeof(uint64_t));
     /*if (!bit1) {
         rlbwt_chars.resize(r);
         fin.read(reinterpret_cast<char*>(&rlbwt_chars[0]), r*sizeof(char));

@@ -3,14 +3,18 @@
 
 #include <iostream>
 #include <vector>
+#include <bitset>
 
 // const uint32_t mask_p = ~((1U << 8) - 1);
 // const uint32_t mask_pp = ~(((1U << 8) - 1) << 8);
 // const uint32_t mask_id = ~(((1U << 8) - 1) << 16);
 // const uint32_t mask_c = ~(((1U << 8) - 1) << 24);
 
-const uint32_t mask_id =  ~((1U << 8) - 1);
-const uint32_t mask_c = ~(((1U << 8) - 1) << 8);
+const uint16_t mask_id =  static_cast<uint16_t>(~((1U << 8) - 1));
+const uint16_t mask_c = static_cast<uint16_t>(~(((1U << 2) - 1) << 8));
+const uint16_t mask_overflow_n = static_cast<uint16_t>(~(((1U << 1) - 1) << 10));
+const uint16_t mask_overflow_offset = static_cast<uint16_t>(~(((1U << 1) - 1) << 11));
+
 
 class MoveRow{
     public:
@@ -33,6 +37,11 @@ class MoveRow{
         uint16_t get_offset() const;
         uint64_t get_id() const;
         char get_c() const;
+
+        void set_overflow_n();
+        void set_overflow_offset();
+        bool is_overflow_n() const;
+        bool is_overflow_offset() const;
 //    private:
         // offset based: uint32_t p; // bwt row of the head before the jump
         // offset based: uint32_t pp; // bwt row of the head after the jump
@@ -57,14 +66,6 @@ class MoveRow{
     }
 }*/
 
-inline uint16_t MoveRow::get_n() const{
-    return n;
-}
-
-inline uint16_t MoveRow::get_offset() const{
-    return offset;
-}
-
 /*inline uint64_t MoveRow::get_pp() const{
     if (overflow_bits != 0) {
         uint32_t a = (overflow_bits & (~mask_pp)) >> 8;
@@ -77,6 +78,14 @@ inline uint16_t MoveRow::get_offset() const{
         return static_cast<uint32_t>(pp);
     }
 }*/
+
+inline uint16_t MoveRow::get_n() const{
+    return n;
+}
+
+inline uint16_t MoveRow::get_offset() const{
+    return offset;
+}
 
 inline uint64_t MoveRow::get_id() const{
     if (overflow_bits != 0) {
@@ -96,6 +105,18 @@ inline char MoveRow::get_c() const{
     uint32_t a = (overflow_bits & (~mask_c)) >> 8;
     char c = static_cast<char>(a);
     return c;
+}
+
+inline bool MoveRow::is_overflow_n() const{
+    uint32_t a = (overflow_bits & (~mask_overflow_n)) >> 10;
+    bool b = static_cast<bool>(a);
+    return !b;
+}
+
+inline bool MoveRow::is_overflow_offset() const{
+    uint32_t a = (overflow_bits & (~mask_overflow_offset)) >> 11;
+    bool b = static_cast<bool>(a);
+    return !b;
 }
 
 

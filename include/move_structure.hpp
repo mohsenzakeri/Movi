@@ -88,6 +88,11 @@ class MoveStructure {
         uint64_t eof_row;
         uint64_t bit1_begin;
         uint64_t bit1_after_eof;
+
+        // auxilary datastructures for the length overflow
+        std::vector<uint64_t> n_overflow;
+        std::vector<uint64_t> offset_overflow;
+        std::vector<uint64_t[3]> thresholds_overflow;
 };
 
 #endif
