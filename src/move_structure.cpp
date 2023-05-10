@@ -48,6 +48,7 @@ MoveStructure::MoveStructure(char* input_file, bool bit1_, bool verbose_, bool l
     logs = logs_;
     bit1 = bit1_;
     reconstructed = false;
+
     std::string bwt_filename = input_file + std::string(".bwt");
     std::ifstream bwt_file(bwt_filename);
 
@@ -108,7 +109,7 @@ uint64_t MoveStructure::LF(uint64_t row_number) {
 /*std::string MoveStructure::reconstruct() {
     if (bwt_string == "") {
         for (uint32_t i = 0; i < r; i++) {
-            for (uint32_t j = 0; j < rlbwt[i].get_n(); j++)
+            for (uint32_t j = 0; j < get_n(i); j++)
                 bwt_string += rlbwt[i].get_c();
         }
     }
@@ -164,7 +165,7 @@ uint32_t MoveStructure::compute_index(char row_char, char lookup_char) {
     pointer = row.get_pp() + (pointer - row.get_p());
     uint64_t ff_count = 0;
 
-    if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) {
+    if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + get_n(idx)) {
         uint64_t idx_ = fast_forward(pointer, idx);
         idx += idx_;
         ff_count += idx_;
@@ -240,6 +241,29 @@ uint32_t MoveStructure::compute_index(char row_char, char lookup_char) {
     return ff_count_tot;
 }*/
 
+uint64_t MoveStructure::get_n(uint64_t idx) {
+    if (rlbwt[idx].is_overflow_n()) {
+        return n_overflow[rlbwt[idx].get_n()];
+    } else {
+        return rlbwt[idx].get_n();
+    }
+}
+
+uint64_t MoveStructure::get_offset(uint64_t idx) {
+    if (rlbwt[idx].is_overflow_offset()) {
+        return offset_overflow[rlbwt[idx].get_offset()];
+    } else {
+        return rlbwt[idx].get_offset();
+    }
+}
+
+uint64_t MoveStructure::get_thresholds(uint64_t idx, uint32_t alphabet_index) {
+    if (rlbwt[idx].is_overflow_thresholds()) {
+        return thresholds_overflow[rlbwt[idx].thresholds[alphabet_index]][alphabet_index];
+    } else {
+        return rlbwt[idx].thresholds[alphabet_index];
+    }
+}
 void MoveStructure::build(std::ifstream &bwt_file) {
     bwt_file.clear();
     bwt_file.seekg(0,std::ios_base::end);
@@ -392,19 +416,18 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             // To take care of cases where length of the run 
             // does not fit in uint16_t
             if (len >= std::numeric_limits<uint16_t>::max()) {
-                std::cerr << std::numeric_limits<uint16_t>::max() << "\n";
                 n_overflow.push_back(len);
                 rlbwt[r_idx].set_n(n_overflow.size() - 1);
-                std::cerr << r_idx << " " << len << " is_overflow_n: " << rlbwt[r_idx].is_overflow_n() << "\n";
+                // std::cerr << r_idx << " " << len << " is_overflow_n: " << rlbwt[r_idx].is_overflow_n() << "\n";
                 rlbwt[r_idx].set_overflow_n();
-                std::cerr << r_idx << " " << len << " is_overflow_n: " << rlbwt[r_idx].is_overflow_n() << "\n";
+                // std::cerr << r_idx << " " << len << " is_overflow_n: " << rlbwt[r_idx].is_overflow_n() << "\n";
             }
             if (offset >= std::numeric_limits<uint16_t>::max()) {
                 offset_overflow.push_back(offset);
                 rlbwt[r_idx].set_offset(offset_overflow.size() - 1);
-                std::cerr << r_idx << " " << len << " is_overflow_offset: " << rlbwt[r_idx].is_overflow_offset() << "\n";
+                // std::cerr << r_idx << " " << len << " is_overflow_offset: " << rlbwt[r_idx].is_overflow_offset() << "\n";
                 rlbwt[r_idx].set_overflow_offset();
-                std::cerr << r_idx << " " << len << " is_overflow_offset: " << rlbwt[r_idx].is_overflow_offset() << "\n";
+                // std::cerr << r_idx << " " << len << " is_overflow_offset: " << rlbwt[r_idx].is_overflow_offset() << "\n";
             }
 
             if (len > max_len)
@@ -417,7 +440,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             }
 
             if (!bit1){
-                rlbwt[r_idx].set_c(bwt_string[i]);
+                rlbwt[r_idx].set_c(bwt_string[i], alphamap);
             }
 
             if (bwt_string[i] == static_cast<unsigned char>(END_CHARACTER)) {
@@ -440,11 +463,10 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     // initialize the start threshold at the last row
     for (uint64_t j = 0; j < 4; j++)
         alphabet_thresholds[j] = length;
-
     if (bit1) {
         /*for (uint32_t i = 0; i < rlbwt.size() - 1; ++i) {
-            if (thresholds[i + 1] >= rlbwt[i].get_p() + rlbwt[i].get_n()) {
-                rlbwt[i].threshold_1bit = rlbwt[i].get_n();
+            if (thresholds[i + 1] >= rlbwt[i].get_p() + get_n(i)) {
+                rlbwt[i].threshold_1bit = get_n(i);
             } else if (thresholds[i + 1] < rlbwt[i].get_p()) {
                 rlbwt[i].threshold_1bit = 0;
             } else {
@@ -456,29 +478,34 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     } else {
         uint64_t run_p = 0;
         for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
-            if (i % 100000 == 0)
-                std::cerr<< i << "\r";
-
-            char rlbwt_c = bit1 ? compute_char(i) : rlbwt[i].get_c();
+            if (i % 10000 == 0)
+                std::cerr<<"i: " << i << "\r";
+            char rlbwt_c = bit1 ? compute_char(i) : alphabet[rlbwt[i].get_c()];
             if (verbose and i >= rlbwt.size() - 10) 
                 std::cerr << "i: " << i << "\n"
-                    << "rlbwt[i].get_offset(): " << rlbwt[i].get_offset() << "\n "
-                    << "rlbwt[i].get_n(): " << rlbwt[i].get_n() << "\n"
+                    << "rlbwt[i].get_offset(): " << get_offset(i) << "\n "
+                    << "get_n(i): " << get_n(i) << "\n"
                     << "thresholds[i]: " << thresholds[i] << " "
                     << "rlbwt_c: " << rlbwt_c << "\n";
-
+            
+            std::vector<uint64_t> current_thresholds;
+            current_thresholds.resize(3);
             for (uint64_t j = 0; j < alphabet.size(); j++) {
                 if (alphabet[j] == rlbwt_c) {
                     alphabet_thresholds[j] = thresholds[i];
                 } else {
-	                if (alphabet_thresholds[j] >= run_p + rlbwt[i].get_n()) {
-                        // rlbwt[i].thresholds[j] = rlbwt[i].get_n();
+	                if (alphabet_thresholds[j] >= run_p + get_n(i)) {
+                        // rlbwt[i].thresholds[j] = get_n(i);
                         if (rlbwt_c == END_CHARACTER) {
-                            end_bwt_idx_thresholds[j] = rlbwt[i].get_n();
+                            end_bwt_idx_thresholds[j] = get_n(i);
                             continue;
                         }
-                        rlbwt[i].thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = rlbwt[i].get_n();
-                        if (alphamap_3[alphamap[rlbwt_c]][j] == 3) std::cerr << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
+                        if (get_n(i) >= std::numeric_limits<uint16_t>::max()) {
+                            rlbwt[i].set_overflow_thresholds();                            
+                        }
+                        rlbwt[i].thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = get_n(i);
+                        current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = get_n(i);
+                        if (alphamap_3[alphamap[rlbwt_c]][j] == 3) std::cerr << "error: " << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
                     } else if (alphabet_thresholds[j] < run_p) {
                         // rlbwt[i].thresholds[j] = 0;
                         if (rlbwt_c == END_CHARACTER) {
@@ -486,15 +513,20 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                             continue;
 			            }
                         rlbwt[i].thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = 0;
-                        if (alphamap_3[alphamap[rlbwt_c]][j] == 3) std::cerr << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
+                        current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = 0;
+                        if (alphamap_3[alphamap[rlbwt_c]][j] == 3) std::cerr << "error: " << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
                     } else {
                         // rlbwt[i].thresholds[j] = alphabet_thresholds[j] - run_p;
                         if (rlbwt_c == END_CHARACTER) {
                             end_bwt_idx_thresholds[j] = alphabet_thresholds[j] - run_p;
                             continue;
 			            }
+                        if (alphabet_thresholds[j] - run_p >= std::numeric_limits<uint16_t>::max()) {
+                            rlbwt[i].set_overflow_thresholds();
+                        }
                         rlbwt[i].thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = alphabet_thresholds[j] - run_p;
-                        if (alphamap_3[alphamap[rlbwt_c]][j] == 3) std::cerr << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
+                        current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = alphabet_thresholds[j] - run_p;
+                        if (alphamap_3[alphamap[rlbwt_c]][j] == 3) std::cerr << "error: " << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
                     }
 
                     if (verbose and i >= rlbwt.size() - 10)
@@ -507,8 +539,14 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                     // rlbwt[i].thresholds[j] = alphabet_thresholds[j];
                 }
             }
+            if (rlbwt[i].is_overflow_thresholds()) {
+                rlbwt[i].thresholds[0] = thresholds_overflow.size();
+                rlbwt[i].thresholds[1] = thresholds_overflow.size();
+                rlbwt[i].thresholds[2] = thresholds_overflow.size();
 
-            run_p += rlbwt[i].get_n();
+                thresholds_overflow.push_back(current_thresholds);
+            }
+            run_p += get_n(i);
         }
         for (uint64_t j = 0; j < alphabet.size() - 1; j++) {
             rlbwt[0].thresholds[j] = 0;
@@ -522,20 +560,20 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 /*uint64_t MoveStructure::fast_forward(uint64_t pointer, uint64_t idx) {
     uint64_t idx_ = idx;
     if (verbose) 
-        std::cerr << " \t \t pointer: " << pointer << " p + n:" <<  rlbwt[idx].get_p() + rlbwt[idx].get_n() << "\n";
-    while (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) {
+        std::cerr << " \t \t pointer: " << pointer << " p + n:" <<  rlbwt[idx].get_p() + get_n(idx) << "\n";
+    while (idx < r - 1 && pointer >= rlbwt[idx].get_p() + get_n(idx)) {
         idx += 1;
         if (verbose) std::cerr << "\t \t ff: +" << idx - idx_ << "\n";
     }
     return idx - idx_;
 }*/
 
-uint64_t MoveStructure::fast_forward(uint16_t& offset, uint64_t idx, uint64_t x) {
+uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx, uint64_t x) {
     uint64_t idx_ = idx;
     if (verbose) 
-        std::cerr << " \t \t offset: " << offset << " n:" << rlbwt[idx].get_n() << "\n";
-    while (idx < r - 1 && offset >= rlbwt[idx].get_n()) {
-        offset -= rlbwt[idx].get_n();
+        std::cerr << " \t \t offset: " << offset << " n:" << get_n(idx) << "\n";
+    while (idx < r - 1 && offset >= get_n(idx)) {
+        offset -= get_n(idx);
         idx += 1;
         if (verbose) std::cerr << "\t \t ff offset based: +" << idx - idx_ << "\n";
     }
@@ -545,12 +583,12 @@ uint64_t MoveStructure::fast_forward(uint16_t& offset, uint64_t idx, uint64_t x)
 uint64_t MoveStructure::jump_up(uint64_t idx, char c) {
     if (idx == 0)
         return r;
-    char row_c = bit1 ? compute_char(idx) : rlbwt[idx].get_c();
+    char row_c = bit1 ? compute_char(idx) : alphabet[rlbwt[idx].get_c()];
     uint32_t jump_count = 0;
     while (idx > 0 and row_c != c) {
         jump_count += 1;
         idx -= 1;
-        row_c = bit1 ? compute_char(idx) : rlbwt[idx].get_c();
+        row_c = bit1 ? compute_char(idx) : alphabet[rlbwt[idx].get_c()];
     }
     if (logs) {
         if (jumps.find(jump_count) != jumps.end())
@@ -566,12 +604,12 @@ uint64_t MoveStructure::jump_up(uint64_t idx, char c) {
 uint64_t MoveStructure::jump_down(uint64_t idx, char c) {
     if (idx == r - 1)
         return r;
-    char row_c = bit1 ? compute_char(idx) : rlbwt[idx].get_c();
+    char row_c = bit1 ? compute_char(idx) : alphabet[rlbwt[idx].get_c()];
     uint32_t jump_count = 0;
     while (idx < r - 1 && row_c != c) {
         jump_count += 1;
         idx += 1;
-        row_c = bit1 ? compute_char(idx) : rlbwt[idx].get_c();
+        row_c = bit1 ? compute_char(idx) : alphabet[rlbwt[idx].get_c()];
     }
     if (logs) {
         if (jumps.find(jump_count) != jumps.end())
@@ -591,7 +629,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
     uint64_t idx = r - 1; // std::rand() % r; // r - 1
     if (verbose) std::cerr<< "Begin search from idx = " << idx << "\n";
     // uint64_t pointer = rlbwt[idx].get_p();
-    uint16_t offset = rlbwt[idx].get_n() - 1;
+    uint64_t offset = get_n(idx) - 1;
     uint64_t match_len = 0;
 
     if (verbose)
@@ -607,7 +645,8 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             std::cerr<< "Searching position " << pos_on_r << " of the read:\n";
 
         auto& row = rlbwt[idx];
-        char row_c = bit1 ? compute_char(idx) : row.get_c();
+        uint64_t row_idx = idx;
+        char row_c = bit1 ? compute_char(idx) : alphabet[row.get_c()];
 
         if (alphamap[static_cast<uint64_t>(R[pos_on_r])] == alphamap.size()) { // not to use map
             // The character from the read does not exist in the reference
@@ -631,15 +670,15 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             // idx = row.id;
             idx = row.get_id();
             // offset based: pointer = row.get_pp() + (pointer - row.get_p());
-            offset = row.get_offset() + offset;
+            offset = get_offset(row_idx) + offset;
             if (verbose)
-                std::cerr << "\t row.id: " << row.get_id() << " row.get_n: " << row.get_n() << "\n"
-                          << "\t rlbwt[idx].get_n: " << rlbwt[idx].get_n() << "\n"
+                std::cerr << "\t row.id: " << row.get_id() << " row.get_n: " << get_n(row_idx) << "\n"
+                          << "\t rlbwt[idx].get_n: " << get_n(idx) << "\n"
                           << "\t idx: " << idx << "\n" // " pointer: " << pointer << " pointer-p: " << pointer - rlbwt[idx].get_p() << "\n"
-                          << "\t offset: " << offset << "\t row.get_offset(): " << row.get_offset() << "\n";
+                          << "\t offset: " << offset << "\t row.get_offset(): " << get_offset(row_idx) << "\n";
 
-            // if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + rlbwt[idx].get_n()) {
-            if (idx < r - 1 && offset >= rlbwt[idx].get_n()) {
+            // if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + get_n(idx)) {
+            if (idx < r - 1 && offset >= get_n(idx)) {
                 if (verbose)
                     std::cerr<<"\t fast forwarding: " << idx << "\n";
                 // uint64_t idx_ = fast_forward(pointer, idx);
@@ -659,7 +698,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             bool up = random ? jump_randomly(idx, R[pos_on_r]) : 
                                jump_thresholds(idx, offset, R[pos_on_r]);
             //                   jump_naive_lcp(idx, pointer, R[pos_on_r], lcp);
-            char c = bit1 ? compute_char(idx) : rlbwt[idx].get_c();
+            char c = bit1 ? compute_char(idx) : alphabet[rlbwt[idx].get_c()];
             if (verbose)
                 std::cerr<< "\t up: " << up << " lcp: " << lcp << " idx: " << idx << " c:" << c << "\n";
 
@@ -671,8 +710,8 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
                 // min(new_lcp, match_len + 1)
                 // But we cannot compute lcp here
                 if (up) {
-                    // offset based: pointer = rlbwt[idx].get_p() + rlbwt[idx].get_n() - 1;
-                    offset = rlbwt[idx].get_n() - 1;
+                    // offset based: pointer = rlbwt[idx].get_p() + get_n(idx) - 1;
+                    offset = get_n(idx) - 1;
                 } else {
                     // offset based: pointer = rlbwt[idx].get_p();
                     offset = 0;
@@ -686,9 +725,9 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
                 std::cerr << "\t \t " << up << ", " << bit1 << ", " << R[pos_on_r] << ", " << pos_on_r << "\n";
                 std::cerr << "\t \t ";
                 for (int k = 10; k > 0; --k)
-                    std::cerr << rlbwt[idx - k].get_c() << "-";
+                    std::cerr << alphabet[rlbwt[idx - k].get_c()] << "-";
                 for (int k = 0; k < 10; k++)
-                    std::cerr << rlbwt[idx + k].get_c() << "-";
+                    std::cerr << alphabet[rlbwt[idx + k].get_c()] << "-";
                 std::cerr<<"\n";
                 /*char c_1 = bit1 ? compute_char(saved_idx) : rlbwt_chars[saved_idx];
                 char c_2 = bit1 ? compute_char(idx) : rlbwt[idx].get_c();
@@ -720,19 +759,19 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
     return ff_count;
 }
 
-bool MoveStructure::jump_thresholds(uint64_t& idx, uint16_t offset, char r_char) {
+bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char) {
     uint64_t saved_idx = idx;
     uint64_t alphabet_index = alphamap[static_cast<uint64_t>(r_char)];
     if (verbose)
         std::cerr<<"\t \t \t jumping with thresholds ... \n";
-    char rlbwt_char = bit1 ? compute_char(idx) : rlbwt[idx].get_c();
+    char rlbwt_char = bit1 ? compute_char(idx) : alphabet[rlbwt[idx].get_c()];
     if (verbose)
         std::cerr<<"\t \t \t alphabet_index: " << alphabet_index << " r_char:" << r_char << " rlbwt_char:" << rlbwt_char << "\n";
     // if (r_char > rlbwt_char and rlbwt_char != static_cast<unsigned char>(END_CHARACTER))
     //    alphabet_index -= 1;
     if (verbose)
         std::cerr << "\t \t \t idx:" << idx << "\n" // " pointer:" << pointer << " pointer-p: " << pointer - rlbwt[idx].get_p() << "\n"
-                  << "\t \t \t offset: " << offset << " threshold:" << rlbwt[idx].thresholds[alphabet_index] << "\n";
+                  << "\t \t \t offset: " << offset << " threshold:" << get_thresholds(idx, alphabet_index) << "\n";
 
     if (!bit1) {
 	    if (idx == end_bwt_idx) {
@@ -747,14 +786,14 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint16_t offset, char r_char)
 	            return true;
             }
         }
-        if (verbose) std::cerr << "\t \t \t rlbwt[idx].get_offset(): " << rlbwt[idx].get_offset() 
-                               << " rlbwt[idx].thresholds[alphabet_index]: " << rlbwt[idx].thresholds[alphabet_index] 
+        if (verbose) std::cerr << "\t \t \t rlbwt[idx].get_offset(): " << get_offset(idx) 
+                               << " get_thresholds(idx, alphabet_index): " << get_thresholds(idx, alphabet_index) 
                                << "\n\t \t \t idx:" << idx << "\n";
-
         alphabet_index = alphamap_3[alphamap[rlbwt_char]][alphabet_index];
 
-	    // if (pointer >= rlbwt[idx].get_p() + rlbwt[idx].thresholds[alphabet_index]) { // and idx != r-1) {
-        if (offset >= rlbwt[idx].thresholds[alphabet_index]) { // and idx != r-1) {
+	    // if (pointer >= rlbwt[idx].get_p() + get_thresholds(idx, alphabet_index)) { // and idx != r-1) {
+        // if (offset >= get_thresholds(idx, alphabet_index)) { // and idx != r-1) {
+        if (offset >= get_thresholds(idx, alphabet_index)) {
             if (verbose)
                 std::cerr<< "\t \t \t Jumping down with thresholds:\n";
             idx = jump_down(saved_idx, r_char);
@@ -799,7 +838,7 @@ bool MoveStructure::jump_randomly(uint64_t& idx, char r_char) {
         idx = jump_up(saved_idx, r_char);
         if (verbose)
             std::cerr<<"idx after jump: " << idx << "\n";
-        char c = bit1 ? compute_char(idx) : rlbwt[idx].get_c();
+        char c = bit1 ? compute_char(idx) : alphabet[rlbwt[idx].get_c()];
         if (c != r_char) {
             if (verbose)
                 std::cerr<< "Up didn't work, try jumping down:\n";
@@ -819,7 +858,7 @@ bool MoveStructure::jump_randomly(uint64_t& idx, char r_char) {
         idx = jump_down(saved_idx, r_char);
         if (verbose)
             std::cerr<<"idx after jump: " << idx << "\n";
-        char c = bit1 ? compute_char(idx) : rlbwt[idx].get_c();
+        char c = bit1 ? compute_char(idx) : alphabet[rlbwt[idx].get_c()];
         if (c != r_char) {
             if (verbose)
                 std::cerr<< "Down didn't work, try jumping up:\n";
@@ -905,6 +944,10 @@ void MoveStructure::serialize(char* output_dir) {
     uint64_t offset_overflow_size = offset_overflow.size();
     fout.write(reinterpret_cast<char*>(&offset_overflow_size), sizeof(offset_overflow_size));
     fout.write(reinterpret_cast<char*>(&offset_overflow[0]), offset_overflow.size()*sizeof(uint64_t));
+    uint64_t thresholds_overflow_size = thresholds_overflow.size();
+    fout.write(reinterpret_cast<char*>(&thresholds_overflow_size), sizeof(thresholds_overflow_size));
+    for (uint32_t i = 0; i < thresholds_overflow_size; i++)
+        fout.write(reinterpret_cast<char*>(&thresholds_overflow[i][0]), 3*sizeof(thresholds_overflow[i][0]));
 
     size_t orig_size = orig_string.size();
     fout.write(reinterpret_cast<char*>(&orig_size), sizeof(orig_size));
@@ -959,10 +1002,20 @@ void MoveStructure::deserialize(char* index_dir) {
     }*/
     uint64_t n_overflow_size;
     fin.read(reinterpret_cast<char*>(&n_overflow_size), sizeof(n_overflow_size));
+    n_overflow.resize(n_overflow_size);
     fin.read(reinterpret_cast<char*>(&n_overflow[0]), n_overflow_size*sizeof(uint64_t));
     uint64_t offset_overflow_size;
     fin.read(reinterpret_cast<char*>(&offset_overflow_size), sizeof(offset_overflow_size));
+    offset_overflow.resize(offset_overflow_size);
     fin.read(reinterpret_cast<char*>(&offset_overflow[0]), offset_overflow_size*sizeof(uint64_t));
+    uint64_t thresholds_overflow_size;
+    fin.read(reinterpret_cast<char*>(&thresholds_overflow_size), sizeof(thresholds_overflow_size));
+    thresholds_overflow.resize(thresholds_overflow_size);
+    for (uint32_t i = 0; i < thresholds_overflow_size; i++) {
+        thresholds_overflow[i].resize(3);
+        fin.read(reinterpret_cast<char*>(&thresholds_overflow[i][0]), 3*sizeof(uint64_t));
+    }
+
     /*if (!bit1) {
         rlbwt_chars.resize(r);
         fin.read(reinterpret_cast<char*>(&rlbwt_chars[0]), r*sizeof(char));

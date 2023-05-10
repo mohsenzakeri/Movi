@@ -14,14 +14,14 @@ const uint16_t mask_id =  static_cast<uint16_t>(~((1U << 8) - 1));
 const uint16_t mask_c = static_cast<uint16_t>(~(((1U << 2) - 1) << 8));
 const uint16_t mask_overflow_n = static_cast<uint16_t>(~(((1U << 1) - 1) << 10));
 const uint16_t mask_overflow_offset = static_cast<uint16_t>(~(((1U << 1) - 1) << 11));
-
+const uint16_t mask_overflow_thresholds = static_cast<uint16_t>(~(((1U << 1) - 1) << 12));
 
 class MoveRow{
     public:
         MoveRow () {n = 0; id = 0; overflow_bits = 0;}
         MoveRow(uint16_t n_, uint16_t offset_, uint64_t id_);
         void init(uint16_t n_, uint16_t offset_, uint64_t id_);
-        void init(uint16_t n_, uint16_t offset_, uint64_t id_, char c_);
+        // void init(uint16_t n_, uint16_t offset_, uint64_t id_, char c_);
         friend std::ostream& operator<<(std::ostream& os, const MoveRow& mr);
 
         // void set_p(uint64_t p_);
@@ -29,7 +29,7 @@ class MoveRow{
         void set_n(uint16_t n_);
         void set_offset(uint16_t offset_);
         void set_id(uint64_t id_);
-        void set_c(char c_);
+        void set_c(char c_, std::vector<uint64_t>& alphamap);
 
         // uint64_t get_p() const;
         // uint64_t get_pp() const;
@@ -40,8 +40,10 @@ class MoveRow{
 
         void set_overflow_n();
         void set_overflow_offset();
+        void set_overflow_thresholds();
         bool is_overflow_n() const;
         bool is_overflow_offset() const;
+        bool is_overflow_thresholds() const;
 //    private:
         // offset based: uint32_t p; // bwt row of the head before the jump
         // offset based: uint32_t pp; // bwt row of the head after the jump
@@ -102,7 +104,7 @@ inline uint64_t MoveRow::get_id() const{
 }
 
 inline char MoveRow::get_c() const{
-    uint32_t a = (overflow_bits & (~mask_c)) >> 8;
+    uint8_t a = static_cast<uint8_t>((overflow_bits & (~mask_c)) >> 8);
     char c = static_cast<char>(a);
     return c;
 }
@@ -119,5 +121,10 @@ inline bool MoveRow::is_overflow_offset() const{
     return !b;
 }
 
+inline bool MoveRow::is_overflow_thresholds() const{
+    uint32_t a = (overflow_bits & (~mask_overflow_thresholds)) >> 12;
+    bool b = static_cast<bool>(a);
+    return !b;
+}
 
 #endif

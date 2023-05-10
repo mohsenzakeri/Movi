@@ -38,7 +38,7 @@ class MoveStructure {
         uint64_t LF(uint64_t row_number);
         // uint64_t LF_move(uint64_t& pointer, uint64_t& i);
         // uint64_t fast_forward(uint64_t pointer, uint64_t index);
-        uint64_t fast_forward(uint16_t& offset, uint64_t index, uint64_t x);
+        uint64_t fast_forward(uint64_t& offset, uint64_t index, uint64_t x);
         char compute_char(uint64_t idx);
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
         uint32_t compute_index(char row_char, char lookup_char);
@@ -48,7 +48,7 @@ class MoveStructure {
 
         uint64_t jump_up(uint64_t idx, char c);
         uint64_t jump_down(uint64_t idx, char c);
-        bool jump_thresholds(uint64_t& idx, uint16_t offset, char r_char);
+        bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char);
         bool jump_randomly(uint64_t& idx, char r_char);
         // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
         void compute_nexts();
@@ -59,6 +59,10 @@ class MoveStructure {
         std::unordered_map<uint32_t, uint32_t> jumps;
         std::unordered_map<uint32_t, uint32_t> ff_counts;
         std::unordered_map<uint64_t, uint64_t> run_lengths;
+
+        uint64_t get_n(uint64_t idx);
+        uint64_t get_offset(uint64_t idx);
+        uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
 
     private:
         bool bit1;
@@ -92,7 +96,7 @@ class MoveStructure {
         // auxilary datastructures for the length overflow
         std::vector<uint64_t> n_overflow;
         std::vector<uint64_t> offset_overflow;
-        std::vector<uint64_t[3]> thresholds_overflow;
+        std::vector<std::vector<uint64_t> > thresholds_overflow;
 };
 
 #endif
