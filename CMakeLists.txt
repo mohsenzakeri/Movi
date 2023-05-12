@@ -45,5 +45,9 @@ SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
 # add_compile_options(-fsanitize=address)
 # add_link_options(-fsanitize=address)
 
+# UBSAN_OPTIONS=silence_unsigned_overflow=1
+# add_compile_options(-fsanitize-recover=unsigned-integer-overflow)
+# add_link_options(-fsanitize-recover=unsigned-integer-overflow)
+
 add_executable(marlin src/marlin.cpp)
 target_link_libraries(marlin move move_row sdsl ZLIB::ZLIB)
