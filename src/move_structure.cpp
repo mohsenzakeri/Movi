@@ -331,6 +331,9 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         bit1 = true;
         bit1_begin = alphamap[bwt_string[0]];
     }
+    if (alphabet.size() > 4) {
+        std::cerr << "Warning: There are more than 4 characters, the index expexts only A, C, T and G in the reference.\n";
+    }
 
     std::cerr << "All the characters are indexed.\n";
 
@@ -991,6 +994,9 @@ void MoveStructure::deserialize(char* index_dir) {
     alphabet.resize(alphabet_size);
     fin.read(reinterpret_cast<char*>(&alphabet[0]), alphabet_size*sizeof(alphabet[0]));
     std::cerr<<"alphabet_size: " << alphabet_size << "\n";
+    if (alphabet.size() > 4) {
+        std::cerr << "Warning: There are more than 4 characters, the index expexts only A, C, T and G in the reference.\n";
+    }
     rlbwt.resize(r);
     fin.read(reinterpret_cast<char*>(&bit1), sizeof(bit1));
     fin.read(reinterpret_cast<char*>(&rlbwt[0]), r*sizeof(MoveRow));
