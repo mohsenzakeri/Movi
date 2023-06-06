@@ -2,7 +2,7 @@ include(FetchContent)
 
 cmake_minimum_required(VERSION 3.0)
 
-project(marlin)
+project(movi)
 
 include_directories("include")
 link_directories("/home/mzakeri1/lib/")
@@ -36,7 +36,18 @@ if(NOT sdsl_POPULATED)
 endif()
 
 SET(COMPILE_FLAGS "-O2")
+# debug:
+# SET(COMPILE_FLAGS "-g")
+
 SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
 
-add_executable(marlin src/marlin.cpp)
-target_link_libraries(marlin move move_row sdsl ZLIB::ZLIB)
+# compile with address sanitizer
+# add_compile_options(-fsanitize=address)
+# add_link_options(-fsanitize=address)
+
+# UBSAN_OPTIONS=silence_unsigned_overflow=1
+# add_compile_options(-fsanitize-recover=unsigned-integer-overflow)
+# add_link_options(-fsanitize-recover=unsigned-integer-overflow)
+
+add_executable(movi src/movi.cpp)
+target_link_libraries(movi move move_row sdsl ZLIB::ZLIB)
