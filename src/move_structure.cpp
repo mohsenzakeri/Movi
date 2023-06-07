@@ -285,15 +285,13 @@ void MoveStructure::build_rlbwt(char* input_file) {
     std::ofstream len_file(static_cast<std::string>(input_file) + ".bwt.len", std::ios::out | std::ios::binary);
     std::ofstream heads_file(static_cast<std::string>(input_file) + ".bwt.heads");
     while (current_char != EOF) {
-        //if (r % 10000 == 0)
-        //    std::cerr<< r << "\r";
+        if (r % 10000 == 0)
+            std::cerr<< r << "\r";
         if (current_char != last_char) {
             r += 1;
             // write output
             heads_file << last_char;
             len_file.write(reinterpret_cast<char*>(&len), 5);
-            if (r < 20)
-                std::cerr << len << "\n";
             len = 0;
         } 
         len += 1;
