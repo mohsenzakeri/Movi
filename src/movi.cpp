@@ -19,10 +19,13 @@ int main(int argc, char* argv[]) {
     std::string command = argv[1];
     if (command == "build") {
         std::cerr<<"The move structure is being built.\n";
-        bool mode = argv[2] == "1bit" ? true : false;
+        bool mode = std::string(argv[2]) == "1bit" ? true : false;
+        uint16_t splitting = std::string(argv[2]) == "split" ? 5 : 0;
+        std::cerr << "splitting: " << splitting << "\n";
+        std::cerr << "mode: " << mode << "\n";
         bool verbose = (argc > 5 and std::string(argv[5]) == "verbose");
         bool logs = (argc > 5 and std::string(argv[5]) == "logs");
-        MoveStructure mv_(argv[3], mode, verbose, logs);
+        MoveStructure mv_(argv[3], mode, verbose, logs, splitting);
         std::cerr<<"The move structure is successfully built!\n";
         // mv_.reconstruct();
         // std::cerr<<"The original string is reconstructed.\n";
@@ -36,7 +39,6 @@ int main(int argc, char* argv[]) {
             }
             rl_file.close();
         }
-
     } else if (command == "query") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         bool logs = (argc > 4 and std::string(argv[4]) == "logs");
@@ -88,7 +90,14 @@ int main(int argc, char* argv[]) {
             }
             jumps_file.close();
         }
-    } /*else if (command == "LF") {
+    } else if (command == "rlbwt") {
+        std::cerr<<"The run and len files are being built.\n";
+        bool verbose = (argc > 3 and std::string(argv[3]) == "verbose");
+        bool logs = (argc > 3 and std::string(argv[3]) == "logs");
+        MoveStructure mv_(verbose, logs);
+        mv_.build_rlbwt(argv[2]);
+    } 
+    /*else if (command == "LF") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         MoveStructure mv_(verbose);
         auto begin = std::chrono::system_clock::now();

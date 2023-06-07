@@ -267,6 +267,49 @@ uint64_t MoveStructure::get_thresholds(uint64_t idx, uint32_t alphabet_index) {
         return rlbwt[idx].thresholds[alphabet_index];
     }
 }
+
+void MoveStructure::build_rlbwt(char* input_file) {
+    std::string bwt_filename = static_cast<std::string>(input_file) + std::string(".bwt");
+    std::ifstream bwt_file(bwt_filename);    
+    bwt_file.clear();
+    bwt_file.seekg(0,std::ios_base::end);
+    std::ios_base::streampos end_pos = bwt_file.tellg();
+    std::cerr << "end_pos: " << end_pos << "\n";
+    std::cerr << static_cast<uint64_t>(end_pos) << "\n";
+    bwt_file.seekg(0);
+    char current_char = bwt_file.get();
+    char last_char = current_char;
+    r = 0;
+    size_t len = 0;
+    
+    std::ofstream len_file(static_cast<std::string>(input_file) + ".bwt.len", std::ios::out | std::ios::binary);
+    std::ofstream heads_file(static_cast<std::string>(input_file) + ".bwt.heads");
+    while (current_char != EOF) {
+        //if (r % 10000 == 0)
+        //    std::cerr<< r << "\r";
+        if (current_char != last_char) {
+            r += 1;
+            // write output
+            heads_file << last_char;
+            len_file.write(reinterpret_cast<char*>(&len), 5);
+            if (r < 20)
+                std::cerr << len << "\n";
+            len = 0;
+        } 
+        len += 1;
+        last_char = current_char;
+        current_char = bwt_file.get();
+        
+    }
+
+    // write output
+    heads_file << last_char;
+    len_file.write(reinterpret_cast<char*>(&len), 5);
+
+    heads_file.close();
+    len_file.close();
+}
+
 void MoveStructure::build(std::ifstream &bwt_file) {
     bwt_file.clear();
     bwt_file.seekg(0,std::ios_base::end);
@@ -288,10 +331,11 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
     if (splitting) {
 
-    	std::string splitting_filename = input_file + std::string(".") + std::to_string(splitting) + std::string("_col");
+        std::string splitting_filename = input_file + std::string(".d_col");
         std::ifstream splitting_file(splitting_filename);
 
         bits.load(splitting_file);
+        std::cerr<< "bits.size after loading the d_col file: " << bits.size() << "\n";
     }
     else {
         bits = sdsl::bit_vector(static_cast<uint64_t>(end_pos) + 1, 0); // 5137858051
@@ -344,7 +388,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             alphabet_index += 1;
 
             sdsl::bit_vector* new_bit_vector = new sdsl::bit_vector(length, 0);
-	        occs.emplace_back(std::unique_ptr<sdsl::bit_vector>(new_bit_vector));
+            occs.emplace_back(std::unique_ptr<sdsl::bit_vector>(new_bit_vector));
         }
     }
 
@@ -363,7 +407,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             std::cerr<< i << "\r";
         if (static_cast<uint64_t>(bwt_string[i]) == END_CHARACTER)
             continue;
-	    auto& bit_vec = *occs[alphamap[static_cast<uint64_t>(bwt_string[i])]];
+        auto& bit_vec = *occs[alphamap[static_cast<uint64_t>(bwt_string[i])]];
         bit_vec[i] = 1;
     }
     std::cerr<< length << "\n";
@@ -525,7 +569,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                 if (alphabet[j] == rlbwt_c) {
                     alphabet_thresholds[j] = thresholds[thr_i];
                 } else {
-	                if (alphabet_thresholds[j] >= run_p + get_n(i)) {
+                    if (alphabet_thresholds[j] >= run_p + get_n(i)) {
                         // rlbwt[i].thresholds[j] = get_n(i);
                         if (rlbwt_c == END_CHARACTER) {
                             end_bwt_idx_thresholds[j] = get_n(i);
@@ -542,7 +586,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                         if (rlbwt_c == END_CHARACTER) {
                             end_bwt_idx_thresholds[j] = 0;
                             continue;
-			}
+                        }
                         rlbwt[i].thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = 0;
                         current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = 0;
                         if (alphamap_3[alphamap[rlbwt_c]][j] == 3) std::cerr << "error: " << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
@@ -551,7 +595,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                         if (rlbwt_c == END_CHARACTER) {
                             end_bwt_idx_thresholds[j] = alphabet_thresholds[j] - run_p;
                             continue;
-			}
+                        }
                         if (alphabet_thresholds[j] - run_p >= std::numeric_limits<uint16_t>::max()) {
                             rlbwt[i].set_overflow_thresholds();
                         }
@@ -811,16 +855,16 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char)
                   << "\t \t \t offset: " << offset << " threshold:" << get_thresholds(idx, alphabet_index) << "\n";
 
     if (!bit1) {
-	    if (idx == end_bwt_idx) {
+        if (idx == end_bwt_idx) {
             if (verbose) std::cerr << "\t \t \t idx == end_bwt_idx" 
                                    << "\n\t \t \t idx: " << idx << " end_bwt_idx: " << end_bwt_idx << "\n";
             // if (pointer >= rlbwt[idx].get_p() + end_bwt_idx_thresholds[alphabet_index]) { // and idx != r-1) {
             if (offset >= end_bwt_idx_thresholds[alphabet_index]) { // and idx != r-1) {    
                 idx = jump_down(saved_idx, r_char);
-	            return false;
+                return false;
             } else {
                 idx = jump_up(saved_idx, r_char);
-	            return true;
+                return true;
             }
         }
         if (verbose) std::cerr << "\t \t \t rlbwt[idx].get_offset(): " << get_offset(idx) 
@@ -828,7 +872,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char)
                                << "\n\t \t \t idx:" << idx << "\n";
         alphabet_index = alphamap_3[alphamap[rlbwt_char]][alphabet_index];
 
-	    // if (pointer >= rlbwt[idx].get_p() + get_thresholds(idx, alphabet_index)) { // and idx != r-1) {
+        // if (pointer >= rlbwt[idx].get_p() + get_thresholds(idx, alphabet_index)) { // and idx != r-1) {
         // if (offset >= get_thresholds(idx, alphabet_index)) { // and idx != r-1) {
         if (offset >= get_thresholds(idx, alphabet_index)) {
             if (verbose)
