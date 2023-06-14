@@ -34,14 +34,18 @@ class MoveRow{
         // uint64_t get_p() const;
         // uint64_t get_pp() const;
         uint16_t get_n() const;
+        uint16_t get_n_ff() const;
         uint16_t get_offset() const;
         uint64_t get_id() const;
         char get_c() const;
+        char get_c_jj() const;
+        char get_c_mm() const;
 
         void set_overflow_n();
         void set_overflow_offset();
         void set_overflow_thresholds();
         bool is_overflow_n() const;
+        bool is_overflow_n_ff() const;
         bool is_overflow_offset() const;
         bool is_overflow_thresholds() const;
 //    private:
@@ -85,6 +89,10 @@ inline uint16_t MoveRow::get_n() const{
     return n;
 }
 
+inline uint16_t MoveRow::get_n_ff() const{
+    return n;
+}
+
 inline uint16_t MoveRow::get_offset() const{
     return offset;
 }
@@ -109,7 +117,25 @@ inline char MoveRow::get_c() const{
     return c;
 }
 
+inline char MoveRow::get_c_jj() const{
+    uint8_t a = static_cast<uint8_t>((overflow_bits & (~mask_c)) >> 8);
+    char c = static_cast<char>(a);
+    return c;
+}
+
+inline char MoveRow::get_c_mm() const{
+    uint8_t a = static_cast<uint8_t>((overflow_bits & (~mask_c)) >> 8);
+    char c = static_cast<char>(a);
+    return c;
+}
+
 inline bool MoveRow::is_overflow_n() const{
+    uint32_t a = (overflow_bits & (~mask_overflow_n)) >> 10;
+    bool b = static_cast<bool>(a);
+    return !b;
+}
+
+inline bool MoveRow::is_overflow_n_ff() const{
     uint32_t a = (overflow_bits & (~mask_overflow_n)) >> 10;
     bool b = static_cast<bool>(a);
     return !b;
