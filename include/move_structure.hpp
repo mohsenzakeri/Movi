@@ -76,7 +76,8 @@ class MoveStructure {
         uint64_t r;
         uint64_t original_r;
         uint64_t end_bwt_idx;
-        uint64_t end_bwt_idx_thresholds[4];
+        // uint64_t end_bwt_idx_thresholds[4];
+        uint64_t end_bwt_idx_thresholds[2];
         bool verbose;
         bool logs;
 	char* input_file;
@@ -106,7 +107,8 @@ class MoveStructure {
         // auxilary datastructures for the length, offset and thresholds overflow
         std::vector<uint64_t> n_overflow;
         std::vector<uint64_t> offset_overflow;
-        std::vector<std::vector<uint64_t> > thresholds_overflow;
+        std::vector<uint64_t> thresholds_overflow;
+        // std::vector<std::vector<uint64_t> > thresholds_overflow;
 };
 
 #endif
