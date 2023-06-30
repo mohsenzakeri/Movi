@@ -1,6 +1,7 @@
 #include <cstdint>
 #include <zlib.h>
 #include <stdio.h>
+#include <cstdio>
 #include <chrono>
 #include <cstddef>
 #include <unistd.h>
@@ -16,6 +17,7 @@
 KSEQ_INIT(gzFile, gzread)
 
 int main(int argc, char* argv[]) {
+    std::ios_base::sync_with_stdio(false);
     std::string command = argv[1];
     if (command == "build") {
         std::cerr<<"The move structure is being built.\n";
@@ -59,7 +61,8 @@ int main(int argc, char* argv[]) {
         int l;
         fp = gzopen(argv[3], "r"); // STEP 2: open the file handler
         seq = kseq_init(fp); // STEP 3: initialize seq
-        std::ofstream pmls_file(static_cast<std::string>(argv[3]) + ".mpml");
+        // std::ofstream pmls_file(static_cast<std::string>(argv[3]) + ".mpml");
+        std::ofstream pmls_file(static_cast<std::string>(argv[3]) + ".mpml.bin", std::ios::out | std::ios::binary);
         uint64_t all_ff_count = 0;
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
             /*printf("name: %s\n", seq->name.s);
@@ -72,8 +75,18 @@ int main(int argc, char* argv[]) {
             bool random_jump = false;
             // std::cerr << seq->name.s << "\n";
             all_ff_count += mv_.query_ms(mq, random_jump);
-            pmls_file << ">" << seq->name.s << "\n";
-            pmls_file << mq <<"\n";
+
+            /* pmls_file << ">" << seq->name.s << "\n";
+            for (int64_t i = mq.ms_lens.size() - 1; i >= 0; i--) {
+                pmls_file << mq.ms_lens[i] << " ";
+            }
+            pmls_file << "\n"; */
+            uint16_t st_length = seq->name.m;
+            pmls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
+            pmls_file.write(reinterpret_cast<char*>(&seq->name.s), st_length);
+            uint64_t mq_ms_lens_size = mq.ms_lens.size();
+            pmls_file.write(reinterpret_cast<char*>(&mq_ms_lens_size), sizeof(mq_ms_lens_size));
+            pmls_file.write(reinterpret_cast<char*>(&mq.ms_lens[0]), mq_ms_lens_size * sizeof(mq.ms_lens[0]));
         }
         pmls_file.close();
         std::cerr<<"pmls file closed!\n";
