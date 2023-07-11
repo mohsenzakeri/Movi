@@ -42,8 +42,9 @@ int main(int argc, char* argv[]) {
     } else if (command == "query") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         bool logs = (argc > 4 and std::string(argv[4]) == "logs");
+        bool reverse_query = (argc > 4 and std::string(argv[4]) == "reverse");
         std::cerr << verbose << " " << logs << "\n";
-        MoveStructure mv_(verbose, logs);
+        MoveStructure mv_(verbose, logs); 
         auto begin = std::chrono::system_clock::now();
         mv_.deserialize(argv[2]);
         auto end = std::chrono::system_clock::now();
@@ -68,6 +69,9 @@ int main(int argc, char* argv[]) {
             if (seq->qual.l) printf("qual: %s\n", seq->qual.s); */
 
             std::string query_seq = seq->seq.s;
+            // reverse for the null reads
+            if (reverse_query)
+                std::reverse(query_seq.begin(), query_seq.end());
             MoveQuery mq(query_seq);
             bool random_jump = false;
             // std::cerr << seq->name.s << "\n";
