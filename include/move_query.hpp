@@ -18,7 +18,7 @@ class MoveQuery {
             }
             return output;
         }
-    private:
+    // private:
         std::string query_string;
         std::vector<uint64_t> ms_lens;
 };
