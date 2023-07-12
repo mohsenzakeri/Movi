@@ -727,7 +727,14 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
         std::cerr << "idx(r-1): " << idx << " offset: " << offset << "\n";
 
     uint64_t ff_count = 0;
+    auto t2 = std::chrono::high_resolution_clock::now();
     while (pos_on_r > -1) {
+        auto t1= t2;
+        t2 = std::chrono::high_resolution_clock::now();
+        if (pos_on_r < R.length() - 1) {
+            auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
+            mq.costs.push_back(elapsed);
+        }
         if (idx == r) std::cerr << idx << "\n";
         if (verbose)
             std::cerr<< "Searching position " << pos_on_r << " of the read:\n";
