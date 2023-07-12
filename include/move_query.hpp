@@ -21,6 +21,7 @@ class MoveQuery {
     // private:
         std::string query_string;
         std::vector<uint64_t> ms_lens;
+        std::vector<std::chrono::nanoseconds> costs;
 };
 
 #endif
