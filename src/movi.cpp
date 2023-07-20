@@ -64,8 +64,12 @@ int main(int argc, char* argv[]) {
         seq = kseq_init(fp); // STEP 3: initialize seq
         // std::ofstream pmls_file(static_cast<std::string>(argv[3]) + ".mpml");
         std::ofstream costs_file(static_cast<std::string>(argv[3]) + ".costs");
+        std::ofstream scans_file(static_cast<std::string>(argv[3]) + ".scans");
+        std::ofstream fastforwards_file(static_cast<std::string>(argv[3]) + ".fastforwards");
         std::ofstream pmls_file(static_cast<std::string>(argv[3]) + ".mpml.bin", std::ios::out | std::ios::binary);
         uint64_t all_ff_count = 0;
+        // uint64_t query_ms_tot_time = 0;
+        // uint64_t iteration_tot_time = 0;
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
             /*printf("name: %s\n", seq->name.s);
             if (seq->comment.l) printf("comment: %s\n", seq->comment.s);
@@ -76,10 +80,13 @@ int main(int argc, char* argv[]) {
             // reverse for the null reads
             if (reverse_query)
                 std::reverse(query_seq.begin(), query_seq.end());
+            // auto t1 = std::chrono::high_resolution_clock::now();    
             MoveQuery mq(query_seq);
             bool random_jump = false;
             // std::cerr << seq->name.s << "\n";
             all_ff_count += mv_.query_ms(mq, random_jump);
+            // auto t2 = std::chrono::high_resolution_clock::now();
+            // query_ms_tot_time += static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count());
 
             /* pmls_file << ">" << seq->name.s << "\n";
             for (int64_t i = mq.ms_lens.size() - 1; i >= 0; i--) {
@@ -93,13 +100,27 @@ int main(int argc, char* argv[]) {
             pmls_file.write(reinterpret_cast<char*>(&mq_ms_lens_size), sizeof(mq_ms_lens_size));
             pmls_file.write(reinterpret_cast<char*>(&mq.ms_lens[0]), mq_ms_lens_size * sizeof(mq.ms_lens[0]));
             costs_file << ">" << seq->name.s << "\n";
+            scans_file << ">" << seq->name.s << "\n";
+            fastforwards_file << ">" << seq->name.s << "\n";
             for (uint64_t i = 0; i < mq.costs.size(); i++) {
-                // std::cerr << mq.costs[i] << " ";
                 costs_file << mq.costs[i].count() << " ";
+                // iteration_tot_time += static_cast<uint64_t>(mq.costs[i].count());
+            }
+            for (uint64_t i = 0; i < mq.scans.size(); i++) {
+                scans_file << mq.scans[i] << " ";
+            }
+            for (uint64_t i = 0; i < mq.fastforwards.size(); i++) {
+                fastforwards_file << mq.fastforwards[i] << " ";
             }
             costs_file << "\n";
+            scans_file << "\n";
+            fastforwards_file << "\n";
         }
+        // std::cerr << "query_ms_tot_time: " << query_ms_tot_time << "\n";
+        // std::cerr << "iteration_tot_time: " << iteration_tot_time << "\n";
         costs_file.close();
+        scans_file.close();
+        fastforwards_file.close();
         pmls_file.close();
         std::cerr<<"pmls file closed!\n";
         // printf("return value: %d\n", l);
