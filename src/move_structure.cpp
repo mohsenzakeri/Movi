@@ -727,6 +727,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
         std::cerr << "idx(r-1): " << idx << " offset: " << offset << "\n";
 
     uint64_t ff_count = 0;
+    bool case2 = false;
     auto t2 = std::chrono::high_resolution_clock::now();
     while (pos_on_r > -1) {
         auto t1= t2;
@@ -748,6 +749,10 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             match_len = 0;
             mq.add_ms(match_len);
             pos_on_r -= 1;
+            if (!case2) {
+                mq.scans.push_back(0);
+            }
+            case2 = false;
 
             if (verbose)
                 std::cerr<< "\t The character " << R[pos_on_r] << " does not exist.\n";
@@ -761,6 +766,10 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
                 std::cerr<<"\t match: " << match_len << "\n";
             mq.add_ms(match_len - 1);
             pos_on_r -= 1;
+            if (!case2) {
+                mq.scans.push_back(0);
+            }
+            case2 = false;
 
             // idx = row.id;
             idx = row.get_id();
@@ -781,18 +790,24 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
                 // if (idx_ != idx__) { std::cerr<< "\t ff doesn't match" << idx_ << " " << idx__ << "\n";}
                 ff_count += idx__;
                 idx += idx__;
+                mq.fastforwards.push_back(idx__);
+            } else {
+                mq.fastforwards.push_back(0);
             }
 
         } else {
+            case2 = true;
             if (verbose)
                 std::cerr<< "\t Case2: Not a match, looking for a match either up or down...\n";
 
             // Case 2
             // Jumping randomly up or down or with naive lcp computation
             uint64_t lcp = 0;
+            uint64_t idx_before_jump = idx;
             bool up = random ? jump_randomly(idx, R[pos_on_r]) : 
                                jump_thresholds(idx, offset, R[pos_on_r]);
             //                   jump_naive_lcp(idx, pointer, R[pos_on_r], lcp);
+            mq.scans.push_back(std::abs((int)idx - (int)idx_before_jump));
             char c = bit1 ? compute_char(idx) : alphabet[rlbwt[idx].get_c_mm()];
             if (verbose)
                 std::cerr<< "\t up: " << up << " lcp: " << lcp << " idx: " << idx << " c:" << c << "\n";
