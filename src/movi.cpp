@@ -95,7 +95,7 @@ int main(int argc, char* argv[]) {
             pmls_file << "\n"; */
             uint16_t st_length = seq->name.m;
             pmls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
-            pmls_file.write(reinterpret_cast<char*>(&seq->name.s), st_length);
+            pmls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
             uint64_t mq_ms_lens_size = mq.ms_lens.size();
             pmls_file.write(reinterpret_cast<char*>(&mq_ms_lens_size), sizeof(mq_ms_lens_size));
             pmls_file.write(reinterpret_cast<char*>(&mq.ms_lens[0]), mq_ms_lens_size * sizeof(mq.ms_lens[0]));
@@ -142,7 +142,33 @@ int main(int argc, char* argv[]) {
         bool logs = (argc > 3 and std::string(argv[3]) == "logs");
         MoveStructure mv_(verbose, logs);
         mv_.build_rlbwt(argv[2]);
-    } 
+    } else if (command == "view") {
+        std::cerr << command << "\n";
+        std::cerr << argv[2] << "\n";
+
+        std::string fname = static_cast<std::string>(argv[2]);
+        std::ifstream pmls_file(fname, std::ios::in | std::ios::binary);
+        pmls_file.seekg(0, std::ios::beg);
+        while (true) {
+            uint16_t st_length = 0;
+            pmls_file.read(reinterpret_cast<char*>(&st_length), sizeof(st_length));
+            if (pmls_file.eof()) break;
+
+            std::string read_name;
+            read_name.resize(st_length);
+            pmls_file.read(reinterpret_cast<char*>(&read_name[0]), st_length);
+            std::cout << ">" << read_name << "\n";
+            uint64_t mq_ms_lens_size = 0;
+            pmls_file.read(reinterpret_cast<char*>(&mq_ms_lens_size), sizeof(mq_ms_lens_size));
+            std::vector<uint64_t> ms_lens;
+            ms_lens.resize(mq_ms_lens_size);
+            pmls_file.read(reinterpret_cast<char*>(&ms_lens[0]), mq_ms_lens_size * sizeof(ms_lens[0]));
+            for (auto& len : ms_lens) {
+                std::cout << len << " ";
+            }
+            std::cout << "\n";
+        }
+    }
     /*else if (command == "LF") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         MoveStructure mv_(verbose);
