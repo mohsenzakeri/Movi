@@ -30,7 +30,7 @@ class MoveRow{
         void set_offset(uint16_t offset_);
         void set_id(uint64_t id_);
         void set_c(char c_, std::vector<uint64_t>& alphamap);
-        void set_thresholds(uint16_t i, uint16_t value);
+        // void set_thresholds(uint16_t i, uint16_t value);
 
         // uint64_t get_p() const;
         // uint64_t get_pp() const;
@@ -41,7 +41,7 @@ class MoveRow{
         char get_c() const;
         char get_c_jj() const;
         char get_c_mm() const;
-        uint16_t get_thresholds(uint16_t i) const;
+        // uint16_t get_thresholds(uint16_t i) const;
 
         void set_overflow_n();
         void set_overflow_offset();
@@ -56,7 +56,7 @@ class MoveRow{
         uint16_t offset; // offset of the bwt row head of the current run in the new run after the jump
         uint16_t overflow_bits;
         uint16_t n; // length of the run
-        uint16_t thresholds[3];
+        // uint16_t thresholds[3];
         uint32_t id; // bwt run after the jump
 
 };
@@ -155,13 +155,13 @@ inline bool MoveRow::is_overflow_thresholds() const{
     return !b;
 }
 
-inline uint16_t MoveRow::get_thresholds(uint16_t i) const {
+/*inline uint16_t MoveRow::get_thresholds(uint16_t i) const {
     uint16_t thresholds_size = sizeof(thresholds) / sizeof(uint16_t);
     if (i >= thresholds_size) {
         std::cerr << "get_thresholds: " << i << " is greater than " << thresholds_size - 1 << "\n"; 
         exit(0);
     }    
     return thresholds[i];
-}
+}*/
 
 #endif

@@ -65,6 +65,8 @@ class MoveStructure {
         uint64_t get_n_ff(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
         uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
+        uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
+        void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
 
     private:
         bool bit1;
@@ -79,7 +81,7 @@ class MoveStructure {
         uint64_t end_bwt_idx_thresholds[4];
         bool verbose;
         bool logs;
-	char* input_file;
+	    char* input_file;
 
         // Map from 2bit encoded character to the actual character
         // Example: alphabet[0] -> A, alphabet[1] -> C
@@ -99,6 +101,8 @@ class MoveStructure {
 
         std::vector<MoveRow> rlbwt;
         // std::vector<char> rlbwt_chars;
+        // thresholds for all the rows:
+        std::vector<std::array<uint16_t, 3> > rlbwt_thresholds;
         uint64_t eof_row;
         uint64_t bit1_begin;
         uint64_t bit1_after_eof;
