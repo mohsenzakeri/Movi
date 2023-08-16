@@ -81,3 +81,12 @@ void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
     overflow_bits = overflow_bits & mask_c;
     overflow_bits = overflow_bits | ((c_64) << 8);
 }
+
+void MoveRow::set_thresholds(uint16_t i, uint16_t value) {
+    uint16_t thresholds_size = sizeof(thresholds) / sizeof(uint16_t);
+    if (i >= thresholds_size) {
+        std::cerr << "set_thresholds: " << i << " is greater than " << thresholds_size - 1 << "\n"; 
+        exit(0);
+    }
+    thresholds[i] = value;
+}

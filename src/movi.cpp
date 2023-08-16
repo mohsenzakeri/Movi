@@ -96,21 +96,22 @@ int main(int argc, char* argv[]) {
             uint16_t st_length = seq->name.m;
             pmls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
             pmls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
-            uint64_t mq_ms_lens_size = mq.ms_lens.size();
+            auto& ms_lens = mq.get_ms_lens();
+            uint64_t mq_ms_lens_size = ms_lens.size();
             pmls_file.write(reinterpret_cast<char*>(&mq_ms_lens_size), sizeof(mq_ms_lens_size));
-            pmls_file.write(reinterpret_cast<char*>(&mq.ms_lens[0]), mq_ms_lens_size * sizeof(mq.ms_lens[0]));
+            pmls_file.write(reinterpret_cast<char*>(&ms_lens[0]), mq_ms_lens_size * sizeof(ms_lens[0]));
             costs_file << ">" << seq->name.s << "\n";
             scans_file << ">" << seq->name.s << "\n";
             fastforwards_file << ">" << seq->name.s << "\n";
-            for (uint64_t i = 0; i < mq.costs.size(); i++) {
-                costs_file << mq.costs[i].count() << " ";
+            for (auto& cost : mq.get_costs()) {
+                costs_file << cost.count() << " ";
                 // iteration_tot_time += static_cast<uint64_t>(mq.costs[i].count());
             }
-            for (uint64_t i = 0; i < mq.scans.size(); i++) {
-                scans_file << mq.scans[i] << " ";
+            for (auto& scan: mq.get_scans()) {
+                scans_file << scan << " ";
             }
-            for (uint64_t i = 0; i < mq.fastforwards.size(); i++) {
-                fastforwards_file << mq.fastforwards[i] << " ";
+            for (auto& fast_forward : mq.get_fastforwards()) {
+                fastforwards_file << fast_forward << " ";
             }
             costs_file << "\n";
             scans_file << "\n";

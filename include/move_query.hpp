@@ -9,6 +9,13 @@ class MoveQuery {
         std::string query() { return query_string; }
         uint64_t length() { return query_string.length(); }
         void add_ms(uint64_t len) { ms_lens.push_back(len); }
+        void add_cost(std::chrono::nanoseconds cost) { costs.push_back(cost); }
+        void add_scan(uint64_t scan) { scans.push_back(scan); }
+        void add_fastforward(uint64_t fastforward) { fastforwards.push_back(fastforward); }
+        std::vector<uint64_t>& get_ms_lens() { return ms_lens; }
+        std::vector<uint64_t>& get_scans() { return scans; }
+        std::vector<uint64_t>& get_fastforwards() { return fastforwards; }
+        std::vector<std::chrono::nanoseconds>& get_costs() { return costs; }
 
         friend std::ostream& operator<<(std::ostream& output, const MoveQuery& dt) {
             // output << "The matching statistics are:\n";
@@ -18,7 +25,7 @@ class MoveQuery {
             }
             return output;
         }
-    // private:
+    private:
         std::string query_string;
         std::vector<uint64_t> ms_lens;
         std::vector<uint64_t> scans;
