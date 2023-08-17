@@ -25,8 +25,8 @@
 class MoveStructure {
     public:
         MoveStructure() { }
-        MoveStructure(bool bit1_ = false, bool verbose_ = false, bool logs_ = false, uint16_t splitting = false);
-        MoveStructure(char* input_file_, bool bit1_ = false, bool verbose_ = false, bool logs_ = false, uint16_t splitting = false);
+        MoveStructure(bool bit1_ = false, bool verbose_ = false, bool logs_ = false, uint16_t splitting = 0, bool constant = false);
+        MoveStructure(char* input_file_, bool bit1_ = false, bool verbose_ = false, bool logs_ = false, uint16_t splitting = 0, bool constant = false);
 
         void build(std::ifstream &bwt_file);
         void build_rlbwt(char* input_file);
@@ -70,6 +70,7 @@ class MoveStructure {
 
     private:
         bool bit1;
+        bool constant;
         uint16_t splitting;
         std::string bwt_string;
         std::string orig_string;
@@ -79,6 +80,8 @@ class MoveStructure {
         uint64_t original_r;
         uint64_t end_bwt_idx;
         uint64_t end_bwt_idx_thresholds[4];
+        uint64_t end_bwt_idx_next_up[4];
+        uint64_t end_bwt_idx_next_down[4];
         bool verbose;
         bool logs;
 	    char* input_file;
@@ -100,18 +103,20 @@ class MoveStructure {
         sdsl::int_vector<> thresholds;
 
         std::vector<MoveRow> rlbwt;
-        // std::vector<char> rlbwt_chars;
+        uint64_t eof_row;
         // thresholds for all the rows:
         std::vector<std::array<uint16_t, 3> > rlbwt_thresholds;
         std::vector<uint16_t> rlbwt_1bit_thresholds;
-        uint64_t eof_row;
-        // uint64_t bit1_begin;
-        // uint64_t bit1_after_eof;
+        // to store pointers for avoiding scanning
+        std::vector<std::array<uint16_t, 3> > rlbwt_next_ups;
+        std::vector<std::array<uint16_t, 3> > rlbwt_next_downs;
 
         // auxilary datastructures for the length, offset and thresholds overflow
         std::vector<uint64_t> n_overflow;
         std::vector<uint64_t> offset_overflow;
         std::vector<std::vector<uint64_t> > thresholds_overflow;
+
+
 };
 
 #endif

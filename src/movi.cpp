@@ -21,17 +21,27 @@ int main(int argc, char* argv[]) {
     std::string command = argv[1];
     if (command == "build") {
         std::cerr<<"The move structure is being built.\n";
-        bool mode = std::string(argv[2]) == "1bit" ? true : false;
+
+        bool bit1 = std::string(argv[2]) == "1bit" ? true : false;
         uint16_t splitting = std::string(argv[2]) == "split" ? 5 : 0;
+        bool constant = std::string(argv[2]) == "constant" ? true : false;
+        if (constant) {
+            splitting = 5;
+        }
         std::cerr << "splitting: " << splitting << "\n";
-        std::cerr << "mode: " << mode << "\n";
+        std::cerr << "bit1: " << bit1 << "\n";
+        std::cerr << "constant: " << constant << "\n";
+
         bool verbose = (argc > 5 and std::string(argv[5]) == "verbose");
         bool logs = (argc > 5 and std::string(argv[5]) == "logs");
-        MoveStructure mv_(argv[3], mode, verbose, logs, splitting);
+
+        MoveStructure mv_(argv[3], bit1, verbose, logs, splitting, constant);
         std::cerr<<"The move structure is successfully built!\n";
+
         // mv_.reconstruct();
         // std::cerr<<"The original string is reconstructed.\n";
         // std::cerr<<"The original string is:\n" << mv_.R() << "\n";
+
         mv_.serialize(argv[4]);
         std::cerr<<"The move structure is successfully stored at " << argv[4] << "\n";
         if (logs) {
