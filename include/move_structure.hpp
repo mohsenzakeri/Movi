@@ -25,7 +25,7 @@
 class MoveStructure {
     public:
         MoveStructure() { }
-        MoveStructure(bool verbose_ = false, bool logs_ = false, uint16_t splitting = false);
+        MoveStructure(bool bit1_ = false, bool verbose_ = false, bool logs_ = false, uint16_t splitting = false);
         MoveStructure(char* input_file_, bool bit1_ = false, bool verbose_ = false, bool logs_ = false, uint16_t splitting = false);
 
         void build(std::ifstream &bwt_file);
@@ -103,9 +103,10 @@ class MoveStructure {
         // std::vector<char> rlbwt_chars;
         // thresholds for all the rows:
         std::vector<std::array<uint16_t, 3> > rlbwt_thresholds;
+        std::vector<uint16_t> rlbwt_1bit_thresholds;
         uint64_t eof_row;
-        uint64_t bit1_begin;
-        uint64_t bit1_after_eof;
+        // uint64_t bit1_begin;
+        // uint64_t bit1_after_eof;
 
         // auxilary datastructures for the length, offset and thresholds overflow
         std::vector<uint64_t> n_overflow;

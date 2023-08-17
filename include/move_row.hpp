@@ -56,9 +56,7 @@ class MoveRow{
         uint16_t offset; // offset of the bwt row head of the current run in the new run after the jump
         uint16_t overflow_bits;
         uint16_t n; // length of the run
-        // uint16_t thresholds[3];
         uint32_t id; // bwt run after the jump
-
 };
 
 /* inline uint64_t MoveRow::get_p() const{
@@ -154,14 +152,5 @@ inline bool MoveRow::is_overflow_thresholds() const{
     bool b = static_cast<bool>(a);
     return !b;
 }
-
-/*inline uint16_t MoveRow::get_thresholds(uint16_t i) const {
-    uint16_t thresholds_size = sizeof(thresholds) / sizeof(uint16_t);
-    if (i >= thresholds_size) {
-        std::cerr << "get_thresholds: " << i << " is greater than " << thresholds_size - 1 << "\n"; 
-        exit(0);
-    }    
-    return thresholds[i];
-}*/
 
 #endif
