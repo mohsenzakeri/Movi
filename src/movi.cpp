@@ -179,7 +179,7 @@ int main(int argc, char* argv[]) {
             }
             std::cout << "\n";
         }
-    } else if (command == "LF" or command == "randomLF") {
+    } else if (command == "LF" or command == "randomLF" or command == "reconstruct") {
         bool verbose = (argc > 3 and std::string(argv[3]) == "verbose");
         bool logs = (argc > 3 and std::string(argv[3]) == "logs");
         MoveStructure mv_(verbose, logs);
@@ -196,8 +196,10 @@ int main(int argc, char* argv[]) {
         // std::ifstream bwt_file(bwt_filename);
         if (command == "LF")
             mv_.all_lf_test();
-        else
+        else if (command == "randomLF")
             mv_.random_lf_test();
+        else
+            mv_.reconstruct_move();
         
         if (logs) {
             std::ofstream ff_counts_file(static_cast<std::string>(argv[3]) + ".ff_counts");
@@ -206,16 +208,5 @@ int main(int argc, char* argv[]) {
             }
             ff_counts_file.close();
         }
-    } /*else if (command == "reconstruct") {
-        bool verbose = (argc > 3 and std::string(argv[3]) == "verbose");
-        MoveStructure mv_(verbose);
-        auto begin = std::chrono::system_clock::now();
-        mv_.deserialize(argv[2]);
-        auto end = std::chrono::system_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-        std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
-        std::cerr << "The move structure is read from the file successfully.\n";
-
-        mv_.reconstruct_move();
-    }*/
+    }
 }

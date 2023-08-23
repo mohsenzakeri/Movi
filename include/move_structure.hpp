@@ -35,7 +35,7 @@ class MoveStructure {
         void all_lf_test(/*std::ifstream &bwt_file*/);
         void random_lf_test();
         // std::string reconstruct();
-        // std::string reconstruct_move();
+        std::string reconstruct_move();
 
         uint64_t LF(uint64_t row_number);
         uint64_t LF_move(uint64_t& pointer, uint64_t& i);

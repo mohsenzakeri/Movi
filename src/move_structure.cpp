@@ -99,24 +99,36 @@ uint64_t MoveStructure::LF(uint64_t row_number) {
     return lf;
 }
 
-/*std::string MoveStructure::reconstruct_move() {
+std::string MoveStructure::reconstruct_move() {
     orig_string = "";
-    uint64_t bwt_index = 0;
+    uint64_t offset = 0;
     uint64_t run_index = 0;
     uint64_t i = 0;
     uint64_t ff_count_tot = 0;
-    for (; bwt_index != end_bwt_row; ff_count_tot += LF_move(bwt_index, run_index)) {
+
+    uint64_t total_elapsed = 0;
+    for (; run_index != end_bwt_idx; ) {
+        auto begin = std::chrono::system_clock::now();
+        ff_count_tot += LF_move(offset, run_index);
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+        total_elapsed += elapsed.count();
+
         if (i % 10000 == 0)
             std::cerr<< i << "\r";
         i += 1;
         // orig_string = rlbwt[run_index].get_c() + orig_string;
+
     }
-    std::cerr << i << " " << bwt_index << " " << run_index << "\n";
-    std::cerr << length << "\n";
+    std::printf("Time measured for reconstructing the original text: %.3f seconds.\n", total_elapsed * 1e-9);
+
+    // std::cerr << i << " " << offset << " " << run_index << " " << alphabet[rlbwt[run_index-1].get_c()] << "\n";
+    // std::cerr << length << "\n";
+    // std::cerr << end_bwt_idx << "\n";
     std::cerr << "Finished reconstructing the original string.\n";
     std::cerr << "Total fast forward: " << ff_count_tot << "\n";
     return orig_string;
-}*/
+}
 
 /*std::string MoveStructure::reconstruct() {
     if (bwt_string == "") {

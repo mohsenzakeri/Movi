@@ -30,7 +30,6 @@ class MoveRow{
         void set_offset(uint16_t offset_);
         void set_id(uint64_t id_);
         void set_c(char c_, std::vector<uint64_t>& alphamap);
-        // void set_thresholds(uint16_t i, uint16_t value);
 
         // uint64_t get_p() const;
         // uint64_t get_pp() const;
@@ -41,7 +40,6 @@ class MoveRow{
         char get_c() const;
         char get_c_jj() const;
         char get_c_mm() const;
-        // uint16_t get_thresholds(uint16_t i) const;
 
         void set_overflow_n();
         void set_overflow_offset();
