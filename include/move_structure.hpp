@@ -25,14 +25,15 @@
 class MoveStructure {
     public:
         MoveStructure() { }
-        MoveStructure(bool bit1_ = false, bool verbose_ = false, bool logs_ = false, uint16_t splitting = 0, bool constant = false);
-        MoveStructure(char* input_file_, bool bit1_ = false, bool verbose_ = false, bool logs_ = false, uint16_t splitting = 0, bool constant = false);
+        MoveStructure(bool verbose_, bool logs_);
+        MoveStructure(bool bit1_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
+        MoveStructure(char* input_file_, bool bit1_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
 
         void build(std::ifstream &bwt_file);
         void build_rlbwt(char* input_file);
         uint64_t query_ms(MoveQuery& mq, bool random);
         void all_lf_test(/*std::ifstream &bwt_file*/);
-        // uint64_t random_lf_test();
+        void random_lf_test();
         // std::string reconstruct();
         // std::string reconstruct_move();
 

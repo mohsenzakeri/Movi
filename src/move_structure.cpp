@@ -38,6 +38,11 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
     std::cerr << "Finished reading " << i << " thresholds.\n";
 }
 
+MoveStructure::MoveStructure(bool verbose_, bool logs_) {
+    verbose = verbose_;
+    logs = logs_;
+}
+
 MoveStructure::MoveStructure(bool bit1_, bool verbose_, bool logs_, uint16_t splitting_, bool constant_) {
     bit1 = bit1_;
     verbose = verbose_;
@@ -214,7 +219,7 @@ void MoveStructure::all_lf_test() { // std::ifstream &bwt_file
     //         row_index += 1;
     //     }
     // }
-
+    uint64_t total_elapsed = 0;
     for (uint64_t row_index = 0; row_index < r; row_index++) {
         auto& current = rlbwt[row_index];
         for (uint64_t j = 0; j < current.get_n(); j ++) {
@@ -222,34 +227,69 @@ void MoveStructure::all_lf_test() { // std::ifstream &bwt_file
                 std::cerr<< line_index << "\r";
             uint64_t offset = j;
             uint64_t i = row_index;
+            auto begin = std::chrono::system_clock::now();
             ff_count_tot += LF_move(offset, i);
+            auto end = std::chrono::system_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+            total_elapsed += elapsed.count();
             line_index += 1;
         }
 
     }
-    std::cerr<< line_index << "\r";
+    std::printf("Time measured for LF-mapping of all the characters: %.3f seconds.\n", total_elapsed * 1e-9);
+
+    std::cerr<< line_index << "\n";
     std::cerr<< "Finished performing LF-mapping for all the BWT characters.\n";
     std::cerr << "Total fast forward: " << ff_count_tot << "\n";
 }
 
-/*uint64_t MoveStructure::random_lf_test() {
-    std::srand(time(0));
+void MoveStructure::random_lf_test() {
     uint64_t ff_count_tot = 0;
+
+    // generate the random order from 1 to length
+    std::vector<uint64_t> random_order(length);
+    for (uint64_t i = 0; i < length; i++) {
+        random_order[i] = i;
+    }
+    std::srand(time(0));
+    std::random_shuffle(random_order.begin(), random_order.end());
+
+    // find the n and id for each random BWT row
+    std::vector<uint64_t> n_to_id(length);
+    std::vector<uint64_t> id_to_p(r);
+    uint64_t current_n = 0;
+    for (uint64_t i = 0; i < r; i++) {
+        id_to_p[i] = current_n;
+        for (uint64_t j = 0; j < get_n(i); j++) {
+            n_to_id[current_n] = i;
+            current_n += 1;
+        }
+    }
+
+
+    uint64_t total_elapsed = 0;
     for (uint64_t i = 0; i < length; i++) {
         if (i % 10000 == 0)
             std::cerr<< i << "\r";
 
-        uint64_t idx = std::rand() % r;
-        auto& row = rlbwt[idx];
-        uint64_t pointer = row.get_p() + (std::rand() % row.get_n());
-        
-        ff_count_tot += LF_move(pointer, idx);
+        // uint64_t n = std::rand() % r;
+        uint64_t n = random_order[i];
+        // std::cerr << i << ": " << n << "\n";
+        // if (i > 10) return;
+        uint64_t id = n_to_id[n];
+        uint64_t offset = n - id_to_p[id];
+        auto begin = std::chrono::system_clock::now();
+        ff_count_tot += LF_move(offset, id);
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+        total_elapsed += elapsed.count();
     }
-    std::cerr << length << "\r";
+    std::printf("Time measured for LF-mapping of all the characters in the random order: %.3f seconds.\n", total_elapsed * 1e-9);
+
+    std::cerr << length << "\n";
     std::cerr << "Finished performing LF query for all the BWT characters.\n";
     std::cerr << "Total fast forward: " << ff_count_tot << "\n";
-    return ff_count_tot;
-}*/
+}
 
 uint64_t MoveStructure::get_n(uint64_t idx) {
     if (rlbwt[idx].is_overflow_n()) {
