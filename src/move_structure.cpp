@@ -166,14 +166,17 @@ uint32_t MoveStructure::compute_index(char row_char, char lookup_char) {
         return alpha_index+1;*/
 }
 
-/*uint64_t MoveStructure::LF_move(uint64_t& pointer, uint64_t& i) {
+uint64_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
     auto& row = rlbwt[i];
     auto idx = row.get_id();
-    pointer = row.get_pp() + (pointer - row.get_p());
+    // pointer = row.get_pp() + (pointer - row.get_p());
+    offset = get_offset(i) + offset;
     uint64_t ff_count = 0;
 
-    if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + get_n(idx)) {
-        uint64_t idx_ = fast_forward(pointer, idx);
+    // if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + get_n(idx)) {
+    if (idx < r - 1 && offset >= get_n(idx)) {
+        // uint64_t idx_ = fast_forward(pointer, idx);
+        uint64_t idx_ = (idx < r - 1 && offset >= get_n(idx)) ? fast_forward(offset, idx, 0) : 0;
         idx += idx_;
         ff_count += idx_;
     }
@@ -186,9 +189,9 @@ uint32_t MoveStructure::compute_index(char row_char, char lookup_char) {
     }
     i = idx;
     return ff_count;
-}*/
+}
 
-/*void MoveStructure::all_lf_test() { // std::ifstream &bwt_file
+void MoveStructure::all_lf_test() { // std::ifstream &bwt_file
     // bwt_file.clear();
     // bwt_file.seekg(0);
     // char  current_char = bwt_file.get();
@@ -217,17 +220,17 @@ uint32_t MoveStructure::compute_index(char row_char, char lookup_char) {
         for (uint64_t j = 0; j < current.get_n(); j ++) {
             if (line_index % 10000 == 0)
                 std::cerr<< line_index << "\r";
-            uint64_t pointer = line_index;
+            uint64_t offset = j;
             uint64_t i = row_index;
-            ff_count_tot += LF_move(pointer, i);
+            ff_count_tot += LF_move(offset, i);
             line_index += 1;
         }
 
     }
     std::cerr<< line_index << "\r";
-    std::cerr<< "Finished performing LF query for all the BWT characters.\n";
+    std::cerr<< "Finished performing LF-mapping for all the BWT characters.\n";
     std::cerr << "Total fast forward: " << ff_count_tot << "\n";
-}*/
+}
 
 /*uint64_t MoveStructure::random_lf_test() {
     std::srand(time(0));

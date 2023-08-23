@@ -179,10 +179,10 @@ int main(int argc, char* argv[]) {
             }
             std::cout << "\n";
         }
-    }
-    /*else if (command == "LF") {
+    } else if (command == "LF") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
-        MoveStructure mv_(verbose);
+        bool logs = (argc > 4 and std::string(argv[4]) == "logs");
+        MoveStructure mv_(verbose, logs);
         auto begin = std::chrono::system_clock::now();
         mv_.deserialize(argv[2]);
         auto end = std::chrono::system_clock::now();
@@ -193,14 +193,18 @@ int main(int argc, char* argv[]) {
         // std::string bwt_filename = argv[3] + std::string(".bwt");
         // std::cerr << bwt_filename << "\n";
         // std::ifstream bwt_file(bwt_filename);
+        begin = std::chrono::system_clock::now();
         mv_.all_lf_test();
+        end = std::chrono::system_clock::now();
+        elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+        std::printf("Time measured for LF-mapping of all the characters: %.3f seconds.\n", elapsed.count() * 1e-9);
         
 	    // std::ofstream ff_counts_file(static_cast<std::string>(argv[3]) + ".ff_counts");
         // for (auto& ff_count : mv_.ff_counts) {
         //     ff_counts_file <<ff_count.first << "\t" << ff_count.second << "\n";
         // }
         // ff_counts_file.close();
-    } else if (command == "randomLF") {
+    } /* else if (command == "randomLF") {
         bool verbose = (argc > 3 and std::string(argv[3]) == "verbose");
         MoveStructure mv_(verbose);
         auto begin = std::chrono::system_clock::now();
