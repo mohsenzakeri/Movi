@@ -30,6 +30,7 @@ class MoveStructure {
         MoveStructure(char* input_file_, bool bit1_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
 
         void build(std::ifstream &bwt_file);
+        bool check_mode();
         void build_rlbwt(char* input_file);
         uint64_t query_ms(MoveQuery& mq, bool random);
         void all_lf_test(/*std::ifstream &bwt_file*/);
@@ -106,11 +107,11 @@ class MoveStructure {
         std::vector<MoveRow> rlbwt;
         uint64_t eof_row;
         // thresholds for all the rows:
-        std::vector<std::array<uint16_t, 3> > rlbwt_thresholds;
-        std::vector<uint16_t> rlbwt_1bit_thresholds;
+        // std::vector<std::array<uint16_t, 3> > rlbwt_thresholds;
+        // std::vector<uint16_t> rlbwt_1bit_thresholds;
         // to store pointers for avoiding scanning
-        std::vector<std::array<uint16_t, 3> > rlbwt_next_ups;
-        std::vector<std::array<uint16_t, 3> > rlbwt_next_downs;
+        // std::vector<std::array<uint16_t, 3> > rlbwt_next_ups;
+        // std::vector<std::array<uint16_t, 3> > rlbwt_next_downs;
 
         // auxilary datastructures for the length, offset and thresholds overflow
         std::vector<uint64_t> n_overflow;

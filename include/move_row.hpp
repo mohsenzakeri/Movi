@@ -5,6 +5,8 @@
 #include <vector>
 #include <bitset>
 
+#define MODE 0 // 0: regular, 1: constant, 2: one-bit
+
 // const uint32_t mask_p = ~((1U << 8) - 1);
 // const uint32_t mask_pp = ~(((1U << 8) - 1) << 8);
 // const uint32_t mask_id = ~(((1U << 8) - 1) << 16);
@@ -48,13 +50,29 @@ class MoveRow{
         bool is_overflow_n_ff() const;
         bool is_overflow_offset() const;
         bool is_overflow_thresholds() const;
-    private:
+//    private:
         // offset based: uint32_t p; // bwt row of the head before the jump
         // offset based: uint32_t pp; // bwt row of the head after the jump
         uint16_t offset; // offset of the bwt row head of the current run in the new run after the jump
         uint16_t overflow_bits;
         uint16_t n; // length of the run
         uint32_t id; // bwt run after the jump
+
+        // thresholds for all the rows:
+#if MODE == 0
+        uint16_t thresholds[3];
+#endif
+
+#if MODE == 1
+        uint16_t thresholds[3];
+        // to store pointers for avoiding scanning
+        uint16_t next_up[3];
+        uint16_t next_down[3];
+#endif
+
+#if MODE == 2
+        uint16_t threshold;
+#endif
 };
 
 /* inline uint64_t MoveRow::get_p() const{
