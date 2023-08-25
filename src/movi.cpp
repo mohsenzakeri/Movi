@@ -174,8 +174,8 @@ int main(int argc, char* argv[]) {
             std::vector<uint64_t> ms_lens;
             ms_lens.resize(mq_ms_lens_size);
             pmls_file.read(reinterpret_cast<char*>(&ms_lens[0]), mq_ms_lens_size * sizeof(ms_lens[0]));
-            for (auto& len : ms_lens) {
-                std::cout << len << " ";
+            for (int64_t i = mq_ms_lens_size - 1; i >= 0; i--) {
+                std::cout << ms_lens[i] << " ";
             }
             std::cout << "\n";
         }

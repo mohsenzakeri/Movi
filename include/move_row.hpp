@@ -50,7 +50,24 @@ class MoveRow{
         bool is_overflow_n_ff() const;
         bool is_overflow_offset() const;
         bool is_overflow_thresholds() const;
-//    private:
+
+#if MODE == 0 or MODE == 1
+        uint16_t get_thresholds(uint32_t i) { return thresholds[i]; }
+        void set_thresholds(uint32_t i, uint16_t t) { thresholds[i] = t; }
+#endif
+
+#if MODE == 1
+        uint16_t get_next_up(uint32_t i) { return next_up[i]; }
+        uint16_t get_next_down(uint32_t i) { return next_down[i]; }
+        void set_next_up(uint32_t i, uint16_t t) { next_up[i] = t; }
+        void set_next_down(uint32_t i, uint16_t t) { next_down[i] = t; }
+#endif
+
+#if MODE == 2
+        uint16_t get_threshold() { return threshold; }
+        void set_threshold(uint16_t t) { threshold = t; }
+#endif
+    private:
         // offset based: uint32_t p; // bwt row of the head before the jump
         // offset based: uint32_t pp; // bwt row of the head after the jump
         uint16_t offset; // offset of the bwt row head of the current run in the new run after the jump
@@ -59,12 +76,11 @@ class MoveRow{
         uint32_t id; // bwt run after the jump
 
         // thresholds for all the rows:
-#if MODE == 0
+#if MODE == 0 or MODE == 1
         uint16_t thresholds[3];
 #endif
 
 #if MODE == 1
-        uint16_t thresholds[3];
         // to store pointers for avoiding scanning
         uint16_t next_up[3];
         uint16_t next_down[3];

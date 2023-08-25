@@ -240,29 +240,11 @@ uint64_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
     return ff_count;
 }
 
-void MoveStructure::all_lf_test() { // std::ifstream &bwt_file
-    // bwt_file.clear();
-    // bwt_file.seekg(0);
-    // char  current_char = bwt_file.get();
-    // char last_char = current_char;
+void MoveStructure::all_lf_test() {
     uint64_t line_index = 0;
     uint64_t row_index = 0;
     uint64_t ff_count_tot = 0;
-    // while (current_char != EOF) { // && current_char != 10
-    //     if (line_index % 10000 == 0)
-    //         std::cerr<< line_index << "\r";
 
-    //     uint64_t pointer = line_index;
-    //     uint64_t i = row_index;
-    //     ff_count_tot += LF_move(pointer, i);
-
-    //     last_char = current_char;
-    //     current_char = bwt_file.get();
-    //     line_index += 1;
-    //     if (current_char != last_char) {
-    //         row_index += 1;
-    //     }
-    // }
     uint64_t total_elapsed = 0;
     for (uint64_t row_index = 0; row_index < r; row_index++) {
         auto& current = rlbwt[row_index];
@@ -379,13 +361,13 @@ uint16_t MoveStructure::get_rlbwt_thresholds(uint64_t idx, uint16_t i) {
 #if MODE == 0 || MODE == 1
     if (!bit1) {
         // return rlbwt_thresholds[idx][i];
-        return rlbwt[idx].thresholds[i];
+        return rlbwt[idx].get_thresholds(i);
     }
 #endif
 
 #if MODE == 2
     // return rlbwt_1bit_thresholds[idx];
-    return rlbwt[idx].threshold;
+    return rlbwt[idx].get_threshold();
 #endif
     std::cerr << "Undefined behavior! MODE is: " << MODE << "\n";
     exit(0);
@@ -400,13 +382,13 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
 #if MODE == 0 || MODE == 1
     if (!bit1) {
         // rlbwt_thresholds[idx][i] = value;
-        rlbwt[idx].thresholds[i] = value;
+        rlbwt[idx].set_thresholds(i, value);
     }
 #endif
 
 #if MODE == 2
     // rlbwt_1bit_thresholds[idx] = value;
-    rlbwt[idx].threshold = value;
+    rlbwt[idx].set_threshold(value);
 #endif
 }
 
@@ -810,23 +792,23 @@ void MoveStructure::compute_nexts() {
                 auto idx = jump_up(i, alphabet[j]);
                 if (idx == r) {
                     // rlbwt_next_ups[i][alphabet_idx] = std::numeric_limits<uint16_t>::max();
-                    rlbwt[i].next_up[alphabet_idx] = std::numeric_limits<uint16_t>::max();
+                    rlbwt[i].set_next_up(alphabet_idx, std::numeric_limits<uint16_t>::max());
                 } else {
                     if (i - idx > std::numeric_limits<uint16_t>::max())
                         std::cerr << "Warning - jump up " << i - idx << " does not fit in 16 bits.\n";
                     // rlbwt_next_ups[i][alphabet_idx] = i - idx;
-                    rlbwt[i].next_up[alphabet_idx] = i - idx;
+                    rlbwt[i].set_next_up(alphabet_idx, i - idx);
                 }
 
                 idx = jump_down(i, alphabet[j]);
                 if (idx == r) {
                     // rlbwt_next_downs[i][alphabet_idx] = std::numeric_limits<uint16_t>::max();
-                    rlbwt[i].next_down[alphabet_idx] = std::numeric_limits<uint16_t>::max();
+                    rlbwt[i].set_next_down(alphabet_idx, std::numeric_limits<uint16_t>::max());
                 } else {
                     if (idx - i > std::numeric_limits<uint16_t>::max())
                         std::cerr << "Warning - jump down " << idx - i << " does not fit in 16 bits.\n";
                     // rlbwt_next_downs[i][alphabet_idx] = idx - i;
-                    rlbwt[i].next_down[alphabet_idx] = idx - i;
+                    rlbwt[i].set_next_down(alphabet_idx, idx - i);
                 }
             }
         }
@@ -1131,10 +1113,10 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char)
 #if MODE == 1
         if (constant) {
             // if (rlbwt_next_downs[saved_idx][alphabet_index] == std::numeric_limits<uint16_t>::max())
-            if (rlbwt[saved_idx].next_down[alphabet_index] == std::numeric_limits<uint16_t>::max())
+            if (rlbwt[saved_idx].get_next_down(alphabet_index) == std::numeric_limits<uint16_t>::max())
                 idx = r;
             else
-                idx = saved_idx + rlbwt[saved_idx].next_down[alphabet_index];
+                idx = saved_idx + rlbwt[saved_idx].get_next_down(alphabet_index);
         }
 #endif
 
@@ -1148,10 +1130,10 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char)
 #if MODE == 1
         if (constant) {
             // if (rlbwt_next_ups[saved_idx][alphabet_index] == std::numeric_limits<uint16_t>::max())
-            if (rlbwt[saved_idx].next_up[alphabet_index] == std::numeric_limits<uint16_t>::max())
+            if (rlbwt[saved_idx].get_next_up(alphabet_index) == std::numeric_limits<uint16_t>::max())
                 idx = r;
             else
-                idx = saved_idx - rlbwt[saved_idx].next_up[alphabet_index];
+                idx = saved_idx - rlbwt[saved_idx].get_next_up(alphabet_index);
         }
 #endif
 
@@ -1298,8 +1280,6 @@ void MoveStructure::serialize(char* output_dir) {
     fout.write(reinterpret_cast<char*>(&reconstructed), sizeof(reconstructed));
 
     fout.write(reinterpret_cast<char*>(&eof_row), sizeof(eof_row));
-    // fout.write(reinterpret_cast<char*>(&bit1_begin), sizeof(bit1_begin));
-    // fout.write(reinterpret_cast<char*>(&bit1_after_eof), sizeof(bit1_after_eof));
 
     fout.close();
 }
@@ -1379,21 +1359,13 @@ void MoveStructure::deserialize(char* index_dir) {
 
     std::cerr << "All the move rows are read.\n";
 
-    /*bwt_string.resize(length);
-    fin.read(reinterpret_cast<char*>(&bwt_string[0]), length);*/
-
     size_t orig_size;
     fin.read(reinterpret_cast<char*>(&orig_size), sizeof(orig_size));
-
-    /*orig_string.resize(orig_size);
-    fin.read(reinterpret_cast<char*>(&orig_string[0]), orig_size);*/
 
     fin.read(reinterpret_cast<char*>(&reconstructed), sizeof(reconstructed));
     reconstructed = false;
 
     fin.read(reinterpret_cast<char*>(&eof_row), sizeof(eof_row));
-    // fin.read(reinterpret_cast<char*>(&bit1_begin), sizeof(bit1_begin));
-    // fin.read(reinterpret_cast<char*>(&bit1_after_eof), sizeof(bit1_after_eof));
 
     fin.close();
 }
