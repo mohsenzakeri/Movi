@@ -934,7 +934,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             // Case 1
             match_len += 1;
             if (verbose)
-                std::cerr<<"\t match: " << match_len << "\n";
+                std::cerr<<"\t match_len: " << match_len << "\n";
             mq.add_ms(match_len - 1);
             pos_on_r -= 1;
             if (!case2) {
@@ -943,14 +943,13 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             case2 = false;
 
             // idx = row.id;
-            idx = row.get_id();
             // offset based: pointer = row.get_pp() + (pointer - row.get_p());
-            offset = get_offset(row_idx) + offset;
             if (verbose)
-                std::cerr << "\t row.id: " << row.get_id() << " row.get_n: " << get_n(row_idx) << "\n"
-                          << "\t rlbwt[idx].get_n: " << get_n(idx) << "\n"
-                          << "\t idx: " << idx << "\n" // " pointer: " << pointer << " pointer-p: " << pointer - rlbwt[idx].get_p() << "\n"
+                std::cerr << "\t current_id: " << idx << "\t row.id: " << row.get_id() << "\n" 
+                          << "\t row.get_n: " << get_n(row_idx) << " rlbwt[idx].get_n: " << get_n(row.get_id()) << "\n"
                           << "\t offset: " << offset << "\t row.get_offset(): " << get_offset(row_idx) << "\n";
+            idx = row.get_id();
+            offset = get_offset(row_idx) + offset;
 
             // if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + get_n(idx)) {
             if (idx < r - 1 && offset >= get_n(idx)) {
@@ -983,7 +982,6 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             if (verbose)
                 std::cerr<< "\t up: " << up << " lcp: " << lcp << " idx: " << idx << " c:" << c << "\n";
 
-            auto saved_idx = idx;
             // sanity check
             if (c == R[pos_on_r]) {
                 // Observing a match after the jump
@@ -1010,6 +1008,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
                 for (int k = 0; k < 10; k++)
                     std::cerr << alphabet[rlbwt[idx + k].get_c()] << "-";
                 std::cerr<<"\n";
+                auto saved_idx = idx;
                 /*char c_1 = bit1 ? compute_char(saved_idx) : rlbwt_chars[saved_idx];
                 char c_2 = bit1 ? compute_char(idx) : rlbwt[idx].get_c();
                 std::cerr<<rlbwt[saved_idx].get_p() << "\n";
