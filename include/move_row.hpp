@@ -5,7 +5,9 @@
 #include <vector>
 #include <bitset>
 
+#ifndef MODE
 #define MODE 0 // 0: regular, 1: constant, 2: one-bit
+#endif
 
 // const uint32_t mask_p = ~((1U << 8) - 1);
 // const uint32_t mask_pp = ~(((1U << 8) - 1) << 8);

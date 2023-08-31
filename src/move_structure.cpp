@@ -562,6 +562,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::cerr<< "bits.size(): " << bits.size() << "\n";
     std::cerr<< "rank_support_v<>(&bits)(bits.size()): " << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
     sbits = sdsl::select_support_mcl<>(&bits);
+    std::vector<uint64_t> all_p;
     for (uint64_t i = 0; i < length; i++) {
         if (i % 10000 == 0)
             std::cerr<< i << "\r";
@@ -611,6 +612,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             // rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
             
             rlbwt[r_idx].init(len, offset, pp_id);
+            all_p.push_back(bwt_row);
             // To take care of cases where length of the run 
             // does not fit in uint16_t
             if (len >= std::numeric_limits<uint16_t>::max()) {
@@ -667,10 +669,16 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         alphabet_thresholds[j] = length;
     uint64_t thr_i = original_r - 1;
     uint64_t run_p = 0;
+    std::cerr << "thresholds.size():" << thresholds.size() << " length: " << length << " r: " << r <<  " original_r: " << original_r << "\n";
+    std::cerr << "thresholds[r]: " << thresholds[original_r-1] << " r-1: " << thresholds[original_r - 2] << " r-2: " << thresholds[original_r - 3] << "\n";
     for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
         if (i % 10000 == 0)
             std::cerr<<"i: " << i << "\r";
         char rlbwt_c = alphabet[rlbwt[i].get_c()];
+        /* if (thr_i != i) {
+            std::cerr << "thr_i: " << thr_i << " i: " << i << "\n";
+            exit(0);
+        } */
         if (verbose and i >= rlbwt.size() - 10) 
             std::cerr << "i: " << i << "\n"
                 << "rlbwt[i].get_offset(): " << get_offset(i) << "\n "
@@ -682,8 +690,15 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         current_thresholds.resize(alphabet.size() - 1);
         for (uint64_t j = 0; j < alphabet.size(); j++) {
             if (alphabet[j] == rlbwt_c) {
+                if (thr_i >= thresholds.size()) {
+                    std::cerr << " thr_i: " << thr_i << "\n";
+                    exit(0);
+                }
                 alphabet_thresholds[j] = thresholds[thr_i];
             } else {
+                /* if (i == 20373268) {
+                    std::cerr << "j: " << alphabet[j] << " " << alphabet_thresholds[j] << " all_p: " << all_p[i] << " thr_i: " << thr_i << " n: " << get_n(i) << "\n";
+                } */
                 if (bit1 and alphamap_3[alphamap[rlbwt_c]][j] != 0)
                     std::cerr << "error: the alphamap_3 is not working for the one-bit alphabet - " 
                                 << alphamap_3[alphamap[rlbwt_c]][j] << "!\n";
@@ -691,7 +706,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                     std::cerr << "error: alphamap_3 is not working in general - " 
                                 << alphamap_3[alphamap[rlbwt_c]][j] << "!\n";
 
-                if (alphabet_thresholds[j] >= run_p + get_n(i)) {
+                if (alphabet_thresholds[j] >= all_p[i] + get_n(i)) {
                     // rlbwt[i].thresholds[j] = get_n(i);
                     if (rlbwt_c == END_CHARACTER) {
                         end_bwt_idx_thresholds[j] = get_n(i);
@@ -700,10 +715,13 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                     if (get_n(i) >= std::numeric_limits<uint16_t>::max()) {
                         rlbwt[i].set_overflow_thresholds();                            
                     }
-                    set_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j], get_n(j));
+                    set_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j], get_n(i));
                     // rlbwt[i].thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = get_n(i);
                     current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = get_n(i);
-                } else if (alphabet_thresholds[j] < run_p) {
+                    /* if (i == 20373268) {
+                        std::cerr << "j: " << alphabet[j] << " " << alphabet_thresholds[j] << " all_p: " << all_p[i] << " thr_i: " << thr_i << " n: " << get_n(i) << "\n";
+                    } */
+                } else if (alphabet_thresholds[j] < all_p[i]) {
                     // rlbwt[i].thresholds[j] = 0;
                     if (rlbwt_c == END_CHARACTER) {
                         end_bwt_idx_thresholds[j] = 0;
@@ -715,15 +733,15 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                 } else {
                     // rlbwt[i].thresholds[j] = alphabet_thresholds[j] - run_p;
                     if (rlbwt_c == END_CHARACTER) {
-                        end_bwt_idx_thresholds[j] = alphabet_thresholds[j] - run_p;
+                        end_bwt_idx_thresholds[j] = alphabet_thresholds[j] - all_p[i];
                         continue;
                     }
-                    if (alphabet_thresholds[j] - run_p >= std::numeric_limits<uint16_t>::max()) {
+                    if (alphabet_thresholds[j] - all_p[i] >= std::numeric_limits<uint16_t>::max()) {
                         rlbwt[i].set_overflow_thresholds();
                     }
-                    set_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j], alphabet_thresholds[j] - run_p);
+                    set_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j], alphabet_thresholds[j] - all_p[i]);
                     // rlbwt[i].thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = alphabet_thresholds[j] - run_p;
-                    current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = alphabet_thresholds[j] - run_p;
+                    current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = alphabet_thresholds[j] - all_p[i];
                 }
 
                 if (verbose and i >= rlbwt.size() - 10)
@@ -737,8 +755,11 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             }
         }
 
-        if (i > 0 && rlbwt[i].get_c() != rlbwt[i - 1].get_c()) {
+        if (i > 0 && (rlbwt[i].get_c() != rlbwt[i - 1].get_c()  || i == end_bwt_idx || i-1 == end_bwt_idx)) {
             thr_i--;
+        } else {
+            // std::cerr << "end_bwt_idx: " << end_bwt_idx << " i: " << i << "\n";
+            // std::cerr << "i: " << alphabet[rlbwt[i].get_c()] << " i-1: " << alphabet[rlbwt[i - 1].get_c()] << "\n";
         }
         if (rlbwt[i].is_overflow_thresholds()) {
             if (thresholds_overflow.size() >= std::numeric_limits<uint16_t>::max()) {
@@ -848,6 +869,11 @@ uint64_t MoveStructure::jump_up(uint64_t idx, char c) {
         jump_count += 1;
         idx -= 1;
         row_c = alphabet[rlbwt[idx].get_c_jj()];
+        if (idx == 0) {
+            std::cerr << "idx: " << idx << "\n";
+            std::cerr << "row_c: " << row_c << " c: " << c << "\n"; 
+            break;
+        }
     }
     if (logs) {
         if (jumps.find(jump_count) != jumps.end())
@@ -1073,6 +1099,8 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char)
 #if MODE == 0 || MODE == 2
             idx = jump_down(saved_idx, r_char);
 #endif
+            if (r_char != alphabet[rlbwt[idx].get_c_mm()])
+                std::cerr << "1: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()];
             return false;
         } else {
             if (verbose)
@@ -1089,6 +1117,8 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char)
 #if MODE == 0 || MODE == 2
             idx = jump_up(saved_idx, r_char);
 #endif
+            if (r_char != alphabet[rlbwt[idx].get_c_mm()])
+                std::cerr << "2: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()];
             return true;
         }
     }
@@ -1118,10 +1148,16 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char)
                 idx = saved_idx + rlbwt[saved_idx].get_next_down(alphabet_index);
         }
 #endif
-
+        auto tmp = idx;
 #if MODE == 0 || MODE == 2
         idx = jump_down(saved_idx, r_char);
 #endif
+        if (r_char != alphabet[rlbwt[idx].get_c_mm()]) {
+            std::cerr << "3: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()] << "\n";
+            std::cerr << "idx: " << idx << " saved_idx: " << saved_idx << " tmp: " << tmp << "\n";
+            std::cerr << "offset: " << offset << "\n";
+            std::cerr << "get_thresholds(saved_idx, alphabet_index): " << get_thresholds(saved_idx, alphabet_index) << "\n";
+        }
         return false;
     } else {
         if (verbose)
@@ -1139,10 +1175,19 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char)
 #if MODE == 0 || MODE == 2
         idx = jump_up(saved_idx, r_char);
 #endif
+        if (r_char != alphabet[rlbwt[idx].get_c_mm()]) {
+            std::cerr << "idx: " << idx << " saved_idx: " << saved_idx << "\n";
+            std::cerr << "4: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()] << "\n";
+            std::cerr << "offset: " << offset << "\n";
+            std::cerr << "get_thresholds(saved_idx, alphabet_index): " << get_thresholds(saved_idx, alphabet_index) << "\n";
+        }
         return true;
     }
 
     // TODO: default return?
+
+    if (r_char != alphabet[rlbwt[idx].get_c_mm()])
+        std::cerr << "5: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()];
     return false;
 }
 
