@@ -168,6 +168,7 @@ int main(int argc, char* argv[]) {
             std::string read_name;
             read_name.resize(st_length);
             pmls_file.read(reinterpret_cast<char*>(&read_name[0]), st_length);
+            read_name.erase(std::find(read_name.begin(), read_name.end(), '\0'), read_name.end());
             std::cout << ">" << read_name << "\n";
             uint64_t mq_ms_lens_size = 0;
             pmls_file.read(reinterpret_cast<char*>(&mq_ms_lens_size), sizeof(mq_ms_lens_size));
