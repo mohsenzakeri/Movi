@@ -29,32 +29,34 @@ class MoveStructure {
         MoveStructure(bool bit1_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
         MoveStructure(char* input_file_, bool bit1_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
 
-        void build(std::ifstream &bwt_file);
         bool check_mode();
+        void build(std::ifstream &bwt_file);
         void build_rlbwt(char* input_file);
         uint64_t query_pml(MoveQuery& mq, bool random);
-        void all_lf_test(/*std::ifstream &bwt_file*/);
+
+        void all_lf_test();
         void random_lf_test();
-        // std::string reconstruct();
         std::string reconstruct_move();
+
+        // std::string reconstruct();
+        // char compute_char(uint64_t idx);
 
         uint64_t LF(uint64_t row_number);
         uint64_t LF_move(uint64_t& pointer, uint64_t& i);
-        // uint64_t fast_forward(uint64_t pointer, uint64_t index);
         uint64_t fast_forward(uint64_t& offset, uint64_t index, uint64_t x);
-        char compute_char(uint64_t idx);
+
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
         uint32_t compute_index(char row_char, char lookup_char);
+        void compute_nexts();
 
         // uint64_t naive_lcp(uint64_t row1, uint64_t row2);
         // uint64_t naive_sa(uint64_t bwt_row);
+        // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
 
         uint64_t jump_up(uint64_t idx, char c);
         uint64_t jump_down(uint64_t idx, char c);
         bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char);
         bool jump_randomly(uint64_t& idx, char r_char);
-        // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
-        void compute_nexts();
 
         void serialize(char* output_dir);
         void deserialize(char* index_dir);
@@ -106,12 +108,6 @@ class MoveStructure {
 
         std::vector<MoveRow> rlbwt;
         uint64_t eof_row;
-        // thresholds for all the rows:
-        // std::vector<std::array<uint16_t, 3> > rlbwt_thresholds;
-        // std::vector<uint16_t> rlbwt_1bit_thresholds;
-        // to store pointers for avoiding scanning
-        // std::vector<std::array<uint16_t, 3> > rlbwt_next_ups;
-        // std::vector<std::array<uint16_t, 3> > rlbwt_next_downs;
 
         // auxilary datastructures for the length, offset and thresholds overflow
         std::vector<uint64_t> n_overflow;
@@ -120,5 +116,10 @@ class MoveStructure {
 
 
 };
+
+uint32_t alphamap_3[4][4] = {{3, 0, 1, 2},
+                             {0, 3, 1, 2},
+                             {0, 1, 3, 2},
+                             {0, 1, 2, 3}};
 
 #endif
