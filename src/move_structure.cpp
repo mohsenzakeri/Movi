@@ -216,18 +216,31 @@ uint32_t MoveStructure::compute_index(char row_char, char lookup_char) {
 }
 
 uint64_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
+
+    if (verbose) {
+        std::cerr << "\t in LF:\n";
+        std::cerr << "\t \t i: " << i << " offset: " << offset << "\n";
+    }
     auto& row = rlbwt[i];
     auto idx = row.get_id();
     // pointer = row.get_pp() + (pointer - row.get_p());
     offset = get_offset(i) + offset;
     uint64_t ff_count = 0;
+    if (verbose) {
+        std::cerr << "\t \t i: " << i << " offset: " << offset << " idx: " << idx << "\n";
+    }
 
     // if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + get_n(idx)) {
     if (idx < r - 1 && offset >= get_n(idx)) {
-        // uint64_t idx_ = fast_forward(pointer, idx);
-        uint64_t idx_ = (idx < r - 1 && offset >= get_n(idx)) ? fast_forward(offset, idx, 0) : 0;
+        uint64_t idx_ = fast_forward(offset, idx, 0);
+        // uint64_t idx_ = (idx < r - 1 && offset >= get_n(idx)) ? fast_forward(offset, idx, 0) : 0;
         idx += idx_;
-        ff_count += idx_;
+        ff_count = idx_;
+    }
+
+    if (verbose) {
+        std::cerr << "\t \t after fast forward:\n";
+        std::cerr << "\t \t i: " << i << " offset: " << offset << " idx: " << idx << "\n";
     }
 
     if (logs) {
@@ -850,13 +863,17 @@ void MoveStructure::compute_nexts() {
 
 uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx, uint64_t x) {
     uint64_t idx_ = idx;
-    if (verbose) 
-        std::cerr << " \t \t offset: " << offset << " n:" << get_n_ff(idx) << "\n";
+    if (verbose) {
+        std::cerr << "\t \t fast forwarding:\n";
+        std::cerr << " \t \t idx: " << idx << " offset: " << offset << " n:" << get_n_ff(idx) << "\n";
+    }
     while (idx < r - 1 && offset >= get_n_ff(idx)) {
         offset -= get_n_ff(idx);
         idx += 1;
         if (verbose) std::cerr << "\t \t ff offset based: +" << idx - idx_ << "\n";
     }
+    if (verbose) 
+        std::cerr << " \t \t idx: " << idx << " offset: " << offset << " n:" << get_n_ff(idx) << "\n";
     return idx - idx_;
 }
 
@@ -908,32 +925,33 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c) {
 }
 
 uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
-    std::srand(time(0));
+    if (random) {
+        if (verbose)
+            std::cerr << "Jumps are random - not with thresholds! \n";
+        std::srand(time(0));
+    }
+    
     std::string R = mq.query();
     int32_t pos_on_r = R.length() - 1;
     uint64_t idx = r - 1; // std::rand() % r; // r - 1
-    if (verbose) std::cerr<< "Begin search from idx = " << idx << "\n";
-    // uint64_t pointer = rlbwt[idx].get_p();
     uint64_t offset = get_n(idx) - 1;
+    // uint64_t pointer = rlbwt[idx].get_p();
+
     uint64_t match_len = 0;
-
-    if (verbose)
-        std::cerr << "beginning of the search:\n query: " << mq.query() << "\n";
-
-    if (verbose)
-        std::cerr << "idx(r-1): " << idx << " offset: " << offset << "\n";
-
     uint64_t ff_count = 0;
-    bool case2 = false;
-    auto t2 = std::chrono::high_resolution_clock::now();
+    uint64_t scan_count = 0;
+    auto t1 = std::chrono::high_resolution_clock::now();
+
+    if (verbose) {
+        std::cerr << "beginning of the search \ton query: " << mq.query() << "\t";
+        std::cerr << "and on BWT, idx(r-1): " << idx << " offset: " << offset << "\n";
+    }
+
     while (pos_on_r > -1) {
-        auto t1= t2;
-        t2 = std::chrono::high_resolution_clock::now();
-        if (pos_on_r < R.length() - 1) {
-            auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
-            mq.add_cost(elapsed);
+        if (logs) {
+            t1 = std::chrono::high_resolution_clock::now();
         }
-        if (idx == r) std::cerr << idx << "\n";
+
         if (verbose)
             std::cerr<< "Searching position " << pos_on_r << " of the read:\n";
 
@@ -941,72 +959,41 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
         uint64_t row_idx = idx;
         char row_c = alphabet[row.get_c()];
 
-        if (alphamap[static_cast<uint64_t>(R[pos_on_r])] == alphamap.size()) { // not to use map
+        if (alphamap[static_cast<uint64_t>(R[pos_on_r])] == alphamap.size()) {
             // The character from the read does not exist in the reference
             match_len = 0;
-            mq.add_pml(match_len);
-            pos_on_r -= 1;
-            if (!case2) {
-                mq.add_scan(0);
-            }
-            case2 = false;
+            scan_count = 0;
 
             if (verbose)
                 std::cerr<< "\t The character " << R[pos_on_r] << " does not exist.\n";
         } else if (row_c == R[pos_on_r]) {
-            if (verbose)
-                std::cerr<< "\t Cas1: It was a match. \n" << "\t Continue the search...\n";
-
             // Case 1
             match_len += 1;
-            if (verbose)
-                std::cerr<<"\t match_len: " << match_len << "\n";
-            mq.add_pml(match_len - 1);
-            pos_on_r -= 1;
-            if (!case2) {
-                mq.add_scan(0);
-            }
-            case2 = false;
+            scan_count = 0;
 
-            // idx = row.id;
-            // offset based: pointer = row.get_pp() + (pointer - row.get_p());
-            if (verbose)
+            if (verbose) {
+                std::cerr<< "\t Cas1: It was a match. \n" << "\t Continue the search...\n";
+                std::cerr<< "\t match_len: " << match_len << "\n";
                 std::cerr << "\t current_id: " << idx << "\t row.id: " << row.get_id() << "\n" 
                           << "\t row.get_n: " << get_n(row_idx) << " rlbwt[idx].get_n: " << get_n(row.get_id()) << "\n"
                           << "\t offset: " << offset << "\t row.get_offset(): " << get_offset(row_idx) << "\n";
-            idx = row.get_id();
-            offset = get_offset(row_idx) + offset;
-
-            // if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + get_n(idx)) {
-            if (idx < r - 1 && offset >= get_n(idx)) {
-                if (verbose)
-                    std::cerr<<"\t fast forwarding: " << idx << "\n";
-                // uint64_t idx_ = fast_forward(pointer, idx);
-                uint64_t idx__ = (idx < r - 1 && offset >= get_n(idx)) ? fast_forward(offset, idx, 0) : 0;
-                // if (idx_ != idx__) { std::cerr<< "\t ff doesn't match" << idx_ << " " << idx__ << "\n";}
-                ff_count += idx__;
-                idx += idx__;
-                mq.add_fastforward(idx__);
-            } else {
-                mq.add_fastforward(0);
             }
-
         } else {
-            case2 = true;
+            // Case 2
+            // Jumping up or down (randomly or with thresholds)
             if (verbose)
                 std::cerr<< "\t Case2: Not a match, looking for a match either up or down...\n";
 
-            // Case 2
-            // Jumping randomly up or down or with naive lcp computation
-            uint64_t lcp = 0;
             uint64_t idx_before_jump = idx;
             bool up = random ? jump_randomly(idx, R[pos_on_r]) : 
                                jump_thresholds(idx, offset, R[pos_on_r]);
-            //                   jump_naive_lcp(idx, pointer, R[pos_on_r], lcp);
-            mq.add_scan(std::abs((int)idx - (int)idx_before_jump));
+            match_len = 0;
+            scan_count = (!constant) ? std::abs((int)idx - (int)idx_before_jump) : 0;
+ 
             char c = alphabet[rlbwt[idx].get_c_mm()];
+
             if (verbose)
-                std::cerr<< "\t up: " << up << " lcp: " << lcp << " idx: " << idx << " c:" << c << "\n";
+                std::cerr<< "\t up: " << up << " idx: " << idx << " c:" << c << "\n";
 
             // sanity check
             if (c == R[pos_on_r]) {
@@ -1021,9 +1008,8 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                     // offset based: pointer = rlbwt[idx].get_p();
                     offset = 0;
                 }
-                match_len = random ? 0 : std::min(match_len, lcp);
                 if (verbose)
-                    std::cerr<<"\t idx: " << " offset: " << offset << "\n";
+                    std::cerr<<"\t idx: " << idx << " offset: " << offset << "\n";
             } else {
                 std::cerr << "\t \t This should not happen!\n";
                 std::cerr << "\t \t r[pos]:" <<  R[pos_on_r] << " t[pointer]:" << c << "\n";
@@ -1035,32 +1021,44 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                     std::cerr << alphabet[rlbwt[idx + k].get_c()] << "-";
                 std::cerr<<"\n";
                 auto saved_idx = idx;
-                /*char c_1 = bit1 ? compute_char(saved_idx) : rlbwt_chars[saved_idx];
-                char c_2 = bit1 ? compute_char(idx) : rlbwt[idx].get_c();
-                std::cerr<<rlbwt[saved_idx].get_p() << "\n";
-                std::cerr<<saved_idx << " - " << c_1 << " - " << idx << " - " << c_2 << "\n";
-                std::cerr << "saved: " << rlbwt[saved_idx].get_p() << "\n";
-                for (uint32_t k = 0; k < 4; k++) {
-                    std::cerr<< alphabet[k] << " " << rlbwt[saved_idx].thresholds[k] << " ";
-                }
-                std::cerr<<"\n";
-                std::cerr << "new: " << rlbwt[idx].get_p() << "\n";
-                for (uint32_t k = 0; k < 4; k++) {
-                    std::cerr<< alphabet[k] << " " << rlbwt[idx].thresholds[k] << " ";
-                }
-                std::cerr<<"\n";*/
-                
-                /*for (uint32_t k = idx - 15; k < idx+1; k++) {
-                    std::cerr<< k << " " << rlbwt_chars[k] << "\n";
-                    for (uint32_t l = 0; l < 4; l++)
-                        std::cerr<< alphabet[l] << "\t\t" << rlbwt[k].thresholds[l] << "\t\t";
-                    std::cerr<<"\n";
-                }*/
+
                 verbose = true;
                 jump_thresholds(saved_idx, offset, R[pos_on_r]);
                 exit(0);
             }
         }
+
+        mq.add_pml(match_len);
+        pos_on_r -= 1;
+
+        // LF step
+        ff_count = LF_move(offset, idx);
+        if (logs) {
+            auto t2 = std::chrono::high_resolution_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
+            mq.add_cost(elapsed);
+            mq.add_fastforward(ff_count);
+            mq.add_scan(scan_count);
+            // ff_count_tot += ff_count;
+        }
+
+        /* idx = row.get_id();
+        offset = get_offset(row_idx) + offset;
+
+        // if (idx < r - 1 && pointer >= rlbwt[idx].get_p() + get_n(idx)) {
+        if (idx < r - 1 && offset >= get_n(idx)) {
+            if (verbose)
+                std::cerr<<"\t fast forwarding: " << idx << "\n";
+            // uint64_t idx_ = fast_forward(pointer, idx);
+            uint64_t idx__ = (idx < r - 1 && offset >= get_n(idx)) ? fast_forward(offset, idx, 0) : 0;
+            // if (idx_ != idx__) { std::cerr<< "\t ff doesn't match" << idx_ << " " << idx__ << "\n";}
+            ff_count += idx__;
+            idx += idx__;
+            mq.add_fastforward(idx__);
+        } else {
+            mq.add_fastforward(0);
+        }*/
+
     }
     return ff_count;
 }
