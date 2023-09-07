@@ -145,13 +145,9 @@ std::string MoveStructure::reconstruct_move() {
             std::cerr<< i << "\r";
         i += 1;
         // orig_string = rlbwt[run_index].get_c() + orig_string;
-
     }
     std::printf("Time measured for reconstructing the original text: %.3f seconds.\n", total_elapsed * 1e-9);
 
-    // std::cerr << i << " " << offset << " " << run_index << " " << alphabet[rlbwt[run_index-1].get_c()] << "\n";
-    // std::cerr << length << "\n";
-    // std::cerr << end_bwt_idx << "\n";
     std::cerr << "Finished reconstructing the original string.\n";
     std::cerr << "Total fast forward: " << ff_count_tot << "\n";
     return orig_string;
