@@ -51,3 +51,6 @@ SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
 
 add_executable(movi src/movi.cpp)
 target_link_libraries(movi move move_row sdsl ZLIB::ZLIB)
+
+add_executable(prepare_ref src/prepare_ref.cpp)
+target_link_libraries(prepare_ref ZLIB::ZLIB)
