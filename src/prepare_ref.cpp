@@ -9,7 +9,7 @@ KSEQ_INIT(gzFile, gzread)
 
 int main(int argc, char* argv[]) {
     // Fasta/q reader from http://lh3lh3.users.sourceforge.net/parsefastq.shtml
-    std::ofstream clean_fasta(static_cast<std::string>(argv[1]) +  ".clean.fa");
+    std::ofstream clean_fasta(static_cast<std::string>(argv[2]));
     gzFile fp;
     kseq_t *seq;
     int l;
