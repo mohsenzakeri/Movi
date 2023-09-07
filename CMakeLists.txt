@@ -35,7 +35,7 @@ if(NOT sdsl_POPULATED)
   add_subdirectory(${sdsl_SOURCE_DIR} ${sdsl_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-SET(COMPILE_FLAGS "-O2")
+SET(COMPILE_FLAGS "-O2 -DMODE=0")
 # debug:
 # SET(COMPILE_FLAGS "-g")
 
