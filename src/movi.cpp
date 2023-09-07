@@ -78,7 +78,7 @@ int main(int argc, char* argv[]) {
         std::ofstream fastforwards_file(static_cast<std::string>(argv[3]) + ".fastforwards");
         std::ofstream pmls_file(static_cast<std::string>(argv[3]) + ".mpml.bin", std::ios::out | std::ios::binary);
         uint64_t all_ff_count = 0;
-        // uint64_t query_ms_tot_time = 0;
+        // uint64_t query_pml_tot_time = 0;
         // uint64_t iteration_tot_time = 0;
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
             /*printf("name: %s\n", seq->name.s);
@@ -94,22 +94,22 @@ int main(int argc, char* argv[]) {
             MoveQuery mq(query_seq);
             bool random_jump = false;
             // std::cerr << seq->name.s << "\n";
-            all_ff_count += mv_.query_ms(mq, random_jump);
+            all_ff_count += mv_.query_pml(mq, random_jump);
             // auto t2 = std::chrono::high_resolution_clock::now();
-            // query_ms_tot_time += static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count());
+            // query_pml_tot_time += static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count());
 
             /* pmls_file << ">" << seq->name.s << "\n";
-            for (int64_t i = mq.ms_lens.size() - 1; i >= 0; i--) {
-                pmls_file << mq.ms_lens[i] << " ";
+            for (int64_t i = mq.pml_lens.size() - 1; i >= 0; i--) {
+                pmls_file << mq.pml_lens[i] << " ";
             }
             pmls_file << "\n"; */
             uint16_t st_length = seq->name.m;
             pmls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
             pmls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
-            auto& ms_lens = mq.get_ms_lens();
-            uint64_t mq_ms_lens_size = ms_lens.size();
-            pmls_file.write(reinterpret_cast<char*>(&mq_ms_lens_size), sizeof(mq_ms_lens_size));
-            pmls_file.write(reinterpret_cast<char*>(&ms_lens[0]), mq_ms_lens_size * sizeof(ms_lens[0]));
+            auto& pml_lens = mq.get_pml_lens();
+            uint64_t mq_pml_lens_size = pml_lens.size();
+            pmls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
+            pmls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
             costs_file << ">" << seq->name.s << "\n";
             scans_file << ">" << seq->name.s << "\n";
             fastforwards_file << ">" << seq->name.s << "\n";
@@ -127,7 +127,7 @@ int main(int argc, char* argv[]) {
             scans_file << "\n";
             fastforwards_file << "\n";
         }
-        // std::cerr << "query_ms_tot_time: " << query_ms_tot_time << "\n";
+        // std::cerr << "query_pml_tot_time: " << query_pml_tot_time << "\n";
         // std::cerr << "iteration_tot_time: " << iteration_tot_time << "\n";
         costs_file.close();
         scans_file.close();
@@ -170,13 +170,13 @@ int main(int argc, char* argv[]) {
             pmls_file.read(reinterpret_cast<char*>(&read_name[0]), st_length);
             read_name.erase(std::find(read_name.begin(), read_name.end(), '\0'), read_name.end());
             std::cout << ">" << read_name << "\n";
-            uint64_t mq_ms_lens_size = 0;
-            pmls_file.read(reinterpret_cast<char*>(&mq_ms_lens_size), sizeof(mq_ms_lens_size));
-            std::vector<uint64_t> ms_lens;
-            ms_lens.resize(mq_ms_lens_size);
-            pmls_file.read(reinterpret_cast<char*>(&ms_lens[0]), mq_ms_lens_size * sizeof(ms_lens[0]));
-            for (int64_t i = mq_ms_lens_size - 1; i >= 0; i--) {
-                std::cout << ms_lens[i] << " ";
+            uint64_t mq_pml_lens_size = 0;
+            pmls_file.read(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
+            std::vector<uint64_t> pml_lens;
+            pml_lens.resize(mq_pml_lens_size);
+            pmls_file.read(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+            for (int64_t i = mq_pml_lens_size - 1; i >= 0; i--) {
+                std::cout << pml_lens[i] << " ";
             }
             std::cout << "\n";
         }

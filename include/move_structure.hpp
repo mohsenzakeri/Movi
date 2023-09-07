@@ -32,7 +32,7 @@ class MoveStructure {
         void build(std::ifstream &bwt_file);
         bool check_mode();
         void build_rlbwt(char* input_file);
-        uint64_t query_ms(MoveQuery& mq, bool random);
+        uint64_t query_pml(MoveQuery& mq, bool random);
         void all_lf_test(/*std::ifstream &bwt_file*/);
         void random_lf_test();
         // std::string reconstruct();

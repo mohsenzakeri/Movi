@@ -907,7 +907,7 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c) {
     return (row_c == c) ? idx : r;
 }
 
-uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
+uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     std::srand(time(0));
     std::string R = mq.query();
     int32_t pos_on_r = R.length() - 1;
@@ -944,7 +944,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
         if (alphamap[static_cast<uint64_t>(R[pos_on_r])] == alphamap.size()) { // not to use map
             // The character from the read does not exist in the reference
             match_len = 0;
-            mq.add_ms(match_len);
+            mq.add_pml(match_len);
             pos_on_r -= 1;
             if (!case2) {
                 mq.add_scan(0);
@@ -961,7 +961,7 @@ uint64_t MoveStructure::query_ms(MoveQuery& mq, bool random) {
             match_len += 1;
             if (verbose)
                 std::cerr<<"\t match_len: " << match_len << "\n";
-            mq.add_ms(match_len - 1);
+            mq.add_pml(match_len - 1);
             pos_on_r -= 1;
             if (!case2) {
                 mq.add_scan(0);
