@@ -1313,3 +1313,13 @@ void MoveStructure::deserialize(char* index_dir) {
 
     fin.close();
 }
+
+void MoveStructure::print_stats() {
+    std::cerr << "n: " << length << "\n";
+    std::cerr << "r: " << r << "\n";
+    std::cerr << "n/r: " << length/r << "\n";
+    if (original_r != 0) {
+        std::cerr << "original_r: " << original_r << "\n";
+        std::cerr << "n/original_r: " << length/original_r << "\n";
+    }
+}

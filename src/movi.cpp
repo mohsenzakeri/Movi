@@ -180,7 +180,16 @@ int main(int argc, char* argv[]) {
             }
             std::cout << "\n";
         }
-    } else if (command == "LF" or command == "randomLF" or command == "reconstruct") {
+    } else if (command == "stats") {
+        std::cerr << command << "\n";
+        std::cerr << argv[2] << "\n";
+        bool verbose = (argc > 3 and std::string(argv[3]) == "verbose");
+        bool logs = (argc > 3 and std::string(argv[3]) == "logs");
+        MoveStructure mv_(verbose, logs);
+        mv_.deserialize(argv[2]);
+        mv_.print_stats();
+    }
+    else if (command == "LF" or command == "randomLF" or command == "reconstruct") {
         bool verbose = (argc > 3 and std::string(argv[3]) == "verbose");
         bool logs = (argc > 3 and std::string(argv[3]) == "logs");
         MoveStructure mv_(verbose, logs);

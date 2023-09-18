@@ -60,7 +60,8 @@ class MoveStructure {
 
         void serialize(char* output_dir);
         void deserialize(char* index_dir);
-        
+        void print_stats();
+
         std::unordered_map<uint32_t, uint32_t> jumps;
         std::unordered_map<uint32_t, uint32_t> ff_counts;
         std::unordered_map<uint64_t, uint64_t> run_lengths;
