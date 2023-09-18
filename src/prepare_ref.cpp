@@ -7,13 +7,11 @@
 // STEP 1: declare the type of file handler and the read() function
 KSEQ_INIT(gzFile, gzread)
 
-int main(int argc, char* argv[]) {
-    // Fasta/q reader from http://lh3lh3.users.sourceforge.net/parsefastq.shtml
-    std::ofstream clean_fasta(static_cast<std::string>(argv[2]));
+void read_fasta(const char* file_name,std::ofstream& clean_fasta) {
     gzFile fp;
     kseq_t *seq;
     int l;
-    fp = gzopen(argv[1], "r"); // STEP 2: open the file handler
+    fp = gzopen(file_name, "r"); // STEP 2: open the file handler
     seq = kseq_init(fp); // STEP 3: initialize seq
     uint64_t line = 0;
     while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
@@ -43,10 +41,25 @@ int main(int argc, char* argv[]) {
         clean_fasta << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
         clean_fasta << '>' << seq->name.s << "_rev_comp" << '\n' << seq_rc << '\n';
     }
-    clean_fasta.close();
     kseq_destroy(seq);
     gzclose(fp);
+}
 
-    std::cerr << "The clean fasta with the reverse complement is stored at " << static_cast<std::string>(argv[1]) +  ".clean.fa" << "\n";
+int main(int argc, char* argv[]) {
+    // Fasta/q reader from http://lh3lh3.users.sourceforge.net/parsefastq.shtml
+    bool input_type = (argc > 3 and std::string(argv[3]) == "list");
+    std::ofstream clean_fasta(static_cast<std::string>(argv[2]));
+    if (input_type) {
+        std::ifstream list_file(static_cast<std::string>(argv[1]));
+        std::string fasta_file = "";
+        while (std::getline(list_file, fasta_file)) {
+            read_fasta(fasta_file.data(), clean_fasta);
+        }
+    } else {
+        read_fasta(argv[1], clean_fasta);
+    }
+    clean_fasta.close();
+
+    std::cerr << "The clean fasta with the reverse complement is stored at " << static_cast<std::string>(argv[2]) << "\n";
     return 0;
 }
