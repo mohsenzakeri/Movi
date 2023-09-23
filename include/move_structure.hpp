@@ -26,8 +26,8 @@ class MoveStructure {
     public:
         MoveStructure() { }
         MoveStructure(bool verbose_, bool logs_);
-        MoveStructure(bool bit1_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
-        MoveStructure(char* input_file_, bool bit1_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
+        MoveStructure(bool onebit_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
+        MoveStructure(char* input_file_, bool onebit_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
 
         bool check_mode();
         void build(std::ifstream &bwt_file);
@@ -72,9 +72,9 @@ class MoveStructure {
         uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
-
+        void set_onebit();
     private:
-        bool bit1;
+        bool onebit;
         bool constant;
         uint16_t splitting;
         std::string bwt_string;

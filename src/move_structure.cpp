@@ -43,16 +43,16 @@ MoveStructure::MoveStructure(bool verbose_, bool logs_) {
     logs = logs_;
 }
 
-MoveStructure::MoveStructure(bool bit1_, bool verbose_, bool logs_, uint16_t splitting_, bool constant_) {
-    bit1 = bit1_;
+MoveStructure::MoveStructure(bool onebit_, bool verbose_, bool logs_, uint16_t splitting_, bool constant_) {
+    onebit = onebit_;
     verbose = verbose_;
     logs = logs_;
     splitting = splitting_;
     constant = constant_;
 }
 
-MoveStructure::MoveStructure(char* input_file_, bool bit1_, bool verbose_, bool logs_, uint16_t splitting_, bool constant_) {
-    bit1 = bit1_;
+MoveStructure::MoveStructure(char* input_file_, bool onebit_, bool verbose_, bool logs_, uint16_t splitting_, bool constant_) {
+    onebit = onebit_;
     verbose = verbose_;
     logs = logs_;
     splitting = splitting_;
@@ -60,7 +60,7 @@ MoveStructure::MoveStructure(char* input_file_, bool bit1_, bool verbose_, bool 
 
     if (!check_mode()) {
         std::cerr << "Your settings: \n"
-                    << "bit1: " << bit1 << "\n"
+                    << "onebit: " << onebit << "\n"
                     << "constant: " << constant << "\n"
                     << "splitting " << splitting << "\n";
         exit(0);
@@ -97,21 +97,21 @@ MoveStructure::MoveStructure(char* input_file_, bool bit1_, bool verbose_, bool 
 
 bool MoveStructure::check_mode() {
 #if MODE == 0
-    if (bit1 || constant) {
+    if (onebit || constant) {
         std::cerr << "MODE is set to be 0: regular!\n";
         return false;
     }
 #endif
 
 #if MODE == 1
-    if (bit1 || !constant || !splitting) {
+    if (onebit || !constant || !splitting) {
         std::cerr << "MODE is set to be 1: constant!\n";
         return false;
     }
 #endif
 
 #if MODE == 2
-    if (!bit1) {
+    if (!onebit) {
         std::cerr << "MODE is set to be 2: one-bit!\n";
         return false;
     }
@@ -364,7 +364,7 @@ uint16_t MoveStructure::get_rlbwt_thresholds(uint64_t idx, uint16_t i) {
     }
 
 #if MODE == 0 || MODE == 1
-    if (!bit1) {
+    if (!onebit) {
         return rlbwt[idx].get_thresholds(i);
     }
 #endif
@@ -383,7 +383,7 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
     }
 
 #if MODE == 0 || MODE == 1
-    if (!bit1) {
+    if (!onebit) {
         // rlbwt_thresholds[idx][i] = value;
         rlbwt[idx].set_thresholds(i, value);
     }
@@ -393,6 +393,10 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
     // rlbwt_1bit_thresholds[idx] = value;
     rlbwt[idx].set_threshold(value);
 #endif
+}
+
+void MoveStructure::set_onebit() {
+    onebit = true;
 }
 
 void MoveStructure::build_rlbwt(char* input_file) {
@@ -491,7 +495,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     length = bwt_string.length();
     std::cerr<<"length: " << length << "\n";
     rlbwt.resize(r);
-    /*if (!bit1)
+    /*if (!onebit)
         rlbwt_thresholds.resize(r);
     else
         rlbwt_1bit_thresholds.resize(r);*/
@@ -522,10 +526,10 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
     if (alphabet.size() == 2) {
         std::cerr << "one bit alphabet version detected.\n";
-        bit1 = true;
+        onebit = true;
         // bit1_begin = alphamap[bwt_string[0]];
     }
-    if (bit1 && alphabet.size() != 2) {
+    if (onebit && alphabet.size() != 2) {
         std::cerr << "The fasta file has more than 2 characters in the alphabet!\n";
         exit(0);
     }
@@ -698,7 +702,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                 /* if (i == 20373268) {
                     std::cerr << "j: " << alphabet[j] << " " << alphabet_thresholds[j] << " all_p: " << all_p[i] << " thr_i: " << thr_i << " n: " << get_n(i) << "\n";
                 } */
-                if (bit1 and alphamap_3[alphamap[rlbwt_c]][j] != 0)
+                if (onebit and alphamap_3[alphamap[rlbwt_c]][j] != 0)
                     std::cerr << "error: the alphamap_3 is not working for the one-bit alphabet - " 
                                 << alphamap_3[alphamap[rlbwt_c]][j] << "!\n";
                 if (alphamap_3[alphamap[rlbwt_c]][j] == 3)
@@ -964,7 +968,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
             } else {
                 std::cerr << "\t \t This should not happen!\n";
                 std::cerr << "\t \t r[pos]:" <<  R[pos_on_r] << " t[pointer]:" << c << "\n";
-                std::cerr << "\t \t " << up << ", " << bit1 << ", " << R[pos_on_r] << ", " << pos_on_r << "\n";
+                std::cerr << "\t \t " << up << ", " << onebit << ", " << R[pos_on_r] << ", " << pos_on_r << "\n";
                 std::cerr << "\t \t ";
                 for (int k = 10; k > 0; --k)
                     std::cerr << alphabet[rlbwt[idx - k].get_c()] << "-";
@@ -1058,7 +1062,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char)
                             << "\n\t \t \t idx:" << idx << "\n";
 
     alphabet_index = alphamap_3[alphamap[rlbwt_char]][alphabet_index];
-    if (bit1 and alphabet_index != 0)
+    if (onebit and alphabet_index != 0)
         std::cerr << "error: the alphamap_3 is not working for the one-bit alphabet - " 
                     << alphabet_index << "!\n";
     if (alphabet_index == 3)
@@ -1201,6 +1205,8 @@ bool MoveStructure::jump_randomly(uint64_t& idx, char r_char) {
 void MoveStructure::serialize(char* output_dir) {
     mkdir(output_dir,0777);
     std::string fname = static_cast<std::string>(output_dir) + "/movi_index.bin";
+    if (onebit)
+        fname = static_cast<std::string>(output_dir) + "/movi_index_onebit.bin";
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
     std::cerr<< "length: " << length << " r: " << r << " end_bwt_idx: " << end_bwt_idx << "\n";
     fout.write(reinterpret_cast<char*>(&length), sizeof(length));
@@ -1220,10 +1226,10 @@ void MoveStructure::serialize(char* output_dir) {
 
     fout.write(reinterpret_cast<char*>(&splitting), sizeof(splitting));
     fout.write(reinterpret_cast<char*>(&constant), sizeof(constant));
-    fout.write(reinterpret_cast<char*>(&bit1), sizeof(bit1));
+    fout.write(reinterpret_cast<char*>(&onebit), sizeof(onebit));
     std::cerr<< "sizeof(rlbwt[0]): " << sizeof(rlbwt[0]) << "\n";
     fout.write(reinterpret_cast<char*>(&rlbwt[0]), rlbwt.size()*sizeof(rlbwt[0]));
-    std::cerr<< "bit1: " << bit1 << "\n";
+    std::cerr<< "onebit: " << onebit << "\n";
 
     uint64_t n_overflow_size = n_overflow.size();
     fout.write(reinterpret_cast<char*>(&n_overflow_size), sizeof(n_overflow_size));
@@ -1249,6 +1255,8 @@ void MoveStructure::serialize(char* output_dir) {
 void MoveStructure::deserialize(char* index_dir) {
     std::cerr << "verbose: " << verbose << "\n";
     std::string fname = static_cast<std::string>(index_dir) + "/movi_index.bin";
+    if (onebit)
+        fname = static_cast<std::string>(index_dir) + "/movi_index_onebit.bin";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
     fin.seekg(0, std::ios::beg); 
     std::cerr<< "before - length: " << length << " r: " << r << " end_bwt_idx: " << end_bwt_idx << "\n";
@@ -1277,11 +1285,11 @@ void MoveStructure::deserialize(char* index_dir) {
     }
     fin.read(reinterpret_cast<char*>(&splitting), sizeof(splitting));
     fin.read(reinterpret_cast<char*>(&constant), sizeof(constant));
-    fin.read(reinterpret_cast<char*>(&bit1), sizeof(bit1));
+    fin.read(reinterpret_cast<char*>(&onebit), sizeof(onebit));
 
     if (!check_mode()) {
         std::cerr << "Your settings: \n"
-                    << "bit1: " << bit1 << "\n"
+                    << "onebit: " << onebit << "\n"
                     << "constant: " << constant << "\n"
                     << "splitting " << splitting << "\n";
         exit(0);

@@ -22,20 +22,20 @@ int main(int argc, char* argv[]) {
     if (command == "build") {
         std::cerr<<"The move structure is being built.\n";
 
-        bool bit1 = std::string(argv[2]) == "1bit" ? true : false;
+        bool onebit = std::string(argv[2]) == "onebit" ? true : false;
         uint16_t splitting = std::string(argv[2]) == "split" ? 5 : 0;
         bool constant = std::string(argv[2]) == "constant" ? true : false;
         if (constant) {
             splitting = 5;
         }
         std::cerr << "splitting: " << splitting << "\n";
-        std::cerr << "bit1: " << bit1 << "\n";
+        std::cerr << "onebit: " << onebit << "\n";
         std::cerr << "constant: " << constant << "\n";
 
         bool verbose = (argc > 5 and std::string(argv[5]) == "verbose");
         bool logs = (argc > 5 and std::string(argv[5]) == "logs");
 
-        MoveStructure mv_(argv[3], bit1, verbose, logs, splitting, constant);
+        MoveStructure mv_(argv[3], onebit, verbose, logs, splitting, constant);
         std::cerr<<"The move structure is successfully built!\n";
 
         // mv_.reconstruct();
@@ -51,12 +51,14 @@ int main(int argc, char* argv[]) {
             }
             rl_file.close();
         }
-    } else if (command == "query") {
+    } else if (command == "query" or command == "query-onebit") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         bool logs = (argc > 4 and std::string(argv[4]) == "logs");
         bool reverse_query = (argc > 4 and std::string(argv[4]) == "reverse");
         std::cerr << verbose << " " << logs << "\n";
         MoveStructure mv_(verbose, logs); 
+        if (command == "query-onebit")
+            mv_.set_onebit();
         auto begin = std::chrono::system_clock::now();
         mv_.deserialize(argv[2]);
         auto end = std::chrono::system_clock::now();
