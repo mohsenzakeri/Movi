@@ -73,9 +73,14 @@ int main(int argc, char* argv[]) {
         fp = gzopen(argv[3], "r"); // STEP 2: open the file handler
         seq = kseq_init(fp); // STEP 3: initialize seq
         // std::ofstream pmls_file(static_cast<std::string>(argv[3]) + ".mpml");
-        std::ofstream costs_file(static_cast<std::string>(argv[3]) + ".costs");
-        std::ofstream scans_file(static_cast<std::string>(argv[3]) + ".scans");
-        std::ofstream fastforwards_file(static_cast<std::string>(argv[3]) + ".fastforwards");
+        std::ofstream costs_file;
+        std::ofstream scans_file;
+        std::ofstream fastforwards_file
+        if (logs) {
+            costs_file = std::ofstream(static_cast<std::string>(argv[3]) + ".costs");
+            scans_file = std::ofstream(static_cast<std::string>(argv[3]) + ".scans");
+            fastforwards_file = std::ofstream(static_cast<std::string>(argv[3]) + ".fastforwards");
+        }
         std::ofstream pmls_file(static_cast<std::string>(argv[3]) + ".mpml.bin", std::ios::out | std::ios::binary);
         uint64_t all_ff_count = 0;
         // uint64_t query_pml_tot_time = 0;
@@ -110,28 +115,33 @@ int main(int argc, char* argv[]) {
             uint64_t mq_pml_lens_size = pml_lens.size();
             pmls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
             pmls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
-            costs_file << ">" << seq->name.s << "\n";
-            scans_file << ">" << seq->name.s << "\n";
-            fastforwards_file << ">" << seq->name.s << "\n";
-            for (auto& cost : mq.get_costs()) {
-                costs_file << cost.count() << " ";
-                // iteration_tot_time += static_cast<uint64_t>(mq.costs[i].count());
+            if (logs) {
+                costs_file << ">" << seq->name.s << "\n";
+                scans_file << ">" << seq->name.s << "\n";
+                fastforwards_file << ">" << seq->name.s << "\n";
+                for (auto& cost : mq.get_costs()) {
+                    costs_file << cost.count() << " ";
+                    // iteration_tot_time += static_cast<uint64_t>(mq.costs[i].count());
+                }
+                for (auto& scan: mq.get_scans()) {
+                    scans_file << scan << " ";
+                }
+                for (auto& fast_forward : mq.get_fastforwards()) {
+                    fastforwards_file << fast_forward << " ";
+                }
+                costs_file << "\n";
+                scans_file << "\n";
+                fastforwards_file << "\n";
             }
-            for (auto& scan: mq.get_scans()) {
-                scans_file << scan << " ";
-            }
-            for (auto& fast_forward : mq.get_fastforwards()) {
-                fastforwards_file << fast_forward << " ";
-            }
-            costs_file << "\n";
-            scans_file << "\n";
-            fastforwards_file << "\n";
         }
+        std::cerr<<"all fast forward counts: " << all_ff_count << "\n";
         // std::cerr << "query_pml_tot_time: " << query_pml_tot_time << "\n";
         // std::cerr << "iteration_tot_time: " << iteration_tot_time << "\n";
-        costs_file.close();
-        scans_file.close();
-        fastforwards_file.close();
+        if (logs) {
+            costs_file.close();
+            scans_file.close();
+            fastforwards_file.close();
+        }
         pmls_file.close();
         std::cerr<<"pmls file closed!\n";
         // printf("return value: %d\n", l);
@@ -139,7 +149,7 @@ int main(int argc, char* argv[]) {
         std::cerr<<"kseq destroyed!\n";
         gzclose(fp); // STEP 6: close the file handler
         std::cerr<<"fp file closed!\n";
-        std::cerr<<"all fast forward counts: " << all_ff_count << "\n";
+
         if (logs) {
             std::ofstream jumps_file(static_cast<std::string>(argv[3]) + ".jumps");
             for (auto& jump : mv_.jumps) {
@@ -210,7 +220,7 @@ int main(int argc, char* argv[]) {
             mv_.random_lf_test();
         else
             mv_.reconstruct_move();
-        
+
         if (logs) {
             std::ofstream ff_counts_file(static_cast<std::string>(argv[3]) + ".ff_counts");
             for (auto& ff_count : mv_.ff_counts) {

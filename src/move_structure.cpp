@@ -211,8 +211,7 @@ uint32_t MoveStructure::compute_index(char row_char, char lookup_char) {
         return alpha_index+1;*/
 }
 
-uint64_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
-
+uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
     if (verbose) {
         std::cerr << "\t in LF:\n";
         std::cerr << "\t \t i: " << i << " offset: " << offset << "\n";
@@ -220,7 +219,7 @@ uint64_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
     auto& row = rlbwt[i];
     auto idx = row.get_id();
     offset = get_offset(i) + offset;
-    uint64_t ff_count = 0;
+    uint16_t ff_count = 0;
     if (verbose) {
         std::cerr << "\t \t i: " << i << " offset: " << offset << " idx: " << idx << "\n";
     }
@@ -228,7 +227,11 @@ uint64_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
     if (idx < r - 1 && offset >= get_n(idx)) {
         uint64_t idx_ = fast_forward(offset, idx, 0);
         idx += idx_;
-        ff_count = idx_;
+        if (idx_ >= std::numeric_limits<uint16_t>::max()) {
+            std::cerr << "Number of fast forwards for a query was greater than 2^16: " << idx_ << "\n";
+            exit(0);
+        }
+        ff_count = static_cast<uint16_t>(idx_);
     }
 
     if (verbose) {
@@ -846,12 +849,12 @@ uint64_t MoveStructure::jump_up(uint64_t idx, char c) {
             break;
         }
     }
-    if (logs) {
+    /* if (logs) {
         if (jumps.find(jump_count) != jumps.end())
             jumps[jump_count] += 1;
         else
             jumps[jump_count] = 1;
-    }
+    } */
     if (verbose) 
         std::cerr << "\t \t \t \t idx after the while in the jump" << idx << "\n";
     return (row_c == c) ? idx : r;
@@ -867,12 +870,12 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c) {
         idx += 1;
         row_c = alphabet[rlbwt[idx].get_c_jj()];
     }
-    if (logs) {
+    /* if (logs) {
         if (jumps.find(jump_count) != jumps.end())
             jumps[jump_count] += 1;
         else
             jumps[jump_count] = 1;
-    }
+    } */
     if (verbose) 
         std::cerr << "\t \t \t \t idx after the while in the jump: " << idx << " " << c << " " << row_c << "\n";
     return (row_c == c) ? idx : r;
@@ -890,9 +893,10 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     uint64_t idx = r - 1; // std::rand() % r; // r - 1
     uint64_t offset = get_n(idx) - 1;
 
-    uint64_t match_len = 0;
-    uint64_t ff_count = 0;
-    uint64_t scan_count = 0;
+    uint16_t match_len = 0;
+    uint16_t ff_count = 0;
+    uint64_t ff_count_tot = 0;
+    uint16_t scan_count = 0;
     auto t1 = std::chrono::high_resolution_clock::now();
 
     if (verbose) {
@@ -980,16 +984,16 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
 
         // LF step
         ff_count = LF_move(offset, idx);
+        ff_count_tot += ff_count;
         if (logs) {
             auto t2 = std::chrono::high_resolution_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
             mq.add_cost(elapsed);
             mq.add_fastforward(ff_count);
             mq.add_scan(scan_count);
-            // ff_count_tot += ff_count;
         }
     }
-    return ff_count;
+    return ff_count_tot;
 }
 
 bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char) {
