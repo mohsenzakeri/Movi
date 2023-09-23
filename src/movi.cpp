@@ -75,7 +75,7 @@ int main(int argc, char* argv[]) {
         // std::ofstream pmls_file(static_cast<std::string>(argv[3]) + ".mpml");
         std::ofstream costs_file;
         std::ofstream scans_file;
-        std::ofstream fastforwards_file
+        std::ofstream fastforwards_file;
         if (logs) {
             costs_file = std::ofstream(static_cast<std::string>(argv[3]) + ".costs");
             scans_file = std::ofstream(static_cast<std::string>(argv[3]) + ".scans");
