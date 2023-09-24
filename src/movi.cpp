@@ -184,7 +184,7 @@ int main(int argc, char* argv[]) {
             std::cout << ">" << read_name << " \n";
             uint64_t mq_pml_lens_size = 0;
             pmls_file.read(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
-            std::vector<uint64_t> pml_lens;
+            std::vector<uint16_t> pml_lens;
             pml_lens.resize(mq_pml_lens_size);
             pmls_file.read(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
             for (int64_t i = mq_pml_lens_size - 1; i >= 0; i--) {
