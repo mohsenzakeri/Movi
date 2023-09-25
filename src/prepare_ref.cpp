@@ -47,16 +47,17 @@ void read_fasta(const char* file_name,std::ofstream& clean_fasta) {
 
 int main(int argc, char* argv[]) {
     // Fasta/q reader from http://lh3lh3.users.sourceforge.net/parsefastq.shtml
-    bool input_type = (argc > 3 and std::string(argv[3]) == "list");
-    std::ofstream clean_fasta(static_cast<std::string>(argv[2]));
+    bool input_type = (argc > 4 and std::string(argv[4]) == "list");
+    std::ofstream clean_fasta(static_cast<std::string>(argv[3]));
     if (input_type) {
-        std::ifstream list_file(static_cast<std::string>(argv[1]));
+        std::ifstream list_file(static_cast<std::string>(argv[2]));
         std::string fasta_file = "";
         while (std::getline(list_file, fasta_file)) {
+            fasta_file = static_cast<std::string>(argv[1]) + fasta_file;
             read_fasta(fasta_file.data(), clean_fasta);
         }
     } else {
-        read_fasta(argv[1], clean_fasta);
+        read_fasta(argv[2], clean_fasta);
     }
     clean_fasta.close();
 
