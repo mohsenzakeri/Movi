@@ -53,10 +53,10 @@ class MoveStructure {
         // uint64_t naive_sa(uint64_t bwt_row);
         // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
 
-        uint64_t jump_up(uint64_t idx, char c);
-        uint64_t jump_down(uint64_t idx, char c);
-        bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char);
-        bool jump_randomly(uint64_t& idx, char r_char);
+        uint64_t jump_up(uint64_t idx, char c, uint64_t& scan_count);
+        uint64_t jump_down(uint64_t idx, char c, uint64_t& scan_count);
+        bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
+        bool jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_count);
 
         void serialize(char* output_dir);
         void deserialize(char* index_dir);

@@ -781,7 +781,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::cerr<< "The move structure building is done.\n";
 }
 
-
+uint64_t scan_count;
 #if MODE == 1
 void MoveStructure::compute_nexts() {
     for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
@@ -791,15 +791,15 @@ void MoveStructure::compute_nexts() {
         char rlbwt_c = alphabet[rlbwt[i].get_c()];
         for (uint64_t j = 0; j < alphabet.size(); j++) {
             if (i == end_bwt_idx) {
-                auto idx = jump_up(i, alphabet[j]);
+                auto idx = jump_up(i, alphabet[j], scan_count);
                 end_bwt_idx_next_up[j] = (idx == r) ? std::numeric_limits<uint16_t>::max() : i - idx;
-                idx = jump_down(i, alphabet[j]);
+                idx = jump_down(i, alphabet[j], scan_count);
                 end_bwt_idx_next_down[j] = (idx == r) ? std::numeric_limits<uint16_t>::max() : idx - i;
                 continue;
             }
             if (alphabet[j] != rlbwt_c) {
                 auto alphabet_idx = alphamap_3[alphamap[rlbwt_c]][j];
-                auto idx = jump_up(i, alphabet[j]);
+                auto idx = jump_up(i, alphabet[j], scan_count);
                 if (idx == r) {
                     rlbwt[i].set_next_up(alphabet_idx, std::numeric_limits<uint16_t>::max());
                 } else {
@@ -808,7 +808,7 @@ void MoveStructure::compute_nexts() {
                     rlbwt[i].set_next_up(alphabet_idx, i - idx);
                 }
 
-                idx = jump_down(i, alphabet[j]);
+                idx = jump_down(i, alphabet[j], scan_count);
                 if (idx == r) {
                     rlbwt[i].set_next_down(alphabet_idx, std::numeric_limits<uint16_t>::max());
                 } else {
@@ -838,13 +838,13 @@ uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx, uint64_t x)
     return idx - idx_;
 }
 
-uint64_t MoveStructure::jump_up(uint64_t idx, char c) {
+uint64_t MoveStructure::jump_up(uint64_t idx, char c, uint64_t& scan_count) {
     if (idx == 0)
         return r;
     char row_c = alphabet[rlbwt[idx].get_c_jj()];
-    uint32_t jump_count = 0;
+
     while (idx > 0 and row_c != c) {
-        jump_count += 1;
+        scan_count += 1;
         idx -= 1;
         row_c = alphabet[rlbwt[idx].get_c_jj()];
         if (idx == 0) {
@@ -854,31 +854,31 @@ uint64_t MoveStructure::jump_up(uint64_t idx, char c) {
         }
     }
     /* if (logs) {
-        if (jumps.find(jump_count) != jumps.end())
-            jumps[jump_count] += 1;
+        if (jumps.find(scan_count) != jumps.end())
+            jumps[scan_count] += 1;
         else
-            jumps[jump_count] = 1;
+            jumps[scan_count] = 1;
     } */
     if (verbose) 
         std::cerr << "\t \t \t \t idx after the while in the jump" << idx << "\n";
     return (row_c == c) ? idx : r;
 }
 
-uint64_t MoveStructure::jump_down(uint64_t idx, char c) {
+uint64_t MoveStructure::jump_down(uint64_t idx, char c, uint64_t& scan_count) {
     if (idx == r - 1)
         return r;
     char row_c = alphabet[rlbwt[idx].get_c_jj()];
-    uint32_t jump_count = 0;
+
     while (idx < r - 1 && row_c != c) {
-        jump_count += 1;
+        scan_count += 1;
         idx += 1;
         row_c = alphabet[rlbwt[idx].get_c_jj()];
     }
     /* if (logs) {
-        if (jumps.find(jump_count) != jumps.end())
-            jumps[jump_count] += 1;
+        if (jumps.find(scan_count) != jumps.end())
+            jumps[scan_count] += 1;
         else
-            jumps[jump_count] = 1;
+            jumps[scan_count] = 1;
     } */
     if (verbose) 
         std::cerr << "\t \t \t \t idx after the while in the jump: " << idx << " " << c << " " << row_c << "\n";
@@ -900,7 +900,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     uint16_t match_len = 0;
     uint16_t ff_count = 0;
     uint64_t ff_count_tot = 0;
-    uint16_t scan_count = 0;
+    uint64_t scan_count = 0;
     auto t1 = std::chrono::high_resolution_clock::now();
 
     if (verbose) {
@@ -946,10 +946,10 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                 std::cerr<< "\t Case2: Not a match, looking for a match either up or down...\n";
 
             uint64_t idx_before_jump = idx;
-            bool up = random ? jump_randomly(idx, R[pos_on_r]) : 
-                               jump_thresholds(idx, offset, R[pos_on_r]);
+            bool up = random ? jump_randomly(idx, R[pos_on_r], scan_count) : 
+                               jump_thresholds(idx, offset, R[pos_on_r], scan_count);
             match_len = 0;
-            scan_count = (!constant) ? std::abs((int)idx - (int)idx_before_jump) : 0;
+            // scan_count = (!constant) ? std::abs((int)idx - (int)idx_before_jump) : 0;
  
             char c = alphabet[rlbwt[idx].get_c_mm()];
 
@@ -978,7 +978,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                 auto saved_idx = idx;
 
                 verbose = true;
-                jump_thresholds(saved_idx, offset, R[pos_on_r]);
+                jump_thresholds(saved_idx, offset, R[pos_on_r], scan_count);
                 exit(0);
             }
         }
@@ -1000,9 +1000,10 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     return ff_count_tot;
 }
 
-bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char) {
+bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count) {
     uint64_t saved_idx = idx;
     uint64_t alphabet_index = alphamap[static_cast<uint64_t>(r_char)];
+    scan_count = 0;
 
     if (verbose)
         std::cerr<<"\t \t \t jumping with thresholds ... \n";
@@ -1031,7 +1032,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char)
 #endif
 
 #if MODE == 0 || MODE == 2
-            idx = jump_down(saved_idx, r_char);
+            idx = jump_down(saved_idx, r_char, scan_count);
 #endif
             if (r_char != alphabet[rlbwt[idx].get_c_mm()])
                 std::cerr << "1: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()];
@@ -1049,7 +1050,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char)
 #endif
 
 #if MODE == 0 || MODE == 2
-            idx = jump_up(saved_idx, r_char);
+            idx = jump_up(saved_idx, r_char, scan_count);
 #endif
             if (r_char != alphabet[rlbwt[idx].get_c_mm()])
                 std::cerr << "2: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()];
@@ -1082,7 +1083,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char)
 #endif
         auto tmp = idx;
 #if MODE == 0 || MODE == 2
-        idx = jump_down(saved_idx, r_char);
+        idx = jump_down(saved_idx, r_char, scan_count);
 #endif
         if (r_char != alphabet[rlbwt[idx].get_c_mm()]) {
             std::cerr << "3: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()] << "\n";
@@ -1104,7 +1105,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char)
 #endif
 
 #if MODE == 0 || MODE == 2
-        idx = jump_up(saved_idx, r_char);
+        idx = jump_up(saved_idx, r_char, scan_count);
 #endif
         if (r_char != alphabet[rlbwt[idx].get_c_mm()]) {
             std::cerr << "idx: " << idx << " saved_idx: " << saved_idx << "\n";
@@ -1122,11 +1123,11 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char)
     return false;
 }
 
-bool MoveStructure::jump_randomly(uint64_t& idx, char r_char) {
+bool MoveStructure::jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_count) {
     uint64_t saved_idx = idx;
     uint64_t jump = std::rand() % 2; // To replace with ...
     bool up = false;
-
+    scan_count = 0;
     if (verbose)
         std::cerr<<"idx before jump: " << idx << "\n";
 
@@ -1136,7 +1137,7 @@ bool MoveStructure::jump_randomly(uint64_t& idx, char r_char) {
 
         // jumping up
         up = true;
-        idx = jump_up(saved_idx, r_char);
+        idx = jump_up(saved_idx, r_char, scan_count);
         if (verbose)
             std::cerr<<"idx after jump: " << idx << "\n";
         char c = alphabet[rlbwt[idx].get_c()];
@@ -1146,7 +1147,7 @@ bool MoveStructure::jump_randomly(uint64_t& idx, char r_char) {
 
             // jump down
             up = false;
-            idx = jump_down(saved_idx, r_char);
+            idx = jump_down(saved_idx, r_char, scan_count);
             if (verbose)
                 std::cerr<<"idx after jump: " << idx << "\n";
         }
@@ -1156,7 +1157,7 @@ bool MoveStructure::jump_randomly(uint64_t& idx, char r_char) {
 
         // jumping down
         up = false;
-        idx = jump_down(saved_idx, r_char);
+        idx = jump_down(saved_idx, r_char, scan_count);
         if (verbose)
             std::cerr<<"idx after jump: " << idx << "\n";
         char c = alphabet[rlbwt[idx].get_c()];
@@ -1166,7 +1167,7 @@ bool MoveStructure::jump_randomly(uint64_t& idx, char r_char) {
 
             // jump up
             up = true;
-            idx = jump_up(saved_idx, r_char);
+            idx = jump_up(saved_idx, r_char, scan_count);
             if (verbose)
                 std::cerr<<"idx after jump: " << idx << "\n";
         }
