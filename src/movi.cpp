@@ -152,13 +152,13 @@ int main(int argc, char* argv[]) {
         gzclose(fp); // STEP 6: close the file handler
         std::cerr<<"fp file closed!\n";
 
-        if (logs) {
+        /* if (logs) {
             std::ofstream jumps_file(static_cast<std::string>(argv[3]) + ".jumps");
             for (auto& jump : mv_.jumps) {
                 jumps_file <<jump.first << "\t" << jump.second << "\n";
             }
             jumps_file.close();
-        }
+        } */
     } else if (command == "rlbwt") {
         std::cerr<<"The run and len files are being built.\n";
         bool verbose = (argc > 3 and std::string(argv[3]) == "verbose");

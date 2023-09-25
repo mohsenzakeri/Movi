@@ -1024,8 +1024,9 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
                 std::cerr<< "\t \t \t Jumping down with thresholds:\n";
 #if MODE == 1
             if (constant) {
+                scan_count += 1;
                 if (end_bwt_idx_next_down[alphabet_index] == std::numeric_limits<uint16_t>::max())
-                idx = r;
+                    idx = r;
                 else
                     idx = saved_idx + end_bwt_idx_next_down[alphabet_index];
             }
@@ -1042,6 +1043,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
                 std::cerr<< "\t \t \t Jumping up with thresholds:\n";
 #if MODE == 1
             if (constant) {
+                scan_count += 1;
                 if (end_bwt_idx_next_up[alphabet_index] == std::numeric_limits<uint16_t>::max())
                     idx = r;
                 else
@@ -1075,6 +1077,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
             std::cerr<< "\t \t \t Jumping down with thresholds:\n";
 #if MODE == 1
         if (constant) {
+            scan_count += 1;
             if (rlbwt[saved_idx].get_next_down(alphabet_index) == std::numeric_limits<uint16_t>::max())
                 idx = r;
             else
@@ -1096,6 +1099,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
         if (verbose)
             std::cerr<< "\t \t \t Jumping up with thresholds:\n";
 #if MODE == 1
+        scan_count += 1;
         if (constant) {
             if (rlbwt[saved_idx].get_next_up(alphabet_index) == std::numeric_limits<uint16_t>::max())
                 idx = r;
