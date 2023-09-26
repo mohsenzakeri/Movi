@@ -25,7 +25,7 @@ int main(int argc, char* argv[]) {
         bool onebit = std::string(argv[2]) == "onebit" ? true : false;
         uint16_t splitting = std::string(argv[2]) == "split" ? 5 : 0;
         bool constant = std::string(argv[2]) == "constant" ? true : false;
-        if (constant) {
+        if (constant or onebit) {
             splitting = 5;
         }
         std::cerr << "splitting: " << splitting << "\n";
