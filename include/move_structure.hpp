@@ -30,6 +30,7 @@ class MoveStructure {
         MoveStructure(char* input_file_, bool onebit_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
 
         bool check_mode();
+        std::string index_type();
         void build(std::ifstream &bwt_file);
         void build_rlbwt(char* input_file);
         uint64_t query_pml(MoveQuery& mq, bool random);

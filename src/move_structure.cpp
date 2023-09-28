@@ -95,6 +95,28 @@ MoveStructure::MoveStructure(char* input_file_, bool onebit_, bool verbose_, boo
     return row_c;
 }*/
 
+
+std::string MoveStructure::index_type() {
+    if (!onebit and !constant and splitting == 0) {
+        return "approximate";
+    } else if (constant and splitting != 0 and !onebit) {
+        return "constant";
+    }else if (splitting != 0 and !onebit) {
+        return "splitting";
+    } else if (onebit and splitting == 0) {
+        return "onebit_nosplitting";
+    } else if (onebit and splitting != 0) {
+        return "onebit";
+    } else {
+        std::cerr << "Mode is not defined! \n";
+        std::cerr << "onebit: " << onebit
+                  << "\nconstant:" << constant
+                  << "\nsplitting:" << splitting
+                  << "\n";
+    }
+    exit(0);
+}
+
 bool MoveStructure::check_mode() {
 #if MODE == 0
     if (onebit || constant) {

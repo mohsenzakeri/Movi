@@ -78,12 +78,13 @@ int main(int argc, char* argv[]) {
         std::ofstream costs_file;
         std::ofstream scans_file;
         std::ofstream fastforwards_file;
+        std::string index_type = mv_.index_type();
         if (logs) {
-            costs_file = std::ofstream(static_cast<std::string>(argv[3]) + ".costs");
-            scans_file = std::ofstream(static_cast<std::string>(argv[3]) + ".scans");
-            fastforwards_file = std::ofstream(static_cast<std::string>(argv[3]) + ".fastforwards");
+            costs_file = std::ofstream(static_cast<std::string>(argv[3]) + "." + index_type + ".costs");
+            scans_file = std::ofstream(static_cast<std::string>(argv[3]) + "." + index_type + ".scans");
+            fastforwards_file = std::ofstream(static_cast<std::string>(argv[3]) + "." + index_type + ".fastforwards");
         }
-        std::ofstream pmls_file(static_cast<std::string>(argv[3]) + ".mpml.bin", std::ios::out | std::ios::binary);
+        std::ofstream pmls_file(static_cast<std::string>(argv[3]) + "." + index_type + ".mpml.bin", std::ios::out | std::ios::binary);
         uint64_t all_ff_count = 0;
         // uint64_t query_pml_tot_time = 0;
         // uint64_t iteration_tot_time = 0;
@@ -153,7 +154,7 @@ int main(int argc, char* argv[]) {
         std::cerr<<"fp file closed!\n";
 
         /* if (logs) {
-            std::ofstream jumps_file(static_cast<std::string>(argv[3]) + ".jumps");
+            std::ofstream jumps_file(static_cast<std::string>(argv[3]) + "." + index_type + ".jumps");
             for (auto& jump : mv_.jumps) {
                 jumps_file <<jump.first << "\t" << jump.second << "\n";
             }
@@ -224,7 +225,8 @@ int main(int argc, char* argv[]) {
             mv_.reconstruct_move();
 
         if (logs) {
-            std::ofstream ff_counts_file(static_cast<std::string>(argv[3]) + ".ff_counts");
+        std::string index_type = mv_.index_type();
+            std::ofstream ff_counts_file(static_cast<std::string>(argv[3]) + "." + index_type + ".ff_counts");
             for (auto& ff_count : mv_.ff_counts) {
                 ff_counts_file <<ff_count.first << "\t" << ff_count.second << "\n";
             }
