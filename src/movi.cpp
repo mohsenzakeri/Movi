@@ -225,8 +225,8 @@ int main(int argc, char* argv[]) {
             mv_.reconstruct_move();
 
         if (logs) {
-        std::string index_type = mv_.index_type();
-            std::ofstream ff_counts_file(static_cast<std::string>(argv[3]) + "." + index_type + ".ff_counts");
+            std::string index_type = mv_.index_type();
+            std::ofstream ff_counts_file(static_cast<std::string>(argv[3]) + "." + index_type + ".fastforwards");
             for (auto& ff_count : mv_.ff_counts) {
                 ff_counts_file <<ff_count.first << "\t" << ff_count.second << "\n";
             }
