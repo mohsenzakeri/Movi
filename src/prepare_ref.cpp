@@ -53,6 +53,7 @@ int main(int argc, char* argv[]) {
         std::ifstream list_file(static_cast<std::string>(argv[2]));
         std::string fasta_file = "";
         while (std::getline(list_file, fasta_file)) {
+            std::cerr << fasta_file << "\n";
             fasta_file = static_cast<std::string>(argv[1]) + fasta_file;
             read_fasta(fasta_file.data(), clean_fasta);
         }
