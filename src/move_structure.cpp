@@ -471,6 +471,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::cerr<<"building.. \n";
     // Reading the BWT from the file
     bwt_string = "";
+    bwt_string.resize(static_cast<uint64_t>(end_pos) + 1);
     uint64_t all_chars_count = 256;
     alphamap.resize(all_chars_count);
     std::fill(alphamap.begin(), alphamap.end(), alphamap.size());
@@ -493,18 +494,25 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         bits[0] = 1;
     }
 
+
+
     std::cerr<<"bit vector is built!\n";
+    uint64_t bwt_curr_length = 0;
     while (current_char != EOF) { // && current_char != 10
-        if (r % 10000 == 0)
-            std::cerr<< r << "\r";
-        if (bwt_string.length() > 0 && current_char != bwt_string.back()) {
+        uint64_t current_char_ = static_cast<uint64_t>(current_char);
+        if (current_char != 'A' and current_char != 'C' and current_char != 'G' and current_char != 'T')
+            std::cerr << "\ncurrent_char:" << current_char << "---" << static_cast<uint64_t>(current_char) << "---\n";
+        if (original_r % 100000 == 0)
+            std::cerr<< bwt_curr_length << " \t" << original_r << "\r";
+        if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
             original_r += 1;
-            if (!splitting) bits[bwt_string.length()] = 1;
+            if (!splitting) bits[bwt_curr_length] = 1;
         }
-        if (splitting && bwt_string.length() > 0 && bits[bwt_string.length()]) {
+        if (splitting && bwt_curr_length > 0 && bits[bwt_curr_length]) {
             r += 1;
         }
-        bwt_string += current_char;
+        bwt_string[bwt_curr_length] = current_char;
+        bwt_curr_length++;
         all_chars[current_char] += 1;
 
         current_char = bwt_file.get();
@@ -514,7 +522,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
     std::cerr<< "r: " << r << "\n";
     std::cerr<< "original_r: " << original_r << "\n";
-    length = bwt_string.length();
+    length = bwt_curr_length + 1; // bwt_string.length();
     std::cerr<<"length: " << length << "\n";
     rlbwt.resize(r);
     /*if (!onebit)
