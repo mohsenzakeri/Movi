@@ -1,8 +1,10 @@
 # movi
 
-movi is a full text index for indexing large pangenomes. It is designed based on move data structure.
+movi is a full text index for indexing large pangenomes. It is designed based on move data structure. Move structure is a data structure based on the Burrows Wheeler Transform (BWT) by Nishimoto and Tabei.
 
-**Build from Source**
+>Nishimoto, Takaaki, and Yasuo Tabei. "Optimal-time queries on BWT-runs compressed indexes." arXiv preprint arXiv:2006.05104 (2020).
+
+## Install movi and its dependencies from source
 
 To build from source:
 ```
@@ -27,7 +29,7 @@ movi=<PATH TO MOVI BINARY>
 prepare_ref=<PATH TO PREPARE_REF BINARY>
 ```
 
-**Build the movi index**
+## Build the movi index
 
 After including the correct paths in the script, you may run the script as following to build the default movi index:
 ```
@@ -38,7 +40,7 @@ bash preprocess_ref.sh reg <fasta list file> <index directory>
 `<index directory>` is the directory where you want the movi index to be located.
 
 
-**Compute Pseudo Matching Lengths (PML) using movi**
+## Compute Pseudo Matching Lengths (PML) using movi
 
 To compute PMLs using movi, please run the following command on the fastq or fasta file of the reads:
 ```
