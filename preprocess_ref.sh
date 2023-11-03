@@ -1,9 +1,9 @@
-pfp="~/pfp-thresholds/build/pfp_thresholds"
-bconstructor="~/r-permute/build/test/src/build_constructor"
-rconstructor="~/r-permute/build/test/src/run_constructor"
-prepare_ref="~/marlin/build/prepare_ref"
-movi="~/marlin/build/movi"
-t="/usr/bin/time -v -o"
+pfp=<pfp_thresholds binary>
+bconstructor=<build_constructor binary>
+rconstructor=<run_constructor binary>
+prepare_ref="build/prepare_ref"
+movi="build/movi"
+t="/usr/bin/time -o "
 
 fasta_list="$2"
 index_dir="$3"
