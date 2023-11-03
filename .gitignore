@@ -32,5 +32,6 @@
 *.app
 
 # Build files
-build/*
+build*/*
+debug*/*
 .vscode/

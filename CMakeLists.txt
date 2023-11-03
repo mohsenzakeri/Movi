@@ -35,9 +35,9 @@ if(NOT sdsl_POPULATED)
   add_subdirectory(${sdsl_SOURCE_DIR} ${sdsl_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-SET(COMPILE_FLAGS "-O2")
+# SET(COMPILE_FLAGS "-O2 -DMODE=0")
 # debug:
-# SET(COMPILE_FLAGS "-g")
+SET(COMPILE_FLAGS "-g -O2 -DMODE=0")
 
 SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
 
@@ -51,3 +51,6 @@ SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
 
 add_executable(movi src/movi.cpp)
 target_link_libraries(movi move move_row sdsl ZLIB::ZLIB)
+
+add_executable(prepare_ref src/prepare_ref.cpp)
+target_link_libraries(prepare_ref ZLIB::ZLIB)
