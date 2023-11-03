@@ -16,7 +16,8 @@ cmake ..
 make
 ```
 
-Building the movi index on a fasta file requires preprocessing the fasta using the [pfp_thresholds](https://github.com/maxrossi91/pfp-thresholds) software. Please download and install [pfp_thresholds](https://github.com/maxrossi91/pfp-thresholds) before proceeding to the next step.
+Building the movi index on a fasta file requires preprocessing the fasta using the [pfp_thresholds](https://github.com/maxrossi91/pfp-thresholds) software. 
+Please download and install [pfp_thresholds](https://github.com/maxrossi91/pfp-thresholds) before proceeding to the next step.
 
 After the installation, please edit the `preprocess_ref.sh` script in the main directory of movi to include the path to the `pfp_thresholds` binary in the first line:
 ```
@@ -39,6 +40,16 @@ bash preprocess_ref.sh reg <fasta list file> <index directory>
 
 `<index directory>` is the directory where you want the movi index to be located.
 
+For building the movi index using the splitting algorithm for limitted fast forwards, please download and install the [r-permute](https://github.com/drnatebrown/r-permute) software. 
+Then please include the paths to the `build_constructor` and `run_constructor` binaries in the `preprocess_ref.sh` script:
+```
+bconstructor=<PATH TO BUILD_CONSTRUCTOR BINARY>
+rconstructor=<PATH TO RUN_CONSTRUCTOR BINARY>
+```
+Then, run the following command to build the movi-constant index:
+```
+bash preprocess_ref.sh split <fasta list file> <index directory>
+```
 
 ## Compute Pseudo Matching Lengths (PML) using movi
 
