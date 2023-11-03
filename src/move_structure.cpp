@@ -938,8 +938,10 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
         std::cerr << "and on BWT, idx(r-1): " << idx << " offset: " << offset << "\n";
     }
 
+    uint64_t iteration_count = 0;
     while (pos_on_r > -1) {
-        if (logs) {
+	iteration_count += 1;
+        if (logs and (iteration_count-1)%200 == 0) {
             t1 = std::chrono::high_resolution_clock::now();
         }
 
@@ -1020,9 +1022,11 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
         ff_count = LF_move(offset, idx);
         ff_count_tot += ff_count;
         if (logs) {
-            auto t2 = std::chrono::high_resolution_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
-            mq.add_cost(elapsed);
+            if (iteration_count % 200 == 0) {
+                auto t2 = std::chrono::high_resolution_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
+                mq.add_cost(elapsed);
+            }
             mq.add_fastforward(ff_count);
             mq.add_scan(scan_count);
         }
