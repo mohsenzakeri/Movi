@@ -27,7 +27,7 @@ After the installation, please edit the `preprocess_ref.sh` script in the main d
 pfp=<PATH TO PFP_THRESHOLDS BINARY>
 ```
 
-Please also make sure the paths to the `movi` and `prepare_ref` binaries (built in the `build` directory after the installation) is also correct according to where the binaries are located on your system:
+Please also make sure the paths to the `movi` and `prepare_ref` binaries (built in the `build` directory after the installation) are also correct according to where the binaries are located on your system:
 ```
 movi=<PATH TO MOVI BINARY>
 prepare_ref=<PATH TO PREPARE_REF BINARY>
