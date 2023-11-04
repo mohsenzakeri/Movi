@@ -6,6 +6,9 @@ Movi is a full text index for indexing large pangenomes. It is designed based on
 
 ## Install movi and its dependencies from source
 
+
+Required dependences: `sdsl`, `zlib`, `cmake`, and `gcc`
+
 To build from source:
 ```
 git clone https://github.com/mohsenzakeri/movi
