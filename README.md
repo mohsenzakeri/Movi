@@ -1,4 +1,4 @@
-# movi
+# Movi
 
 movi is a full text index for indexing large pangenomes. It is designed based on move data structure. Move structure is a data structure based on the Burrows Wheeler Transform (BWT) by Nishimoto and Tabei.
 
