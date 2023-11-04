@@ -5,9 +5,6 @@ cmake_minimum_required(VERSION 3.0)
 project(movi)
 
 include_directories("include")
-link_directories("/home/mzakeri1/lib/")
-
-include_directories("/home/mzakeri1/include/")
 
 find_package(ZLIB)
 
