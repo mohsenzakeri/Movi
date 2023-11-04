@@ -98,7 +98,7 @@ MoveStructure::MoveStructure(char* input_file_, bool onebit_, bool verbose_, boo
 
 std::string MoveStructure::index_type() {
     if (!onebit and !constant and splitting == 0) {
-        return "approximate";
+        return "default";
     } else if (constant and splitting != 0 and !onebit) {
         return "constant";
     }else if (splitting != 0 and !onebit) {
