@@ -1,8 +1,8 @@
-pfp=<pfp_thresholds binary>
-bconstructor=<build_constructor binary>
-rconstructor=<run_constructor binary>
-prepare_ref="build/prepare_ref"
-movi="build/movi"
+pfp="<PATH TO pfp_thresholds BINARY>"
+bconstructor="<PATH TO build_constructor BINARY>"
+rconstructor="<PATH TO run_constructor BINARY>"
+prepare_ref="./prepare_ref"
+movi="./movi"
 t="/usr/bin/time -o "
 
 fasta_list="$2"
@@ -34,4 +34,8 @@ if [ "$1" == "reg" ]; then
     cmd="$t $index_dir/build.movi.time $movi build reg $clean_fasta $index_dir"
     echo $cmd
     eval $cmd
+
+    echo "Removing extra files.."
+    rm $index_dir/ref.*
+    echo "done"
 fi

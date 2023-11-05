@@ -14,8 +14,8 @@ void read_fasta(const char* file_name,std::ofstream& clean_fasta) {
     fp = gzopen(file_name, "r"); // STEP 2: open the file handler
     seq = kseq_init(fp); // STEP 3: initialize seq
     uint64_t line = 0;
+
     while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
-        std::cerr << line << "\r";
         line += 1;
         std::string seq_rc = "";
         seq_rc.resize(seq->seq.l);
@@ -41,20 +41,20 @@ void read_fasta(const char* file_name,std::ofstream& clean_fasta) {
         clean_fasta << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
         clean_fasta << '>' << seq->name.s << "_rev_comp" << '\n' << seq_rc << '\n';
     }
+
     kseq_destroy(seq);
     gzclose(fp);
 }
 
 int main(int argc, char* argv[]) {
     // Fasta/q reader from http://lh3lh3.users.sourceforge.net/parsefastq.shtml
-    bool input_type = (argc > 4 and std::string(argv[4]) == "list");
-    std::ofstream clean_fasta(static_cast<std::string>(argv[3]));
+    bool input_type = (argc > 3 and std::string(argv[3]) == "list");
+    std::ofstream clean_fasta(static_cast<std::string>(argv[2]));
     if (input_type) {
-        std::ifstream list_file(static_cast<std::string>(argv[2]));
+        std::ifstream list_file(static_cast<std::string>(argv[1]));
         std::string fasta_file = "";
         while (std::getline(list_file, fasta_file)) {
             std::cerr << fasta_file << "\n";
-            fasta_file = static_cast<std::string>(argv[1]) + fasta_file;
             read_fasta(fasta_file.data(), clean_fasta);
         }
     } else {
