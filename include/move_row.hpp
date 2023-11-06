@@ -5,9 +5,9 @@
 #include <vector>
 #include <bitset>
 
-#ifndef MODE
-#define MODE 0 // 0: regular, 1: constant, 2: one-bit
-#endif
+// #ifndef MODE
+// #define MODE -1// 0: regular, 1: constant, 2: one-bit
+// #endif
 
 // const uint32_t mask_p = ~((1U << 8) - 1);
 // const uint32_t mask_pp = ~(((1U << 8) - 1) << 8);
@@ -185,6 +185,7 @@ inline bool MoveRow::is_overflow_thresholds() const{
     uint32_t a = (overflow_bits & (~mask_overflow_thresholds)) >> 12;
     bool b = static_cast<bool>(a);
     return !b;
+
 }
 
 #endif

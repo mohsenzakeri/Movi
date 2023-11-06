@@ -394,7 +394,7 @@ uint16_t MoveStructure::get_rlbwt_thresholds(uint64_t idx, uint16_t i) {
 #if MODE == 2
     return rlbwt[idx].get_threshold();
 #endif
-    std::cerr << "Undefined behavior! MODE is: " << MODE << "\n";
+    std::cerr << "Undefined behavior!\n";
     exit(0);
 }
 

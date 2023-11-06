@@ -9,7 +9,7 @@ include_directories("include")
 find_package(ZLIB)
 
 set(move_lib_srcs src/move_structure.cpp)
-add_library(move STATIC ${move_lib_srcs})
+add_library(move_structure STATIC ${move_lib_srcs})
 
 set(move_row_lib_srcs src/move_row.cpp)
 add_library(move_row STATIC ${move_row_lib_srcs})
@@ -28,15 +28,15 @@ if(NOT sdsl_POPULATED)
   FetchContent_Populate(sdsl)
 
   set(GENERATE_DOC OFF CACHE BOOL "Do not generate doxygen for sdsl-lite")
-  
+
   add_subdirectory(${sdsl_SOURCE_DIR} ${sdsl_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-SET(COMPILE_FLAGS "-O2 -DMODE=0")
+## SET(COMPILE_FLAGS "-O2 -DMODE=0")
 # debug:
 # SET(COMPILE_FLAGS "-g -O2 -DMODE=0")
 
-SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
+## SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
 
 # compile with address sanitizer
 # add_compile_options(-fsanitize=address)
@@ -46,8 +46,18 @@ SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
 # add_compile_options(-fsanitize-recover=unsigned-integer-overflow)
 # add_link_options(-fsanitize-recover=unsigned-integer-overflow)
 
-add_executable(movi src/movi.cpp)
-target_link_libraries(movi move move_row sdsl ZLIB::ZLIB)
+add_executable(movi src/movi.cpp src/move_structure.cpp)
+target_link_libraries(movi move_structure move_row sdsl ZLIB::ZLIB)
+target_compile_options(movi PUBLIC -O2 -DMODE=0)
+
+add_executable(movi-default src/movi.cpp src/move_structure.cpp)
+target_link_libraries(movi-default move_structure move_row sdsl ZLIB::ZLIB)
+target_compile_options(movi-default PUBLIC -O2 -DMODE=0)
+
+add_executable(movi-constant src/movi.cpp src/move_structure.cpp)
+target_link_libraries(movi-constant move_structure move_row sdsl ZLIB::ZLIB)
+target_compile_options(movi-constant PUBLIC -O2 -DMODE=1)
+
 
 add_executable(prepare_ref src/prepare_ref.cpp)
 target_link_libraries(prepare_ref ZLIB::ZLIB)
