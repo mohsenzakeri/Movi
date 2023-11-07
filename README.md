@@ -86,3 +86,8 @@ Since this file is in the binary format, to view the PMLs please run the followi
 movi view <mpml file> | less
 ```
 `<mpml file>` is the file generated in the query step.
+
+
+### You can read more about Movi here:
+> [https://www.biorxiv.org/content/10.1101/2023.11.04.565615v1](https://www.biorxiv.org/content/10.1101/2023.11.04.565615v1)
+
