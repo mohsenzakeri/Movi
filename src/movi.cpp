@@ -18,7 +18,7 @@ KSEQ_INIT(gzFile, gzread)
 
 int main(int argc, char* argv[]) {
     std::ios_base::sync_with_stdio(false);
-    std::string command = argv[1];
+    std::string command = (argc >= 2) ? argv[1] : "";
     if (command == "build") {
         std::cerr<<"The move structure is being built.\n";
 
@@ -232,5 +232,11 @@ int main(int argc, char* argv[]) {
             }
             ff_counts_file.close();
         }
+    } else {
+        std::cerr << "clean fasta files:\t\t./prepare_ref <fasta list file> <output fasta> list\n\n";
+	std::cerr << ">>>>>> You can run the following if the .thr_pos and .bwt files are provided for <output fasta>.\n";
+	std::cerr << "build default index:\t\t./movi-default build default <output fasta> <index dir>\n\n";
+	std::cerr << "query (compute PMLs):\t\t./movi-default query <index dir> <reads file>\n";
+	std::cerr << "view the mpml.bin file:\t\t./movi-default view <mpml.bin file> | less\n";
     }
 }
