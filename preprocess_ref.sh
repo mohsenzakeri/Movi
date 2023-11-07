@@ -1,8 +1,12 @@
-pfp="~/pfp-thresholds/build/pfp_thresholds"
-bconstructor="~/r-permute/build/test/src/build_constructor"
-rconstructor="~/r-permute/build/test/src/run_constructor"
-prepare_ref="~/marlin/build_multiple_binaries/prepare_ref"
-movi="~/marlin/build_multiple_binaries/movi"
+pfp="<PATH TO PFP_THRESHOLDS BINARY>"
+
+prepare_ref="<PATH TO PREPARE_REF BINARY>"
+movi_default="<PATH TO MOVI-DEFAULT BINARY>"
+movi_constant="<PATH TO MOVI-CONSTANT BINARY>"
+
+bconstructor="<PATH TO BUILD_CONSTRUCTOR BINARY>"
+rconstructor="<PATH TO RUN_CONSTRUCTOR BINARY>"
+
 t="/usr/bin/time -o "
 
 fasta_list="$2"
@@ -59,7 +63,7 @@ fi
 
 
 if [ "$1" == "constant" ]; then
-  cmd="$t $index_dir/build_rlbwt.time $movi-constant rlbwt $clean_fasta"
+  cmd="$t $index_dir/build_rlbwt.time $movi_constant rlbwt $clean_fasta"
   echo $cmd
   eval $cmd
   cmd="$t $index_dir/build_constructor.time $bconstructor $clean_fasta"
@@ -68,7 +72,7 @@ if [ "$1" == "constant" ]; then
   cmd="$t $index_dir/run_constructor.time $rconstructor $clean_fasta -d 5"
   echo $cmd
   eval $cmd
-  cmd="$t $index_dir/build.movi.time $movi-constant build constant $clean_fasta $index_dir/constant_index"
+  cmd="$t $index_dir/build.movi.time $movi_constant build constant $clean_fasta $index_dir/constant_index"
   echo $cmd
   eval $cmd
 
@@ -80,7 +84,7 @@ fi
 
 
 if [ "$1" == "default" ]; then
-  cmd="$t $index_dir/build.movi.time $movi-default build default $clean_fasta $index_dir"
+  cmd="$t $index_dir/build.movi.time $movi_default build default $clean_fasta $index_dir"
   echo $cmd
   eval $cmd
 
