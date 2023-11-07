@@ -500,8 +500,8 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     uint64_t bwt_curr_length = 0;
     while (current_char != EOF) { // && current_char != 10
         uint64_t current_char_ = static_cast<uint64_t>(current_char);
-        if (current_char != 'A' and current_char != 'C' and current_char != 'G' and current_char != 'T')
-            std::cerr << "\ncurrent_char:" << current_char << "---" << static_cast<uint64_t>(current_char) << "---\n";
+        // if (current_char != 'A' and current_char != 'C' and current_char != 'G' and current_char != 'T')
+        //    std::cerr << "\ncurrent_char:" << current_char << "---" << static_cast<uint64_t>(current_char) << "---\n";
         if (original_r % 100000 == 0)
             std::cerr<< bwt_curr_length << " \t" << original_r << "\r";
         if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
@@ -520,7 +520,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
     if (!splitting) r = original_r;
 
-    std::cerr<< "r: " << r << "\n";
+    std::cerr<< "\nr: " << r << "\n";
     std::cerr<< "original_r: " << original_r << "\n";
     length = bwt_curr_length + 1; // bwt_string.length();
     std::cerr<<"length: " << length << "\n";
@@ -878,8 +878,8 @@ uint64_t MoveStructure::jump_up(uint64_t idx, char c, uint64_t& scan_count) {
         idx -= 1;
         row_c = alphabet[rlbwt[idx].get_c_jj()];
         if (idx == 0) {
-            std::cerr << "idx: " << idx << "\n";
-            std::cerr << "row_c: " << row_c << " c: " << c << "\n"; 
+            // std::cerr << "idx: " << idx << "\n";
+            // std::cerr << "row_c: " << row_c << " c: " << c << "\n";
             break;
         }
     }

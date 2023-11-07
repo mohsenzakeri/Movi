@@ -46,10 +46,6 @@ endif()
 # add_compile_options(-fsanitize-recover=unsigned-integer-overflow)
 # add_link_options(-fsanitize-recover=unsigned-integer-overflow)
 
-add_executable(movi src/movi.cpp src/move_structure.cpp)
-target_link_libraries(movi move_structure move_row sdsl ZLIB::ZLIB)
-target_compile_options(movi PUBLIC -O2 -DMODE=0)
-
 add_executable(movi-default src/movi.cpp src/move_structure.cpp)
 target_link_libraries(movi-default move_structure move_row sdsl ZLIB::ZLIB)
 target_compile_options(movi-default PUBLIC -O2 -DMODE=0)
