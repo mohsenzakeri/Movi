@@ -803,13 +803,13 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     }
     std::cerr<< length << "\n";
     uint64_t last_char = 0;
-    /*last_runs.push_back(0);
+    last_runs.push_back(0);
     for (uint64_t i = 0; i < counts.size(); i++) {
         last_char += counts[i];
         auto& occ_rank = *occs_rank[i];
         last_runs.push_back(static_cast<uint64_t>(occ_rank(last_char)));
         std::cerr << alphabet[i] << "\t" << alphabet[rlbwt[last_runs.back()].get_c()] << "\n";
-    }*/
+    }
 #if MODE == 1
     if (constant) {
         std::cerr<<"Computing the next ups and downs.\n";
@@ -1328,13 +1328,13 @@ void MoveStructure::serialize(char* output_dir) {
 
     fout.write(reinterpret_cast<char*>(&eof_row), sizeof(eof_row));
 
-    /*uint64_t counts_size = counts.size();
+    uint64_t counts_size = counts.size();
     fout.write(reinterpret_cast<char*>(&counts_size), sizeof(counts_size));
     fout.write(reinterpret_cast<char*>(&counts[0]), counts.size()*sizeof(counts[0]));
 
     uint64_t last_runs_size = last_runs.size();
     fout.write(reinterpret_cast<char*>(&last_runs_size), sizeof(last_runs_size));
-    fout.write(reinterpret_cast<char*>(&last_runs[0]), last_runs.size()*sizeof(last_runs[0]));*/
+    fout.write(reinterpret_cast<char*>(&last_runs[0]), last_runs.size()*sizeof(last_runs[0]));
 
     fout.close();
 }

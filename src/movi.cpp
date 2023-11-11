@@ -44,13 +44,13 @@ int main(int argc, char* argv[]) {
 
         mv_.serialize(argv[4]);
         std::cerr<<"The move structure is successfully stored at " << argv[4] << "\n";
-        /*if (logs) {
+        if (logs) {
             std::ofstream rl_file(static_cast<std::string>(argv[4]) + "/run_lengths");
             for (auto& run_length : mv_.run_lengths) {
                 rl_file <<run_length.first << "\t" << run_length.second << "\n";
             }
             rl_file.close();
-        }*/
+        }
     } else if (command == "query" or command == "query-onebit") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         bool logs = (argc > 4 and std::string(argv[4]) == "logs");
