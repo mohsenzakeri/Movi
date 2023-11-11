@@ -34,6 +34,7 @@ class MoveStructure {
         void build(std::ifstream &bwt_file);
         void build_rlbwt(char* input_file);
         uint64_t query_pml(MoveQuery& mq, bool random);
+        uint64_t backward_search(MoveQuery& mq);
 
         void all_lf_test();
         void random_lf_test();
@@ -116,6 +117,6 @@ class MoveStructure {
         std::vector<uint64_t> offset_overflow;
         std::vector<std::vector<uint64_t> > thresholds_overflow;
 
-
+        std::vector<uint64_t> last_runs;
 };
 #endif

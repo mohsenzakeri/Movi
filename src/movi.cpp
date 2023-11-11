@@ -44,13 +44,13 @@ int main(int argc, char* argv[]) {
 
         mv_.serialize(argv[4]);
         std::cerr<<"The move structure is successfully stored at " << argv[4] << "\n";
-        if (logs) {
+        /*if (logs) {
             std::ofstream rl_file(static_cast<std::string>(argv[4]) + "/run_lengths");
             for (auto& run_length : mv_.run_lengths) {
                 rl_file <<run_length.first << "\t" << run_length.second << "\n";
             }
             rl_file.close();
-        }
+        }*/
     } else if (command == "query" or command == "query-onebit") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         bool logs = (argc > 4 and std::string(argv[4]) == "logs");
@@ -102,7 +102,9 @@ int main(int argc, char* argv[]) {
             MoveQuery mq(query_seq);
             bool random_jump = false;
             // std::cerr << seq->name.s << "\n";
-            all_ff_count += mv_.query_pml(mq, random_jump);
+            ////all_ff_count += mv_.query_pml(mq, random_jump);
+            mv_.backward_search(mq);
+            continue;
             // auto t2 = std::chrono::high_resolution_clock::now();
             // query_pml_tot_time += static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count());
 

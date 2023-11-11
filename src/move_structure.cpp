@@ -802,6 +802,14 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         set_rlbwt_thresholds(0, j, 0);
     }
     std::cerr<< length << "\n";
+    uint64_t last_char = 0;
+    /*last_runs.push_back(0);
+    for (uint64_t i = 0; i < counts.size(); i++) {
+        last_char += counts[i];
+        auto& occ_rank = *occs_rank[i];
+        last_runs.push_back(static_cast<uint64_t>(occ_rank(last_char)));
+        std::cerr << alphabet[i] << "\t" << alphabet[rlbwt[last_runs.back()].get_c()] << "\n";
+    }*/
 #if MODE == 1
     if (constant) {
         std::cerr<<"Computing the next ups and downs.\n";
@@ -913,6 +921,38 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c, uint64_t& scan_count) {
     if (verbose) 
         std::cerr << "\t \t \t \t idx after the while in the jump: " << idx << " " << c << " " << row_c << "\n";
     return (row_c == c) ? idx : r;
+}
+
+uint64_t MoveStructure::backward_search(MoveQuery& mq) {
+    std::string R = mq.query();
+    int32_t pos_on_r = R.length() - 1;
+    alphamap[R[pos_on_r]];
+    uint64_t run_start = last_runs[alphamap[R[pos_on_r]]] + 1;
+    uint64_t offset_start = 0;
+    uint64_t run_end = last_runs[alphamap[R[pos_on_r]]];
+    uint64_t offset_end = rlbwt[run_end].get_n();
+    while (pos_on_r > -1) {
+        pos_on_r -= 1;
+        while (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r]) {
+            run_start += 1;
+        }
+        while (alphabet[rlbwt[run_end].get_c()] != R[pos_on_r]) {
+            run_end -= 1;
+        }
+        if (run_start <= run_end) {
+            if (pos_on_r == 0) {
+                std::cerr << "Found!\n";
+                return run_end - run_start + 1;
+            }
+            LF_move(offset_start, run_start);
+            LF_move(offset_end, run_end);
+        } else {
+            std::cerr << "Not found\n";
+            return 0;
+        }
+    }
+    std::cerr << "Should not get here!\n";
+    return 0;
 }
 
 uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
@@ -1288,6 +1328,14 @@ void MoveStructure::serialize(char* output_dir) {
 
     fout.write(reinterpret_cast<char*>(&eof_row), sizeof(eof_row));
 
+    /*uint64_t counts_size = counts.size();
+    fout.write(reinterpret_cast<char*>(&counts_size), sizeof(counts_size));
+    fout.write(reinterpret_cast<char*>(&counts[0]), counts.size()*sizeof(counts[0]));
+
+    uint64_t last_runs_size = last_runs.size();
+    fout.write(reinterpret_cast<char*>(&last_runs_size), sizeof(last_runs_size));
+    fout.write(reinterpret_cast<char*>(&last_runs[0]), last_runs.size()*sizeof(last_runs[0]));*/
+
     fout.close();
 }
 
@@ -1361,6 +1409,16 @@ void MoveStructure::deserialize(char* index_dir) {
     reconstructed = false;
 
     fin.read(reinterpret_cast<char*>(&eof_row), sizeof(eof_row));
+
+    uint64_t counts_size = 0;
+    fin.read(reinterpret_cast<char*>(&counts_size), sizeof(counts_size));
+    counts.resize(counts_size);
+    fin.read(reinterpret_cast<char*>(&counts[0]), counts_size*sizeof(uint64_t));
+
+    uint64_t last_runs_size = 0;
+    fin.read(reinterpret_cast<char*>(&last_runs_size), sizeof(last_runs_size));
+    last_runs.resize(last_runs_size);
+    fin.read(reinterpret_cast<char*>(&last_runs[0]), last_runs_size*sizeof(uint64_t));
 
     fin.close();
 }
