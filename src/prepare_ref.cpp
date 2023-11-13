@@ -58,7 +58,9 @@ int main(int argc, char* argv[]) {
             read_fasta(fasta_file.data(), clean_fasta);
         }
     } else {
-        read_fasta(argv[2], clean_fasta);
+        std::cerr << argv[1] << "\n";
+        std::cerr << argv[2] << "\n";
+        read_fasta(argv[1], clean_fasta);
     }
     clean_fasta.close();
 
