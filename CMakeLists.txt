@@ -32,11 +32,11 @@ if(NOT sdsl_POPULATED)
   add_subdirectory(${sdsl_SOURCE_DIR} ${sdsl_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-## SET(COMPILE_FLAGS "-O2 -DMODE=0")
+# SET(COMPILE_FLAGS "-O2 -DMODE=0")
 # debug:
-# SET(COMPILE_FLAGS "-g -O2 -DMODE=0")
+# SET(COMPILE_FLAGS "-g -DMODE=0")
 
-## SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
+# SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
 
 # compile with address sanitizer
 # add_compile_options(-fsanitize=address)

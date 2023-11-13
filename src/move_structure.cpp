@@ -490,6 +490,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         std::cerr<< "bits.size after loading the d_col file: " << bits.size() << "\n";
     }
     else {
+        std::cerr << "static_cast<uint64_t>(end_pos): " << static_cast<uint64_t>(end_pos) << "\n";
         bits = sdsl::bit_vector(static_cast<uint64_t>(end_pos) + 1, 0); // 5137858051
         bits[0] = 1;
     }
@@ -517,12 +518,11 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
         current_char = bwt_file.get();
     }
-
     if (!splitting) r = original_r;
 
     std::cerr<< "\nr: " << r << "\n";
     std::cerr<< "original_r: " << original_r << "\n";
-    length = bwt_curr_length + 1; // bwt_string.length();
+    length = bwt_curr_length; // bwt_string.length();
     std::cerr<<"length: " << length << "\n";
     rlbwt.resize(r);
     /*if (!onebit)
@@ -549,7 +549,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             alphamap[i] = alphabet_index;
             alphabet_index += 1;
 
-            sdsl::bit_vector* new_bit_vector = new sdsl::bit_vector(length, 0);
+            sdsl::bit_vector* new_bit_vector = new sdsl::bit_vector(length + 1, 0);
             occs.emplace_back(std::unique_ptr<sdsl::bit_vector>(new_bit_vector));
         }
     }
@@ -569,7 +569,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
     std::cerr << "All the characters are indexed.\n";
 
-    for (uint64_t i = 0; i < length - 1; i++) {
+    for (uint64_t i = 0; i < length; i++) {
         if (i % 10000 == 0)
             std::cerr<< i << "\r";
         if (static_cast<uint64_t>(bwt_string[i]) == END_CHARACTER)
@@ -606,7 +606,6 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         if (bwt_string[i] == static_cast<unsigned char>(END_CHARACTER) ) {
             end_bwt_idx = r_idx;
         }
-
         if (i == length - 1 or bwt_string[i] != bwt_string[i+1] or bits[i+1]) {
             len += 1;
             uint64_t lf  = 0;
@@ -801,15 +800,33 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     for (uint64_t j = 0; j < alphabet.size() - 1; j++) {
         set_rlbwt_thresholds(0, j, 0);
     }
-    std::cerr<< length << "\n";
-    uint64_t last_char = 0;
+    first_runs.push_back(0);
+    first_offsets.push_back(0);
     last_runs.push_back(0);
+    last_offsets.push_back(0);
+    uint64_t char_count = 1;
     for (uint64_t i = 0; i < counts.size(); i++) {
-        last_char += counts[i];
-        auto& occ_rank = *occs_rank[i];
-        last_runs.push_back(static_cast<uint64_t>(occ_rank(last_char)));
-        std::cerr << alphabet[i] << "\t" << alphabet[rlbwt[last_runs.back()].get_c()] << "\n";
+        uint64_t last_run = last_runs.back();
+        uint64_t last_offset = last_offsets.back();
+        if (last_offset + 1 >= rlbwt[last_run].get_n()) {
+            first_runs.push_back(last_run + 1);
+            first_offsets.push_back(0);
+        } else {
+            first_runs.push_back(last_run);
+            first_offsets.push_back(last_offset + 1);
+        }
+        char_count += counts[i];
+        auto occ_rank = rbits(char_count);
+        last_runs.push_back(static_cast<uint64_t>(occ_rank - 1));
+        last_offsets.push_back(char_count - all_p[last_runs.back()] - 1);
     }
+    for (uint64_t i = 0; i < first_runs.size(); i++) {
+        std::cerr << "<--- " << first_runs[i] << "\t" << first_offsets[i] << "\n";
+        std::cerr << "    -\n    -\n    -\n";
+        std::cerr << ">--- " << last_runs[i] << "\t" << last_offsets[i] << "\n";
+    }
+
+    std::cerr<< length << "\n";
 #if MODE == 1
     if (constant) {
         std::cerr<<"Computing the next ups and downs.\n";
@@ -926,28 +943,42 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c, uint64_t& scan_count) {
 uint64_t MoveStructure::backward_search(MoveQuery& mq) {
     std::string R = mq.query();
     int32_t pos_on_r = R.length() - 1;
-    alphamap[R[pos_on_r]];
-    uint64_t run_start = last_runs[alphamap[R[pos_on_r]]] + 1;
-    uint64_t offset_start = 0;
-    uint64_t run_end = last_runs[alphamap[R[pos_on_r]]];
-    uint64_t offset_end = rlbwt[run_end].get_n();
+    uint64_t run_start = first_runs[alphamap[R[pos_on_r]] + 1];
+    uint64_t offset_start = first_offsets[alphamap[R[pos_on_r]] + 1];
+    uint64_t run_end = last_runs[alphamap[R[pos_on_r]] + 1];
+    uint64_t offset_end = last_offsets[alphamap[R[pos_on_r]] + 1];
     while (pos_on_r > -1) {
+        if (run_start == end_bwt_idx or run_end == end_bwt_idx) {
+            // std::cerr << "Not found\n";
+            return 0;
+        }
         pos_on_r -= 1;
+        // std::cerr << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
+        // std::cerr << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
         while (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r]) {
+            if (run_start >= r) {
+                break;
+            }
             run_start += 1;
+            offset_start = 0;
         }
         while (alphabet[rlbwt[run_end].get_c()] != R[pos_on_r]) {
+            if (run_end == 0) {
+                break;
+            }
             run_end -= 1;
+            offset_end = rlbwt[run_end].get_n() - 1;
         }
+        // std::cerr << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
         if (run_start <= run_end) {
             if (pos_on_r == 0) {
-                std::cerr << "Found!\n";
+                // std::cerr << "Found!\n";
                 return run_end - run_start + 1;
             }
             LF_move(offset_start, run_start);
             LF_move(offset_end, run_end);
         } else {
-            std::cerr << "Not found\n";
+            // std::cerr << "Not found\n";
             return 0;
         }
     }
@@ -1335,6 +1366,9 @@ void MoveStructure::serialize(char* output_dir) {
     uint64_t last_runs_size = last_runs.size();
     fout.write(reinterpret_cast<char*>(&last_runs_size), sizeof(last_runs_size));
     fout.write(reinterpret_cast<char*>(&last_runs[0]), last_runs.size()*sizeof(last_runs[0]));
+    fout.write(reinterpret_cast<char*>(&last_offsets[0]), last_offsets.size()*sizeof(last_offsets[0]));
+    fout.write(reinterpret_cast<char*>(&first_runs[0]), first_runs.size()*sizeof(first_runs[0]));
+    fout.write(reinterpret_cast<char*>(&first_offsets[0]), first_offsets.size()*sizeof(first_offsets[0]));
 
     fout.close();
 }
@@ -1419,6 +1453,12 @@ void MoveStructure::deserialize(char* index_dir) {
     fin.read(reinterpret_cast<char*>(&last_runs_size), sizeof(last_runs_size));
     last_runs.resize(last_runs_size);
     fin.read(reinterpret_cast<char*>(&last_runs[0]), last_runs_size*sizeof(uint64_t));
+    last_offsets.resize(last_runs_size);
+    fin.read(reinterpret_cast<char*>(&last_offsets[0]), last_runs_size*sizeof(uint64_t));
+    first_runs.resize(last_runs_size);
+    fin.read(reinterpret_cast<char*>(&first_runs[0]), last_runs_size*sizeof(uint64_t));
+    first_offsets.resize(last_runs_size);
+    fin.read(reinterpret_cast<char*>(&first_offsets[0]), last_runs_size*sizeof(uint64_t));
 
     fin.close();
 }

@@ -76,6 +76,10 @@ class MoveStructure {
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
         void set_onebit();
     private:
+        std::vector<uint64_t> first_runs;
+        std::vector<uint64_t> first_offsets;
+        std::vector<uint64_t> last_runs;
+        std::vector<uint64_t> last_offsets;
         bool onebit;
         bool constant;
         uint16_t splitting;
@@ -116,7 +120,5 @@ class MoveStructure {
         std::vector<uint64_t> n_overflow;
         std::vector<uint64_t> offset_overflow;
         std::vector<std::vector<uint64_t> > thresholds_overflow;
-
-        std::vector<uint64_t> last_runs;
 };
 #endif
