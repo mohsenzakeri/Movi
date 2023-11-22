@@ -953,8 +953,8 @@ uint64_t MoveStructure::backward_search(MoveQuery& mq) {
             return 0;
         }
         pos_on_r -= 1;
-        // std::cerr << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
-        // std::cerr << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
+        std::cerr << ">>> " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
+        std::cerr << ">>> " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
         while (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r]) {
             if (run_start >= r) {
                 break;
@@ -969,11 +969,18 @@ uint64_t MoveStructure::backward_search(MoveQuery& mq) {
             run_end -= 1;
             offset_end = rlbwt[run_end].get_n() - 1;
         }
-        // std::cerr << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
-        if (run_start <= run_end) {
+        std::cerr << "<<< " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
+        std::cerr << "<<< " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
+        if ((run_start < run_end) or (run_start == run_end and offset_start <= offset_end)) {
             if (pos_on_r == 0) {
-                // std::cerr << "Found!\n";
-                return run_end - run_start + 1;
+                uint64_t match_count = 0;
+                if (run_start == run_end) {
+                    match_count = offset_end - offset_start + 1;
+                } else {
+                    std::cerr << rlbwt[run_start].get_n() << "\t" << offset_start << "\t" << offset_end << "\n";
+                    match_count = (rlbwt[run_start].get_n() - offset_start) + (offset_end + 1);
+                }
+                return match_count;
             }
             LF_move(offset_start, run_start);
             LF_move(offset_end, run_end);
