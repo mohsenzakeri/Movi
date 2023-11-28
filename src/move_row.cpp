@@ -62,6 +62,15 @@ void MoveRow::set_overflow_thresholds() {
     overflow_bits = overflow_bits | (1 >> 12);
 }
 
+void MoveRow::set_overflow_repositioning_up() {
+    overflow_bits = overflow_bits & mask_overflow_repositioning_up;
+    overflow_bits = overflow_bits | (1 >> 13);
+}
+
+void MoveRow::set_overflow_repositioning_down() {
+    overflow_bits = overflow_bits & mask_overflow_repositioning_down;
+    overflow_bits = overflow_bits | (1 >> 14);
+}
 
 /* void MoveRow::set_pp(uint64_t pp_) {
     pp = pp_;

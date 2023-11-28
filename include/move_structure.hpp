@@ -48,8 +48,10 @@ class MoveStructure {
 
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
         uint32_t compute_index(char row_char, char lookup_char);
-        void compute_nexts();
-
+        void compute_nexts(char* index_dir = NULL);
+#if MODE == 2
+        void test_bitvector_nexts(char* index_dir);
+#endif
         // uint64_t naive_lcp(uint64_t row1, uint64_t row2);
         // uint64_t naive_sa(uint64_t bwt_row);
         // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
@@ -116,6 +118,13 @@ class MoveStructure {
         std::vector<uint64_t> offset_overflow;
         std::vector<std::vector<uint64_t> > thresholds_overflow;
 
-
+#if MODE == 2
+        std::vector<uint64_t> repositioning_overflow_up;
+        std::vector<uint64_t> repositioning_overflow_down;
+        sdsl::bit_vector repositioning_overflow_up_bitvector;
+        sdsl::bit_vector repositioning_overflow_down_bitvector;
+        sdsl::rank_support_v<> repositioning_overflow_up_rbits;
+        sdsl::rank_support_v<> repositioning_overflow_down_rbits;
+#endif
 };
 #endif

@@ -19,6 +19,8 @@ const uint16_t mask_c = static_cast<uint16_t>(~(((1U << 2) - 1) << 8));
 const uint16_t mask_overflow_n = static_cast<uint16_t>(~(((1U << 1) - 1) << 10));
 const uint16_t mask_overflow_offset = static_cast<uint16_t>(~(((1U << 1) - 1) << 11));
 const uint16_t mask_overflow_thresholds = static_cast<uint16_t>(~(((1U << 1) - 1) << 12));
+const uint16_t mask_overflow_repositioning_up = static_cast<uint16_t>(~(((1U << 1) - 1) << 13));
+const uint16_t mask_overflow_repositioning_down = static_cast<uint16_t>(~(((1U << 1) - 1) << 14));
 
 class MoveRow{
     public:
@@ -48,10 +50,14 @@ class MoveRow{
         void set_overflow_n();
         void set_overflow_offset();
         void set_overflow_thresholds();
+        void set_overflow_repositioning_up();
+        void set_overflow_repositioning_down();
         bool is_overflow_n() const;
         bool is_overflow_n_ff() const;
         bool is_overflow_offset() const;
         bool is_overflow_thresholds() const;
+        bool is_overflow_repositioning_up() const;
+        bool is_overflow_repositioning_down() const;
 
 #if MODE == 0 or MODE == 1
         uint16_t get_thresholds(uint32_t i) { return thresholds[i]; }
@@ -183,6 +189,18 @@ inline bool MoveRow::is_overflow_offset() const{
 
 inline bool MoveRow::is_overflow_thresholds() const{
     uint32_t a = (overflow_bits & (~mask_overflow_thresholds)) >> 12;
+    bool b = static_cast<bool>(a);
+    return !b;
+}
+
+inline bool MoveRow::is_overflow_repositioning_up() const{
+    uint32_t a = (overflow_bits & (~mask_overflow_repositioning_up)) >> 13;
+    bool b = static_cast<bool>(a);
+    return !b;
+}
+
+inline bool MoveRow::is_overflow_repositioning_down() const{
+    uint32_t a = (overflow_bits & (~mask_overflow_repositioning_down)) >> 14;
     bool b = static_cast<bool>(a);
     return !b;
 }

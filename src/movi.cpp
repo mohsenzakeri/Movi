@@ -42,6 +42,9 @@ int main(int argc, char* argv[]) {
         // std::cerr<<"The original string is reconstructed.\n";
         // std::cerr<<"The original string is:\n" << mv_.R() << "\n";
 
+#if MODE == 2
+        mv_.compute_nexts(argv[4]);
+#endif
         mv_.serialize(argv[4]);
         std::cerr<<"The move structure is successfully stored at " << argv[4] << "\n";
         if (logs) {
@@ -51,6 +54,13 @@ int main(int argc, char* argv[]) {
             }
             rl_file.close();
         }
+    } else if (command == "test-onebit") {
+#if MODE == 2
+        MoveStructure mv_(false, false);
+        mv_.set_onebit();
+        mv_.deserialize(argv[2]);
+        mv_.test_bitvector_nexts(argv[2]);
+#endif
     } else if (command == "query" or command == "query-onebit") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         bool logs = (argc > 4 and std::string(argv[4]) == "logs");
@@ -88,7 +98,11 @@ int main(int argc, char* argv[]) {
         uint64_t all_ff_count = 0;
         // uint64_t query_pml_tot_time = 0;
         // uint64_t iteration_tot_time = 0;
+        uint64_t processed_reads = 0;
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
+            if (processed_reads % 1000 == 0)
+                std::cerr << " processed reads: " << processed_reads << "\r";
+            processed_reads += 1;
             /*printf("name: %s\n", seq->name.s);
             if (seq->comment.l) printf("comment: %s\n", seq->comment.s);
             printf("seq: %s\n", seq->seq.s);
@@ -137,7 +151,9 @@ int main(int argc, char* argv[]) {
                 fastforwards_file << "\n";
             }
         }
+        std::cerr<<processed_reads << "\n";
         std::cerr<<"all fast forward counts: " << all_ff_count << "\n";
+        std::cerr<< "processed reads: " << processed_reads << "\n";
         // std::cerr << "query_pml_tot_time: " << query_pml_tot_time << "\n";
         // std::cerr << "iteration_tot_time: " << iteration_tot_time << "\n";
         if (logs) {

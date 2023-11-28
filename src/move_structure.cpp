@@ -41,6 +41,7 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
 MoveStructure::MoveStructure(bool verbose_, bool logs_) {
     verbose = verbose_;
     logs = logs_;
+    onebit = false;
 }
 
 MoveStructure::MoveStructure(bool onebit_, bool verbose_, bool logs_, uint16_t splitting_, bool constant_) {
@@ -94,7 +95,6 @@ MoveStructure::MoveStructure(char* input_file_, bool onebit_, bool verbose_, boo
     }
     return row_c;
 }*/
-
 
 std::string MoveStructure::index_type() {
     if (!onebit and !constant and splitting == 0) {
@@ -809,13 +809,86 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::cerr<< "The move structure building is done.\n";
 }
 
-uint64_t scan_count;
-#if MODE == 1
-void MoveStructure::compute_nexts() {
-    for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
+#if MODE == 2
+void MoveStructure::test_bitvector_nexts(char* index_dir) {
+    uint64_t scan_count = 0;
+    uint64_t tot_scans = 0;
+    for (uint64_t i = 0; i < rlbwt.size(); i++) {
         if (i % 100000 == 0)
             std::cerr<< i << "\r";
+        char rlbwt_c = alphabet[rlbwt[i].get_c()];
+        for (uint64_t j = 0; j < alphabet.size(); j++) {
+            if (alphabet[j] != rlbwt_c) {
+                auto alphabet_idx = alphamap_3[alphamap[rlbwt_c]][j];
 
+                auto idx = jump_up(i, alphabet[j], scan_count);
+                if (idx != r) {
+                    if (i - idx > std::numeric_limits<uint16_t>::max())
+                        std::cerr << "Warning - jump up " << i - idx << " does not fit in 16 bits.\n";
+                    if (i -idx >= 10) {
+                        // repositioning_overflow_up[i] = i - idx;
+                        if (repositioning_overflow_up_bitvector[i] != 1) {
+                            std::cerr << "i: " << i << "\trepositioning_overflow_up_bitvector should have been set to 1.\n";
+                            exit(0);
+                        }
+                        if (idx != (i - repositioning_overflow_up[static_cast<uint64_t>(repositioning_overflow_up_rbits(i))])) {
+                            std::cerr << "i: " << i << " " << idx << " != " << (i - repositioning_overflow_up[static_cast<uint64_t>(repositioning_overflow_up_rbits(i))]) << "\n";
+                            exit(0);
+                        }
+                        if (!rlbwt[i].is_overflow_repositioning_up()) {
+                            std::cerr << "i: " << i << "\tis_overflow_repositioning_up should have been set to 1.\n";
+                            exit(0);
+                        }
+                    } else if (rlbwt[i].is_overflow_repositioning_up()) {
+                        std::cerr << "rlbwt[i].is_overflow_repositioning_up(): " << rlbwt[i].is_overflow_repositioning_up() << "\n";
+                        exit(0);
+                    }
+                } else {
+                    std::cerr << idx << " " << r << "\n";
+                }
+
+                idx = jump_down(i, alphabet[j], scan_count);
+                if (idx != r) {
+                    if (idx - i > std::numeric_limits<uint16_t>::max())
+                        std::cerr << "Warning - jump down " << idx - i << " does not fit in 16 bits.\n";
+                    if (idx - i >= 10) {
+                        if (repositioning_overflow_down_bitvector[i] != 1) {
+                            std::cerr << "i: " << i << "\trepositioning_overflow_down_bitvector should have been set to 1.\n";
+                            exit(0);
+                        }
+                        if (idx != (i + repositioning_overflow_down[static_cast<uint64_t>(repositioning_overflow_down_rbits(i))])) {
+                            std::cerr << "i: " << i << " " << idx << " != " << (i + repositioning_overflow_down[static_cast<uint64_t>(repositioning_overflow_down_rbits(i))]) << "\n";
+                            exit(0);
+                        }
+                        if (!rlbwt[i].is_overflow_repositioning_down()) {
+                            std::cerr << "i: " << i << "\tis_overflow_repositioning_down should have been set to 1.\n";
+                            exit(0);
+                        }
+                    } else if (rlbwt[i].is_overflow_repositioning_down()) {
+                        std::cerr << "rlbwt[i].is_overflow_repositioning_down(): " << rlbwt[i].is_overflow_repositioning_down() << "\n";
+                        exit(0);
+                    }
+                } else {
+                    std::cerr << idx << " " << r << "\n";
+                }
+            }
+        }
+    }
+    std::cerr << "The onebit_bitvector successfully passed the test.\n";
+}
+#endif
+
+void MoveStructure::compute_nexts(char* index_dir) {
+    uint64_t scan_count = 0;
+    uint64_t tot_scans = 0;
+#if MODE == 2
+    repositioning_overflow_up_bitvector = sdsl::bit_vector(r, 0);
+    repositioning_overflow_down_bitvector = sdsl::bit_vector(r, 0);
+    uint64_t last_bit = 0;
+#endif
+    for (uint64_t i = 0; i < rlbwt.size(); i++) {
+        if (i % 100000 == 0)
+            std::cerr<< i << "\r";
         char rlbwt_c = alphabet[rlbwt[i].get_c()];
         for (uint64_t j = 0; j < alphabet.size(); j++) {
             if (i == end_bwt_idx) {
@@ -829,26 +902,76 @@ void MoveStructure::compute_nexts() {
                 auto alphabet_idx = alphamap_3[alphamap[rlbwt_c]][j];
                 auto idx = jump_up(i, alphabet[j], scan_count);
                 if (idx == r) {
+#if MODE == 1
                     rlbwt[i].set_next_up(alphabet_idx, std::numeric_limits<uint16_t>::max());
+#endif
                 } else {
                     if (i - idx > std::numeric_limits<uint16_t>::max())
                         std::cerr << "Warning - jump up " << i - idx << " does not fit in 16 bits.\n";
+#if MODE == 1
                     rlbwt[i].set_next_up(alphabet_idx, i - idx);
+#endif
+#if MODE == 2
+                    if (i -idx >= 10) {
+                        last_bit = i;
+                        repositioning_overflow_up_bitvector[i] = 1;
+                        repositioning_overflow_up.push_back(i - idx);
+                        rlbwt[i].set_overflow_repositioning_up();
+                    } else if (rlbwt[i].is_overflow_repositioning_up()) {
+                        std::cerr << "rlbwt[i].is_overflow_repositioning_up(): " << rlbwt[i].is_overflow_repositioning_up() << "\n";
+                    }
+#endif
                 }
 
                 idx = jump_down(i, alphabet[j], scan_count);
                 if (idx == r) {
+#if MODE == 1
                     rlbwt[i].set_next_down(alphabet_idx, std::numeric_limits<uint16_t>::max());
+#endif
                 } else {
                     if (idx - i > std::numeric_limits<uint16_t>::max())
                         std::cerr << "Warning - jump down " << idx - i << " does not fit in 16 bits.\n";
+#if MODE == 1
                     rlbwt[i].set_next_down(alphabet_idx, idx - i);
+#endif
+#if MODE == 2
+                    if (idx - i >= 10) {
+                        repositioning_overflow_down_bitvector[i] = 1;
+                        repositioning_overflow_down.push_back(idx - i);
+                        rlbwt[i].set_overflow_repositioning_down();
+                    } else if (rlbwt[i].is_overflow_repositioning_down()) {
+                        std::cerr << "rlbwt[i].is_overflow_repositioning_down(): " << rlbwt[i].is_overflow_repositioning_down() << "\n";
+                    }
+#endif
                 }
             }
         }
     }
-}
+#if MODE == 2
+    std::cerr << "repositioning_overflow_up.size(): " << repositioning_overflow_up.size() << "\n";
+    std::cerr << "repositioning_overflow_down.size(): " << repositioning_overflow_down.size() << "\n";
+    mkdir(index_dir,0777);
+    repositioning_overflow_up_rbits = sdsl::rank_support_v<>(&repositioning_overflow_up_bitvector);
+    std::cerr << "last_bit: " << last_bit << "\n";
+    std::cerr << repositioning_overflow_up.size() - 1 << " .... " << static_cast<uint64_t>(repositioning_overflow_up_rbits(last_bit)) << "\n";
+
+    std::string fname = static_cast<std::string>(index_dir) + "/repositioning_overflow.bitvector.up";
+    sdsl::store_to_file(repositioning_overflow_up_bitvector, fname);
+    fname = static_cast<std::string>(index_dir) + "/repositioning_overflow.bitvector.down";
+    sdsl::store_to_file(repositioning_overflow_down_bitvector, fname);
+
+    fname = static_cast<std::string>(index_dir) + "/repositioning_overflow.bin";
+    std::ofstream fout(fname, std::ios::out | std::ios::binary);
+    uint64_t repositioning_overflow_up_size = repositioning_overflow_up.size();
+    fout.write(reinterpret_cast<char*>(&repositioning_overflow_up_size), sizeof(repositioning_overflow_up_size));
+    fout.write(reinterpret_cast<char*>(&repositioning_overflow_up[0]), repositioning_overflow_up_size * sizeof(repositioning_overflow_up[0]));
+
+    uint64_t repositioning_overflow_down_size = repositioning_overflow_down.size();
+    fout.write(reinterpret_cast<char*>(&repositioning_overflow_down_size), sizeof(repositioning_overflow_down_size));
+    fout.write(reinterpret_cast<char*>(&repositioning_overflow_down[0]), repositioning_overflow_down_size * sizeof(repositioning_overflow_down[0]));
+    fout.close();
 #endif
+}
 
 uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx, uint64_t x) {
     uint64_t idx_ = idx;
@@ -870,7 +993,6 @@ uint64_t MoveStructure::jump_up(uint64_t idx, char c, uint64_t& scan_count) {
     if (idx == 0)
         return r;
     char row_c = alphabet[rlbwt[idx].get_c_jj()];
-
     while (idx > 0 and row_c != c) {
         scan_count += 1;
         idx -= 1;
@@ -1063,6 +1185,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
 #if MODE == 0 || MODE == 2
             idx = jump_down(saved_idx, r_char, scan_count);
 #endif
+            std::cerr << "scan_count for jumping down from end_bwt_idx: " << scan_count << "\n";
             if (r_char != alphabet[rlbwt[idx].get_c_mm()])
                 std::cerr << "1: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()];
             return false;
@@ -1082,6 +1205,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
 #if MODE == 0 || MODE == 2
             idx = jump_up(saved_idx, r_char, scan_count);
 #endif
+            std::cerr << "scan_count for jumping up from end_bwt_idx: " << scan_count << "\n";
             if (r_char != alphabet[rlbwt[idx].get_c_mm()])
                 std::cerr << "2: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()];
             return true;
@@ -1103,6 +1227,12 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
     if (offset >= get_thresholds(idx, alphabet_index)) {
         if (verbose)
             std::cerr<< "\t \t \t Jumping down with thresholds:\n";
+
+        auto tmp = idx;
+#if MODE == 0
+        idx = jump_down(saved_idx, r_char, scan_count);
+#endif
+
 #if MODE == 1
         if (constant) {
             scan_count += 1;
@@ -1112,10 +1242,24 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
                 idx = saved_idx + rlbwt[saved_idx].get_next_down(alphabet_index);
         }
 #endif
-        auto tmp = idx;
-#if MODE == 0 || MODE == 2
-        idx = jump_down(saved_idx, r_char, scan_count);
+
+#if MODE == 2
+        if (rlbwt[saved_idx].is_overflow_repositioning_down()) {
+            idx = saved_idx + repositioning_overflow_down[static_cast<uint64_t>(repositioning_overflow_down_rbits(saved_idx))];
+            scan_count += 1;
+        } else {
+            idx = jump_down(saved_idx, r_char, scan_count);
+            if (scan_count >= 10) {
+                std::cerr << "scan_count: " << scan_count << "\n";
+                exit(0);
+            }
+            if (- saved_idx + idx >= 10) {
+                std::cerr << "saved_idx - idx: " << saved_idx - idx << "\n";
+                exit(0);
+            }
+        }
 #endif
+
         if (r_char != alphabet[rlbwt[idx].get_c_mm()]) {
             std::cerr << "3: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()] << "\n";
             std::cerr << "idx: " << idx << " saved_idx: " << saved_idx << " tmp: " << tmp << "\n";
@@ -1126,6 +1270,11 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
     } else {
         if (verbose)
             std::cerr<< "\t \t \t Jumping up with thresholds:\n";
+
+#if MODE == 0
+        idx = jump_up(saved_idx, r_char, scan_count);
+#endif
+
 #if MODE == 1
         scan_count += 1;
         if (constant) {
@@ -1136,9 +1285,23 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
         }
 #endif
 
-#if MODE == 0 || MODE == 2
-        idx = jump_up(saved_idx, r_char, scan_count);
+#if MODE == 2
+        if (rlbwt[saved_idx].is_overflow_repositioning_up()) {
+            idx = saved_idx - repositioning_overflow_up[static_cast<uint64_t>(repositioning_overflow_up_rbits(saved_idx))];
+            scan_count += 1;
+        } else {
+            idx = jump_up(saved_idx, r_char, scan_count);
+            if (scan_count >= 10) {
+                std::cerr << "scan_count: " << scan_count << "\n";
+                exit(0);
+            }
+            if (saved_idx - idx >= 10) {
+                std::cerr << "saved_idx - idx: " << saved_idx - idx << "\n";
+                exit(0);
+            }
+        }
 #endif
+
         if (r_char != alphabet[rlbwt[idx].get_c_mm()]) {
             std::cerr << "idx: " << idx << " saved_idx: " << saved_idx << "\n";
             std::cerr << "4: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()] << "\n";
@@ -1357,6 +1520,29 @@ void MoveStructure::deserialize(char* index_dir) {
     fin.read(reinterpret_cast<char*>(&eof_row), sizeof(eof_row));
 
     fin.close();
+#if MODE == 2
+    fname = static_cast<std::string>(index_dir) + "/repositioning_overflow.bitvector.up";
+    sdsl::load_from_file(repositioning_overflow_up_bitvector, fname);
+    fname = static_cast<std::string>(index_dir) + "/repositioning_overflow.bitvector.down";
+    sdsl::load_from_file(repositioning_overflow_down_bitvector, fname);
+    repositioning_overflow_up_rbits = sdsl::rank_support_v<>(&repositioning_overflow_up_bitvector);
+    repositioning_overflow_down_rbits = sdsl::rank_support_v<>(&repositioning_overflow_down_bitvector);
+
+    fname = static_cast<std::string>(index_dir) + "/repositioning_overflow.bin";
+    std::ifstream fin_rep(fname, std::ios::in | std::ios::binary);
+
+    uint64_t repositioning_overflow_up_size = 0;
+    fin_rep.read(reinterpret_cast<char*>(&repositioning_overflow_up_size), sizeof(repositioning_overflow_up_size));
+    std::cerr << "repositioning_overflow_up_size: " << repositioning_overflow_up_size << "\n";
+    repositioning_overflow_up.resize(repositioning_overflow_up_size);
+    fin_rep.read(reinterpret_cast<char*>(&repositioning_overflow_up[0]), repositioning_overflow_up_size * sizeof(repositioning_overflow_up[0]));
+    uint64_t repositioning_overflow_down_size = 0;
+    fin_rep.read(reinterpret_cast<char*>(&repositioning_overflow_down_size), sizeof(repositioning_overflow_down_size));
+    std::cerr << "repositioning_overflow_down_size: " << repositioning_overflow_down_size << "\n";
+    repositioning_overflow_down.resize(repositioning_overflow_down_size);
+    fin_rep.read(reinterpret_cast<char*>(&repositioning_overflow_down[0]), repositioning_overflow_down_size * sizeof(repositioning_overflow_down[0]));
+    fin_rep.close();
+#endif
 }
 
 void MoveStructure::print_stats() {
