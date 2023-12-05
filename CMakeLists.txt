@@ -4,6 +4,10 @@ cmake_minimum_required(VERSION 3.0)
 
 project(movi)
 
+#set(CMAKE_CXX_STANDARD 14)
+#set(CMAKE_CXX_STANDARD_REQUIRED On)
+#set(CMAKE_CXX_EXTENSIONS Off)
+
 include_directories("include")
 
 find_package(ZLIB)
@@ -37,7 +41,7 @@ endif()
 # SET(COMPILE_FLAGS "-g -O2 -DMODE=0")
 
 ## SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
-
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++14")
 # compile with address sanitizer
 # add_compile_options(-fsanitize=address)
 # add_link_options(-fsanitize=address)
