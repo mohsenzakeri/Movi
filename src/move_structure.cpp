@@ -39,6 +39,7 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
 }
 
 MoveStructure::MoveStructure(bool verbose_, bool logs_) {
+    onebit = false;
     verbose = verbose_;
     logs = logs_;
 }
