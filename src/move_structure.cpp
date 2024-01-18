@@ -522,7 +522,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
     std::cerr<< "\nr: " << r << "\n";
     std::cerr<< "original_r: " << original_r << "\n";
-    length = bwt_curr_length + 1; // bwt_string.length();
+    length = bwt_curr_length; // bwt_string.length();
     std::cerr<<"length: " << length << "\n";
     rlbwt.resize(r);
     /*if (!onebit)
@@ -569,7 +569,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
     std::cerr << "All the characters are indexed.\n";
 
-    for (uint64_t i = 0; i < length - 1; i++) {
+    for (uint64_t i = 0; i < length; i++) {
         if (i % 10000 == 0)
             std::cerr<< i << "\r";
         if (static_cast<uint64_t>(bwt_string[i]) == END_CHARACTER)
@@ -647,7 +647,6 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                           << " sbits(pp_id - 1): " << sbits(pp_id - 1) << "\n";
 
             // rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
-            
             rlbwt[r_idx].init(len, offset, pp_id);
             all_p.push_back(bwt_row);
             // To take care of cases where length of the run 
