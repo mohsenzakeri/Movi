@@ -50,11 +50,11 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++14")
 # add_compile_options(-fsanitize-recover=unsigned-integer-overflow)
 # add_link_options(-fsanitize-recover=unsigned-integer-overflow)
 
-add_executable(movi-default src/movi.cpp src/move_structure.cpp src/move_row.cpp)
+add_executable(movi-default src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp)
 target_link_libraries(movi-default sdsl ZLIB::ZLIB)
 target_compile_options(movi-default PUBLIC -O2 -DMODE=0)
 
-add_executable(movi-constant src/movi.cpp src/move_structure.cpp src/move_row.cpp)
+add_executable(movi-constant src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp)
 target_link_libraries(movi-constant sdsl ZLIB::ZLIB)
 target_compile_options(movi-constant PUBLIC -O2 -DMODE=1)
 

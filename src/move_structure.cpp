@@ -922,7 +922,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
         std::srand(time(0));
     }
     
-    std::string R = mq.query();
+    auto& R = mq.query();
     int32_t pos_on_r = R.length() - 1;
     uint64_t idx = r - 1; // std::rand() % r; // r - 1
     uint64_t offset = get_n(idx) - 1;
@@ -940,7 +940,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
 
     uint64_t iteration_count = 0;
     while (pos_on_r > -1) {
-	iteration_count += 1;
+        iteration_count += 1;
         if (logs and (iteration_count-1)%200 == 0) {
             t1 = std::chrono::high_resolution_clock::now();
         }
@@ -1322,6 +1322,7 @@ void MoveStructure::deserialize(char* index_dir) {
     if (alphabet.size() > 4) {
         std::cerr << "Warning: There are more than 4 characters, the index expexts only A, C, T and G in the reference.\n";
     }
+
     fin.read(reinterpret_cast<char*>(&splitting), sizeof(splitting));
     fin.read(reinterpret_cast<char*>(&constant), sizeof(constant));
     fin.read(reinterpret_cast<char*>(&onebit), sizeof(onebit));

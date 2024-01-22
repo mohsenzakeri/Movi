@@ -12,13 +12,15 @@
 
 #include "move_structure.hpp"
 #include "move_query.hpp"
+#include "read_processor.hpp"
 
 // STEP 1: declare the type of file handler and the read() function
-KSEQ_INIT(gzFile, gzread)
+// KSEQ_INIT(gzFile, gzread)
 
 int main(int argc, char* argv[]) {
     std::ios_base::sync_with_stdio(false);
     std::string command = (argc >= 2) ? argv[1] : "";
+    std::cerr << "command: " << command << "\n";
     if (command == "build") {
         std::cerr<<"The move structure is being built.\n";
 
@@ -51,6 +53,21 @@ int main(int argc, char* argv[]) {
             }
             rl_file.close();
         }
+    } else if (command == "query-pf") {
+        bool verbose = (argc > 5 and std::string(argv[4]) == "verbose");
+        bool logs = (argc > 5 and std::string(argv[4]) == "logs");
+        MoveStructure mv_(verbose, logs);
+
+        auto begin = std::chrono::system_clock::now();
+        mv_.deserialize(argv[2]);
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+        std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+        std::cerr << "The move structure is read from the file successfully.\n";
+
+        ReadProcessor rp(argv[3], mv_, atoi(argv[4]));
+        rp.process_latency_hiding(mv_);
+
     } else if (command == "query" or command == "query-onebit") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         bool logs = (argc > 4 and std::string(argv[4]) == "logs");
