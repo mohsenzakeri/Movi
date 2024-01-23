@@ -116,11 +116,11 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
             if (!processes[i].finished) {
                 // 1: process next character -- doing fast forward
                 process_char(processes[i], mv);
+                // 2: if the read is done -> Write the pmls and go to next read 
                 if (processes[i].pos_on_r <= -1) {
-                    // 2: if the read is done : Yes -> next read 
                     write_pmls(processes[i]);
-                    // 3: -- check if the last read -> finished[i] = true fnished_count++
                     reset_process(processes[i], mv);
+                    // 3: -- check if it was the last read in the file -> fnished_count++
                     if (processes[i].finished) {
                         fnished_count += 1;
                     }
