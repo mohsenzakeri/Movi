@@ -6,7 +6,7 @@ class MoveQuery {
         MoveQuery() {}
         MoveQuery(std::string q) : query_string(q) {}
 
-        std::string query() { return query_string; }
+        std::string& query() { return query_string; }
         uint64_t length() { return query_string.length(); }
         void add_pml(uint16_t len) { pml_lens.push_back(len); }
         void add_cost(std::chrono::nanoseconds cost) { costs.push_back(cost); }

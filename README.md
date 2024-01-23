@@ -2,6 +2,8 @@
 
 Movi is a full text index for indexing large pangenomes. It is designed based on move data structure. Move structure is a data structure based on the Burrows Wheeler Transform (BWT) by Nishimoto and Tabei.
 
+>[Zakeri, Mohsen, Brown, Nathaniel K., Ahmed, Omar Y., Gagie, Travis, and Langmead, Ben. "Movi: a fast and cache-efficient full-text pangenome index". bioRxiv preprint (2023)](https://www.biorxiv.org/content/10.1101/2023.11.04.565615v1)
+
 >Nishimoto, Takaaki, and Yasuo Tabei. "Optimal-time queries on BWT-runs compressed indexes." arXiv preprint arXiv:2006.05104 (2020).
 
 ## Install Movi and its dependencies from source
@@ -11,8 +13,8 @@ Required dependences: `sdsl`, `zlib`, `cmake`, and `gcc`
 
 To build from source:
 ```
-git clone https://github.com/mohsenzakeri/movi
-cd movi
+git clone https://github.com/mohsenzakeri/Movi
+cd Movi
 mkdir build
 cd build
 cmake ..
@@ -77,12 +79,14 @@ movi-constant query <constant index directory> <reads file>
 
 `<reads file>` is the address of the fasta or fastq file containing the reads.
 
-
-
-
 After the query command finishes, a file with the same name as the reads file and the extension `mpml.bin` is generated in the directory that also includes the reads file.
 Since this file is in the binary format, to view the PMLs please run the following command:
 ```
-movi view <mpml file> | less
+movi-default view <mpml file> | less
 ```
 `<mpml file>` is the file generated in the query step.
+
+
+### You can read more about Movi here:
+> [https://www.biorxiv.org/content/10.1101/2023.11.04.565615v1](https://www.biorxiv.org/content/10.1101/2023.11.04.565615v1)
+

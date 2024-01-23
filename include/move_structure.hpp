@@ -13,6 +13,7 @@
 #include <unordered_map>
 
 #include "kseq.h"
+
 #include <sdsl/int_vector.hpp>
 #include <sdsl/bit_vectors.hpp>
 
@@ -75,6 +76,8 @@ class MoveStructure {
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
         void set_onebit();
+
+        friend class ReadProcessor;
     private:
         std::vector<uint64_t> first_runs;
         std::vector<uint64_t> first_offsets;
