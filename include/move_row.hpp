@@ -69,6 +69,18 @@ class MoveRow{
         uint16_t get_threshold() { return threshold; }
         void set_threshold(uint16_t t) { threshold = t; }
 #endif
+
+        uint64_t row_size() {
+#if MODE == 0
+            return 16;
+#endif
+#if MODE == 1
+            return 28;
+#endif
+#if MODE == 2
+            return 12;
+#endif
+        }
     private:
         // offset based: uint32_t p; // bwt row of the head before the jump
         // offset based: uint32_t pp; // bwt row of the head after the jump
