@@ -126,7 +126,7 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
                     }
                 } else {
                     // 4: big jump with prefetch
-                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].idx].get_id()*10000));
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].idx].get_id()));
                 }
             }
         }
