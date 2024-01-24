@@ -12,7 +12,7 @@ KSEQ_INIT(gzFile, gzread)
 struct Strand {
     Strand() {}
     uint16_t st_length;
-    std::string read_name;
+    char* read_name;
     std::string read;
     MoveQuery mq;
 
