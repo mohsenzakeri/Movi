@@ -550,7 +550,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             alphamap[i] = alphabet_index;
             alphabet_index += 1;
 
-            sdsl::bit_vector* new_bit_vector = new sdsl::bit_vector(length + 1, 0);
+            sdsl::bit_vector* new_bit_vector = new sdsl::bit_vector(length, 0);
             occs.emplace_back(std::unique_ptr<sdsl::bit_vector>(new_bit_vector));
         }
     }
