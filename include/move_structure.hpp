@@ -35,6 +35,7 @@ class MoveStructure {
         void build(std::ifstream &bwt_file);
         void build_rlbwt(char* input_file);
         uint64_t query_pml(MoveQuery& mq, bool random);
+        uint64_t backward_search(MoveQuery& mq);
 
         void all_lf_test();
         void random_lf_test();
@@ -78,6 +79,10 @@ class MoveStructure {
 
         friend class ReadProcessor;
     private:
+        std::vector<uint64_t> first_runs;
+        std::vector<uint64_t> first_offsets;
+        std::vector<uint64_t> last_runs;
+        std::vector<uint64_t> last_offsets;
         bool onebit;
         bool constant;
         uint16_t splitting;

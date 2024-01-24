@@ -46,13 +46,13 @@ int main(int argc, char* argv[]) {
 
         mv_.serialize(argv[4]);
         std::cerr<<"The move structure is successfully stored at " << argv[4] << "\n";
-        if (logs) {
+        /*if (logs) {
             std::ofstream rl_file(static_cast<std::string>(argv[4]) + "/run_lengths");
             for (auto& run_length : mv_.run_lengths) {
                 rl_file <<run_length.first << "\t" << run_length.second << "\n";
             }
             rl_file.close();
-        }
+        }*/
     } else if (command == "query-pf") {
         bool verbose = (argc > 5 and std::string(argv[4]) == "verbose");
         bool logs = (argc > 5 and std::string(argv[4]) == "logs");
@@ -67,7 +67,6 @@ int main(int argc, char* argv[]) {
 
         ReadProcessor rp(argv[3], mv_, atoi(argv[4]));
         rp.process_latency_hiding(mv_);
-
     } else if (command == "query" or command == "query-onebit") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         bool logs = (argc > 4 and std::string(argv[4]) == "logs");
@@ -170,13 +169,48 @@ int main(int argc, char* argv[]) {
         gzclose(fp); // STEP 6: close the file handler
         std::cerr<<"fp file closed!\n";
 
-        /* if (logs) {
+        if (logs) {
             std::ofstream jumps_file(static_cast<std::string>(argv[3]) + "." + index_type + ".jumps");
             for (auto& jump : mv_.jumps) {
                 jumps_file <<jump.first << "\t" << jump.second << "\n";
             }
             jumps_file.close();
-        } */
+        }
+    } else if (command == "match") {
+        bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
+        bool logs = (argc > 4 and std::string(argv[4]) == "logs");
+        std::cerr << verbose << " " << logs << "\n";
+        MoveStructure mv_(verbose, logs); 
+        if (command == "query-onebit")
+            mv_.set_onebit();
+        auto begin = std::chrono::system_clock::now();
+        mv_.deserialize(argv[2]);
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+        std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+        std::cerr << "The move structure is read from the file successfully.\n";
+
+        // Fasta/q reader from http://lh3lh3.users.sourceforge.net/parsefastq.shtml
+        gzFile fp;
+        kseq_t *seq;
+        int l;
+        fp = gzopen(argv[3], "r"); // STEP 2: open the file handler
+        seq = kseq_init(fp); // STEP 3: initialize seq
+        std::ofstream output_file(static_cast<std::string>(argv[3]) + ".matches");
+        std::string index_type = mv_.index_type();
+        uint64_t all_ff_count = 0;
+        while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
+            std::string query_seq = seq->seq.s;
+            MoveQuery mq(query_seq);
+            uint64_t match_count = mv_.backward_search(mq);
+            output_file << seq->name.s << "\t" << (match_count > 0 ? "Found\t" : "Not-Found\t") << match_count << "\n";
+        }
+        output_file.close();
+        std::cerr<<"output file closed!\n";
+        kseq_destroy(seq); // STEP 5: destroy seq
+        std::cerr<<"kseq destroyed!\n";
+        gzclose(fp); // STEP 6: close the file handler
+        std::cerr<<"fp file closed!\n";
     } else if (command == "rlbwt") {
         std::cerr<<"The run and len files are being built.\n";
         bool verbose = (argc > 3 and std::string(argv[3]) == "verbose");
