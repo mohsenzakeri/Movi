@@ -202,7 +202,9 @@ int main(int argc, char* argv[]) {
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
             std::string query_seq = seq->seq.s;
             MoveQuery mq(query_seq);
-            uint64_t match_count = mv_.backward_search(mq);
+            std::string& R = mq.query();
+            int32_t pos_on_r = R.length() - 1;
+            uint64_t match_count = mv_.backward_search(R, pos_on_r);
             output_file << seq->name.s << "\t" << (match_count > 0 ? "Found\t" : "Not-Found\t") << match_count << "\n";
         }
         output_file.close();

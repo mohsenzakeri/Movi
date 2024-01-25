@@ -940,9 +940,7 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c, uint64_t& scan_count) {
     return (row_c == c) ? idx : r;
 }
 
-uint64_t MoveStructure::backward_search(MoveQuery& mq) {
-    std::string R = mq.query();
-    int32_t pos_on_r = R.length() - 1;
+uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
     uint64_t run_start = first_runs[alphamap[R[pos_on_r]] + 1];
     uint64_t offset_start = first_offsets[alphamap[R[pos_on_r]] + 1];
     uint64_t run_end = last_runs[alphamap[R[pos_on_r]] + 1];
@@ -954,9 +952,9 @@ uint64_t MoveStructure::backward_search(MoveQuery& mq) {
         }
         pos_on_r -= 1;
         if (verbose) {
-	  std::cerr << ">>> " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
-          std::cerr << ">>> " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
-	}
+            std::cerr << ">>> " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
+            std::cerr << ">>> " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
+        }
         while (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r]) {
             if (run_start >= r) {
                 break;
@@ -975,8 +973,8 @@ uint64_t MoveStructure::backward_search(MoveQuery& mq) {
         if (verbose) {
           std::cerr << "<<< " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
           std::cerr << "<<< " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
-	}
-	if ((run_start < run_end) or (run_start == run_end and offset_start <= offset_end)) {
+        }
+        if ((run_start < run_end) or (run_start == run_end and offset_start <= offset_end)) {
             if (pos_on_r == 0) {
                 uint64_t match_count = 0;
                 if (run_start == run_end) {

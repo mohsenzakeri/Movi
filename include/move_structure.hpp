@@ -35,7 +35,7 @@ class MoveStructure {
         void build(std::ifstream &bwt_file);
         void build_rlbwt(char* input_file);
         uint64_t query_pml(MoveQuery& mq, bool random);
-        uint64_t backward_search(MoveQuery& mq);
+        uint64_t backward_search(std::string& R,  int32_t& pos_on_r);
 
         void all_lf_test();
         void random_lf_test();
