@@ -950,7 +950,6 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
             // std::cerr << "Not found\n";
             return 0;
         }
-        pos_on_r -= 1;
         if (verbose) {
             std::cerr << ">>> " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
             std::cerr << ">>> " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
@@ -983,6 +982,7 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
                     std::cerr << rlbwt[run_start].get_n() << "\t" << offset_start << "\t" << offset_end << "\n";
                     match_count = (rlbwt[run_start].get_n() - offset_start) + (offset_end + 1);
                 }
+                pos_on_r -= 1;
                 return match_count;
             }
             LF_move(offset_start, run_start);
@@ -991,9 +991,24 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
             // std::cerr << "Not found\n";
             return 0;
         }
+        pos_on_r -= 1;
     }
     std::cerr << "Should not get here!\n";
     return 0;
+}
+
+uint64_t MoveStructure::exact_matches(MoveQuery& mq) {
+    std::string& R = mq.query();
+    int32_t pos_on_r = R.length() - 1;
+    uint64_t backward_search_count = 0;
+    while (pos_on_r > -1) {
+        backward_search_count += 1;
+        int32_t pos_on_r_before = pos_on_r;
+        uint64_t match_count = backward_search(R, pos_on_r);
+        uint16_t match_len = pos_on_r_before - pos_on_r;
+        mq.add_pml(match_len);
+    }
+    return backward_search_count;
 }
 
 uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
