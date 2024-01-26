@@ -979,7 +979,6 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
                 if (run_start == run_end) {
                     match_count = offset_end - offset_start + 1;
                 } else {
-                    std::cerr << rlbwt[run_start].get_n() << "\t" << offset_start << "\t" << offset_end << "\n";
                     match_count = (rlbwt[run_start].get_n() - offset_start) + (offset_end + 1);
                 }
                 pos_on_r -= 1;
