@@ -197,7 +197,6 @@ inline bool MoveRow::is_overflow_thresholds() const{
     uint32_t a = (overflow_bits & (~mask_overflow_thresholds)) >> 12;
     bool b = static_cast<bool>(a);
     return !b;
-
 }
 
 #endif
