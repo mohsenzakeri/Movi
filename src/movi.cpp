@@ -9,6 +9,7 @@
 
 #include "kseq.h"
 #include <sdsl/int_vector.hpp>
+#include "cxxopts.hpp"
 
 #include "move_structure.hpp"
 #include "move_query.hpp"
@@ -17,11 +18,110 @@
 // STEP 1: declare the type of file handler and the read() function
 // KSEQ_INIT(gzFile, gzread)
 
-int main(int argc, char* argv[]) {
+bool parse_command(int argc, char** argv) {
+
+    // bool constant = false;
+    // bool onebit = false;
+    // bool split = false;
+    // bool default_ = false;
+    // char* ref_file = NULL;
+    // char* read_file = NULL;
+    // char* index_dir = NULL;
+    // bool reverse = false;
+    // bool prefetch = false;
+    // bool verbose = false;
+    // bool logs = false;
+
+    cxxopts::Options options("Movi", "Command line options for Movi");
+
+    options.add_options()
+        ("command", "Command to execute", cxxopts::value<std::string>())
+        ("h,help", "Print help")
+        ("verbose", "Enable verbose mode")
+        ("logs", "Enable logs");
+
+    auto buildOptions = options.add_options("build")
+        ("mode", "Build mode", cxxopts::value<std::string>())
+        ("ref", "Reference file", cxxopts::value<std::string>())
+        ("index", "Index directory", cxxopts::value<std::string>());
+
+
+    auto queryOptions = options.add_options("query")
+        ("type", "Query type", cxxopts::value<std::string>())
+        ("read", "Read file for query", cxxopts::value<std::string>())
+        ("index2", "Index directory for query", cxxopts::value<std::string>())
+        ("no-prefetch", "Disable prefetching for query")
+        ("Strands", "Number of strands for query", cxxopts::value<int>());
+
+    auto rlbwtOptions = options.add_options("rlbwt")
+        ("ref2", "Reference file", cxxopts::value<std::string>());
+
+    auto viewOptions = options.add_options("view")
+        ("read2", "Read file", cxxopts::value<std::string>());
+
+    auto LFOptions = options.add_options("LF")
+        ("type2", "LF type", cxxopts::value<std::string>());
+
+    auto statsOptions = options.add_options("stats")
+        ("ref3", "Reference file", cxxopts::value<std::string>());
+
+    options.parse_positional({ "command" });
+
+    try {
+        auto result = options.parse(argc, argv);
+
+        if (result.count("help")) {
+            std::cout << options.help() << std::endl;
+            return 0;
+        }
+
+        if (result.count("verbose")) {
+            // Set global verbose flag
+        }
+
+        if (result.count("logs")) {
+            // Set global logs flag
+        }
+
+        if (result.count("command")) {
+            std::string command = result["command"].as<std::string>();
+
+            if (command == "build") {
+                // Handle build command using buildOptions
+            } else if (command == "query") {
+                // Handle query command using queryOptions
+            } else if (command == "rlbwt") {
+                // Handle rlbwt command using rlbwtOptions
+            } else if (command == "view") {
+                // Handle view command using viewOptions
+            } else if (command == "LF") {
+                // Handle LF command using LFOptions
+            } else if (command == "stats") {
+                // Handle stats command using statsOptions
+            } else {
+                std::cerr << "Invalid command: " << command << std::endl;
+                std::cout << options.help() << std::endl;
+                return 1;
+            }
+        } else {
+            std::cerr << "No command specified." << std::endl;
+            std::cout << options.help() << std::endl;
+            return 1;
+        }
+    } catch (const cxxopts::exceptions::exception& e) {
+        std::cerr << "Error parsing command line options: " << e.what() << std::endl;
+        return 1;
+    }
+
+    return 0;
+}
+
+int main(int argc, char** argv) {
     std::ios_base::sync_with_stdio(false);
     std::string command = (argc >= 2) ? argv[1] : "";
     std::cerr << "command: " << command << "\n";
-    if (command == "build") {
+    parse_command(argc, argv);
+    /* if (command == "build") {
         std::cerr<<"The move structure is being built.\n";
 
         bool onebit = std::string(argv[2]) == "onebit" ? true : false;
@@ -46,13 +146,13 @@ int main(int argc, char* argv[]) {
 
         mv_.serialize(argv[4]);
         std::cerr<<"The move structure is successfully stored at " << argv[4] << "\n";
-        /*if (logs) {
-            std::ofstream rl_file(static_cast<std::string>(argv[4]) + "/run_lengths");
-            for (auto& run_length : mv_.run_lengths) {
-                rl_file <<run_length.first << "\t" << run_length.second << "\n";
-            }
-            rl_file.close();
-        }*/
+        // if (logs) {
+        //     std::ofstream rl_file(static_cast<std::string>(argv[4]) + "/run_lengths");
+        //     for (auto& run_length : mv_.run_lengths) {
+        //         rl_file <<run_length.first << "\t" << run_length.second << "\n";
+        //     }
+        //     rl_file.close();
+        // }
     } else if (command == "query-pf") {
         bool verbose = (argc > 5 and std::string(argv[4]) == "verbose");
         bool logs = (argc > 5 and std::string(argv[4]) == "logs");
@@ -105,10 +205,10 @@ int main(int argc, char* argv[]) {
         // uint64_t query_pml_tot_time = 0;
         // uint64_t iteration_tot_time = 0;
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
-            /*printf("name: %s\n", seq->name.s);
-            if (seq->comment.l) printf("comment: %s\n", seq->comment.s);
-            printf("seq: %s\n", seq->seq.s);
-            if (seq->qual.l) printf("qual: %s\n", seq->qual.s); */
+            // printf("name: %s\n", seq->name.s);
+            // if (seq->comment.l) printf("comment: %s\n", seq->comment.s);
+            // printf("seq: %s\n", seq->seq.s);
+            // if (seq->qual.l) printf("qual: %s\n", seq->qual.s);
 
             std::string query_seq = seq->seq.s;
             // reverse for the null reads
@@ -122,11 +222,11 @@ int main(int argc, char* argv[]) {
             // auto t2 = std::chrono::high_resolution_clock::now();
             // query_pml_tot_time += static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count());
 
-            /* pmls_file << ">" << seq->name.s << "\n";
-            for (int64_t i = mq.pml_lens.size() - 1; i >= 0; i--) {
-                pmls_file << mq.pml_lens[i] << " ";
-            }
-            pmls_file << "\n"; */
+            // pmls_file << ">" << seq->name.s << "\n";
+            // for (int64_t i = mq.pml_lens.size() - 1; i >= 0; i--) {
+            //     pmls_file << mq.pml_lens[i] << " ";
+            // }
+            // pmls_file << "\n";
             uint16_t st_length = seq->name.m;
             pmls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
             pmls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
@@ -291,5 +391,5 @@ int main(int argc, char* argv[]) {
 	std::cerr << "build default index:\t\t./movi-default build default <output fasta> <index dir>\n\n";
 	std::cerr << "query (compute PMLs):\t\t./movi-default query <index dir> <reads file>\n";
 	std::cerr << "view the mpml.bin file:\t\t./movi-default view <mpml.bin file> | less\n";
-    }
+    }*/
 }
