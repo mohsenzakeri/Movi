@@ -945,11 +945,18 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
     uint64_t offset_start = first_offsets[alphamap[R[pos_on_r]] + 1];
     uint64_t run_end = last_runs[alphamap[R[pos_on_r]] + 1];
     uint64_t offset_end = last_offsets[alphamap[R[pos_on_r]] + 1];
+
+    // save the current range for reporting
+    uint64_t run_start_prev = run_start;
+    uint64_t offset_start_prev = offset_start;
+    uint64_t run_end_prev = run_end;
+    uint64_t offset_end_prev = offset_end;
     while (pos_on_r > -1) {
         if (run_start == end_bwt_idx or run_end == end_bwt_idx) {
             // std::cerr << "Not found\n";
             return 0;
         }
+        pos_on_r -= 1;
         if (verbose) {
             std::cerr << ">>> " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
             std::cerr << ">>> " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
@@ -981,16 +988,28 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
                 } else {
                     match_count = (rlbwt[run_start].get_n() - offset_start) + (offset_end + 1);
                 }
-                pos_on_r -= 1;
+                // pos_on_r -= 1;
                 return match_count;
             }
+            // save the current range for reporting
+            run_start_prev = run_start;
+            offset_start_prev = offset_start;
+            run_end_prev = run_end;
+            offset_end_prev = offset_end;
             LF_move(offset_start, run_start);
             LF_move(offset_end, run_end);
         } else {
             // std::cerr << "Not found\n";
-            return 0;
+            uint64_t match_count = 0;
+            if (run_start_prev == run_end_prev) {
+                match_count = offset_end_prev - offset_start_prev + 1;
+            } else {
+                match_count = (rlbwt[run_start_prev].get_n() - offset_start_prev) + (offset_end_prev + 1);
+            }
+            // pos_on_r -= 1;
+            return match_count;
         }
-        pos_on_r -= 1;
+        // pos_on_r -= 1;
     }
     std::cerr << "Should not get here!\n";
     return 0;
