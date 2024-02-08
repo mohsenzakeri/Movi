@@ -54,8 +54,8 @@ int main(int argc, char* argv[]) {
             rl_file.close();
         }*/
     } else if (command == "query-pf") {
-        bool verbose = (argc > 5 and std::string(argv[4]) == "verbose");
-        bool logs = (argc > 5 and std::string(argv[4]) == "logs");
+        bool verbose = (argc > 5 and std::string(argv[5]) == "verbose");
+        bool logs = (argc > 5 and std::string(argv[5]) == "logs");
         MoveStructure mv_(verbose, logs);
 
         auto begin = std::chrono::system_clock::now();

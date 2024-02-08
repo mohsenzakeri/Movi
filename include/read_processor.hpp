@@ -23,7 +23,12 @@ struct Strand {
     uint64_t idx;
     uint64_t offset;
     uint64_t match_len;
-    uint64_t ff_count_tot;
+
+    uint64_t ff_count;
+    uint64_t scan_count;
+    std::chrono::time_point<std::chrono::high_resolution_clock> t1;
+    std::chrono::time_point<std::chrono::high_resolution_clock> t2;
+    std::chrono::time_point<std::chrono::high_resolution_clock> t3;
 };
 
 class ReadProcessor {
@@ -32,7 +37,7 @@ class ReadProcessor {
         // void process_regular();
         void process_latency_hiding(MoveStructure& mv);
         bool next_read(Strand& process);
-        void write_pmls(Strand& process);
+        void write_pmls(Strand& process, bool logs);
         void process_char(Strand& process, MoveStructure& mv);
         void reset_process(Strand& process, MoveStructure& mv);
     private:
@@ -44,6 +49,11 @@ class ReadProcessor {
         int strands;
         bool verbose = false;
         uint64_t read_processed;
+
+        std::ofstream costs_file;
+        std::ofstream scans_file;
+        std::ofstream fastforwards_file;
+        std::chrono::time_point<std::chrono::high_resolution_clock> t1;
 };
 
 #endif
