@@ -176,12 +176,59 @@ int main(int argc, char* argv[]) {
             }
             jumps_file.close();
         }
-    } else if (command == "match") {
+    } else if (command == "match" or command == "match-onebit") {
+        bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
+        bool logs = (argc > 4 and std::string(argv[4]) == "logs");
+        bool reverse_query = (argc > 4 and std::string(argv[4]) == "reverse");
+        std::cerr << verbose << " " << logs << "\n";
+        MoveStructure mv_(verbose, logs); 
+        if (command == "match-onebit")
+            mv_.set_onebit();
+        auto begin = std::chrono::system_clock::now();
+        mv_.deserialize(argv[2]);
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+        std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+        std::cerr << "The move structure is read from the file successfully.\n";
+
+        // Fasta/q reader from http://lh3lh3.users.sourceforge.net/parsefastq.shtml
+        gzFile fp;
+        kseq_t *seq;
+        int l;
+        fp = gzopen(argv[3], "r"); // STEP 2: open the file handler
+        seq = kseq_init(fp); // STEP 3: initialize seq
+        std::string index_type = mv_.index_type();
+        std::ofstream matches_file(static_cast<std::string>(argv[3]) + "." + index_type + ".matches.bin", std::ios::out | std::ios::binary);
+        uint64_t all_ff_count = 0;
+        while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
+
+            std::string query_seq = seq->seq.s;
+            // reverse for the null reads
+            if (reverse_query)
+                std::reverse(query_seq.begin(), query_seq.end());
+            MoveQuery mq(query_seq);
+            all_ff_count += mv_.exact_matches(mq);
+            uint16_t st_length = seq->name.m;
+            matches_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
+            matches_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
+            auto& pml_lens = mq.get_pml_lens();
+            uint64_t mq_pml_lens_size = pml_lens.size();
+            matches_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
+            matches_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+        }
+        matches_file.close();
+        std::cerr<<"pmls file closed!\n";
+        // printf("return value: %d\n", l);
+        kseq_destroy(seq); // STEP 5: destroy seq
+        std::cerr<<"kseq destroyed!\n";
+        gzclose(fp); // STEP 6: close the file handler
+        std::cerr<<"fp file closed!\n";
+    } else if (command == "count" or command == "count-onebit") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         bool logs = (argc > 4 and std::string(argv[4]) == "logs");
         std::cerr << verbose << " " << logs << "\n";
-        MoveStructure mv_(verbose, logs); 
-        if (command == "query-onebit")
+        MoveStructure mv_(verbose, logs);
+        if (command == "count-onebit")
             mv_.set_onebit();
         auto begin = std::chrono::system_clock::now();
         mv_.deserialize(argv[2]);
