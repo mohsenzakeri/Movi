@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
         std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
         std::cerr << "The move structure is read from the file successfully.\n";
 
-        ReadProcessor rp(argv[3], mv_, atoi(argv[4]));
+        ReadProcessor rp(argv[3], mv_, atoi(argv[4]), true);
         rp.process_latency_hiding(mv_);
     } else if (command == "query" or command == "query-onebit") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
@@ -243,8 +243,8 @@ int main(int argc, char* argv[]) {
         int l;
         fp = gzopen(argv[3], "r"); // STEP 2: open the file handler
         seq = kseq_init(fp); // STEP 3: initialize seq
-        std::ofstream output_file(static_cast<std::string>(argv[3]) + ".matches");
         std::string index_type = mv_.index_type();
+        std::ofstream output_file(static_cast<std::string>(argv[3]) + "." + index_type + ".matches");
         uint64_t all_ff_count = 0;
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
             std::string query_seq = seq->seq.s;
@@ -261,6 +261,20 @@ int main(int argc, char* argv[]) {
         std::cerr<<"kseq destroyed!\n";
         gzclose(fp); // STEP 6: close the file handler
         std::cerr<<"fp file closed!\n";
+    } else if (command == "count-pf") {
+        bool verbose = (argc > 5 and std::string(argv[5]) == "verbose");
+        bool logs = (argc > 5 and std::string(argv[5]) == "logs");
+        MoveStructure mv_(verbose, logs);
+
+        auto begin = std::chrono::system_clock::now();
+        mv_.deserialize(argv[2]);
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+        std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+        std::cerr << "The move structure is read from the file successfully.\n";
+
+        ReadProcessor rp(argv[3], mv_, atoi(argv[4]), false);
+        rp.backward_search_latency_hiding(mv_);
     } else if (command == "rlbwt") {
         std::cerr<<"The run and len files are being built.\n";
         bool verbose = (argc > 3 and std::string(argv[3]) == "verbose");

@@ -951,36 +951,45 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
     uint64_t offset_start_prev = offset_start;
     uint64_t run_end_prev = run_end;
     uint64_t offset_end_prev = offset_end;
+    uint64_t scan_count = 0;
     while (pos_on_r > -1) {
-        if (run_start == end_bwt_idx or run_end == end_bwt_idx) {
-            // std::cerr << "Not found\n";
-            return 0;
-        }
         pos_on_r -= 1;
+        if (run_start == end_bwt_idx or run_end == end_bwt_idx or !check_alphabet(R[pos_on_r])) {
+            // std::cerr << "Not found\n";
+            uint64_t match_count = 0;
+            if (run_start_prev == run_end_prev) {
+                match_count = offset_end_prev - offset_start_prev + 1;
+            } else {
+                match_count = (rlbwt[run_start_prev].get_n() - offset_start_prev) + (offset_end_prev + 1);
+            }
+            // pos_on_r -= 1;
+            return match_count;
+        }
         if (verbose) {
             std::cerr << ">>> " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
             std::cerr << ">>> " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
         }
-        while (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r]) {
+        while ((run_start < run_end) and (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r])) {
+            run_start += 1;
+            offset_start = 0;
             if (run_start >= r) {
                 break;
             }
-            run_start += 1;
-            offset_start = 0;
         }
-        while (alphabet[rlbwt[run_end].get_c()] != R[pos_on_r]) {
+        while ((run_end > run_start) and alphabet[rlbwt[run_end].get_c()] != R[pos_on_r]) {
+            run_end -= 1;
+            offset_end = rlbwt[run_end].get_n() - 1;
             if (run_end == 0) {
                 break;
             }
-            run_end -= 1;
-            offset_end = rlbwt[run_end].get_n() - 1;
         }
 
         if (verbose) {
           std::cerr << "<<< " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
           std::cerr << "<<< " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
         }
-        if ((run_start < run_end) or (run_start == run_end and offset_start <= offset_end)) {
+        if (((run_start < run_end) or (run_start == run_end and offset_start <= offset_end)) and
+            (alphabet[rlbwt[run_start].get_c()] == R[pos_on_r] and alphabet[rlbwt[run_end].get_c()] == R[pos_on_r])) {
             if (pos_on_r == 0) {
                 uint64_t match_count = 0;
                 if (run_start == run_end) {
@@ -1354,6 +1363,14 @@ bool MoveStructure::jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_cou
         exit(0);
     }
 }*/
+
+bool MoveStructure::check_alphabet(char c) {
+    for (char c_: alphabet) {
+        if (c == c_)
+            return true;
+    }
+    return false;
+}
 
 void MoveStructure::serialize(char* output_dir) {
     mkdir(output_dir,0777);

@@ -9,12 +9,29 @@
 // STEP 1: declare the type of file handler and the read() function
 KSEQ_INIT(gzFile, gzread)
 
+struct Range {
+    Range() {}
+    Range& operator =(const Range& range) {
+        run_start = range.run_start;
+        offset_start = range.offset_start;
+        run_end = range.run_end;
+        offset_end = range.offset_end;
+        return *this;
+    }
+    uint64_t run_start;
+    uint64_t offset_start;
+    uint64_t run_end;
+    uint64_t offset_end;
+};
+
 struct Strand {
     Strand() {}
     uint16_t st_length;
     char* read_name;
     std::string read;
     MoveQuery mq;
+    Range range;
+    Range range_prev;
 
     bool finished;
     int32_t pos_on_r;
@@ -33,19 +50,23 @@ struct Strand {
 
 class ReadProcessor {
     public:
-        ReadProcessor(char* reads_file_name, MoveStructure& mv_, int strands_);
+        ReadProcessor(char* reads_file_name, MoveStructure& mv_, int strands_, bool query_pml);
         // void process_regular();
         void process_latency_hiding(MoveStructure& mv);
+        void backward_search_latency_hiding(MoveStructure& mv);
         bool next_read(Strand& process);
         void write_pmls(Strand& process, bool logs);
         void process_char(Strand& process, MoveStructure& mv);
+        bool backward_search(Strand& process, MoveStructure& mv, uint64_t& match_count);
         void reset_process(Strand& process, MoveStructure& mv);
+        void reset_backward_search(Strand& process, MoveStructure& mv);
     private:
         // MoveStructure& mv;
         gzFile fp;
         kseq_t *seq;
         int l;
         std::ofstream pmls_file;
+        std::ofstream matches_file;
         int strands;
         bool verbose = false;
         uint64_t read_processed;
