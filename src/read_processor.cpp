@@ -3,7 +3,6 @@
 ReadProcessor::ReadProcessor(char* reads_file_name, MoveStructure& mv_, int strands_ = 4, bool query_pml = true) {
     fp = gzopen(reads_file_name, "r"); // STEP 2: open the file handler
     seq = kseq_init(fp); // STEP 3: initialize seq
-    // mv = mv_;
     std::string index_type = mv_.index_type();
     if (query_pml) {
         std::string pmls_file_name = static_cast<std::string>(reads_file_name) + "." + index_type + ".mpml.bin";
@@ -105,11 +104,9 @@ void ReadProcessor::process_char(Strand& process, MoveStructure& mv) {
     process.pos_on_r -= 1;
     // if (mv.logs)
     //     process.t2 = std::chrono::high_resolution_clock::now();
-    // LF step
+    // LF step should happen here in the non-prefetch code
     // uint64_t ff_count = mv.LF_move(process.offset, process.idx);
     // process.ff_count_tot += ff_count;
-    // uint64_t row_size = mv.rlbwt[process.idx].row_size();
-    // my_prefetch_r((void*)(mv.rlbwt + mv.rlbwt[process.idx].get_id()));
 }
 
 void ReadProcessor::write_pmls(Strand& process, bool logs) {
@@ -140,14 +137,9 @@ void ReadProcessor::write_pmls(Strand& process, bool logs) {
 }
 
 void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
-    // std::string queries[strands];
-    // uint64_t length_processed[strands];
-    // bool finished[strands];
-
     std::vector<Strand> processes;
     for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
     std::cerr << strands << " processes are created.\n";
-    // Strand processes[strands];
     uint64_t fnished_count = 0;
     for (uint64_t i = 0; i < strands; i++) {
         reset_process(processes[i], mv);
@@ -233,7 +225,6 @@ void ReadProcessor::backward_search_latency_hiding(MoveStructure& mv) {
                     }
                 } else {
                     // 4: big jump with prefetch
-                    // my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].idx].get_id()));
                     my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_start].get_id()));
                     my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_end].get_id()));
                 }
@@ -241,7 +232,6 @@ void ReadProcessor::backward_search_latency_hiding(MoveStructure& mv) {
         }
     }
 
-    // pmls_file.close();
     std::cerr<<"pmls file closed!\n";
     kseq_destroy(seq); // STEP 5: destroy seq
     std::cerr<<"kseq destroyed!\n";
@@ -269,7 +259,7 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
 
     process.pos_on_r -= 1;
     if (process.range.run_start == mv.end_bwt_idx or process.range.run_end == mv.end_bwt_idx or !mv.check_alphabet(R[process.pos_on_r])) {
-        // std::cerr << "Not found\n";
+        // The read was not found.
         if (process.range_prev.run_start == process.range_prev.run_end) {
             match_count = process.range_prev.offset_end - process.range_prev.offset_start + 1;
         } else {
@@ -306,11 +296,9 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
         }
         // save the current range for reporting
         process.range_prev = process.range;
-        // doing two LFs
-        // LF_move(offset_start, run_start);
-        // LF_move(offset_end, run_end);
+        // doing two LFs should happen here in the non-prefetch code
     } else {
-        // std::cerr << "Not found\n";
+        // The read was not found.
         if (process.range_prev.run_start == process.range_prev.run_end) {
             match_count = process.range_prev.offset_end - process.range_prev.offset_start + 1;
         } else {

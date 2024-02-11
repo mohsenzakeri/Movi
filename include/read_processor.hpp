@@ -61,7 +61,6 @@ class ReadProcessor {
         void reset_process(Strand& process, MoveStructure& mv);
         void reset_backward_search(Strand& process, MoveStructure& mv);
     private:
-        // MoveStructure& mv;
         gzFile fp;
         kseq_t *seq;
         int l;

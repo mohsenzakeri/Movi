@@ -96,7 +96,6 @@ MoveStructure::MoveStructure(char* input_file_, bool onebit_, bool verbose_, boo
     return row_c;
 }*/
 
-
 std::string MoveStructure::index_type() {
     if (!onebit and !constant and splitting == 0) {
         return "default";
