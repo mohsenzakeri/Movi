@@ -23,7 +23,7 @@ ReadProcessor::ReadProcessor(char* reads_file_name, MoveStructure& mv_, int stra
 }
 
 bool ReadProcessor::next_read(Strand& process) {
-    if (read_processed % 100 == 0)
+    if (read_processed % 1000 == 0)
         std::cerr << read_processed << "\r";
     read_processed += 1;
     l = kseq_read(seq); // STEP 4: read sequence
@@ -221,8 +221,9 @@ void ReadProcessor::backward_search_latency_hiding(MoveStructure& mv) {
                 // 2: if the read is done -> Write the pmls and go to next read
                 if (backward_search_finished) {
                     auto& R = processes[i].mq.query();
-                    matches_file << processes[i].read_name << (processes[i].pos_on_r == 0 ? "\tFound\t" : "\tNot-Found\t")
-                                 << R.length() - processes[i].pos_on_r << "/" << R.length() << "\t" << match_count << "\n";
+                    matches_file << processes[i].read_name << (processes[i].pos_on_r == 0 ? "\tFound\t" : "\tNot-Found\t");
+                    if (processes[i].pos_on_r != 0) processes[i].pos_on_r += 1;
+                    matches_file << R.length() - processes[i].pos_on_r << "/" << R.length() << "\t" << match_count << "\n";
 
                     reset_process(processes[i], mv);
                     reset_backward_search(processes[i], mv);

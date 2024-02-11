@@ -247,13 +247,12 @@ int main(int argc, char* argv[]) {
         std::ofstream output_file(static_cast<std::string>(argv[3]) + "." + index_type + ".matches");
         uint64_t all_ff_count = 0;
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
-            std::string query_seq = seq->seq.s;
-            MoveQuery mq(query_seq);
-            std::string& R = mq.query();
+            std::string R = std::string(seq->seq.s);
             int32_t pos_on_r = R.length() - 1;
             uint64_t match_count = mv_.backward_search(R, pos_on_r);
-            output_file << seq->name.s << "\t" << (pos_on_r == 0 ? "Found\t" : "Not-Found\t")
-                        << R.length() - pos_on_r << "/" << R.length() << "\t" << match_count << "\n";
+            output_file << seq->name.s << "\t" << (pos_on_r == 0 ? "Found\t" : "Not-Found\t");
+            if (pos_on_r != 0) pos_on_r += 1;
+            output_file << R.length() - pos_on_r << "/" << R.length() << "\t" << match_count << "\n";
         }
         output_file.close();
         std::cerr<<"output file closed!\n";
