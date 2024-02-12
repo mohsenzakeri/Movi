@@ -940,6 +940,9 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c, uint64_t& scan_count) {
 }
 
 uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
+    if (!check_alphabet(R[pos_on_r])) {
+        return 0;
+    }
     uint64_t run_start = first_runs[alphamap[R[pos_on_r]] + 1];
     uint64_t offset_start = first_offsets[alphamap[R[pos_on_r]] + 1];
     uint64_t run_end = last_runs[alphamap[R[pos_on_r]] + 1];
@@ -1074,7 +1077,8 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
         uint64_t row_idx = idx;
         char row_c = alphabet[row.get_c()];
 
-        if (alphamap[static_cast<uint64_t>(R[pos_on_r])] == alphamap.size()) {
+        // if (alphamap[static_cast<uint64_t>(R[pos_on_r])] == alphamap.size()) {
+        if (!check_alphabet(R[pos_on_r])) {
             // The character from the read does not exist in the reference
             match_len = 0;
             scan_count = 0;
@@ -1364,11 +1368,12 @@ bool MoveStructure::jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_cou
 }*/
 
 bool MoveStructure::check_alphabet(char c) {
-    for (char c_: alphabet) {
-        if (c == c_)
-            return true;
-    }
-    return false;
+    // for (char c_: alphabet) {
+    //     if (c == c_)
+    //         return true;
+    // }
+    // return false;
+    return alphamap[static_cast<uint64_t>(c)] != alphamap.size();
 }
 
 void MoveStructure::serialize(char* output_dir) {

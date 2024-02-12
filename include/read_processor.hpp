@@ -27,7 +27,7 @@ struct Range {
 struct Strand {
     Strand() {}
     uint16_t st_length;
-    char* read_name;
+    std::string read_name;
     std::string read;
     MoveQuery mq;
     Range range;

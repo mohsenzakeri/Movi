@@ -30,6 +30,9 @@ bool ReadProcessor::next_read(Strand& process) {
         process.st_length = seq->name.m;
         process.read_name = seq->name.s;
         process.read = seq->seq.s;
+        process.match_len = 0;
+        process.ff_count = 0;
+        process.scan_count = 0;
         process.mq = MoveQuery(process.read);;
         return false;
     } else {
@@ -110,6 +113,13 @@ void ReadProcessor::process_char(Strand& process, MoveStructure& mv) {
 }
 
 void ReadProcessor::write_pmls(Strand& process, bool logs) {
+    if (logs) {
+        auto t2 = std::chrono::high_resolution_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
+        process.mq.add_cost(elapsed);
+        process.mq.add_fastforward(process.ff_count);
+        process.mq.add_scan(process.scan_count);
+    }
     pmls_file.write(reinterpret_cast<char*>(&process.st_length), sizeof(process.st_length));
     pmls_file.write(reinterpret_cast<char*>(&process.read_name[0]), process.st_length);
     auto& pml_lens = process.mq.get_pml_lens();
@@ -249,6 +259,10 @@ void ReadProcessor::reset_backward_search(Strand& process, MoveStructure& mv) {
 
 bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t& match_count) {
     std::string& R = process.mq.query();
+    if (!mv.check_alphabet(R[process.pos_on_r])) {
+        match_count = 0;
+        return true;
+    }
     // save the current range for reporting
     process.range_prev = process.range;
 
