@@ -250,7 +250,8 @@ int main(int argc, char* argv[]) {
             std::string R = std::string(seq->seq.s);
             int32_t pos_on_r = R.length() - 1;
             uint64_t match_count = mv_.backward_search(R, pos_on_r);
-            output_file << seq->name.s << "\t" << (pos_on_r == 0 ? "Found\t" : "Not-Found\t");
+            // output_file << seq->name.s << "\t" << (pos_on_r == 0 ? "Found\t" : "Not-Found\t");
+            output_file << seq->name.s << "\t";
             if (pos_on_r != 0) pos_on_r += 1;
             output_file << R.length() - pos_on_r << "/" << R.length() << "\t" << match_count << "\n";
         }
