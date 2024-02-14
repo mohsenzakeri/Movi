@@ -246,7 +246,10 @@ int main(int argc, char* argv[]) {
         std::string index_type = mv_.index_type();
         std::ofstream output_file(static_cast<std::string>(argv[3]) + "." + index_type + ".matches");
         uint64_t all_ff_count = 0;
+        uint64_t read_processed = 0;
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
+            if (read_processed % 1000 == 0)
+                std::cerr << read_processed << "\r";
             std::string R = std::string(seq->seq.s);
             int32_t pos_on_r = R.length() - 1;
             uint64_t match_count = mv_.backward_search(R, pos_on_r);
@@ -254,6 +257,7 @@ int main(int argc, char* argv[]) {
             output_file << seq->name.s << "\t";
             if (pos_on_r != 0) pos_on_r += 1;
             output_file << R.length() - pos_on_r << "/" << R.length() << "\t" << match_count << "\n";
+            read_processed += 1;
         }
         output_file.close();
         std::cerr<<"output file closed!\n";

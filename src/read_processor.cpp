@@ -1,5 +1,10 @@
 #include "read_processor.hpp"
 
+uint32_t alphamap_3_[4][4] = {{3, 0, 1, 2},
+                             {0, 3, 1, 2},
+                             {0, 1, 3, 2},
+                             {0, 1, 2, 3}};
+
 ReadProcessor::ReadProcessor(char* reads_file_name, MoveStructure& mv_, int strands_ = 4, bool query_pml = true) {
     fp = gzopen(reads_file_name, "r"); // STEP 2: open the file handler
     seq = kseq_init(fp); // STEP 3: initialize seq
@@ -319,6 +324,7 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
         }
         return true;
     }
+#if MODE == 0
     while ((process.range.run_start < process.range.run_end) and (mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] != R[process.pos_on_r])) {
         process.range.run_start += 1;
         process.range.offset_start = 0;
@@ -333,5 +339,50 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
             break;
         }
     }
+#endif
+#if MODE == 1
+    uint64_t read_alphabet_index = mv.alphamap[static_cast<uint64_t>(R[process.pos_on_r])];
+    if ((process.range.run_start < process.range.run_end) and (mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] != R[process.pos_on_r])) {
+        if (process.range.run_start == 0) {
+            while ((process.range.run_start < process.range.run_end) and (mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] != R[process.pos_on_r])) {
+                process.range.run_start += 1;
+                process.range.offset_start = 0;
+                if (process.range.run_start >= mv.r) {
+                    break;
+                }
+            }
+        } else {
+            char rlbwt_char = mv.alphabet[mv.rlbwt[process.range.run_start].get_c_jj()];
+            uint64_t alphabet_index = alphamap_3_[mv.alphamap[rlbwt_char]][read_alphabet_index];
+            if (mv.rlbwt[process.range.run_start].get_next_down(alphabet_index) == std::numeric_limits<uint16_t>::max()) {
+                process.range.run_start = mv.r;
+            } else {
+                uint64_t run_start = process.range.run_start + mv.rlbwt[process.range.run_start].get_next_down(alphabet_index);
+                if (run_start <= process.range.run_end) {
+                    process.range.run_start = run_start;
+                } else {
+                    process.range.run_start = process.range.run_end;
+                }
+                process.range.offset_start = 0;
+            }
+        }
+    }
+    if ((process.range.run_end > process.range.run_start) and (mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] != R[process.pos_on_r])) {
+        char rlbwt_char = mv.alphabet[mv.rlbwt[process.range.run_end].get_c_jj()];
+        uint64_t alphabet_index = alphamap_3_[mv.alphamap[rlbwt_char]][read_alphabet_index];
+        if (mv.rlbwt[process.range.run_end].get_next_up(alphabet_index) == std::numeric_limits<uint16_t>::max()) {
+            process.range.run_end = mv.r;
+        } else {
+            uint64_t run_end = process.range.run_end - mv.rlbwt[process.range.run_end].get_next_up(alphabet_index);
+            if (run_end >= process.range.run_start) {
+                process.range.run_end = run_end;
+            } else {
+                process.range.run_end = process.range.run_start;
+            }
+            process.range.offset_end = mv.rlbwt[process.range.run_end].get_n() - 1;
+        }
+    }
+#endif
+
     return false;
 }

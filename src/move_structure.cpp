@@ -979,6 +979,7 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
             std::cerr << ">>> " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
             std::cerr << ">>> " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
         }
+#if MODE == 0
         while ((run_start < run_end) and (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r])) {
             run_start += 1;
             offset_start = 0;
@@ -993,7 +994,50 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
                 break;
             }
         }
-
+#endif
+#if MODE == 1
+        uint64_t read_alphabet_index = alphamap[static_cast<uint64_t>(R[pos_on_r])];
+        if ((run_start < run_end) and (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r])) {
+            if (run_start == 0) {
+                while ((run_start < run_end) and (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r])) {
+                    run_start += 1;
+                    offset_start = 0;
+                    if (run_start >= r) {
+                        break;
+                    }
+                }
+            } else {
+                char rlbwt_char = alphabet[rlbwt[run_start].get_c_jj()];
+                uint64_t alphabet_index = alphamap_3[alphamap[rlbwt_char]][read_alphabet_index];
+                if (rlbwt[run_start].get_next_down(alphabet_index) == std::numeric_limits<uint16_t>::max()) {
+                    run_start = r;
+                } else {
+                    uint64_t run_start_ = run_start + rlbwt[run_start].get_next_down(alphabet_index);
+                    if (run_start_ <= run_end) {
+                        run_start = run_start_;
+                    } else {
+                        run_start = run_end;
+                    }
+                    offset_start = 0;
+                }
+            }
+        }
+        if ((run_end > run_start) and (alphabet[rlbwt[run_end].get_c()] != R[pos_on_r])) {
+            char rlbwt_char = alphabet[rlbwt[run_end].get_c_jj()];
+            uint64_t alphabet_index = alphamap_3[alphamap[rlbwt_char]][read_alphabet_index];
+            if (rlbwt[run_end].get_next_up(alphabet_index) == std::numeric_limits<uint16_t>::max()) {
+                run_end = r;
+            } else {
+                uint64_t run_end_ = run_end - rlbwt[run_end].get_next_up(alphabet_index);
+                if (run_end_ >= run_start) {
+                    run_end = run_end_;
+                } else {
+                    run_end = run_start;
+                }
+                offset_end = rlbwt[run_end].get_n() - 1;
+            }
+        }
+#endif
         if (verbose) {
           std::cerr << "<<< " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
           std::cerr << "<<< " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
