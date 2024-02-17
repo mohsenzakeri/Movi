@@ -104,7 +104,11 @@ int main(int argc, char* argv[]) {
         uint64_t all_ff_count = 0;
         // uint64_t query_pml_tot_time = 0;
         // uint64_t iteration_tot_time = 0;
+        uint64_t read_processed = 0;
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
+            if (read_processed % 1000 == 0)
+                std::cerr << read_processed << "\r";
+            read_processed += 1 ;
             /*printf("name: %s\n", seq->name.s);
             if (seq->comment.l) printf("comment: %s\n", seq->comment.s);
             printf("seq: %s\n", seq->seq.s);
