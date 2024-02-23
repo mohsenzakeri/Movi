@@ -65,6 +65,7 @@ class MoveStructure {
         void serialize(char* output_dir);
         void deserialize(char* index_dir);
         void print_stats();
+        bool check_alphabet(char c);
 
         std::unordered_map<uint32_t, uint32_t> jumps;
         std::unordered_map<uint32_t, uint32_t> ff_counts;

@@ -96,7 +96,6 @@ MoveStructure::MoveStructure(char* input_file_, bool onebit_, bool verbose_, boo
     return row_c;
 }*/
 
-
 std::string MoveStructure::index_type() {
     if (!onebit and !constant and splitting == 0) {
         return "default";
@@ -941,56 +940,140 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c, uint64_t& scan_count) {
 }
 
 uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
+    if (!check_alphabet(R[pos_on_r])) {
+        return 0;
+    }
     uint64_t run_start = first_runs[alphamap[R[pos_on_r]] + 1];
     uint64_t offset_start = first_offsets[alphamap[R[pos_on_r]] + 1];
     uint64_t run_end = last_runs[alphamap[R[pos_on_r]] + 1];
     uint64_t offset_end = last_offsets[alphamap[R[pos_on_r]] + 1];
+
+    // save the current range for reporting
+    uint64_t run_start_prev = run_start;
+    uint64_t offset_start_prev = offset_start;
+    uint64_t run_end_prev = run_end;
+    uint64_t offset_end_prev = offset_end;
+    uint64_t scan_count = 0;
     while (pos_on_r > -1) {
-        if (run_start == end_bwt_idx or run_end == end_bwt_idx) {
+        // save the current interval for reporting
+        run_start_prev = run_start;
+        offset_start_prev = offset_start;
+        run_end_prev = run_end;
+        offset_end_prev = offset_end;
+        pos_on_r -= 1;
+        if (run_start == end_bwt_idx or run_end == end_bwt_idx or !check_alphabet(R[pos_on_r])) {
             // std::cerr << "Not found\n";
-            return 0;
+            uint64_t match_count = 0;
+            if (run_start_prev == run_end_prev) {
+                match_count = offset_end_prev - offset_start_prev + 1;
+            } else {
+                match_count = (rlbwt[run_start_prev].get_n() - offset_start_prev) + (offset_end_prev + 1);
+                for (uint64_t k = run_start_prev + 1; k < run_end_prev; k ++) {
+                    match_count += rlbwt[k].get_n();
+                }
+            }
+            // pos_on_r -= 1;
+            return match_count;
         }
         if (verbose) {
             std::cerr << ">>> " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
             std::cerr << ">>> " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
         }
-        while (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r]) {
+#if MODE == 0
+        while ((run_start < run_end) and (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r])) {
+            run_start += 1;
+            offset_start = 0;
             if (run_start >= r) {
                 break;
             }
-            run_start += 1;
-            offset_start = 0;
         }
-        while (alphabet[rlbwt[run_end].get_c()] != R[pos_on_r]) {
+        while ((run_end > run_start) and alphabet[rlbwt[run_end].get_c()] != R[pos_on_r]) {
+            run_end -= 1;
+            offset_end = rlbwt[run_end].get_n() - 1;
             if (run_end == 0) {
                 break;
             }
-            run_end -= 1;
-            offset_end = rlbwt[run_end].get_n() - 1;
         }
-
+#endif
+#if MODE == 1
+        uint64_t read_alphabet_index = alphamap[static_cast<uint64_t>(R[pos_on_r])];
+        if ((run_start < run_end) and (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r])) {
+            if (run_start == 0) {
+                while ((run_start < run_end) and (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r])) {
+                    run_start += 1;
+                    offset_start = 0;
+                    if (run_start >= r) {
+                        break;
+                    }
+                }
+            } else {
+                char rlbwt_char = alphabet[rlbwt[run_start].get_c_jj()];
+                uint64_t alphabet_index = alphamap_3[alphamap[rlbwt_char]][read_alphabet_index];
+                if (rlbwt[run_start].get_next_down(alphabet_index) == std::numeric_limits<uint16_t>::max()) {
+                    run_start = r;
+                } else {
+                    uint64_t run_start_ = run_start + rlbwt[run_start].get_next_down(alphabet_index);
+                    if (run_start_ <= run_end) {
+                        run_start = run_start_;
+                    } else {
+                        run_start = run_end;
+                    }
+                    offset_start = 0;
+                }
+            }
+        }
+        if ((run_end > run_start) and (alphabet[rlbwt[run_end].get_c()] != R[pos_on_r])) {
+            char rlbwt_char = alphabet[rlbwt[run_end].get_c_jj()];
+            uint64_t alphabet_index = alphamap_3[alphamap[rlbwt_char]][read_alphabet_index];
+            if (rlbwt[run_end].get_next_up(alphabet_index) == std::numeric_limits<uint16_t>::max()) {
+                run_end = r;
+            } else {
+                uint64_t run_end_ = run_end - rlbwt[run_end].get_next_up(alphabet_index);
+                if (run_end_ >= run_start) {
+                    run_end = run_end_;
+                } else {
+                    run_end = run_start;
+                }
+                offset_end = rlbwt[run_end].get_n() - 1;
+            }
+        }
+#endif
         if (verbose) {
           std::cerr << "<<< " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
           std::cerr << "<<< " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
         }
-        if ((run_start < run_end) or (run_start == run_end and offset_start <= offset_end)) {
+        if (((run_start < run_end) or (run_start == run_end and offset_start <= offset_end)) and
+            (alphabet[rlbwt[run_start].get_c()] == R[pos_on_r] and alphabet[rlbwt[run_end].get_c()] == R[pos_on_r])) {
+            LF_move(offset_start, run_start);
+            LF_move(offset_end, run_end);
             if (pos_on_r == 0) {
                 uint64_t match_count = 0;
                 if (run_start == run_end) {
                     match_count = offset_end - offset_start + 1;
                 } else {
                     match_count = (rlbwt[run_start].get_n() - offset_start) + (offset_end + 1);
+                    for (uint64_t k = run_start + 1; k < run_end; k ++) {
+                        match_count += rlbwt[k].get_n();
+                    }
                 }
-                pos_on_r -= 1;
+                // pos_on_r -= 1;
                 return match_count;
             }
-            LF_move(offset_start, run_start);
-            LF_move(offset_end, run_end);
         } else {
             // std::cerr << "Not found\n";
-            return 0;
+            uint64_t match_count = 0;
+            if (run_start_prev == run_end_prev) {
+                match_count = offset_end_prev - offset_start_prev + 1;
+            } else {
+                match_count = (rlbwt[run_start_prev].get_n() - offset_start_prev) + (offset_end_prev + 1);
+                for (uint64_t k = run_start_prev + 1; k < run_end_prev; k ++) {
+                    match_count += rlbwt[k].get_n();
+                }
+            }
+            // pos_on_r -= 1;
+            return match_count;
         }
-        pos_on_r -= 1;
+        // pos_on_r -= 1;
     }
     std::cerr << "Should not get here!\n";
     return 0;
@@ -1047,7 +1130,8 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
         uint64_t row_idx = idx;
         char row_c = alphabet[row.get_c()];
 
-        if (alphamap[static_cast<uint64_t>(R[pos_on_r])] == alphamap.size()) {
+        // if (alphamap[static_cast<uint64_t>(R[pos_on_r])] == alphamap.size()) {
+        if (!check_alphabet(R[pos_on_r])) {
             // The character from the read does not exist in the reference
             match_len = 0;
             scan_count = 0;
@@ -1335,6 +1419,15 @@ bool MoveStructure::jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_cou
         exit(0);
     }
 }*/
+
+bool MoveStructure::check_alphabet(char c) {
+    // for (char c_: alphabet) {
+    //     if (c == c_)
+    //         return true;
+    // }
+    // return false;
+    return alphamap[static_cast<uint64_t>(c)] != alphamap.size();
+}
 
 void MoveStructure::serialize(char* output_dir) {
     mkdir(output_dir,0777);
