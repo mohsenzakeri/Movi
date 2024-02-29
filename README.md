@@ -70,11 +70,11 @@ The constant index will be located at `<index directory>/constant_index/movi_ind
 
 To compute PMLs using the **default** movi index, please run the following command on the fastq or fasta file of the reads:
 ```
-movi-default query <default index directory> <reads file>
+movi-default query --pml --index <default index directory> --read <reads file>
 ```
 or the following command for using the **constant** movi index:
 ```
-movi-constant query <constant index directory> <reads file>
+movi-constant query --pml --index <constant index directory> --read <reads file>
 ```
 
 `<reads file>` is the address of the fasta or fastq file containing the reads.
@@ -82,7 +82,7 @@ movi-constant query <constant index directory> <reads file>
 After the query command finishes, a file with the same name as the reads file and the extension `mpml.bin` is generated in the directory that also includes the reads file.
 Since this file is in the binary format, to view the PMLs please run the following command:
 ```
-movi-default view <mpml file> | less
+movi-default view --pml <mpml file> | less
 ```
 `<mpml file>` is the file generated in the query step.
 
