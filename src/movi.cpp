@@ -27,6 +27,20 @@ std::string program() {
 #endif
 }
 
+kseq_t* open_kseq(gzFile& fp, std::string file_address) {
+    kseq_t *seq;
+    fp = gzopen(file_address.c_str(), "r"); // STEP 2: open the file handler
+    seq = kseq_init(fp); // STEP 3: initialize seq
+    return seq;
+}
+
+void close_kseq(kseq_t *seq, gzFile& fp) {
+    kseq_destroy(seq); // STEP 5: destroy seq
+    std::cerr << "kseq destroyed!\n";
+    gzclose(fp); // STEP 6: close the file handler
+    std::cerr << "fp file closed!\n";
+}
+
 bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     // movi_options.print_options();
 
@@ -163,20 +177,6 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         return false;
     }
     return true;
-}
-
-kseq_t* open_kseq(gzFile& fp, std::string file_address) {
-    kseq_t *seq;
-    fp = gzopen(file_address.c_str(), "r"); // STEP 2: open the file handler
-    seq = kseq_init(fp); // STEP 3: initialize seq
-    return seq;
-}
-
-void close_kseq(kseq_t *seq, gzFile& fp) {
-    kseq_destroy(seq); // STEP 5: destroy seq
-    std::cerr << "kseq destroyed!\n";
-    gzclose(fp); // STEP 6: close the file handler
-    std::cerr << "fp file closed!\n";
 }
 
 void query(MoveStructure& mv_, MoviOptions& movi_options) {
