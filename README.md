@@ -82,7 +82,7 @@ movi-constant query --pml --index <constant index directory> --read <reads file>
 After the query command finishes, a file with the same name as the reads file and the extension `mpml.bin` is generated in the directory that also includes the reads file.
 Since this file is in the binary format, to view the PMLs please run the following command:
 ```
-movi-default view --pml <mpml file> | less
+movi-default view --pml-file <mpml file> | less
 ```
 `<mpml file>` is the file generated in the query step.
 
