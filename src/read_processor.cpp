@@ -5,24 +5,24 @@ uint32_t alphamap_3_[4][4] = {{3, 0, 1, 2},
                              {0, 1, 3, 2},
                              {0, 1, 2, 3}};
 
-ReadProcessor::ReadProcessor(char* reads_file_name, MoveStructure& mv_, int strands_ = 4, bool query_pml = true) {
-    fp = gzopen(reads_file_name, "r"); // STEP 2: open the file handler
+ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_ = 4, bool query_pml = true) {
+    fp = gzopen(reads_file_name.c_str(), "r"); // STEP 2: open the file handler
     seq = kseq_init(fp); // STEP 3: initialize seq
     std::string index_type = mv_.index_type();
     if (query_pml) {
-        std::string pmls_file_name = static_cast<std::string>(reads_file_name) + "." + index_type + ".mpml.bin";
+        std::string pmls_file_name = reads_file_name + "." + index_type + ".mpml.bin";
         pmls_file = std::ofstream(pmls_file_name, std::ios::out | std::ios::binary);
     } else {
-        std::string matches_file_name = static_cast<std::string>(reads_file_name) + "." + index_type + ".matches";
+        std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
         matches_file = std::ofstream(matches_file_name);
     }
 
     read_processed = 0;
     strands = strands_;
     if (mv_.logs) {
-        costs_file = std::ofstream(static_cast<std::string>(reads_file_name) + "." + index_type + ".costs");
-        scans_file = std::ofstream(static_cast<std::string>(reads_file_name) + "." + index_type + ".scans");
-        fastforwards_file = std::ofstream(static_cast<std::string>(reads_file_name) + "." + index_type + ".fastforwards");
+        costs_file = std::ofstream(reads_file_name + "." + index_type + ".costs");
+        scans_file = std::ofstream(reads_file_name + "." + index_type + ".scans");
+        fastforwards_file = std::ofstream(reads_file_name + "." + index_type + ".fastforwards");
     }
 }
 

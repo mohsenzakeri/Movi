@@ -50,7 +50,7 @@ struct Strand {
 
 class ReadProcessor {
     public:
-        ReadProcessor(char* reads_file_name, MoveStructure& mv_, int strands_, bool query_pml);
+        ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_, bool query_pml);
         // void process_regular();
         void process_latency_hiding(MoveStructure& mv);
         void backward_search_latency_hiding(MoveStructure& mv);

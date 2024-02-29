@@ -14,56 +14,54 @@
 #include "move_structure.hpp"
 #include "move_query.hpp"
 #include "read_processor.hpp"
+#include "movi_options.hpp"
 
 // STEP 1: declare the type of file handler and the read() function
 // KSEQ_INIT(gzFile, gzread)
+std::string program() {
+#if MODE == 0
+    return "default";
+#endif
+#if MODE == 1
+    return "constant";
+#endif
+}
 
-bool parse_command(int argc, char** argv) {
+bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
+    // movi_options.print_options();
 
-    // bool constant = false;
-    // bool onebit = false;
-    // bool split = false;
-    // bool default_ = false;
-    // char* ref_file = NULL;
-    // char* read_file = NULL;
-    // char* index_dir = NULL;
-    // bool reverse = false;
-    // bool prefetch = false;
-    // bool verbose = false;
-    // bool logs = false;
-
-    cxxopts::Options options("Movi", "Command line options for Movi");
+    cxxopts::Options options("movi-" + program(), "Please use the following format.");
 
     options.add_options()
         ("command", "Command to execute", cxxopts::value<std::string>())
         ("h,help", "Print help")
-        ("verbose", "Enable verbose mode")
-        ("logs", "Enable logs");
+        ("v,verbose", "Enable verbose mode")
+        ("l,logs", "Enable logs");
 
     auto buildOptions = options.add_options("build")
-        ("mode", "Build mode", cxxopts::value<std::string>())
-        ("ref", "Reference file", cxxopts::value<std::string>())
-        ("index", "Index directory", cxxopts::value<std::string>());
-
+        ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("f,fasta", "Reference file", cxxopts::value<std::string>());
 
     auto queryOptions = options.add_options("query")
-        ("type", "Query type", cxxopts::value<std::string>())
-        ("read", "Read file for query", cxxopts::value<std::string>())
-        ("index2", "Index directory for query", cxxopts::value<std::string>())
-        ("no-prefetch", "Disable prefetching for query")
-        ("Strands", "Number of strands for query", cxxopts::value<int>());
-
-    auto rlbwtOptions = options.add_options("rlbwt")
-        ("ref2", "Reference file", cxxopts::value<std::string>());
+        ("pml", "Compute the pseudo-matching lengths (PMLs)")
+        ("count", "Compute the count queries")
+        ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
+        ("n,no-prefetch", "Disable prefetching for query")
+        ("s,Strands", "Number of strands for query", cxxopts::value<int>());
 
     auto viewOptions = options.add_options("view")
-        ("read2", "Read file", cxxopts::value<std::string>());
+        ("pml-file", "PML file in the binary format", cxxopts::value<std::string>());
+
+    auto rlbwtOptions = options.add_options("rlbwt")
+        ("bwt-file", "BWT file", cxxopts::value<std::string>());
 
     auto LFOptions = options.add_options("LF")
-        ("type2", "LF type", cxxopts::value<std::string>());
+        ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("type", "type of the LF query: \"reconstruct\", \"sequential\", or \"random\"", cxxopts::value<std::string>());
 
     auto statsOptions = options.add_options("stats")
-        ("ref3", "Reference file", cxxopts::value<std::string>());
+        ("i,index", "Index directory", cxxopts::value<std::string>());
 
     options.parse_positional({ "command" });
 
@@ -77,52 +75,281 @@ bool parse_command(int argc, char** argv) {
 
         if (result.count("verbose")) {
             // Set global verbose flag
+            movi_options.set_verbose(true);
         }
 
         if (result.count("logs")) {
             // Set global logs flag
+            movi_options.set_logs(true);
         }
 
         if (result.count("command")) {
             std::string command = result["command"].as<std::string>();
+            movi_options.set_command(command);
 
             if (command == "build") {
-                // Handle build command using buildOptions
+                if (result.count("index") == 1 and result.count("fasta") == 1) {
+                    movi_options.set_index_dir(result["index"].as<std::string>());
+                    movi_options.set_ref_file(result["fasta"].as<std::string>());
+                } else {
+                    const std::string message = "Please include one index directory and one fasta file.";
+                    cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                }
             } else if (command == "query") {
-                // Handle query command using queryOptions
+                if (result.count("index") == 1 and result.count("read") == 1) {
+                    movi_options.set_index_dir(result["index"].as<std::string>());
+                    movi_options.set_read_file(result["read"].as<std::string>());
+                    if (result.count("pml") >= 1) { movi_options.set_pml(true); }
+                    if (result.count("count") >= 1) { movi_options.set_count(true); }
+                    if (movi_options.is_pml() and movi_options.is_count()) {
+                        const std::string message = "Please only specify count or pml as the type of queries.";
+                        cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                    }
+                    if (result.count("no-prefetch")) {
+                        movi_options.set_prefetch(false);
+                    }
+                    if (result.count("strands")) {
+                        movi_options.set_strands(result["strands"].as<size_t>());
+                    }
+                } else {
+                    const std::string message = "Please include one index directory and one read file.";
+                    cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                }
             } else if (command == "rlbwt") {
-                // Handle rlbwt command using rlbwtOptions
+                if (result.count("bwt-file") == 1) {
+                    movi_options.set_bwt_file(result["bwt-file"].as<std::string>());
+                } else {
+                    const std::string message = "Please specify one bwt file.";
+                    cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                }
             } else if (command == "view") {
-                // Handle view command using viewOptions
+                if (result.count("pml_file") == 1) {
+                    movi_options.set_pml_file(result["pml-file"].as<std::string>());
+                } else {
+                    const std::string message = "Please specify one pml file.";
+                    cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                }
             } else if (command == "LF") {
-                // Handle LF command using LFOptions
+                if (result.count("index") == 1) {
+                    movi_options.set_index_dir(result["index"].as<std::string>());
+                    if (result.count("type")) {
+                        if (!movi_options.set_LF_type(result["type"].as<std::string>())) {
+                            const std::string message = "The LF type is not defined, please choose from: \"reconstruct\", \"sequential\", or \"random\"";
+                            cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                        }
+                    }
+                } else {
+                    const std::string message = "Please specify the index directory file.";
+                    cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                }
             } else if (command == "stats") {
-                // Handle stats command using statsOptions
+                if (result.count("index")) {
+                    movi_options.set_index_dir(result["index"].as<std::string>());
+                } else {
+                    const std::string message = "Please specify the index directory file.";
+                    cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                }
             } else {
-                std::cerr << "Invalid command: " << command << std::endl;
-                std::cout << options.help() << std::endl;
-                return 1;
+                const std::string message = "Invalid command: \"" + command + "\"";
+                cxxopts::throw_or_mimic<cxxopts::exceptions::no_such_option>(message);
             }
         } else {
-            std::cerr << "No command specified." << std::endl;
-            std::cout << options.help() << std::endl;
-            return 1;
+            const std::string message = "No command specified.";
+            cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
         }
     } catch (const cxxopts::exceptions::exception& e) {
-        std::cerr << "Error parsing command line options: " << e.what() << std::endl;
-        return 1;
+        std::cerr << "Error parsing command line options: " << e.what() << "\n";
+        std::cout << options.help() << "\n";
+        return false;
     }
+    return true;
+}
 
-    return 0;
+kseq_t* open_kseq(gzFile& fp, std::string file_address) {
+    kseq_t *seq;
+    fp = gzopen(file_address.c_str(), "r"); // STEP 2: open the file handler
+    seq = kseq_init(fp); // STEP 3: initialize seq
+    return seq;
+}
+
+void close_kseq(kseq_t *seq, gzFile& fp) {
+    kseq_destroy(seq); // STEP 5: destroy seq
+    std::cerr << "kseq destroyed!\n";
+    gzclose(fp); // STEP 6: close the file handler
+    std::cerr << "fp file closed!\n";
+}
+
+void query(MoveStructure& mv_, MoviOptions& movi_options) {
+    if (!movi_options.no_prefetch()) {
+        ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), true);
+        if (movi_options.is_pml()) {
+            rp.process_latency_hiding(mv_);
+        } else if (movi_options.is_count()) {
+            rp.backward_search_latency_hiding(mv_);
+        }      
+    } else {
+        gzFile fp;
+        int l;
+        kseq_t* seq = open_kseq(fp, movi_options.get_read_file());
+        std::ofstream costs_file;
+        std::ofstream scans_file;
+        std::ofstream fastforwards_file;
+        std::string index_type = mv_.index_type();
+        if (movi_options.is_logs()) {
+            costs_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".costs");
+            scans_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".scans");
+            fastforwards_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".fastforwards");
+        }
+        uint64_t total_ff_count = 0;
+
+        std::ofstream pmls_file;
+        std::ofstream count_file;
+        if (movi_options.is_pml())
+            pmls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".mpml.bin", std::ios::out | std::ios::binary);
+        else if (movi_options.is_count())
+            count_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".matches");
+
+        uint64_t read_processed = 0;
+        while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
+            if (read_processed % 1000 == 0)
+                std::cerr << read_processed << "\r";
+            read_processed += 1 ;
+            std::string query_seq = seq->seq.s;
+            MoveQuery mq;
+            if (movi_options.is_pml()) {
+                mq = MoveQuery(query_seq);
+                bool random_jump = false;
+                total_ff_count += mv_.query_pml(mq, random_jump);
+                uint16_t st_length = seq->name.m;
+                pmls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
+                pmls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
+                auto& pml_lens = mq.get_pml_lens();
+                uint64_t mq_pml_lens_size = pml_lens.size();
+                pmls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
+                pmls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+            } else if (movi_options.is_count()) {
+                // std::string R = std::string(seq->seq.s);
+                int32_t pos_on_r = query_seq.length() - 1;
+                uint64_t match_count = mv_.backward_search(query_seq, pos_on_r);
+                count_file << seq->name.s << "\t";
+                if (pos_on_r != 0) pos_on_r += 1;
+                count_file << query_seq.length() - pos_on_r << "/" << query_seq.length() << "\t" << match_count << "\n";                
+            }
+
+            if (movi_options.is_logs()) {
+                costs_file << ">" << seq->name.s << "\n";
+                scans_file << ">" << seq->name.s << "\n";
+                fastforwards_file << ">" << seq->name.s << "\n";
+                for (auto& cost : mq.get_costs()) {
+                    costs_file << cost.count() << " ";
+                }
+                for (auto& scan: mq.get_scans()) {
+                    scans_file << scan << " ";
+                }
+                for (auto& fast_forward : mq.get_fastforwards()) {
+                    fastforwards_file << fast_forward << " ";
+                }
+                costs_file << "\n";
+                scans_file << "\n";
+                fastforwards_file << "\n";
+            }
+        }
+        
+        if (movi_options.is_pml()) {
+            std::cerr << "all fast forward counts: " << total_ff_count << "\n";
+            pmls_file.close();
+            std::cerr << "pmls file closed.\n";
+        } else if (movi_options.is_count()) {
+            count_file.close();
+            std::cerr << "count file is closed.\n";
+        }
+        if (movi_options.is_logs()) {
+            costs_file.close();
+            scans_file.close();
+            fastforwards_file.close();
+        }
+        close_kseq(seq, fp);
+    }
+}
+
+void view(MoviOptions& movi_options) {
+    std::ifstream pmls_file(movi_options.get_pml_file(), std::ios::in | std::ios::binary);
+    pmls_file.seekg(0, std::ios::beg);
+    while (true) {
+        uint16_t st_length = 0;
+        pmls_file.read(reinterpret_cast<char*>(&st_length), sizeof(st_length));
+        if (pmls_file.eof()) break;
+
+        std::string read_name;
+        read_name.resize(st_length);
+        pmls_file.read(reinterpret_cast<char*>(&read_name[0]), st_length);
+        read_name.erase(std::find(read_name.begin(), read_name.end(), '\0'), read_name.end());
+        std::cout << ">" << read_name << " \n";
+        uint64_t mq_pml_lens_size = 0;
+        pmls_file.read(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
+        std::vector<uint16_t> pml_lens;
+        pml_lens.resize(mq_pml_lens_size);
+        pmls_file.read(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+        for (int64_t i = mq_pml_lens_size - 1; i >= 0; i--) {
+            std::cout << pml_lens[i] << " ";
+        }
+        std::cout << "\n";
+    }
 }
 
 int main(int argc, char** argv) {
-    std::ios_base::sync_with_stdio(false);
+    // std::ios_base::sync_with_stdio(false);
+    MoviOptions movi_options;
+    if (!parse_command(argc, argv, movi_options)) {
+        return 0;
+    }
+    std::string command = movi_options.get_command();
+    if (command == "build") {
+        MoveStructure mv_(movi_options.get_ref_file(), false, movi_options.is_verbose(), movi_options.is_logs(), false, MODE == 1);
+        std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
+        mv_.serialize(movi_options.get_index_dir());
+        std::cerr << "The move structure is read from the file successfully.\n";
+    } else if (command == "query") {
+        MoveStructure mv_(movi_options.is_verbose(), movi_options.is_logs());
+        auto begin = std::chrono::system_clock::now();
+        mv_.deserialize(movi_options.get_index_dir());
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+        std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+        begin = std::chrono::system_clock::now();
+        query(mv_, movi_options);
+        end = std::chrono::system_clock::now();
+        elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+        std::printf("Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);
+    } else if (command == "view") {
+        view(movi_options);
+    } else if (command == "rlbwt") {
+        std::cerr << "The run and len files are being built.\n";
+        MoveStructure mv_(movi_options.is_verbose(), movi_options.is_logs());
+        mv_.build_rlbwt(movi_options.get_bwt_file());
+    } else if (command == "LF") {
+        MoveStructure mv_(movi_options.is_verbose(), movi_options.is_logs());
+        mv_.deserialize(movi_options.get_index_dir());
+        std::cerr << "The move structure is read from the file successfully.\n";
+        if (movi_options.get_LF_type() == "sequential")
+            mv_.sequential_lf();
+        else if (movi_options.get_LF_type() == "random")
+            mv_.random_lf();
+        else if (movi_options.get_LF_type() == "reconstruct")
+            mv_.reconstruct_lf();
+    } else if (command == "stats") {
+        MoveStructure mv_(movi_options.is_verbose(), movi_options.is_logs());
+        mv_.deserialize(movi_options.get_index_dir());
+        mv_.print_stats();
+    }
+}
+
+/*int main(int argc, char** argv) {
+    // std::ios_base::sync_with_stdio(false);
     std::string command = (argc >= 2) ? argv[1] : "";
     std::cerr << "command: " << command << "\n";
-    parse_command(argc, argv);
-    /* if (command == "build") {
-        std::cerr<<"The move structure is being built.\n";
+    if (command == "build") {
+        std::cerr << "The move structure is being built.\n";
 
         bool onebit = std::string(argv[2]) == "onebit" ? true : false;
         uint16_t splitting = std::string(argv[2]) == "split" ? 5 : 0;
@@ -138,14 +365,14 @@ int main(int argc, char** argv) {
         bool logs = (argc > 5 and std::string(argv[5]) == "logs");
 
         MoveStructure mv_(argv[3], onebit, verbose, logs, splitting, constant);
-        std::cerr<<"The move structure is successfully built!\n";
+        std::cerr << "The move structure is successfully built!\n";
 
         // mv_.reconstruct();
-        // std::cerr<<"The original string is reconstructed.\n";
-        // std::cerr<<"The original string is:\n" << mv_.R() << "\n";
+        // std::cerr << "The original string is reconstructed.\n";
+        // std::cerr << "The original string is:\n" << mv_.R() << "\n";
 
         mv_.serialize(argv[4]);
-        std::cerr<<"The move structure is successfully stored at " << argv[4] << "\n";
+        std::cerr << "The move structure is successfully stored at " << argv[4] << "\n";
         // if (logs) {
         //     std::ofstream rl_file(static_cast<std::string>(argv[4]) + "/run_lengths");
         //     for (auto& run_length : mv_.run_lengths) {
@@ -181,15 +408,16 @@ int main(int argc, char** argv) {
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
         std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
         std::cerr << "The move structure is read from the file successfully.\n";
-        // std::cerr<<"The original string is: " << mv_.reconstruct() << "\n";
+        // std::cerr << "The original string is: " << mv_.reconstruct() << "\n";
         // std::string query = argv[3];
 
         // Fasta/q reader from http://lh3lh3.users.sourceforge.net/parsefastq.shtml
         gzFile fp;
-        kseq_t *seq;
         int l;
-        fp = gzopen(argv[3], "r"); // STEP 2: open the file handler
-        seq = kseq_init(fp); // STEP 3: initialize seq
+        // kseq_t *seq;
+        // fp = gzopen(argv[3], "r"); // STEP 2: open the file handler
+        // seq = kseq_init(fp); // STEP 3: initialize seq
+        kseq_t* seq = open_kseq(fp, argv[3]);
         // std::ofstream pmls_file(static_cast<std::string>(argv[3]) + ".mpml");
         std::ofstream costs_file;
         std::ofstream scans_file;
@@ -201,7 +429,7 @@ int main(int argc, char** argv) {
             fastforwards_file = std::ofstream(static_cast<std::string>(argv[3]) + "." + index_type + ".fastforwards");
         }
         std::ofstream pmls_file(static_cast<std::string>(argv[3]) + "." + index_type + ".mpml.bin", std::ios::out | std::ios::binary);
-        uint64_t all_ff_count = 0;
+        uint64_t total_ff_count = 0;
         // uint64_t query_pml_tot_time = 0;
         // uint64_t iteration_tot_time = 0;
         uint64_t read_processed = 0;
@@ -222,7 +450,7 @@ int main(int argc, char** argv) {
             MoveQuery mq(query_seq);
             bool random_jump = false;
             // std::cerr << seq->name.s << "\n";
-            all_ff_count += mv_.query_pml(mq, random_jump);
+            total_ff_count += mv_.query_pml(mq, random_jump);
             // auto t2 = std::chrono::high_resolution_clock::now();
             // query_pml_tot_time += static_cast<uint64_t>(std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count());
 
@@ -257,7 +485,7 @@ int main(int argc, char** argv) {
                 fastforwards_file << "\n";
             }
         }
-        std::cerr<<"all fast forward counts: " << all_ff_count << "\n";
+        std::cerr << "all fast forward counts: " << total_ff_count << "\n";
         // std::cerr << "query_pml_tot_time: " << query_pml_tot_time << "\n";
         // std::cerr << "iteration_tot_time: " << iteration_tot_time << "\n";
         if (logs) {
@@ -266,12 +494,13 @@ int main(int argc, char** argv) {
             fastforwards_file.close();
         }
         pmls_file.close();
-        std::cerr<<"pmls file closed!\n";
+        std::cerr << "pmls file closed!\n";
         // printf("return value: %d\n", l);
-        kseq_destroy(seq); // STEP 5: destroy seq
-        std::cerr<<"kseq destroyed!\n";
-        gzclose(fp); // STEP 6: close the file handler
-        std::cerr<<"fp file closed!\n";
+        close_kseq(seq, fp);
+        // kseq_destroy(seq); // STEP 5: destroy seq
+        // std::cerr << "kseq destroyed!\n";
+        // gzclose(fp); // STEP 6: close the file handler
+        // std::cerr << "fp file closed!\n";
 
         if (logs) {
             std::ofstream jumps_file(static_cast<std::string>(argv[3]) + "." + index_type + ".jumps");
@@ -297,13 +526,14 @@ int main(int argc, char** argv) {
 
         // Fasta/q reader from http://lh3lh3.users.sourceforge.net/parsefastq.shtml
         gzFile fp;
-        kseq_t *seq;
         int l;
-        fp = gzopen(argv[3], "r"); // STEP 2: open the file handler
-        seq = kseq_init(fp); // STEP 3: initialize seq
+        // kseq_t *seq;
+        // fp = gzopen(argv[3], "r"); // STEP 2: open the file handler
+        // seq = kseq_init(fp); // STEP 3: initialize seq
+        kseq_t* seq = open_kseq(fp, argv[3]);
         std::string index_type = mv_.index_type();
         std::ofstream matches_file(static_cast<std::string>(argv[3]) + "." + index_type + ".matches.bin", std::ios::out | std::ios::binary);
-        uint64_t all_ff_count = 0;
+        uint64_t total_ff_count = 0;
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
 
             std::string query_seq = seq->seq.s;
@@ -311,7 +541,7 @@ int main(int argc, char** argv) {
             if (reverse_query)
                 std::reverse(query_seq.begin(), query_seq.end());
             MoveQuery mq(query_seq);
-            all_ff_count += mv_.exact_matches(mq);
+            total_ff_count += mv_.exact_matches(mq);
             uint16_t st_length = seq->name.m;
             matches_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
             matches_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
@@ -321,12 +551,13 @@ int main(int argc, char** argv) {
             matches_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
         }
         matches_file.close();
-        std::cerr<<"pmls file closed!\n";
+        std::cerr << "pmls file closed!\n";
         // printf("return value: %d\n", l);
-        kseq_destroy(seq); // STEP 5: destroy seq
-        std::cerr<<"kseq destroyed!\n";
-        gzclose(fp); // STEP 6: close the file handler
-        std::cerr<<"fp file closed!\n";
+        close_kseq(seq, fp);
+        // kseq_destroy(seq); // STEP 5: destroy seq
+        // std::cerr << "kseq destroyed!\n";
+        // gzclose(fp); // STEP 6: close the file handler
+        // std::cerr << "fp file closed!\n";
     } else if (command == "count" or command == "count-onebit") {
         bool verbose = (argc > 4 and std::string(argv[4]) == "verbose");
         bool logs = (argc > 4 and std::string(argv[4]) == "logs");
@@ -343,13 +574,14 @@ int main(int argc, char** argv) {
 
         // Fasta/q reader from http://lh3lh3.users.sourceforge.net/parsefastq.shtml
         gzFile fp;
-        kseq_t *seq;
         int l;
-        fp = gzopen(argv[3], "r"); // STEP 2: open the file handler
-        seq = kseq_init(fp); // STEP 3: initialize seq
+        // kseq_t *seq;
+        // fp = gzopen(argv[3], "r"); // STEP 2: open the file handler
+        // seq = kseq_init(fp); // STEP 3: initialize seq
+        kseq_t* seq = open_kseq(fp, argv[3]);
         std::string index_type = mv_.index_type();
-        std::ofstream output_file(static_cast<std::string>(argv[3]) + "." + index_type + ".matches");
-        uint64_t all_ff_count = 0;
+        std::ofstream count_file(static_cast<std::string>(argv[3]) + "." + index_type + ".matches");
+        uint64_t total_ff_count = 0;
         uint64_t read_processed = 0;
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
             if (read_processed % 1000 == 0)
@@ -357,18 +589,19 @@ int main(int argc, char** argv) {
             std::string R = std::string(seq->seq.s);
             int32_t pos_on_r = R.length() - 1;
             uint64_t match_count = mv_.backward_search(R, pos_on_r);
-            // output_file << seq->name.s << "\t" << (pos_on_r == 0 ? "Found\t" : "Not-Found\t");
-            output_file << seq->name.s << "\t";
+            // count_file << seq->name.s << "\t" << (pos_on_r == 0 ? "Found\t" : "Not-Found\t");
+            count_file << seq->name.s << "\t";
             if (pos_on_r != 0) pos_on_r += 1;
-            output_file << R.length() - pos_on_r << "/" << R.length() << "\t" << match_count << "\n";
+            count_file << R.length() - pos_on_r << "/" << R.length() << "\t" << match_count << "\n";
             read_processed += 1;
         }
-        output_file.close();
-        std::cerr<<"output file closed!\n";
-        kseq_destroy(seq); // STEP 5: destroy seq
-        std::cerr<<"kseq destroyed!\n";
-        gzclose(fp); // STEP 6: close the file handler
-        std::cerr<<"fp file closed!\n";
+        count_file.close();
+        std::cerr << "output file closed!\n";
+        close_kseq(seq, fp);
+        // kseq_destroy(seq); // STEP 5: destroy seq
+        // std::cerr << "kseq destroyed!\n";
+        // gzclose(fp); // STEP 6: close the file handler
+        // std::cerr << "fp file closed!\n";
     } else if (command == "count-pf") {
         bool verbose = (argc > 5 and std::string(argv[5]) == "verbose");
         bool logs = (argc > 5 and std::string(argv[5]) == "logs");
@@ -384,7 +617,7 @@ int main(int argc, char** argv) {
         ReadProcessor rp(argv[3], mv_, atoi(argv[4]), false);
         rp.backward_search_latency_hiding(mv_);
     } else if (command == "rlbwt") {
-        std::cerr<<"The run and len files are being built.\n";
+        std::cerr << "The run and len files are being built.\n";
         bool verbose = (argc > 3 and std::string(argv[3]) == "verbose");
         bool logs = (argc > 3 and std::string(argv[3]) == "logs");
         MoveStructure mv_(verbose, logs);
@@ -457,9 +690,9 @@ int main(int argc, char** argv) {
         }
     } else {
         std::cerr << "clean fasta files:\t\t./prepare_ref <fasta list file> <output fasta> list\n\n";
-	std::cerr << ">>>>>> You can run the following if the .thr_pos and .bwt files are provided for <output fasta>.\n";
-	std::cerr << "build default index:\t\t./movi-default build default <output fasta> <index dir>\n\n";
-	std::cerr << "query (compute PMLs):\t\t./movi-default query <index dir> <reads file>\n";
-	std::cerr << "view the mpml.bin file:\t\t./movi-default view <mpml.bin file> | less\n";
-    }*/
-}
+        std::cerr << ">>>>>> You can run the following if the .thr_pos and .bwt files are provided for <output fasta>.\n";
+        std::cerr << "build default index:\t\t./movi-default build default <output fasta> <index dir>\n\n";
+        std::cerr << "query (compute PMLs):\t\t./movi-default query <index dir> <reads file>\n";
+        std::cerr << "view the mpml.bin file:\t\t./movi-default view <mpml.bin file> | less\n";
+    }
+}*/

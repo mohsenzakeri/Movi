@@ -1820,8 +1820,8 @@ class Options
   explicit Options(std::string program_name, std::string help_string = "")
   : m_program(std::move(program_name))
   , m_help_string(toLocalString(std::move(help_string)))
+  , m_positional_help("command")
   , m_custom_help("[OPTION...]")
-  , m_positional_help("positional parameters")
   , m_show_positional(false)
   , m_allow_unrecognised(false)
   , m_width(76)
@@ -2638,10 +2638,10 @@ Options::add_one_option
 {
   auto in = m_options->emplace(option, details);
 
-  if (!in.second)
+  /*if (!in.second)
   {
     throw_or_mimic<exceptions::option_already_exists>(option);
-  }
+  }*/
 }
 
 inline
@@ -2774,19 +2774,27 @@ Options::help(const std::vector<std::string>& help_groups, bool print_usage) con
     result+= "\nUsage:\n  " + toLocalString(m_program);
   }
 
-  if (!m_custom_help.empty())
-  {
-    result += " " + toLocalString(m_custom_help);
-  }
-
   if (!m_positional.empty() && !m_positional_help.empty()) {
     result += " " + toLocalString(m_positional_help);
   }
 
+  if (!m_custom_help.empty())
+  {
+    result += " " + toLocalString(m_custom_help);
+  }
   result += "\n\n";
+
+  if (!m_positional_help.empty()) {
+    result += " command:";
+    for (auto& group: m_help) {
+      result += " " + group.first;
+    }
+    result += "\n\n";
+  }
 
   if (help_groups.empty())
   {
+    result += " General options:\n";
     generate_all_groups_help(result);
   }
   else

@@ -52,7 +52,7 @@ MoveStructure::MoveStructure(bool onebit_, bool verbose_, bool logs_, uint16_t s
     constant = constant_;
 }
 
-MoveStructure::MoveStructure(char* input_file_, bool onebit_, bool verbose_, bool logs_, uint16_t splitting_, bool constant_) {
+MoveStructure::MoveStructure(std::string input_file_, bool onebit_, bool verbose_, bool logs_, uint16_t splitting_, bool constant_) {
     onebit = onebit_;
     verbose = verbose_;
     logs = logs_;
@@ -153,33 +153,6 @@ uint64_t MoveStructure::LF(uint64_t row_number) {
     return lf;
 }
 
-std::string MoveStructure::reconstruct_move() {
-    orig_string = "";
-    uint64_t offset = 0;
-    uint64_t run_index = 0;
-    uint64_t i = 0;
-    uint64_t ff_count_tot = 0;
-
-    uint64_t total_elapsed = 0;
-    for (; run_index != end_bwt_idx; ) {
-        auto begin = std::chrono::system_clock::now();
-        ff_count_tot += LF_move(offset, run_index);
-        auto end = std::chrono::system_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-        total_elapsed += elapsed.count();
-
-        if (i % 10000 == 0)
-            std::cerr<< i << "\r";
-        i += 1;
-        // orig_string = rlbwt[run_index].get_c() + orig_string;
-    }
-    std::printf("Time measured for reconstructing the original text: %.3f seconds.\n", total_elapsed * 1e-9);
-
-    std::cerr << "Finished reconstructing the original string.\n";
-    std::cerr << "Total fast forward: " << ff_count_tot << "\n";
-    return orig_string;
-}
-
 /*std::string MoveStructure::reconstruct() {
     if (bwt_string == "") {
         for (uint32_t i = 0; i < r; i++) {
@@ -271,7 +244,34 @@ uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
     return ff_count;
 }
 
-void MoveStructure::all_lf_test() {
+std::string MoveStructure::reconstruct_lf() {
+    orig_string = "";
+    uint64_t offset = 0;
+    uint64_t run_index = 0;
+    uint64_t i = 0;
+    uint64_t ff_count_tot = 0;
+
+    uint64_t total_elapsed = 0;
+    for (; run_index != end_bwt_idx; ) {
+        auto begin = std::chrono::system_clock::now();
+        ff_count_tot += LF_move(offset, run_index);
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+        total_elapsed += elapsed.count();
+
+        if (i % 10000 == 0)
+            std::cerr<< i << "\r";
+        i += 1;
+        // orig_string = rlbwt[run_index].get_c() + orig_string;
+    }
+    std::printf("Time measured for reconstructing the original text: %.3f seconds.\n", total_elapsed * 1e-9);
+
+    std::cerr << "Finished reconstructing the original string.\n";
+    std::cerr << "Total fast forward: " << ff_count_tot << "\n";
+    return orig_string;
+}
+
+void MoveStructure::sequential_lf() {
     uint64_t line_index = 0;
     uint64_t row_index = 0;
     uint64_t ff_count_tot = 0;
@@ -300,7 +300,7 @@ void MoveStructure::all_lf_test() {
     std::cerr << "Total fast forward: " << ff_count_tot << "\n";
 }
 
-void MoveStructure::random_lf_test() {
+void MoveStructure::random_lf() {
     uint64_t ff_count_tot = 0;
 
     // generate the random order from 1 to length
@@ -421,8 +421,8 @@ void MoveStructure::set_onebit() {
     onebit = true;
 }
 
-void MoveStructure::build_rlbwt(char* input_file) {
-    std::string bwt_filename = static_cast<std::string>(input_file) + std::string(".bwt");
+void MoveStructure::build_rlbwt(std::string bwt_filename) {
+    // std::string bwt_filename = static_cast<std::string>(input_file) + std::string(".bwt");
     std::ifstream bwt_file(bwt_filename);    
     bwt_file.clear();
     bwt_file.seekg(0,std::ios_base::end);
@@ -435,8 +435,8 @@ void MoveStructure::build_rlbwt(char* input_file) {
     r = 0;
     size_t len = 0;
     
-    std::ofstream len_file(static_cast<std::string>(input_file) + ".bwt.len", std::ios::out | std::ios::binary);
-    std::ofstream heads_file(static_cast<std::string>(input_file) + ".bwt.heads");
+    std::ofstream len_file(bwt_filename + ".len", std::ios::out | std::ios::binary);
+    std::ofstream heads_file(bwt_filename + ".heads");
     while (current_char != EOF) {
         if (r % 10000 == 0)
             std::cerr<< r << "\r";
@@ -1429,11 +1429,11 @@ bool MoveStructure::check_alphabet(char c) {
     return alphamap[static_cast<uint64_t>(c)] != alphamap.size();
 }
 
-void MoveStructure::serialize(char* output_dir) {
-    mkdir(output_dir,0777);
-    std::string fname = static_cast<std::string>(output_dir) + "/movi_index.bin";
+void MoveStructure::serialize(std::string output_dir) {
+    mkdir(output_dir.c_str(),0777);
+    std::string fname = output_dir + "/movi_index.bin";
     if (onebit)
-        fname = static_cast<std::string>(output_dir) + "/movi_index_onebit.bin";
+        fname = output_dir + "/movi_index_onebit.bin";
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
     std::cerr<< "length: " << length << " r: " << r << " end_bwt_idx: " << end_bwt_idx << "\n";
     fout.write(reinterpret_cast<char*>(&length), sizeof(length));
@@ -1490,11 +1490,11 @@ void MoveStructure::serialize(char* output_dir) {
     fout.close();
 }
 
-void MoveStructure::deserialize(char* index_dir) {
+void MoveStructure::deserialize(std::string index_dir) {
     std::cerr << "verbose: " << verbose << "\n";
-    std::string fname = static_cast<std::string>(index_dir) + "/movi_index.bin";
+    std::string fname = index_dir + "/movi_index.bin";
     if (onebit)
-        fname = static_cast<std::string>(index_dir) + "/movi_index_onebit.bin";
+        fname = index_dir + "/movi_index_onebit.bin";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
     fin.seekg(0, std::ios::beg); 
     std::cerr<< "before - length: " << length << " r: " << r << " end_bwt_idx: " << end_bwt_idx << "\n";
@@ -1519,7 +1519,7 @@ void MoveStructure::deserialize(char* index_dir) {
     fin.read(reinterpret_cast<char*>(&alphabet[0]), alphabet_size*sizeof(alphabet[0]));
     std::cerr<<"alphabet_size: " << alphabet_size << "\n";
     if (alphabet.size() > 4) {
-        std::cerr << "Warning: There are more than 4 characters, the index expexts only A, C, T and G in the reference.\n";
+        std::cerr << "Warning: There are more than 4 characters, the index expects only A, C, T and G in the reference.\n";
     }
 
     fin.read(reinterpret_cast<char*>(&splitting), sizeof(splitting));
