@@ -62,7 +62,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
         ("n,no-prefetch", "Disable prefetching for query")
-        ("s,Strands", "Number of strands for query", cxxopts::value<int>());
+        ("s,strands", "Number of strands for query", cxxopts::value<int>());
 
     auto viewOptions = options.add_options("view")
         ("pml-file", "PML file in the binary format", cxxopts::value<std::string>());
