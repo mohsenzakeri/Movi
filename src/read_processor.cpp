@@ -157,9 +157,15 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
     std::cerr << strands << " processes are created.\n";
     uint64_t fnished_count = 0;
     for (uint64_t i = 0; i < strands; i++) {
-        reset_process(processes[i], mv);
+        if (fnished_count == 0) {
+            reset_process(processes[i], mv);
+            reset_backward_search(processes[i], mv);
+        } else {
+            processes[i].finished = true;
+        }
         if (processes[i].finished) {
             std::cerr << "Warning: less than strands = " << strands << " reads.\n";
+            fnished_count += 1;
         }
     }
     std::cerr << strands << " processes are initiated.\n";
