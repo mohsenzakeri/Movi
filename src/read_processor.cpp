@@ -5,7 +5,7 @@ uint32_t alphamap_3_[4][4] = {{3, 0, 1, 2},
                              {0, 1, 3, 2},
                              {0, 1, 2, 3}};
 
-ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_ = 4, bool query_pml = true) {
+ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_ = 4, bool query_pml = true, bool reverse_ = false) {
     fp = gzopen(reads_file_name.c_str(), "r"); // STEP 2: open the file handler
     seq = kseq_init(fp); // STEP 3: initialize seq
     std::string index_type = mv_.index_type();
@@ -24,6 +24,7 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
         scans_file = std::ofstream(reads_file_name + "." + index_type + ".scans");
         fastforwards_file = std::ofstream(reads_file_name + "." + index_type + ".fastforwards");
     }
+    reverse = reverse_;
 }
 
 bool ReadProcessor::next_read(Strand& process) {
@@ -35,6 +36,8 @@ bool ReadProcessor::next_read(Strand& process) {
         process.st_length = seq->name.m;
         process.read_name = seq->name.s;
         process.read = seq->seq.s;
+        if (reverse)
+            std::reverse(process.read.begin(), process.read.end());
         process.match_len = 0;
         process.ff_count = 0;
         process.scan_count = 0;

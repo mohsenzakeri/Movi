@@ -59,6 +59,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     auto queryOptions = options.add_options("query")
         ("pml", "Compute the pseudo-matching lengths (PMLs)")
         ("count", "Compute the count queries")
+        ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
         ("n,no-prefetch", "Disable prefetching for query")
@@ -113,17 +114,19 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                 if (result.count("index") == 1 and result.count("read") == 1) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
                     movi_options.set_read_file(result["read"].as<std::string>());
-                    if (result.count("pml") >= 1) { movi_options.set_pml(true); }
                     if (result.count("count") >= 1) { movi_options.set_count(true); }
+                    if (result.count("pml") >= 1) { movi_options.set_pml(true); }
+                    if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
                     if (movi_options.is_pml() and movi_options.is_count()) {
                         const std::string message = "Please only specify count or pml as the type of queries.";
                         cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                     }
-                    if (result.count("no-prefetch")) {
+                    if (result.count("no-prefetch") == 1) {
                         movi_options.set_prefetch(false);
                     }
-                    if (result.count("strands")) {
-                        movi_options.set_strands(result["strands"].as<size_t>());
+                    if (result.count("strands") == 1) {
+                        std::cerr << "strands: " << result["strands"].as<int>() << "\n";
+                        movi_options.set_strands(static_cast<size_t>(result["strands"].as<int>()));
                     }
                 } else {
                     const std::string message = "Please include one index directory and one read file.";
@@ -137,7 +140,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
             } else if (command == "view") {
-                if (result.count("pml_file") == 1) {
+                if (result.count("pml-file") == 1) {
                     movi_options.set_pml_file(result["pml-file"].as<std::string>());
                 } else {
                     const std::string message = "Please specify one pml file.";
@@ -181,7 +184,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
 void query(MoveStructure& mv_, MoviOptions& movi_options) {
     if (!movi_options.no_prefetch()) {
-        ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), true);
+        ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_pml(), movi_options.is_reverse());
         if (movi_options.is_pml()) {
             rp.process_latency_hiding(mv_);
         } else if (movi_options.is_count()) {
@@ -217,6 +220,8 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             std::string query_seq = seq->seq.s;
             MoveQuery mq;
             if (movi_options.is_pml()) {
+                if (movi_options.is_reverse())
+                    std::reverse(query_seq.begin(), query_seq.end());
                 mq = MoveQuery(query_seq);
                 bool random_jump = false;
                 total_ff_count += mv_.query_pml(mq, random_jump);
