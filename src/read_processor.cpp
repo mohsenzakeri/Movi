@@ -106,7 +106,7 @@ void ReadProcessor::process_char(Strand& process, MoveStructure& mv) {
             // But we cannot compute lcp here
             process.offset = up ? mv.get_n(process.idx) - 1 : 0;
             if (verbose)
-                std::cerr<<"\t idx: " << process.idx << " offset: " << process.offset << "\n";
+                std::cerr << "\t idx: " << process.idx << " offset: " << process.offset << "\n";
         } else {
             std::cerr << "\t \t This should not happen!\n";
         }
@@ -195,11 +195,11 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
     }
 
     pmls_file.close();
-    std::cerr<<"pmls file closed!\n";
+    std::cerr << "pmls file closed!\n";
     kseq_destroy(seq); // STEP 5: destroy seq
-    std::cerr<<"kseq destroyed!\n";
+    std::cerr << "kseq destroyed!\n";
     gzclose(fp); // STEP 6: close the file handler
-    std::cerr<<"fp file closed!\n";
+    std::cerr << "fp file closed!\n";
 
     if (mv.logs) {
         costs_file.close();
@@ -257,11 +257,11 @@ void ReadProcessor::backward_search_latency_hiding(MoveStructure& mv) {
         }
     }
 
-    std::cerr<<"pmls file closed!\n";
+    std::cerr << "pmls file closed!\n";
     kseq_destroy(seq); // STEP 5: destroy seq
-    std::cerr<<"kseq destroyed!\n";
+    std::cerr << "kseq destroyed!\n";
     gzclose(fp); // STEP 6: close the file handler
-    std::cerr<<"fp file closed!\n";
+    std::cerr << "fp file closed!\n";
 }
 
 void ReadProcessor::reset_backward_search(Strand& process, MoveStructure& mv) {
