@@ -506,8 +506,8 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         // if (current_char != 'A' and current_char != 'C' and current_char != 'G' and current_char != 'T')
         //    std::cerr << "\ncurrent_char:" << current_char << "---" << static_cast<uint64_t>(current_char) << "---\n";
         if (original_r % 100000 == 0) {
-            std::cerr << "original_r: " << original_r << "\n";
-            std::cerr << "bwt_curr_length: " << bwt_curr_length << "\r\r";
+            std::cerr << "original_r: " << original_r << "\t";
+            std::cerr << "bwt_curr_length: " << bwt_curr_length << "\r";
         }
         if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
             original_r += 1;
