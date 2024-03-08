@@ -89,5 +89,5 @@ movi-default view --pml-file <mpml file> | less
 The output of the last command shows each read's name following by pseudo matching lengths computed for it. A pseudo matching length is outputed for every base of the read. This is the same as the output produced by SPUMONI.
 
 ### You can read more about Movi here:
-> [https://www.biorxiv.org/content/10.1101/2023.11.04.565615v1](https://www.biorxiv.org/content/10.1101/2023.11.04.565615v1)
+> [https://www.biorxiv.org/content/10.1101/2023.11.04.565615v2](https://www.biorxiv.org/content/10.1101/2023.11.04.565615v2)
 
