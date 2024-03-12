@@ -28,19 +28,19 @@ class MoveStructure {
         MoveStructure() { }
         MoveStructure(bool verbose_, bool logs_);
         MoveStructure(bool onebit_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
-        MoveStructure(char* input_file_, bool onebit_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
+        MoveStructure(std::string input_file_, bool onebit_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
 
         bool check_mode();
         std::string index_type();
         void build(std::ifstream &bwt_file);
-        void build_rlbwt(char* input_file);
+        void build_rlbwt(std::string input_file);
         uint64_t query_pml(MoveQuery& mq, bool random);
         uint64_t backward_search(std::string& R,  int32_t& pos_on_r);
         uint64_t exact_matches(MoveQuery& mq);
 
-        void all_lf_test();
-        void random_lf_test();
-        std::string reconstruct_move();
+        void sequential_lf();
+        void random_lf();
+        std::string reconstruct_lf();
 
         // std::string reconstruct();
         // char compute_char(uint64_t idx);
@@ -62,8 +62,8 @@ class MoveStructure {
         bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
         bool jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_count);
 
-        void serialize(char* output_dir);
-        void deserialize(char* index_dir);
+        void serialize(std::string output_dir);
+        void deserialize(std::string index_dir);
         void print_stats();
         bool check_alphabet(char c);
 
@@ -100,7 +100,7 @@ class MoveStructure {
         uint64_t end_bwt_idx_next_down[4];
         bool verbose;
         bool logs;
-	    char* input_file;
+	    std::string input_file;
 
         // Map from 2bit encoded character to the actual character
         // Example: alphabet[0] -> A, alphabet[1] -> C

@@ -5,25 +5,26 @@ uint32_t alphamap_3_[4][4] = {{3, 0, 1, 2},
                              {0, 1, 3, 2},
                              {0, 1, 2, 3}};
 
-ReadProcessor::ReadProcessor(char* reads_file_name, MoveStructure& mv_, int strands_ = 4, bool query_pml = true) {
-    fp = gzopen(reads_file_name, "r"); // STEP 2: open the file handler
+ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_ = 4, bool query_pml = true, bool reverse_ = false) {
+    fp = gzopen(reads_file_name.c_str(), "r"); // STEP 2: open the file handler
     seq = kseq_init(fp); // STEP 3: initialize seq
     std::string index_type = mv_.index_type();
     if (query_pml) {
-        std::string pmls_file_name = static_cast<std::string>(reads_file_name) + "." + index_type + ".mpml.bin";
+        std::string pmls_file_name = reads_file_name + "." + index_type + ".mpml.bin";
         pmls_file = std::ofstream(pmls_file_name, std::ios::out | std::ios::binary);
     } else {
-        std::string matches_file_name = static_cast<std::string>(reads_file_name) + "." + index_type + ".matches";
+        std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
         matches_file = std::ofstream(matches_file_name);
     }
 
     read_processed = 0;
     strands = strands_;
     if (mv_.logs) {
-        costs_file = std::ofstream(static_cast<std::string>(reads_file_name) + "." + index_type + ".costs");
-        scans_file = std::ofstream(static_cast<std::string>(reads_file_name) + "." + index_type + ".scans");
-        fastforwards_file = std::ofstream(static_cast<std::string>(reads_file_name) + "." + index_type + ".fastforwards");
+        costs_file = std::ofstream(reads_file_name + "." + index_type + ".costs");
+        scans_file = std::ofstream(reads_file_name + "." + index_type + ".scans");
+        fastforwards_file = std::ofstream(reads_file_name + "." + index_type + ".fastforwards");
     }
+    reverse = reverse_;
 }
 
 bool ReadProcessor::next_read(Strand& process) {
@@ -35,6 +36,8 @@ bool ReadProcessor::next_read(Strand& process) {
         process.st_length = seq->name.m;
         process.read_name = seq->name.s;
         process.read = seq->seq.s;
+        if (reverse)
+            std::reverse(process.read.begin(), process.read.end());
         process.match_len = 0;
         process.ff_count = 0;
         process.scan_count = 0;
@@ -103,7 +106,7 @@ void ReadProcessor::process_char(Strand& process, MoveStructure& mv) {
             // But we cannot compute lcp here
             process.offset = up ? mv.get_n(process.idx) - 1 : 0;
             if (verbose)
-                std::cerr<<"\t idx: " << process.idx << " offset: " << process.offset << "\n";
+                std::cerr << "\t idx: " << process.idx << " offset: " << process.offset << "\n";
         } else {
             std::cerr << "\t \t This should not happen!\n";
         }
@@ -157,9 +160,15 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
     std::cerr << strands << " processes are created.\n";
     uint64_t fnished_count = 0;
     for (uint64_t i = 0; i < strands; i++) {
-        reset_process(processes[i], mv);
+        if (fnished_count == 0) {
+            reset_process(processes[i], mv);
+            reset_backward_search(processes[i], mv);
+        } else {
+            processes[i].finished = true;
+        }
         if (processes[i].finished) {
             std::cerr << "Warning: less than strands = " << strands << " reads.\n";
+            fnished_count += 1;
         }
     }
     std::cerr << strands << " processes are initiated.\n";
@@ -186,11 +195,11 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
     }
 
     pmls_file.close();
-    std::cerr<<"pmls file closed!\n";
+    std::cerr << "pmls file closed!\n";
     kseq_destroy(seq); // STEP 5: destroy seq
-    std::cerr<<"kseq destroyed!\n";
+    std::cerr << "kseq destroyed!\n";
     gzclose(fp); // STEP 6: close the file handler
-    std::cerr<<"fp file closed!\n";
+    std::cerr << "fp file closed!\n";
 
     if (mv.logs) {
         costs_file.close();
@@ -248,11 +257,11 @@ void ReadProcessor::backward_search_latency_hiding(MoveStructure& mv) {
         }
     }
 
-    std::cerr<<"pmls file closed!\n";
+    std::cerr << "pmls file closed!\n";
     kseq_destroy(seq); // STEP 5: destroy seq
-    std::cerr<<"kseq destroyed!\n";
+    std::cerr << "kseq destroyed!\n";
     gzclose(fp); // STEP 6: close the file handler
-    std::cerr<<"fp file closed!\n";
+    std::cerr << "fp file closed!\n";
 }
 
 void ReadProcessor::reset_backward_search(Strand& process, MoveStructure& mv) {
