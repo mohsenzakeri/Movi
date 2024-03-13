@@ -732,17 +732,23 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         for (uint64_t j = 0; j < alphabet.size(); j++) {
             if (alphabet[j] == rlbwt_c) {
                 if (thr_i >= thresholds.size()) {
-                    std::cerr << " thr_i: " << thr_i << "\n";
-                    exit(0);
+                    std::cerr << " thr_i = " << thr_i << " is out of bound:\n";
+                    std::cerr << " thresholds.size = " << thresholds.size() << "\n";
+                    exit(0); // TODO: add error handling
                 }
                 alphabet_thresholds[j] = thresholds[thr_i];
             } else {
-                if (onebit and alphamap_3[alphamap[rlbwt_c]][j] != 0)
-                    std::cerr << "error: the alphamap_3 is not working for the one-bit alphabet - " 
-                                << alphamap_3[alphamap[rlbwt_c]][j] << "!\n";
-                if (alphamap_3[alphamap[rlbwt_c]][j] == 3)
-                    std::cerr << "error: alphamap_3 is not working in general - " 
-                                << alphamap_3[alphamap[rlbwt_c]][j] << "!\n";
+                if (onebit and alphamap_3[alphamap[rlbwt_c]][j] != 0) {
+                    std::cerr << "the alphamap_3 is not working for the one-bit alphabet:\n"
+                                << "alphamap_3[alphamap[rlbwt_c]][j] = " << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
+                    exit(0); // TODO: add error handling
+                }
+                if (alphamap_3[alphamap[rlbwt_c]][j] >= alphabet.size() - 1) {
+                    std::cerr << "alphamap_3 is not working in general:\n"
+                                << "alphabet.size() - 1 = " << alphabet.size() - 1 << "\n"
+                                << "alphamap_3[alphamap[rlbwt_c]][j] = " << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
+                    exit(0); // TODO: add error handling
+                }
 
                 if (alphabet_thresholds[j] >= all_p[i] + get_n(i)) {
                     // rlbwt[i].thresholds[j] = get_n(i);
@@ -773,13 +779,14 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                     set_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j], alphabet_thresholds[j] - all_p[i]);
                     current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = alphabet_thresholds[j] - all_p[i];
                 }
-
-                if (verbose and i >= rlbwt.size() - 10)
+                // printing the values for last 10 runs to debug
+                if (verbose and i >= rlbwt.size() - 10) {
                     std::cerr << "\t j: \t" << j << " "
                         << "alphabet[j]: " << alphabet[j] << "  "
                         << "alphamap_3[alphamap[rlbwt_c]][j]: " << alphamap_3[alphamap[rlbwt_c]][j] << " "
                         << "alphabet_thresholds[j]: " << alphabet_thresholds[j] << " "
                         << "rlbwt[i].thresholds[j]:" << get_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j]) << "\n";
+                }
             }
         }
 
@@ -909,11 +916,9 @@ uint64_t MoveStructure::jump_up(uint64_t idx, char c, uint64_t& scan_count) {
         scan_count += 1;
         idx -= 1;
         row_c = alphabet[rlbwt[idx].get_c_jj()];
-        if (idx == 0) {
-            // std::cerr << "idx: " << idx << "\n";
-            // std::cerr << "row_c: " << row_c << " c: " << c << "\n";
-            break;
-        }
+        // if (idx == 0) {
+        //     break;
+        // }
     }
     /* if (logs) {
         if (jumps.find(scan_count) != jumps.end())
