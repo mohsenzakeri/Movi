@@ -702,10 +702,8 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::cerr << "Max run length: " << max_len << "\n";
 
     // compute the thresholds
-    uint64_t alphabet_thresholds[4]; // TODO: change to dynamicly sized vector
     // initialize the start threshold at the last row
-    for (uint64_t j = 0; j < 4; j++)
-        alphabet_thresholds[j] = length;
+    std::vector<uint64_t> alphabet_thresholds(alphabet.size(), length);
     uint64_t thr_i = original_r - 1;
     uint64_t run_p = 0;
     if (verbose) {
