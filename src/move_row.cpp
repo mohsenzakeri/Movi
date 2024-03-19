@@ -43,6 +43,12 @@ void MoveRow::set_n(uint16_t n_) {
     n = n_;
 }
 
+void MoveRow::set_threshold_status(uint16_t i, uint8_t status) {
+    const uint16_t mask_thresholds = static_cast<uint16_t>(~(((1U << 2) - 1) << i*2));
+    thresholds_status = thresholds_status & mask_thresholds;
+    thresholds_status = thresholds_status |  (status << i*2);
+}
+
 void MoveRow::set_overflow_n() {
     overflow_bits = overflow_bits & mask_overflow_n;
     overflow_bits = overflow_bits | (1 >> 10);
