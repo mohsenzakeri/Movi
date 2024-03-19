@@ -419,7 +419,11 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
     } else {
         status = 1;
         // [TODO] Not all the states where the multiple non-trivial thresholds exists are checked here
-        if (rlbwt[idx].get_threshold() != 0 and !rlbwt[i].is_overflow_thresholds()) {
+        if (rlbwt[idx].get_threshold() != value and
+            rlbwt[idx].get_threshold() != 0 and
+            !rlbwt[i].is_overflow_thresholds()) {
+            std::cerr << "idx: " << idx << " i: " << i << " value: " << value << "\n";
+            std::cerr << rlbwt[idx].get_threshold() << " " << !rlbwt[i].is_overflow_thresholds() << "\n";
             std::cerr << "There are more than 1 non-trivial threshold values.\n";
             exit(0);
         }
