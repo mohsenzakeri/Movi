@@ -1583,8 +1583,42 @@ void MoveStructure::deserialize(std::string index_dir) {
     fin.read(reinterpret_cast<char*>(&first_runs[0]), last_runs_size*sizeof(uint64_t));
     first_offsets.resize(last_runs_size);
     fin.read(reinterpret_cast<char*>(&first_offsets[0]), last_runs_size*sizeof(uint64_t));
-
     fin.close();
+}
+
+void MoveStructure::analyze_rows() {
+    std::vector<uint64_t> counts(16,0);
+    for (uint64_t i = 0; i < r; i++) {
+        // std::cerr << i << " " << rlbwt[i].get_id() << " " << alphabet[rlbwt[i].get_c()] << " " << get_n(i) << " " << get_offset(i) << ":\t";
+        // for (int  j = 0; j < alphabet.size() - 1; j ++)
+        //     std::cerr << get_thresholds(i, j) << " ";
+        // std::cerr << "\n";
+        if (i%100000 == 0) std::cerr << i << "\r";
+        for (int j = 0; j < 16; j ++) {
+            if (get_n(i) >= std::pow(2,j)) {
+                counts[j] += 1;
+            }
+        }
+        if (i%10000 == 0) std::cerr << i << "\r";
+        if (((get_thresholds(i, 0) != 0 and get_thresholds(i, 0) != get_n(i)) and
+             (get_thresholds(i, 1) != 0 and get_thresholds(i, 1) != get_n(i)) and
+             (get_thresholds(i, 2) != 0 and get_thresholds(i, 2) != get_n(i)) and
+             (get_thresholds(i, 0) != get_thresholds(i, 1) or get_thresholds(i, 1) != get_thresholds(i, 2))) or
+            ((get_thresholds(i,0) != 0 and get_thresholds(i,0) != get_n(i) and get_thresholds(i,1) != 0 and get_thresholds(i,1) != get_n(i) and get_thresholds(i, 0) != get_thresholds(i, 1)) or
+             (get_thresholds(i,0) != 0 and get_thresholds(i,0) != get_n(i) and get_thresholds(i,2) != 0 and get_thresholds(i,2) != get_n(i) and get_thresholds(i, 0) != get_thresholds(i, 2)) or
+             (get_thresholds(i,2) != 0 and get_thresholds(i,2) != get_n(i) and get_thresholds(i,1) != 0 and get_thresholds(i,1) != get_n(i) and get_thresholds(i, 2) != get_thresholds(i, 1)))
+            ) {
+            if (get_n(i) >= 256) {
+                std::cerr << i << " " << rlbwt[i].get_id() << " " << alphabet[rlbwt[i].get_c()] << " " << get_n(i) << " " << get_offset(i) << ":\t";
+                for (int  j = 0; j < alphabet.size() - 1; j ++)
+                    std::cerr << get_thresholds(i, j) << " ";
+                std::cerr << "\n";
+            }
+        }
+    }
+    for (int j=0; j < 16; j++) {
+        std::cerr << j << ": " << counts[j] << "\n";
+    }
 }
 
 void MoveStructure::print_stats() {
