@@ -379,8 +379,17 @@ uint16_t MoveStructure::get_rlbwt_thresholds(uint64_t idx, uint16_t i) {
     }
 
 #if MODE == 0 || MODE == 1
-    if (!onebit) {
-        return rlbwt[idx].get_thresholds(i);
+    // if (!onebit) {
+    //     return rlbwt[idx].get_thresholds(i);
+    // }
+    uint8_t status = rlbwt[idx].get_threshold_status(i);
+    switch (status) {
+        case 0: return 0; break;
+        case 1: return get_n(idx); break;
+        case 3: return rlbwt[idx].get_threshold(); break;
+        default:
+            std::cerr << "Undefined status for thresholds status: " << status << "\n";
+            exit(0);
     }
 #endif
 
@@ -398,10 +407,25 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
     }
 
 #if MODE == 0 || MODE == 1
-    if (!onebit) {
-        // rlbwt_thresholds[idx][i] = value;
-        rlbwt[idx].set_thresholds(i, value);
+    // if (!onebit) {
+    //     // rlbwt_thresholds[idx][i] = value;
+    //     rlbwt[idx].set_thresholds(i, value);
+    // }
+    uint8_t status = 0;
+    if (value == 0) {
+        status = 0;
+    } else if (value == get_n(idx)) {
+        status = 3;
+    } else {
+        status = 1;
+        // [TODO] Not all the states where the multiple non-trivial thresholds exists are checked here
+        if (rlbwt[idx].get_threshold() != 0 and !rlbwt[i].is_overflow_thresholds()) {
+            std::cerr << "There are more than 1 non-trivial threshold values.\n";
+            exit(0);
+        }
+        rlbwt[idx].set_threshold(value);
     }
+    rlbwt[idx].set_threshold_status(i, status);
 #endif
 
 #if MODE == 2
@@ -735,7 +759,6 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                                 << "alphamap_3[alphamap[rlbwt_c]][j] = " << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
                     exit(0); // TODO: add error handling
                 }
-
                 if (alphabet_thresholds[j] >= all_p[i] + get_n(i)) {
                     // rlbwt[i].thresholds[j] = get_n(i);
                     if (rlbwt_c == END_CHARACTER) {

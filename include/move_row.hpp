@@ -14,6 +14,10 @@
 // const uint32_t mask_id = ~(((1U << 8) - 1) << 16);
 // const uint32_t mask_c = ~(((1U << 8) - 1) << 24);
 
+const uint16_t mask_thresholds1 = static_cast<uint16_t>(~(((1U << 2) - 1) << 0));
+const uint16_t mask_thresholds2 = static_cast<uint16_t>(~(((1U << 2) - 1) << 2));
+const uint16_t mask_thresholds3 = static_cast<uint16_t>(~(((1U << 2) - 1) << 4));
+
 const uint16_t mask_id =  static_cast<uint16_t>(~((1U << 8) - 1));
 const uint16_t mask_c = static_cast<uint16_t>(~(((1U << 2) - 1) << 8));
 const uint16_t mask_overflow_n = static_cast<uint16_t>(~(((1U << 1) - 1) << 10));
@@ -41,6 +45,7 @@ class MoveRow{
         uint16_t get_n_ff() const;
         uint16_t get_offset() const;
         uint64_t get_id() const;
+        uint8_t get_threshold_status(uint16_t i) const;
         char get_c() const;
         char get_c_jj() const;
         char get_c_mm() const;
@@ -48,15 +53,16 @@ class MoveRow{
         void set_overflow_n();
         void set_overflow_offset();
         void set_overflow_thresholds();
+        void set_threshold_status(uint16_t i, uint8_t status);
         bool is_overflow_n() const;
         bool is_overflow_n_ff() const;
         bool is_overflow_offset() const;
         bool is_overflow_thresholds() const;
 
-#if MODE == 0 or MODE == 1
-        uint16_t get_thresholds(uint32_t i) { return thresholds[i]; }
-        void set_thresholds(uint32_t i, uint16_t t) { thresholds[i] = t; }
-#endif
+// #if MODE == 0 or MODE == 1
+//         uint16_t get_thresholds(uint32_t i) { return thresholds[i]; }
+//         void set_thresholds(uint32_t i, uint16_t t) { thresholds[i] = t; }
+// #endif
 
 #if MODE == 1
         uint16_t get_next_up(uint32_t i) { return next_up[i]; }
@@ -65,10 +71,10 @@ class MoveRow{
         void set_next_down(uint32_t i, uint16_t t) { next_down[i] = t; }
 #endif
 
-#if MODE == 2
+// #if MODE == 2
         uint16_t get_threshold() { return threshold; }
         void set_threshold(uint16_t t) { threshold = t; }
-#endif
+// #endif
 
         uint64_t row_size() {
 #if MODE == 0
@@ -91,7 +97,8 @@ class MoveRow{
 
         // thresholds for all the rows:
 #if MODE == 0 or MODE == 1
-        uint16_t thresholds[3];
+        // uint16_t thresholds[3];
+        uint8_t thresholds_status;
 #endif
 
 #if MODE == 1
@@ -100,9 +107,9 @@ class MoveRow{
         uint16_t next_down[3];
 #endif
 
-#if MODE == 2
+// #if MODE == 2
         uint16_t threshold;
-#endif
+// #endif
 };
 
 /* inline uint64_t MoveRow::get_p() const{
@@ -130,6 +137,12 @@ class MoveRow{
         return static_cast<uint32_t>(pp);
     }
 }*/
+
+inline uint8_t MoveRow::get_threshold_status(uint16_t i) const {
+    const uint16_t mask_thresholds = static_cast<uint16_t>(~(((1U << 2) - 1) << i*2));
+    uint8_t status = static_cast<uint8_t>((thresholds_status & (~mask_thresholds)) >> i*2);
+    return status;
+}
 
 inline uint16_t MoveRow::get_n() const{
     return n;
