@@ -421,6 +421,7 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
         // [TODO] Not all the states where the multiple non-trivial thresholds exists are checked here
         if (rlbwt[idx].get_threshold() != value and
             rlbwt[idx].get_threshold() != 0 and
+            rlbwt[idx].get_threshold() != get_n(idx) and
             !rlbwt[i].is_overflow_thresholds()) {
             std::cerr << "idx: " << idx << " i: " << i << " value: " << value << "\n";
             std::cerr << rlbwt[idx].get_threshold() << " " << !rlbwt[i].is_overflow_thresholds() << "\n";
@@ -432,10 +433,10 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
     rlbwt[idx].set_threshold_status(i, status);
 #endif
 
-#if MODE == 2
+// #if MODE == 2
     // rlbwt_1bit_thresholds[idx] = value;
     rlbwt[idx].set_threshold(value);
-#endif
+// #endif
 }
 
 void MoveStructure::set_onebit() {
@@ -1205,7 +1206,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                     std::cerr << "\t idx: " << idx << " offset: " << offset << "\n";
             } else {
                 std::cerr << "\t \t This should not happen!\n";
-                std::cerr << "\t \t r[pos]:" <<  R[pos_on_r] << " t[pointer]:" << c << "\n";
+                std::cerr << "\t \t pos: " << pos_on_r << " r[pos]:" <<  R[pos_on_r] << " t[pointer]:" << c << "\n";
                 std::cerr << "\t \t " << up << ", " << onebit << ", " << R[pos_on_r] << ", " << pos_on_r << "\n";
                 std::cerr << "\t \t ";
                 for (int k = 10; k > 0; --k)
