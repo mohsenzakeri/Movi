@@ -81,3 +81,11 @@ void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
     overflow_bits = overflow_bits & mask_c;
     overflow_bits = overflow_bits | ((c_64) << 8);
 }
+
+void MoveRow::set_ssa(uint64_t ssa_) {
+    ssa = ssa_;
+}
+
+void MoveRow::set_esa(uint64_t esa_) {
+    esa = esa_;
+}

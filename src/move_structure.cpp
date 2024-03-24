@@ -244,6 +244,57 @@ uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
     return ff_count;
 }
 
+// Find SA entry of given row in BWT.
+uint64_t MoveStructure::find_SA(uint64_t offset, uint64_t index) {
+    uint64_t cnt = 0;
+    while (offset != 0 && offset != rlbwt[index].get_n() - 1) {
+        LF_move(offset, index);
+        cnt++;
+    }
+    if (offset == 0) {
+        return rlbwt[index].get_ssa() + cnt;
+    } else {
+        return rlbwt[index].get_esa() + cnt;
+    }
+}
+
+// Prints all SA entries
+void MoveStructure::print_SA() {
+    std::cout << "=======PRINTING ALL SA ENTRIES========" << std::endl;
+    for (uint64_t i = 0; i < r; i++) {
+        auto &row = rlbwt[i];
+        uint64_t n = row.get_n();
+        for (uint64_t j = 0; j < n; j++) {
+            uint64_t SA = find_SA(j, i);
+            std::cout << SA << std::endl;
+        }
+    }
+}
+
+// Read SA samples from file.
+void MoveStructure::read_SA_entries(std::string filename, bool head) {
+    FILE *fd;
+
+    if ((fd = fopen(filename.c_str(), "r")) == nullptr) {
+        std::cerr << "open() file " << filename << " failed" << std::endl;
+        return;
+    }
+
+    // Read SA entries into rlbwt.
+    uint64_t left = 0;
+    uint64_t right = 0;
+    uint64_t ind = 0;
+    while (fread((char *)&left, SSABYTES, 1, fd) && fread((char *)&right, SSABYTES, 1, fd)) {
+        if (head) {
+            rlbwt[ind].set_ssa(right);
+        } else {
+            rlbwt[ind].set_esa(right);
+        }
+        ind++;
+    }
+    fclose(fd);
+}
+
 std::string MoveStructure::reconstruct_lf() {
     orig_string = "";
     uint64_t offset = 0;
@@ -698,6 +749,11 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             len += 1;
         }
     }
+
+    // Reading in suffix array entries.
+    read_SA_entries(input_file + ".ssa", true);
+    read_SA_entries(input_file + ".esa", false);
+    
     std::cerr << "All the move rows are built.\n";
     std::cerr << "Max run length: " << max_len << "\n";
 
@@ -838,7 +894,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             std::cerr << ">--- " << last_runs[i] << "\t" << last_offsets[i] << "\n";
         }
     }
-
+    
 #if MODE == 1
     if (constant) {
         std::cerr << "Computing the next ups and downs.\n";

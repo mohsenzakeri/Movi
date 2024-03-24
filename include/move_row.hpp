@@ -22,7 +22,7 @@ const uint16_t mask_overflow_thresholds = static_cast<uint16_t>(~(((1U << 1) - 1
 
 class MoveRow{
     public:
-        MoveRow () {n = 0; id = 0; overflow_bits = 0;}
+        MoveRow() {n = 0; id = 0; overflow_bits = 0;}
         MoveRow(uint16_t n_, uint16_t offset_, uint64_t id_);
         void init(uint16_t n_, uint16_t offset_, uint64_t id_);
         // void init(uint16_t n_, uint16_t offset_, uint64_t id_, char c_);
@@ -34,7 +34,9 @@ class MoveRow{
         void set_offset(uint16_t offset_);
         void set_id(uint64_t id_);
         void set_c(char c_, std::vector<uint64_t>& alphamap);
-
+        void set_ssa(uint64_t ssa_);
+        void set_esa(uint64_t esa_);
+    
         // uint64_t get_p() const;
         // uint64_t get_pp() const;
         uint16_t get_n() const;
@@ -44,7 +46,9 @@ class MoveRow{
         char get_c() const;
         char get_c_jj() const;
         char get_c_mm() const;
-
+        uint64_t get_ssa() const;
+        uint64_t get_esa() const;
+    
         void set_overflow_n();
         void set_overflow_offset();
         void set_overflow_thresholds();
@@ -88,7 +92,11 @@ class MoveRow{
         uint16_t overflow_bits;
         uint16_t n; // length of the run
         uint32_t id; // bwt run after the jump
-
+    
+        // start and end suffix array values of this run
+        uint64_t ssa;
+        uint64_t esa;
+    
         // thresholds for all the rows:
 #if MODE == 0 or MODE == 1
         uint16_t thresholds[3];
@@ -173,6 +181,14 @@ inline char MoveRow::get_c_mm() const{
     uint8_t a = static_cast<uint8_t>((overflow_bits & (~mask_c)) >> 8);
     char c = static_cast<char>(a);
     return c;
+}
+
+inline uint64_t MoveRow::get_ssa() const {
+    return ssa;
+}
+
+inline uint64_t MoveRow::get_esa() const {
+    return esa;
 }
 
 inline bool MoveRow::is_overflow_n() const{

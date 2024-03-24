@@ -322,6 +322,9 @@ int main(int argc, char** argv) {
         std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
         begin = std::chrono::system_clock::now();
         query(mv_, movi_options);
+        
+        mv_.print_SA();
+
         end = std::chrono::system_clock::now();
         elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
         std::printf("Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);

@@ -53,6 +53,9 @@ class MoveStructure {
         uint32_t compute_index(char row_char, char lookup_char);
         void compute_nexts();
 
+        uint64_t find_SA(uint64_t offset, uint64_t index);
+        void print_SA();
+    
         // uint64_t naive_lcp(uint64_t row1, uint64_t row2);
         // uint64_t naive_sa(uint64_t bwt_row);
         // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
@@ -78,9 +81,14 @@ class MoveStructure {
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
         void set_onebit();
-
+        void read_SA_entries(std::string filename, bool head);
+    
+    
         friend class ReadProcessor;
     private:
+        // Number of bytes used to store each SA entry.
+        const uint8_t SSABYTES = 5;
+        
         std::vector<uint64_t> first_runs;
         std::vector<uint64_t> first_offsets;
         std::vector<uint64_t> last_runs;
@@ -101,7 +109,7 @@ class MoveStructure {
         bool verbose;
         bool logs;
 	    std::string input_file;
-
+    
         // Map from 2bit encoded character to the actual character
         // Example: alphabet[0] -> A, alphabet[1] -> C
         std::vector<unsigned char> alphabet;
