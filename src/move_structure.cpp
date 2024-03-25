@@ -385,8 +385,8 @@ uint16_t MoveStructure::get_rlbwt_thresholds(uint64_t idx, uint16_t i) {
     uint8_t status = rlbwt[idx].get_threshold_status(i);
     switch (status) {
         case 0: return 0; break;
-        case 1: return get_n(idx); break;
-        case 3: return rlbwt[idx].get_threshold(); break;
+        case 1: return rlbwt[idx].get_threshold(); break;
+        case 3: return get_n(idx); break;
         default:
             std::cerr << "Undefined status for thresholds status: " << status << "\n";
             exit(0);
@@ -433,10 +433,10 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
     rlbwt[idx].set_threshold_status(i, status);
 #endif
 
-// #if MODE == 2
+#if MODE == 2
     // rlbwt_1bit_thresholds[idx] = value;
     rlbwt[idx].set_threshold(value);
-// #endif
+#endif
 }
 
 void MoveStructure::set_onebit() {
