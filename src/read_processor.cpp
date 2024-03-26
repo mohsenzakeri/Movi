@@ -97,7 +97,7 @@ void ReadProcessor::process_char(Strand& process, MoveStructure& mv) {
         uint64_t idx_before_jump = process.idx;
         bool up = mv.jump_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
         process.match_len = 0;
-        char c = mv.alphabet[mv.rlbwt[process.idx].get_c_mm()];
+        char c = mv.alphabet[mv.rlbwt[process.idx].get_c()];
         // sanity check
         if (c == R[process.pos_on_r]) {
             // Observing a match after the jump
@@ -361,7 +361,7 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
                 }
             }
         } else {
-            char rlbwt_char = mv.alphabet[mv.rlbwt[process.range.run_start].get_c_jj()];
+            char rlbwt_char = mv.alphabet[mv.rlbwt[process.range.run_start].get_c()];
             uint64_t alphabet_index = alphamap_3_[mv.alphamap[rlbwt_char]][read_alphabet_index];
             if (mv.rlbwt[process.range.run_start].get_next_down(alphabet_index) == std::numeric_limits<uint16_t>::max()) {
                 process.range.run_start = mv.r;
@@ -377,7 +377,7 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
         }
     }
     if ((process.range.run_end > process.range.run_start) and (mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] != R[process.pos_on_r])) {
-        char rlbwt_char = mv.alphabet[mv.rlbwt[process.range.run_end].get_c_jj()];
+        char rlbwt_char = mv.alphabet[mv.rlbwt[process.range.run_end].get_c()];
         uint64_t alphabet_index = alphamap_3_[mv.alphamap[rlbwt_char]][read_alphabet_index];
         if (mv.rlbwt[process.range.run_end].get_next_up(alphabet_index) == std::numeric_limits<uint16_t>::max()) {
             process.range.run_end = mv.r;

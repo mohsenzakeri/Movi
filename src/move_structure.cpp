@@ -355,7 +355,7 @@ uint64_t MoveStructure::get_n(uint64_t idx) {
 }
 
 uint64_t MoveStructure::get_n_ff(uint64_t idx) {
-    if (rlbwt[idx].is_overflow_n_ff()) {
+    if (rlbwt[idx].is_overflow_n()) {
         return n_overflow[rlbwt[idx].get_n_ff()];
     } else {
         return rlbwt[idx].get_n_ff();
@@ -936,12 +936,12 @@ uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx, uint64_t x)
 uint64_t MoveStructure::jump_up(uint64_t idx, char c, uint64_t& scan_count) {
     if (idx == 0)
         return r;
-    char row_c = alphabet[rlbwt[idx].get_c_jj()];
+    char row_c = alphabet[rlbwt[idx].get_c()];
 
     while (idx > 0 and row_c != c) {
         scan_count += 1;
         idx -= 1;
-        row_c = alphabet[rlbwt[idx].get_c_jj()];
+        row_c = alphabet[rlbwt[idx].get_c()];
         // if (idx == 0) {
         //     break;
         // }
@@ -960,12 +960,12 @@ uint64_t MoveStructure::jump_up(uint64_t idx, char c, uint64_t& scan_count) {
 uint64_t MoveStructure::jump_down(uint64_t idx, char c, uint64_t& scan_count) {
     if (idx == r - 1)
         return r;
-    char row_c = alphabet[rlbwt[idx].get_c_jj()];
+    char row_c = alphabet[rlbwt[idx].get_c()];
 
     while (idx < r - 1 && row_c != c) {
         scan_count += 1;
         idx += 1;
-        row_c = alphabet[rlbwt[idx].get_c_jj()];
+        row_c = alphabet[rlbwt[idx].get_c()];
     }
     /* if (logs) {
         if (jumps.find(scan_count) != jumps.end())
@@ -1046,7 +1046,7 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
                     }
                 }
             } else {
-                char rlbwt_char = alphabet[rlbwt[run_start].get_c_jj()];
+                char rlbwt_char = alphabet[rlbwt[run_start].get_c()];
                 uint64_t alphabet_index = alphamap_3[alphamap[rlbwt_char]][read_alphabet_index];
                 if (rlbwt[run_start].get_next_down(alphabet_index) == std::numeric_limits<uint16_t>::max()) {
                     run_start = r;
@@ -1062,7 +1062,7 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
             }
         }
         if ((run_end > run_start) and (alphabet[rlbwt[run_end].get_c()] != R[pos_on_r])) {
-            char rlbwt_char = alphabet[rlbwt[run_end].get_c_jj()];
+            char rlbwt_char = alphabet[rlbwt[run_end].get_c()];
             uint64_t alphabet_index = alphamap_3[alphamap[rlbwt_char]][read_alphabet_index];
             if (rlbwt[run_end].get_next_up(alphabet_index) == std::numeric_limits<uint16_t>::max()) {
                 run_end = r;
@@ -1201,7 +1201,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
             match_len = 0;
             // scan_count = (!constant) ? std::abs((int)idx - (int)idx_before_jump) : 0;
  
-            char c = alphabet[rlbwt[idx].get_c_mm()];
+            char c = alphabet[rlbwt[idx].get_c()];
 
             if (verbose)
                 std::cerr << "\t up: " << up << " idx: " << idx << " c:" << c << "\n";
@@ -1260,7 +1260,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
     if (verbose)
         std::cerr << "\t \t \t jumping with thresholds ... \n";
 
-    char rlbwt_char = alphabet[rlbwt[idx].get_c_jj()];
+    char rlbwt_char = alphabet[rlbwt[idx].get_c()];
 
     if (verbose) {
         std::cerr << "\t \t \t alphabet_index: " << alphabet_index << " r_char:" << r_char << " rlbwt_char:" << rlbwt_char << "\n";
@@ -1287,8 +1287,8 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
 #if MODE == 0 || MODE == 2
             idx = jump_down(saved_idx, r_char, scan_count);
 #endif
-            if (r_char != alphabet[rlbwt[idx].get_c_mm()])
-                std::cerr << "1: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()];
+            if (r_char != alphabet[rlbwt[idx].get_c()])
+                std::cerr << "1: " << r_char << " " << alphabet[rlbwt[idx].get_c()];
             return false;
         } else {
             if (verbose)
@@ -1306,8 +1306,8 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
 #if MODE == 0 || MODE == 2
             idx = jump_up(saved_idx, r_char, scan_count);
 #endif
-            if (r_char != alphabet[rlbwt[idx].get_c_mm()])
-                std::cerr << "2: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()];
+            if (r_char != alphabet[rlbwt[idx].get_c()])
+                std::cerr << "2: " << r_char << " " << alphabet[rlbwt[idx].get_c()];
             return true;
         }
     }
@@ -1340,8 +1340,8 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
 #if MODE == 0 || MODE == 2
         idx = jump_down(saved_idx, r_char, scan_count);
 #endif
-        if (r_char != alphabet[rlbwt[idx].get_c_mm()]) {
-            std::cerr << "3: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()] << "\n";
+        if (r_char != alphabet[rlbwt[idx].get_c()]) {
+            std::cerr << "3: " << r_char << " " << alphabet[rlbwt[idx].get_c()] << "\n";
             std::cerr << "idx: " << idx << " saved_idx: " << saved_idx << " tmp: " << tmp << "\n";
             std::cerr << "offset: " << offset << "\n";
             std::cerr << "get_thresholds(saved_idx, alphabet_index): " << get_thresholds(saved_idx, alphabet_index) << "\n";
@@ -1363,9 +1363,9 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
 #if MODE == 0 || MODE == 2
         idx = jump_up(saved_idx, r_char, scan_count);
 #endif
-        if (r_char != alphabet[rlbwt[idx].get_c_mm()]) {
+        if (r_char != alphabet[rlbwt[idx].get_c()]) {
             std::cerr << "idx: " << idx << " saved_idx: " << saved_idx << "\n";
-            std::cerr << "4: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()] << "\n";
+            std::cerr << "4: " << r_char << " " << alphabet[rlbwt[idx].get_c()] << "\n";
             std::cerr << "offset: " << offset << "\n";
             std::cerr << "get_thresholds(saved_idx, alphabet_index): " << get_thresholds(saved_idx, alphabet_index) << "\n";
         }
@@ -1374,8 +1374,8 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
 
     // TODO: default return?
 
-    if (r_char != alphabet[rlbwt[idx].get_c_mm()])
-        std::cerr << "5: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()];
+    if (r_char != alphabet[rlbwt[idx].get_c()])
+        std::cerr << "5: " << r_char << " " << alphabet[rlbwt[idx].get_c()];
     return false;
 }
 
