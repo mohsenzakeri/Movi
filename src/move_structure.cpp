@@ -455,7 +455,7 @@ void MoveStructure::build_rlbwt(std::string bwt_filename) {
     std::ifstream bwt_file(bwt_filename);    
     bwt_file.clear();
     bwt_file.seekg(0,std::ios_base::end);
-    std::ios_base::streampos end_pos = bwt_file.tellg();
+    std::streampos end_pos = bwt_file.tellg();
     if (verbose)
         std::cerr << "end_pos: " << end_pos << "\n";
     std::cerr << static_cast<uint64_t>(end_pos) << "\n";
@@ -494,7 +494,7 @@ void MoveStructure::build_rlbwt(std::string bwt_filename) {
 void MoveStructure::build(std::ifstream &bwt_file) {
     bwt_file.clear();
     bwt_file.seekg(0,std::ios_base::end);
-    std::ios_base::streampos end_pos = bwt_file.tellg();
+    std::streampos end_pos = bwt_file.tellg();
     if (verbose)
         std::cerr << "end_pos: " << end_pos << "\n";
     bwt_file.seekg(0);    
