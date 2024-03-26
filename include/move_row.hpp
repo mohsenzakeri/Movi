@@ -24,7 +24,6 @@ class MoveRow{
         MoveRow () {n = 0; id = 0; overflow_bits = 0;}
         MoveRow(uint16_t n_, uint16_t offset_, uint64_t id_);
         void init(uint16_t n_, uint16_t offset_, uint64_t id_);
-        // void init(uint16_t n_, uint16_t offset_, uint64_t id_, char c_);
         friend std::ostream& operator<<(std::ostream& os, const MoveRow& mr);
 
         void set_n(uint16_t n_);
