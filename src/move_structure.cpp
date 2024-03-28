@@ -1,6 +1,8 @@
 #include <sys/stat.h> 
 
 #include "move_structure.hpp"
+#include <map>
+#include <sstream>
 
 uint32_t alphamap_3[4][4] = {{3, 0, 1, 2},
                              {0, 3, 1, 2},
@@ -247,6 +249,7 @@ uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
 // Find SA entry of given row in BWT.
 uint64_t MoveStructure::find_SA(uint64_t offset, uint64_t index) {
     uint64_t cnt = 0;
+    // Perform LF's until we reach a run head or tail, which we know the SA value of.
     while (offset != 0 && offset != rlbwt[index].get_n() - 1) {
         LF_move(offset, index);
         cnt++;
@@ -260,14 +263,59 @@ uint64_t MoveStructure::find_SA(uint64_t offset, uint64_t index) {
 
 // Prints all SA entries
 void MoveStructure::print_SA() {
-    std::cout << "=======PRINTING ALL SA ENTRIES========" << std::endl;
+    std::cout << "=======PRINTING SA ENTRIES RUN BY RUN========" << std::endl;
+    std::vector<uint64_t> SA_runs[r];
     for (uint64_t i = 0; i < r; i++) {
         auto &row = rlbwt[i];
         uint64_t n = row.get_n();
         for (uint64_t j = 0; j < n; j++) {
             uint64_t SA = find_SA(j, i);
-            std::cout << SA << std::endl;
+            SA_runs[i].push_back(SA);
         }
+    }
+
+    std::sort(SA_runs, SA_runs + r);/*, [](const std::vector<uint64_t> &a, const std::vector<uint64_t> &b) {
+        return a.size() < b.size();
+        });*/
+
+    for (uint64_t i = 0; i < r; i++) {
+        for (uint64_t j = 0; j < SA_runs[i].size(); j++) {
+            std::cout << SA_runs[i][j] << " ";
+        }
+        std::cout << std::endl << "==========================================" << std::endl;
+    }
+}
+
+// Print information about which documents rows in the rlbwt belong to.
+void MoveStructure::print_documents() {
+    uint64_t document_length = 100;
+    //std::cout << "=======PRINTING DOCUMENTS RUN BY RUN========" << std::endl;
+    std::vector<uint64_t> document_runs[r];
+    for (uint64_t i = 0; i < r; i++) {
+        auto &row = rlbwt[i];
+        uint64_t n = row.get_n();
+        for (uint64_t j = 0; j < n; j++) {
+            uint64_t SA = find_SA(j, i);
+            document_runs[i].push_back(SA / document_length);
+        }
+    }
+
+    std::sort(document_runs, document_runs + r);
+    std::map<std::string, uint64_t> pat_occ;
+    for (uint64_t i = 0; i < r; i++) {
+        std::stringstream ss;
+        for (uint64_t j = 0; j < document_runs[i].size(); j++) {
+            //std::cout << document_runs[i][j] << " ";
+            ss << (char) (document_runs[i][j] + 'A');
+        }
+        std::string doc_pat = ss.str();
+        pat_occ[doc_pat]++;
+        //std::cout << std::endl << "==========================================" << std::endl;
+    }
+
+    std::cout << "There were " << pat_occ.size() << " unique document patterns, and " << r << " BWT runs." << std::endl;
+    for (auto it = pat_occ.begin(); it != pat_occ.end(); it++) {
+        std::cout << it->first << ": " << it->second << std::endl;
     }
 }
 

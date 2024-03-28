@@ -323,7 +323,7 @@ int main(int argc, char** argv) {
         begin = std::chrono::system_clock::now();
         query(mv_, movi_options);
         
-        mv_.print_SA();
+        mv_.print_documents();
 
         end = std::chrono::system_clock::now();
         elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);

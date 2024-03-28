@@ -55,6 +55,7 @@ class MoveStructure {
 
         uint64_t find_SA(uint64_t offset, uint64_t index);
         void print_SA();
+        void print_documents();
     
         // uint64_t naive_lcp(uint64_t row1, uint64_t row2);
         // uint64_t naive_sa(uint64_t bwt_row);
