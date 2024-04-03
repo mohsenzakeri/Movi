@@ -37,7 +37,7 @@ class MoveStructure {
         uint64_t query_pml(MoveQuery& mq, bool random);
         uint64_t backward_search(std::string& R,  int32_t& pos_on_r);
         uint64_t exact_matches(MoveQuery& mq);
-
+    
         void sequential_lf();
         void random_lf();
         std::string reconstruct_lf();
@@ -53,7 +53,10 @@ class MoveStructure {
         uint32_t compute_index(char row_char, char lookup_char);
         void compute_nexts();
 
+        // Find SA entry given index of RLBWT row and offset within it.
         uint64_t find_SA(uint64_t offset, uint64_t index);
+        // Find which document a given SA entry belongs to.
+        uint32_t find_document(uint64_t SA);
         void print_SA();
         void print_documents();
     
@@ -89,7 +92,10 @@ class MoveStructure {
     private:
         // Number of bytes used to store each SA entry.
         const uint8_t SSABYTES = 5;
-        
+    
+        // Sorted vector of the start offsets of each document.  
+        std::vector<uint64_t> doc_offsets;
+    
         std::vector<uint64_t> first_runs;
         std::vector<uint64_t> first_offsets;
         std::vector<uint64_t> last_runs;

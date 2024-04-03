@@ -2,24 +2,29 @@
 #include <fstream>
 #include <zlib.h>
 #include <cstdint>
+#include <vector>
 
 #include "kseq.h"
 
 // STEP 1: declare the type of file handler and the read() function
 KSEQ_INIT(gzFile, gzread)
 
-void read_fasta(const char* file_name,std::ofstream& clean_fasta) {
+// Reads fasta file. Returns the total length of all sequences in the file.
+uint64_t read_fasta(const char* file_name,std::ofstream& clean_fasta) {
     gzFile fp;
     kseq_t *seq;
     int l;
     fp = gzopen(file_name, "r"); // STEP 2: open the file handler
     seq = kseq_init(fp); // STEP 3: initialize seq
     uint64_t line = 0;
-
+    uint64_t total_length = 0;
+    
     while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
         line += 1;
         std::string seq_rc = "";
         seq_rc.resize(seq->seq.l);
+        total_length += seq->seq.l;
+        
         for (size_t i = 0; i < seq->seq.l; i++) {
             auto c = seq->seq.s[i];
             switch (c) {
@@ -45,26 +50,40 @@ void read_fasta(const char* file_name,std::ofstream& clean_fasta) {
 
     kseq_destroy(seq);
     gzclose(fp);
+    return total_length;
 }
 
 int main(int argc, char* argv[]) {
     // Fasta/q reader from http://lh3lh3.users.sourceforge.net/parsefastq.shtml
     bool input_type = (argc > 3 and std::string(argv[3]) == "list");
     std::ofstream clean_fasta(static_cast<std::string>(argv[2]));
+    // Length of each document
+    std::vector<uint64_t> doc_lengths;
     if (input_type) {
         std::ifstream list_file(static_cast<std::string>(argv[1]));
         std::string fasta_file = "";
         while (std::getline(list_file, fasta_file)) {
             std::cerr << fasta_file << "\n";
-            read_fasta(fasta_file.data(), clean_fasta);
+            uint64_t length = read_fasta(fasta_file.data(), clean_fasta);
+            doc_lengths.push_back(length);
         }
     } else {
         std::cerr << argv[1] << "\n";
         std::cerr << argv[2] << "\n";
-        read_fasta(argv[1], clean_fasta);
+        uint64_t length = read_fasta(argv[1], clean_fasta);
+        doc_lengths.push_back(length);
     }
     clean_fasta.close();
 
     std::cerr << "The clean fasta with the reverse complement is stored at " << static_cast<std::string>(argv[2]) << "\n";
+
+    std::ofstream doc_offsets(static_cast<std::string>(argv[2]) + ".doc_offsets");
+    uint64_t cur_ind = 0;
+    for (int i = 0; i < doc_lengths.size(); i++) {
+        doc_offsets << cur_ind << "\n";
+        cur_ind += doc_lengths[i] * 2;
+    }
+    doc_offsets.close();
+    
     return 0;
 }

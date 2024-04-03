@@ -261,26 +261,33 @@ uint64_t MoveStructure::find_SA(uint64_t offset, uint64_t index) {
     }
 }
 
+// Find which document a given SA entry belongs to.
+uint32_t MoveStructure::find_document(uint64_t SA) {
+    uint32_t l = 0;
+    uint32_t r = doc_offsets.size();
+    uint32_t res = -1;
+    // Binary search for largest x s.t. doc_offsets[x] <= SA
+    while (l <= r) {
+        uint32_t m = (l + r) / 2;
+        if (doc_offsets[m] <= SA) {
+            res = m;
+            l = m + 1;
+        } else {
+            r = m - 1;
+        }
+    }
+    return res;
+}
+
 // Prints all SA entries
 void MoveStructure::print_SA() {
     std::cout << "=======PRINTING SA ENTRIES RUN BY RUN========" << std::endl;
-    std::vector<uint64_t> SA_runs[r];
     for (uint64_t i = 0; i < r; i++) {
         auto &row = rlbwt[i];
         uint64_t n = row.get_n();
         for (uint64_t j = 0; j < n; j++) {
             uint64_t SA = find_SA(j, i);
-            SA_runs[i].push_back(SA);
-        }
-    }
-
-    std::sort(SA_runs, SA_runs + r);/*, [](const std::vector<uint64_t> &a, const std::vector<uint64_t> &b) {
-        return a.size() < b.size();
-        });*/
-
-    for (uint64_t i = 0; i < r; i++) {
-        for (uint64_t j = 0; j < SA_runs[i].size(); j++) {
-            std::cout << SA_runs[i][j] << " ";
+            std::cout << SA << " ";
         }
         std::cout << std::endl << "==========================================" << std::endl;
     }
@@ -289,32 +296,48 @@ void MoveStructure::print_SA() {
 // Print information about which documents rows in the rlbwt belong to.
 void MoveStructure::print_documents() {
     uint64_t document_length = 100;
-    //std::cout << "=======PRINTING DOCUMENTS RUN BY RUN========" << std::endl;
-    std::vector<uint64_t> document_runs[r];
+    // Stores sequence of documents of all rows in each run.
+    std::vector<uint32_t> doc_runs[r];
+    // Stores set of documents appearing in rows in each run.
+    std::set<uint32_t> doc_sets[r];
     for (uint64_t i = 0; i < r; i++) {
         auto &row = rlbwt[i];
         uint64_t n = row.get_n();
         for (uint64_t j = 0; j < n; j++) {
             uint64_t SA = find_SA(j, i);
-            document_runs[i].push_back(SA / document_length);
+            uint32_t doc = find_document(SA);
+            doc_runs[i].push_back(doc);
+            doc_sets[i].insert(doc);
         }
     }
 
-    std::sort(document_runs, document_runs + r);
     std::map<std::string, uint64_t> pat_occ;
+    std::map<std::string, uint64_t> set_occ;
     for (uint64_t i = 0; i < r; i++) {
-        std::stringstream ss;
-        for (uint64_t j = 0; j < document_runs[i].size(); j++) {
-            //std::cout << document_runs[i][j] << " ";
-            ss << (char) (document_runs[i][j] + 'A');
+        std::stringstream ss_pat;
+        std::stringstream ss_set;
+        for (uint64_t j = 0; j < doc_runs[i].size(); j++) {
+            ss_pat << (char) (doc_runs[i][j] + 'A');
         }
-        std::string doc_pat = ss.str();
+        for (uint32_t doc : doc_sets[i]) {
+            ss_set << (char) (doc + 'A');
+        }
+        
+        std::string doc_pat = ss_pat.str();
+        std::string doc_set = ss_set.str();
+        
         pat_occ[doc_pat]++;
-        //std::cout << std::endl << "==========================================" << std::endl;
+        set_occ[doc_set]++;
     }
 
     std::cout << "There were " << pat_occ.size() << " unique document patterns, and " << r << " BWT runs." << std::endl;
     for (auto it = pat_occ.begin(); it != pat_occ.end(); it++) {
+        std::cout << it->first << ": " << it->second << std::endl;
+    }
+
+    std::cout << "===================================================" << std::endl;
+    std::cout << "There were " << set_occ.size() << " unique document sets, and " << r << " BWT runs." << std::endl;
+    for (auto it = set_occ.begin(); it != set_occ.end(); it++) {
         std::cout << it->first << ": " << it->second << std::endl;
     }
 }
@@ -1058,6 +1081,7 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
     if (!check_alphabet(R[pos_on_r])) {
         return 0;
     }
+    
     uint64_t run_start = first_runs[alphamap[R[pos_on_r]] + 1];
     uint64_t offset_start = first_offsets[alphamap[R[pos_on_r]] + 1];
     uint64_t run_end = last_runs[alphamap[R[pos_on_r]] + 1];
@@ -1689,6 +1713,14 @@ void MoveStructure::deserialize(std::string index_dir) {
     fin.read(reinterpret_cast<char*>(&first_offsets[0]), last_runs_size*sizeof(uint64_t));
 
     fin.close();
+
+    // Read in document offsets.
+    std::ifstream doc_offsets_file(index_dir + "/ref.fa.doc_offsets");
+    uint64_t doc_offset;
+    while ((doc_offsets_file >> doc_offset)) {
+        doc_offsets.push_back(doc_offset);
+    }
+    doc_offsets_file.close();
 }
 
 void MoveStructure::print_stats() {
