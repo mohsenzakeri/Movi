@@ -55,8 +55,10 @@ class MoveStructure {
 
         // Find SA entry given index of RLBWT row and offset within it.
         uint64_t find_SA(uint64_t offset, uint64_t index);
+        // Finds SA entries of all rows in BWT.
+        void find_all_SA();
         // Find which document a given SA entry belongs to.
-        uint32_t find_document(uint64_t SA);
+        uint16_t find_document(uint64_t SA);
         void print_SA();
         void print_documents();
     
@@ -95,6 +97,12 @@ class MoveStructure {
     
         // Sorted vector of the start offsets of each document.  
         std::vector<uint64_t> doc_offsets;
+
+        // Offset of run heads in the rlbwt. For experimental purposes.
+        std::vector<uint64_t> run_offsets;
+    
+        // Vector of all SA entries. For experiment purposes.
+        std::vector<uint64_t> SA_entries;
     
         std::vector<uint64_t> first_runs;
         std::vector<uint64_t> first_offsets;

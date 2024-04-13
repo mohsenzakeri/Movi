@@ -261,14 +261,38 @@ uint64_t MoveStructure::find_SA(uint64_t offset, uint64_t index) {
     }
 }
 
+// Finds all SA entries in O(n).
+void MoveStructure::find_all_SA() {
+    uint64_t tot_len = 0;
+    run_offsets.resize(r);
+    for (uint64_t i = 0; i < r; i++) {
+        run_offsets[i] = tot_len;
+        tot_len += rlbwt[i].get_n();
+    }
+    SA_entries.resize(tot_len);
+
+    uint64_t offset = 0;
+    uint64_t index = 0;
+    uint64_t SA_val = rlbwt[0].get_ssa();
+    for (uint64_t i = 0; i <= tot_len; i++) {
+        uint64_t row_ind = run_offsets[index] + offset;
+        if (row_ind == 0) {
+            std::cout << "i: " << i << std::endl;
+        }
+        SA_entries[row_ind] = SA_val;
+        LF_move(offset, index);
+        SA_val = (SA_val - 1 + tot_len) % tot_len;
+    }
+}
+
 // Find which document a given SA entry belongs to.
-uint32_t MoveStructure::find_document(uint64_t SA) {
-    uint32_t l = 0;
-    uint32_t r = doc_offsets.size();
-    uint32_t res = -1;
+uint16_t MoveStructure::find_document(uint64_t SA) {
+    uint16_t l = 0;
+    uint16_t r = doc_offsets.size() - 1;
+    uint16_t res = -1;
     // Binary search for largest x s.t. doc_offsets[x] <= SA
     while (l <= r) {
-        uint32_t m = (l + r) / 2;
+        uint16_t m = (l + r) / 2;
         if (doc_offsets[m] <= SA) {
             res = m;
             l = m + 1;
@@ -295,50 +319,76 @@ void MoveStructure::print_SA() {
 
 // Print information about which documents rows in the rlbwt belong to.
 void MoveStructure::print_documents() {
-    uint64_t document_length = 100;
+    find_all_SA();
+
+    uint16_t num_docs = doc_offsets.size();
+    
     // Stores sequence of documents of all rows in each run.
-    std::vector<uint32_t> doc_runs[r];
+    std::vector<std::vector<uint16_t>> doc_runs(r, std::vector<uint16_t>());
     // Stores set of documents appearing in rows in each run.
-    std::set<uint32_t> doc_sets[r];
+    std::vector<std::vector<bool>> doc_sets(r, std::vector<bool>(num_docs, 0));
     for (uint64_t i = 0; i < r; i++) {
         auto &row = rlbwt[i];
         uint64_t n = row.get_n();
         for (uint64_t j = 0; j < n; j++) {
-            uint64_t SA = find_SA(j, i);
-            uint32_t doc = find_document(SA);
+            uint64_t row_ind = run_offsets[i] + j;
+            uint64_t SA = SA_entries[row_ind];
+            uint16_t doc = find_document(SA);
+            
             doc_runs[i].push_back(doc);
-            doc_sets[i].insert(doc);
+            doc_sets[i][doc] = 1;
         }
     }
+    std::cout << std::endl;
 
-    std::map<std::string, uint64_t> pat_occ;
-    std::map<std::string, uint64_t> set_occ;
+    std::unordered_map<std::string, uint64_t> pat_occ;
+    std::unordered_map<std::string, uint64_t> set_occ;
     for (uint64_t i = 0; i < r; i++) {
         std::stringstream ss_pat;
         std::stringstream ss_set;
         for (uint64_t j = 0; j < doc_runs[i].size(); j++) {
             ss_pat << (char) (doc_runs[i][j] + 'A');
         }
-        for (uint32_t doc : doc_sets[i]) {
-            ss_set << (char) (doc + 'A');
+        for (uint16_t j = 0; j < num_docs; j++) {
+            if (doc_sets[i][j]) {
+                ss_set << (char) (j + 'A');
+            }
         }
         
         std::string doc_pat = ss_pat.str();
         std::string doc_set = ss_set.str();
-        
+
         pat_occ[doc_pat]++;
         set_occ[doc_set]++;
     }
 
+    std::vector<std::pair<uint64_t, std::string>> sort_by_count(set_occ.size());
+    uint64_t ind = 0;
+    for (auto it = set_occ.begin(); it != set_occ.end(); it++, ind++) {
+        sort_by_count[ind] = {it->second, it->first};
+    }
+    sort(sort_by_count.begin(), sort_by_count.end());
+
+    const int MAX_PRINT = 20;
+    
     std::cout << "There were " << pat_occ.size() << " unique document patterns, and " << r << " BWT runs." << std::endl;
+    int cnt = 0;
     for (auto it = pat_occ.begin(); it != pat_occ.end(); it++) {
+        if (cnt >= MAX_PRINT) break;
         std::cout << it->first << ": " << it->second << std::endl;
+        cnt++;
     }
 
     std::cout << "===================================================" << std::endl;
     std::cout << "There were " << set_occ.size() << " unique document sets, and " << r << " BWT runs." << std::endl;
-    for (auto it = set_occ.begin(); it != set_occ.end(); it++) {
+    cnt = 0;
+    /*for (auto it = set_occ.begin(); it != set_occ.end(); it++) {
+        if (cnt >= MAX_PRINT) break;
         std::cout << it->first << ": " << it->second << std::endl;
+        cnt++;
+        }*/
+    for (uint64_t i = 0; i < set_occ.size(); i++) {
+        std::cerr << sort_by_count[i].first << "\t" << sort_by_count[i].second << std::endl;
     }
 }
 
