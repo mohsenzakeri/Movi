@@ -84,7 +84,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         auto result = options.parse(argc, argv);
 
         if (result.count("help")) {
-            std::cout << options.help() << std::endl;
+            std::cerr << options.help() << std::endl;
             return 0;
         }
 
@@ -176,7 +176,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         }
     } catch (const cxxopts::exceptions::exception& e) {
         std::cerr << "Error parsing command line options: " << e.what() << "\n";
-        std::cout << options.help() << "\n";
+        std::cerr << options.help() << "\n";
         return false;
     }
     return true;
@@ -319,12 +319,12 @@ int main(int argc, char** argv) {
         mv_.deserialize(movi_options.get_index_dir());
         auto end = std::chrono::system_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-        std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+        fprintf(stderr, "Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
         begin = std::chrono::system_clock::now();
         query(mv_, movi_options);
         end = std::chrono::system_clock::now();
         elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-        std::printf("Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);
+        fprintf(stderr, "Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);
     } else if (command == "view") {
         view(movi_options);
     } else if (command == "rlbwt") {

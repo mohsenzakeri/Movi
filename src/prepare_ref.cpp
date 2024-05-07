@@ -8,7 +8,7 @@
 // STEP 1: declare the type of file handler and the read() function
 KSEQ_INIT(gzFile, gzread)
 
-void read_fasta(const char* file_name,std::ofstream& clean_fasta) {
+void read_fasta(const char* file_name, std::ofstream& clean_fasta) {
     gzFile fp;
     kseq_t *seq;
     int l;
