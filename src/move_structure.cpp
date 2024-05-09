@@ -270,13 +270,13 @@ void MoveStructure::find_all_SA() {
         tot_len += rlbwt[i].get_n();
     }
     SA_entries.resize(tot_len);
-
+    
     uint64_t offset = 0;
     uint64_t index = 0;
     uint64_t SA_val = rlbwt[0].get_ssa();
     for (uint64_t i = 0; i <= tot_len; i++) {
         uint64_t row_ind = run_offsets[index] + offset;
-        if (row_ind == 0) {
+        if (offset == 0 && index == 0) {
             std::cout << "i: " << i << std::endl;
         }
         SA_entries[row_ind] = SA_val;
@@ -319,8 +319,9 @@ void MoveStructure::print_SA() {
 
 // Print information about which documents rows in the rlbwt belong to.
 void MoveStructure::print_documents() {
-    find_all_SA();
+    std::ofstream out("../output/docs.txt");
 
+    find_all_SA();
     uint16_t num_docs = doc_offsets.size();
     
     // Stores sequence of documents of all rows in each run.
@@ -362,34 +363,63 @@ void MoveStructure::print_documents() {
         set_occ[doc_set]++;
     }
 
-    std::vector<std::pair<uint64_t, std::string>> sort_by_count(set_occ.size());
+    std::vector<std::pair<uint64_t, std::string>> set_sorted(set_occ.size());
     uint64_t ind = 0;
     for (auto it = set_occ.begin(); it != set_occ.end(); it++, ind++) {
-        sort_by_count[ind] = {it->second, it->first};
+        set_sorted[ind] = {it->second, it->first};
     }
-    sort(sort_by_count.begin(), sort_by_count.end());
+    sort(set_sorted.begin(), set_sorted.end());
 
-    const int MAX_PRINT = 20;
+    std::vector<std::pair<uint64_t, std::string>> pat_sorted(pat_occ.size());
+    ind = 0;
+    for (auto it = pat_occ.begin(); it != pat_occ.end(); it++, ind++) {
+        pat_sorted[ind] = {it->second, it->first};
+    }
+    sort(pat_sorted.begin(), pat_sorted.end());
+
+
+    std::ofstream info("../output/info.txt");
+    info << "==================================PATTERNS===============================" << std::endl;
+    ind = 0;
+    uint64_t cum_sum = 0;
+    for (auto it = pat_sorted.rbegin(); it != pat_sorted.rend(); it++) {
+        if (ind % 100000 == 0) {
+            double frac = (double) cum_sum / r;
+            info << ind << ": " << frac << std::endl;
+        }
+        cum_sum += it->first;
+        ind++;
+    }
+    info << "===================================SETS==================================" << std::endl;
+    ind = 0;
+    cum_sum = 0;
+    for (auto it = set_sorted.rbegin(); it != set_sorted.rend(); it++) {
+        if (ind % 10 == 0) {
+            double frac = (double) cum_sum / r;
+            info << ind << ": " << frac << std::endl;
+        }
+        cum_sum += it->first;
+        ind++;
+    }
+    info.close();
     
-    std::cout << "There were " << pat_occ.size() << " unique document patterns, and " << r << " BWT runs." << std::endl;
+    const int MAX_PRINT = 1000;
+    out << "Total Length: " << SA_entries.size() << ", # BWT Runs: " << r << ", # Documents: " << num_docs << std::endl;
+    out << "# Unique Document Patterns: " << pat_occ.size() << ", # Unique Document Sets: " << set_occ.size() << std::endl; 
+    out << "==================================DOCUMENT PATTERNS=======================================" << std::endl; 
     int cnt = 0;
-    for (auto it = pat_occ.begin(); it != pat_occ.end(); it++) {
-        if (cnt >= MAX_PRINT) break;
-        std::cout << it->first << ": " << it->second << std::endl;
-        cnt++;
+    for (auto it = pat_sorted.rbegin(); it != pat_sorted.rend(); it++) {
+        out << it->first << ": " << it->second << std::endl;
+        if (++cnt >= MAX_PRINT) break;
     }
 
-    std::cout << "===================================================" << std::endl;
-    std::cout << "There were " << set_occ.size() << " unique document sets, and " << r << " BWT runs." << std::endl;
+    out << "====================================DOCUMENT SETS==========================================" << std::endl; 
     cnt = 0;
-    /*for (auto it = set_occ.begin(); it != set_occ.end(); it++) {
-        if (cnt >= MAX_PRINT) break;
-        std::cout << it->first << ": " << it->second << std::endl;
-        cnt++;
-        }*/
-    for (uint64_t i = 0; i < set_occ.size(); i++) {
-        std::cerr << sort_by_count[i].first << "\t" << sort_by_count[i].second << std::endl;
+    for (auto it = set_sorted.rbegin(); it != set_sorted.rend(); it++) {
+        out << it->first << ": " << it->second << std::endl;
+        if (++cnt >= MAX_PRINT) break;
     }
+    out.close();
 }
 
 // Read SA samples from file.
@@ -798,22 +828,17 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             if (bits[lf] == 1)
                 pp_id += 1;
             
-
-            if (pp_id == 0) {
-                offset = 0;
-            } else {
-                // check the boundaries before performing select
-                if (pp_id >= r) {
-                    std::cerr << "pp_id: " << pp_id << "r: " << r << "i: " << i << "bwt_row: " << bwt_row << "lf: " << lf << "\n";
-                    exit(0);
-                }
-                if (lf < sbits(pp_id + 1)) {
-                    std::cerr << lf << " " << sbits(pp_id + 1);
-                    exit(0);
-                }
-
-                offset = lf - sbits(pp_id + 1);
+            // check the boundaries before performing select
+            if (pp_id >= r) {
+                std::cerr << "pp_id: " << pp_id << "r: " << r << "i: " << i << "bwt_row: " << bwt_row << "lf: " << lf << "\n";
+                exit(0); // TODO: add error handling
             }
+            if (lf < sbits(pp_id + 1)) {
+                std::cerr << lf << " " << sbits(pp_id + 1);
+                exit(0); // TODO: add error handling
+            }
+            offset = lf - sbits(pp_id + 1);
+
             if (verbose and r_idx == 0) // or any run to be inspected
                 std::cerr << "r_idx: " << r_idx 
                           << " bwt_row: " << bwt_row
