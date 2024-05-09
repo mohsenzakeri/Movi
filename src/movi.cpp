@@ -345,5 +345,6 @@ int main(int argc, char** argv) {
         MoveStructure mv_(movi_options.is_verbose(), movi_options.is_logs());
         mv_.deserialize(movi_options.get_index_dir());
         mv_.print_stats();
+        // mv_.analyze_rows();
     }
 }
