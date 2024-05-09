@@ -414,10 +414,6 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
     }
 
 #if MODE == 0 || MODE == 1
-    // if (!onebit) {
-    //     // rlbwt_thresholds[idx][i] = value;
-    //     rlbwt[idx].set_thresholds(i, value);
-    // }
     uint8_t status = 0;
     if (value == 0) {
         status = 0;

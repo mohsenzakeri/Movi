@@ -312,7 +312,6 @@ int main(int argc, char** argv) {
         MoveStructure mv_(movi_options.get_ref_file(), false, movi_options.is_verbose(), movi_options.is_logs(), false, MODE == 1);
         std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
         mv_.serialize(movi_options.get_index_dir());
-        std::cerr << "The move structure is read from the file successfully.\n";
     } else if (command == "query") {
         MoveStructure mv_(movi_options.is_verbose(), movi_options.is_logs());
         auto begin = std::chrono::system_clock::now();
