@@ -61,7 +61,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
     auto buildOptions = options.add_options("build")
         ("i,index", "Index directory", cxxopts::value<std::string>())
-        ("f,fasta", "Reference file", cxxopts::value<std::string>());
+        ("f,fasta", "Reference file", cxxopts::value<std::string>())
+        ("verify", "Verify if all the LF_move operations are correct");
 
     auto queryOptions = options.add_options("query")
         ("pml", "Compute the pseudo-matching lengths (PMLs)")
@@ -115,6 +116,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                 if (result.count("index") == 1 and result.count("fasta") == 1) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
                     movi_options.set_ref_file(result["fasta"].as<std::string>());
+                    if (result.count("verify")) {
+                        movi_options.set_verify(true);
+                    }
                 } else {
                     const std::string message = "Please include one index directory and one fasta file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
@@ -339,9 +343,12 @@ int main(int argc, char** argv) {
     std::string command = movi_options.get_command();
     if (command == "build") {
         MoveStructure mv_(movi_options.get_ref_file(), false, movi_options.is_verbose(), movi_options.is_logs(), false, MODE == 1);
-        std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
+        if (movi_options.if_verify()) {
+            std::cerr << "Verifying the LF_move results...\n";
+            mv_.verify_lfs();
+        }
         mv_.serialize(movi_options.get_index_dir());
-        std::cerr << "The move structure is read from the file successfully.\n";
+        std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
     } else if (command == "query") {
         MoveStructure mv_(&movi_options);
         auto begin = std::chrono::system_clock::now();
