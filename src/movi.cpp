@@ -28,8 +28,15 @@ std::string program() {
 }
 
 kseq_t* open_kseq(gzFile& fp, std::string file_address) {
+    std::cerr << "file_address: " << file_address << "\n";
     kseq_t *seq;
-    fp = gzopen(file_address.c_str(), "r"); // STEP 2: open the file handler
+    // Solution for handling the stdin input: https://biowize.wordpress.com/2013/03/05/using-kseq-h-with-stdin/
+    if (file_address == "-") {
+        FILE *instream = stdin;
+        fp = gzdopen(fileno(instream), "r"); // STEP 2: open the file handler
+    } else {
+        fp = gzopen(file_address.c_str(), "r"); // STEP 2: open the file handler
+    }
     seq = kseq_init(fp); // STEP 3: initialize seq
     return seq;
 }

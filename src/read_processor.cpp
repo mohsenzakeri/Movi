@@ -6,7 +6,14 @@ uint32_t alphamap_3_[4][4] = {{3, 0, 1, 2},
                              {0, 1, 2, 3}};
 
 ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_ = 4, bool query_pml = true, bool reverse_ = false) {
-    fp = gzopen(reads_file_name.c_str(), "r"); // STEP 2: open the file handler
+    // Solution for handling the stdin input: https://biowize.wordpress.com/2013/03/05/using-kseq-h-with-stdin/
+    if (reads_file_name == "-") {
+        FILE *instream = stdin;
+        fp = gzdopen(fileno(instream), "r"); // STEP 2: open the file handler
+    } else {
+        fp = gzopen(reads_file_name.c_str(), "r"); // STEP 2: open the file handler
+    }
+
     seq = kseq_init(fp); // STEP 3: initialize seq
     std::string index_type = mv_.index_type();
     if (query_pml) {
