@@ -17,6 +17,7 @@
 #include <sdsl/int_vector.hpp>
 #include <sdsl/bit_vectors.hpp>
 
+#include "movi_options.hpp"
 #include "move_row.hpp"
 #include "move_query.hpp"
 
@@ -25,10 +26,9 @@
 
 class MoveStructure {
     public:
-        MoveStructure() { }
-        MoveStructure(bool verbose_, bool logs_);
-        MoveStructure(bool onebit_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
+        MoveStructure(MoviOptions* movi_options_);
         MoveStructure(std::string input_file_, bool onebit_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
+        void set_movi_options(MoviOptions* movi_options_) { movi_options = movi_options_; }
 
         bool check_mode();
         std::string index_type();
@@ -89,6 +89,7 @@ class MoveStructure {
         bool onebit;
         bool constant;
         uint16_t splitting;
+        MoviOptions* movi_options;
         std::string bwt_string;
         std::string orig_string;
         bool reconstructed;

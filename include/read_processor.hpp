@@ -55,7 +55,7 @@ class ReadProcessor {
         void process_latency_hiding(MoveStructure& mv);
         void backward_search_latency_hiding(MoveStructure& mv);
         bool next_read(Strand& process);
-        void write_pmls(Strand& process, bool logs);
+        void write_pmls(Strand& process, bool logs, bool write_stdout);
         void process_char(Strand& process, MoveStructure& mv);
         bool backward_search(Strand& process, MoveStructure& mv, uint64_t& match_count);
         void reset_process(Strand& process, MoveStructure& mv);
