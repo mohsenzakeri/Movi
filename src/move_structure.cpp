@@ -625,23 +625,18 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             uint64_t pp_id = rbits(lf) - 1;
             if (bits[lf] == 1)
                 pp_id += 1;
-            
 
-            if (pp_id == 0) {
-                offset = 0;
-            } else {
-                // check the boundaries before performing select
-                if (pp_id >= r) {
-                    std::cerr << "pp_id: " << pp_id << "r: " << r << "i: " << i << "bwt_row: " << bwt_row << "lf: " << lf << "\n";
-                    exit(0);
-                }
-                if (lf < sbits(pp_id + 1)) {
-                    std::cerr << lf << " " << sbits(pp_id + 1);
-                    exit(0);
-                }
-
-                offset = lf - sbits(pp_id + 1);
+            // check the boundaries before performing select
+            if (pp_id >= r) {
+                std::cerr << "pp_id: " << pp_id << "r: " << r << "i: " << i << "bwt_row: " << bwt_row << "lf: " << lf << "\n";
+                exit(0); // TODO: add error handling
             }
+            if (lf < sbits(pp_id + 1)) {
+                std::cerr << lf << " " << sbits(pp_id + 1);
+                exit(0); // TODO: add error handling
+            }
+            offset = lf - sbits(pp_id + 1);
+
             if (verbose and r_idx == 0) // or any run to be inspected
                 std::cerr << "r_idx: " << r_idx 
                           << " bwt_row: " << bwt_row
