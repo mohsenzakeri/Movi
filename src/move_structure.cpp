@@ -38,18 +38,11 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
     std::cerr << "Finished reading " << i << " thresholds.\n";
 }
 
-MoveStructure::MoveStructure(bool verbose_, bool logs_) {
+MoveStructure::MoveStructure(MoviOptions* movi_options_) {
+    movi_options = movi_options_;
     onebit = false;
-    verbose = verbose_;
-    logs = logs_;
-}
-
-MoveStructure::MoveStructure(bool onebit_, bool verbose_, bool logs_, uint16_t splitting_, bool constant_) {
-    onebit = onebit_;
-    verbose = verbose_;
-    logs = logs_;
-    splitting = splitting_;
-    constant = constant_;
+    verbose = movi_options->is_verbose();
+    logs = movi_options->is_logs();
 }
 
 MoveStructure::MoveStructure(std::string input_file_, bool onebit_, bool verbose_, bool logs_, uint16_t splitting_, bool constant_) {

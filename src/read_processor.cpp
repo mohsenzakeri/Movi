@@ -6,7 +6,14 @@ uint32_t alphamap_3_[4][4] = {{3, 0, 1, 2},
                              {0, 1, 2, 3}};
 
 ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_ = 4, bool query_pml = true, bool reverse_ = false) {
-    fp = gzopen(reads_file_name.c_str(), "r"); // STEP 2: open the file handler
+    // Solution for handling the stdin input: https://biowize.wordpress.com/2013/03/05/using-kseq-h-with-stdin/
+    if (reads_file_name == "-") {
+        FILE *instream = stdin;
+        fp = gzdopen(fileno(instream), "r"); // STEP 2: open the file handler
+    } else {
+        fp = gzopen(reads_file_name.c_str(), "r"); // STEP 2: open the file handler
+    }
+
     seq = kseq_init(fp); // STEP 3: initialize seq
     std::string index_type = mv_.index_type();
     if (query_pml) {
@@ -120,7 +127,7 @@ void ReadProcessor::process_char(Strand& process, MoveStructure& mv) {
     // process.ff_count_tot += ff_count;
 }
 
-void ReadProcessor::write_pmls(Strand& process, bool logs) {
+void ReadProcessor::write_pmls(Strand& process, bool logs, bool write_stdout) {
     if (logs) {
         auto t2 = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
@@ -128,12 +135,22 @@ void ReadProcessor::write_pmls(Strand& process, bool logs) {
         process.mq.add_fastforward(process.ff_count);
         process.mq.add_scan(process.scan_count);
     }
-    pmls_file.write(reinterpret_cast<char*>(&process.st_length), sizeof(process.st_length));
-    pmls_file.write(reinterpret_cast<char*>(&process.read_name[0]), process.st_length);
-    auto& pml_lens = process.mq.get_pml_lens();
-    uint64_t mq_pml_lens_size = pml_lens.size();
-    pmls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
-    pmls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+    if (write_stdout) {
+        std::cout << ">" << process.read_name << " \n";
+        auto& pml_lens = process.mq.get_pml_lens();
+        uint64_t mq_pml_lens_size = pml_lens.size();
+        for (int64_t i = mq_pml_lens_size - 1; i >= 0; i--) {
+            std::cout << pml_lens[i] << " ";
+        }
+        std::cout << "\n";
+    } else {
+        pmls_file.write(reinterpret_cast<char*>(&process.st_length), sizeof(process.st_length));
+        pmls_file.write(reinterpret_cast<char*>(&process.read_name[0]), process.st_length);
+        auto& pml_lens = process.mq.get_pml_lens();
+        uint64_t mq_pml_lens_size = pml_lens.size();
+        pmls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
+        pmls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+    }
 
     if (logs) {
         costs_file << ">" << process.read_name << "\n";
@@ -180,7 +197,7 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
                 process_char(processes[i], mv);
                 // 2: if the read is done -> Write the pmls and go to next read
                 if (processes[i].pos_on_r <= -1) {
-                    write_pmls(processes[i], mv.logs);
+                    write_pmls(processes[i], mv.logs, mv.movi_options->is_stdout());
                     reset_process(processes[i], mv);
                     // 3: -- check if it was the last read in the file -> fnished_count++
                     if (processes[i].finished) {

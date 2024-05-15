@@ -1,3 +1,6 @@
+#ifndef __MOVI_OPTIONS__
+#define __MOVI_OPTIONS__
+
 class MoviOptions {
     public:
         MoviOptions() {
@@ -11,6 +14,7 @@ class MoviOptions {
         }
         bool is_split() { return split; }
         bool no_prefetch() { return !prefetch; }
+        bool is_stdout() { return write_stdout; }
         bool is_verbose() { return verbose; }
         bool is_logs() { return logs; }
         bool if_verify() { return verify; }
@@ -27,6 +31,7 @@ class MoviOptions {
         std::string get_pml_file() { return pml_file; }
         std::string get_index_dir() { return index_dir; }
 
+        void set_stdout(bool write_stdout_) { write_stdout = write_stdout_; }
         void set_verbose(bool verbose_) { verbose = verbose_; }
         void set_logs(bool logs_) { logs = logs_; }
         void set_verify(bool verify_) { verify = verify_; }
@@ -64,6 +69,7 @@ class MoviOptions {
             std::cerr << "prefetch:\t" << prefetch << "\n";
             std::cerr << "strands:\t" << strands << "\n";
             std::cerr << "verify:\t" << verify << "\n";
+            std::cerr << "stdout:\t" << write_stdout << "\n";
             std::cerr << "verbose:\t" << verbose << "\n";
             std::cerr << "logs:\t" << logs << "\n";
         }
@@ -82,6 +88,9 @@ class MoviOptions {
         bool prefetch = true;
         size_t strands = 16;
         bool verify = false;
+        bool write_stdout = false;
         bool verbose = false;
         bool logs = false;
 };
+
+#endif

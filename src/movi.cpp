@@ -28,8 +28,15 @@ std::string program() {
 }
 
 kseq_t* open_kseq(gzFile& fp, std::string file_address) {
+    std::cerr << "file_address: " << file_address << "\n";
     kseq_t *seq;
-    fp = gzopen(file_address.c_str(), "r"); // STEP 2: open the file handler
+    // Solution for handling the stdin input: https://biowize.wordpress.com/2013/03/05/using-kseq-h-with-stdin/
+    if (file_address == "-") {
+        FILE *instream = stdin;
+        fp = gzdopen(fileno(instream), "r"); // STEP 2: open the file handler
+    } else {
+        fp = gzopen(file_address.c_str(), "r"); // STEP 2: open the file handler
+    }
     seq = kseq_init(fp); // STEP 3: initialize seq
     return seq;
 }
@@ -64,7 +71,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
         ("n,no-prefetch", "Disable prefetching for query")
-        ("s,strands", "Number of strands for query", cxxopts::value<int>());
+        ("s,strands", "Number of strands for query", cxxopts::value<int>())
+        ("stdout", "Write the output to stdout");
 
     auto viewOptions = options.add_options("view")
         ("pml-file", "PML file in the binary format", cxxopts::value<std::string>());
@@ -131,6 +139,10 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("strands") == 1) {
                         std::cerr << "strands: " << result["strands"].as<int>() << "\n";
                         movi_options.set_strands(static_cast<size_t>(result["strands"].as<int>()));
+                    }
+                    if (result.count("stdout")) {
+                        // Set global verbose flag
+                        movi_options.set_stdout(true);
                     }
                 } else {
                     const std::string message = "Please include one index directory and one read file.";
@@ -229,13 +241,23 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 mq = MoveQuery(query_seq);
                 bool random_jump = false;
                 total_ff_count += mv_.query_pml(mq, random_jump);
-                uint16_t st_length = seq->name.m;
-                pmls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
-                pmls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
-                auto& pml_lens = mq.get_pml_lens();
-                uint64_t mq_pml_lens_size = pml_lens.size();
-                pmls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
-                pmls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+                if (movi_options.is_stdout()) {
+                    std::cout << ">" << seq->name.s << " \n";
+                    auto& pml_lens = mq.get_pml_lens();
+                    uint64_t mq_pml_lens_size = pml_lens.size();
+                    for (int64_t i = mq_pml_lens_size - 1; i >= 0; i--) {
+                        std::cout << pml_lens[i] << " ";
+                    }
+                    std::cout << "\n";
+                } else {
+                    uint16_t st_length = seq->name.m;
+                    pmls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
+                    pmls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
+                    auto& pml_lens = mq.get_pml_lens();
+                    uint64_t mq_pml_lens_size = pml_lens.size();
+                    pmls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
+                    pmls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+                }
             } else if (movi_options.is_count()) {
                 // std::string R = std::string(seq->seq.s);
                 int32_t pos_on_r = query_seq.length() - 1;
@@ -321,25 +343,25 @@ int main(int argc, char** argv) {
         mv_.serialize(movi_options.get_index_dir());
         std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
     } else if (command == "query") {
-        MoveStructure mv_(movi_options.is_verbose(), movi_options.is_logs());
+        MoveStructure mv_(&movi_options);
         auto begin = std::chrono::system_clock::now();
         mv_.deserialize(movi_options.get_index_dir());
         auto end = std::chrono::system_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-        fprintf(stderr, "Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+        std::fprintf(stderr, "Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
         begin = std::chrono::system_clock::now();
         query(mv_, movi_options);
         end = std::chrono::system_clock::now();
         elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-        fprintf(stderr, "Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);
+        std::fprintf(stderr, "Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);
     } else if (command == "view") {
         view(movi_options);
     } else if (command == "rlbwt") {
         std::cerr << "The run and len files are being built.\n";
-        MoveStructure mv_(movi_options.is_verbose(), movi_options.is_logs());
+        MoveStructure mv_(&movi_options);
         mv_.build_rlbwt(movi_options.get_bwt_file());
     } else if (command == "LF") {
-        MoveStructure mv_(movi_options.is_verbose(), movi_options.is_logs());
+        MoveStructure mv_(&movi_options);
         mv_.deserialize(movi_options.get_index_dir());
         std::cerr << "The move structure is read from the file successfully.\n";
         if (movi_options.get_LF_type() == "sequential")
@@ -349,7 +371,7 @@ int main(int argc, char** argv) {
         else if (movi_options.get_LF_type() == "reconstruct")
             mv_.reconstruct_lf();
     } else if (command == "stats") {
-        MoveStructure mv_(movi_options.is_verbose(), movi_options.is_logs());
+        MoveStructure mv_(&movi_options);
         mv_.deserialize(movi_options.get_index_dir());
         mv_.print_stats();
         // mv_.analyze_rows();
