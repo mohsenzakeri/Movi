@@ -27,13 +27,13 @@
 class MoveStructure {
     public:
         MoveStructure(MoviOptions* movi_options_);
-        MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t splitting = 0, bool constant = false);
+        MoveStructure(std::string input_file_, bool onebit_, bool verbose_, bool logs_, uint16_t splitting = 0, bool constant = false);
         void set_movi_options(MoviOptions* movi_options_) { movi_options = movi_options_; }
 
         bool check_mode();
         std::string index_type();
         void build(std::ifstream &bwt_file);
-        void build_rlbwt();
+        void build_rlbwt(std::string input_file);
         uint64_t query_pml(MoveQuery& mq, bool random);
         uint64_t backward_search(std::string& R,  int32_t& pos_on_r);
         uint64_t exact_matches(MoveQuery& mq);
@@ -62,9 +62,8 @@ class MoveStructure {
         bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
         bool jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_count);
 
-        void serialize();
-        void deserialize();
-        void verify_lfs();
+        void serialize(std::string output_dir);
+        void deserialize(std::string index_dir);
         void print_stats();
         void analyze_rows();
         bool check_alphabet(char c);
@@ -101,6 +100,8 @@ class MoveStructure {
         uint64_t end_bwt_idx_thresholds[4];
         uint64_t end_bwt_idx_next_up[4];
         uint64_t end_bwt_idx_next_down[4];
+        bool verbose;
+        bool logs;
 	    std::string input_file;
 
         // Map from 2bit encoded character to the actual character
@@ -112,7 +113,6 @@ class MoveStructure {
         // Example: alphamap[A] -> 0, alphamap[C] -> 1
         std::vector<uint64_t> alphamap;
 
-        std::vector<uint64_t> all_p;
         std::vector<std::unique_ptr<sdsl::bit_vector> > occs;
         std::vector<std::unique_ptr<sdsl::rank_support_v<> > > occs_rank;
         sdsl::bit_vector bits;

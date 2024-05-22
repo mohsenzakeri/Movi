@@ -17,7 +17,6 @@ class MoviOptions {
         bool is_stdout() { return write_stdout; }
         bool is_verbose() { return verbose; }
         bool is_logs() { return logs; }
-        bool if_verify() { return verify; }
         bool is_pml() { return pml_query; }
         bool is_count() { return count_query; }
         bool is_reverse() { return reverse; }
@@ -34,7 +33,6 @@ class MoviOptions {
         void set_stdout(bool write_stdout_) { write_stdout = write_stdout_; }
         void set_verbose(bool verbose_) { verbose = verbose_; }
         void set_logs(bool logs_) { logs = logs_; }
-        void set_verify(bool verify_) { verify = verify_; }
         void set_pml(bool pml_) { pml_query = pml_; }
         void set_count(bool count_) { count_query = count_; pml_query = false;}
         void set_reverse(bool reverse_) { reverse = reverse_; }
@@ -68,7 +66,6 @@ class MoviOptions {
             std::cerr << "reverse:\t" << reverse << "\n";
             std::cerr << "prefetch:\t" << prefetch << "\n";
             std::cerr << "strands:\t" << strands << "\n";
-            std::cerr << "verify:\t" << verify << "\n";
             std::cerr << "stdout:\t" << write_stdout << "\n";
             std::cerr << "verbose:\t" << verbose << "\n";
             std::cerr << "logs:\t" << logs << "\n";
@@ -87,7 +84,6 @@ class MoviOptions {
         bool reverse = false;
         bool prefetch = true;
         size_t strands = 16;
-        bool verify = false;
         bool write_stdout = false;
         bool verbose = false;
         bool logs = false;
