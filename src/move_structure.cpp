@@ -1594,6 +1594,49 @@ void MoveStructure::deserialize() {
     fin.close();
 }
 
+void MoveStructure::verify_lfs() {
+    uint64_t not_matched = 0;
+    for (uint64_t i = 0; i < all_p.size(); i++) {
+        std::uint64_t end_ = (i < all_p.size() - 1) ? all_p[i + 1] : length;
+        for (uint64_t j = all_p[i]; j < end_; j++) {
+            uint64_t offset_ = j - all_p[i];
+            uint64_t idx_ = i;
+            uint64_t lf = 0;
+            if (i != end_bwt_idx) {
+                lf = LF(j);
+            } else {
+                std::cerr << "end_run = " << i << " len: " << rlbwt[i].get_n () << "\n";
+            }
+            LF_move(offset_, idx_);
+            uint64_t lf_move = all_p[idx_] + offset_;
+            if (lf != lf_move) {
+                not_matched += 1;
+                std::cerr << "j\t" << j << "\n";
+                std::cerr << "idx\t" << i << "\n";
+                std::cerr << "offset\t" << j - all_p[i] << "\n";
+                std::cerr << "rlbwt[idx].get_id\t" << rlbwt[i].get_id() << "\n";
+                std::cerr << "get_offset(i)\t" << get_offset(i) << "\n";
+                for (uint64_t k = 0; k <= i; k++) {
+                    std::cerr << rlbwt[k].get_n() << " ";
+                }
+                std::cerr << "\n\n";
+
+                std::cerr << "lf\t" << lf << "\n";
+                std::cerr << "lf_move\t" << lf_move << "\n";
+                std::cerr << "idx_\t" << idx_ << "\n";
+                std::cerr << "offset_\t" << offset_ << "\n";
+                std::cerr << "all_p[idx_]\t" << all_p[idx_] << "\n";
+                std::cerr << "\n\n\n";
+            }
+        }
+    }
+    if (not_matched == 0) {
+        std::cerr << "All the LF_move operations are correct.\n";
+    } else {
+        std::cerr << "There are " << not_matched << " LF_move operations that failed to match the true lf results.\n";
+    }
+}
+
 void MoveStructure::analyze_rows() {
     for (int i = 0; i < first_runs.size(); i++) {
         std::cerr << i << "\t" << first_runs[i] << "\t" << last_runs[i] << "\n";

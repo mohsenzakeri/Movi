@@ -336,6 +336,10 @@ int main(int argc, char** argv) {
     std::string command = movi_options.get_command();
     if (command == "build") {
         MoveStructure mv_(&movi_options, false, false, MODE == 1);
+        if (movi_options.if_verify()) {
+            std::cerr << "Verifying the LF_move results...\n";
+            mv_.verify_lfs();
+        }
         mv_.serialize();
         std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
     } else if (command == "query") {

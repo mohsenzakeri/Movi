@@ -64,6 +64,7 @@ class MoveStructure {
 
         void serialize();
         void deserialize();
+        void verify_lfs();
         void print_stats();
         void analyze_rows();
         bool check_alphabet(char c);
