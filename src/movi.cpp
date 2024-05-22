@@ -196,12 +196,12 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
 void query(MoveStructure& mv_, MoviOptions& movi_options) {
     if (!movi_options.no_prefetch()) {
-        ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_pml(), movi_options.is_reverse());
+        ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_pml(), movi_options.is_verbose(), movi_options.is_reverse());
         if (movi_options.is_pml()) {
             rp.process_latency_hiding(mv_);
         } else if (movi_options.is_count()) {
             rp.backward_search_latency_hiding(mv_);
-        }      
+        }
     } else {
         gzFile fp;
         int l;
@@ -331,14 +331,13 @@ int main(int argc, char** argv) {
     }
     std::string command = movi_options.get_command();
     if (command == "build") {
-        MoveStructure mv_(movi_options.get_ref_file(), false, movi_options.is_verbose(), movi_options.is_logs(), false, MODE == 1);
+        MoveStructure mv_(&movi_options, false, false, MODE == 1);
+        mv_.serialize();
         std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
-        mv_.serialize(movi_options.get_index_dir());
-        std::cerr << "The move structure is read from the file successfully.\n";
     } else if (command == "query") {
         MoveStructure mv_(&movi_options);
         auto begin = std::chrono::system_clock::now();
-        mv_.deserialize(movi_options.get_index_dir());
+        mv_.deserialize();
         auto end = std::chrono::system_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
         std::fprintf(stderr, "Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
@@ -352,7 +351,7 @@ int main(int argc, char** argv) {
     } else if (command == "rlbwt") {
         std::cerr << "The run and len files are being built.\n";
         MoveStructure mv_(&movi_options);
-        mv_.build_rlbwt(movi_options.get_bwt_file());
+        mv_.build_rlbwt();
     } else if (command == "LF") {
         MoveStructure mv_(&movi_options);
         mv_.deserialize(movi_options.get_index_dir());

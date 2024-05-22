@@ -41,14 +41,11 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
 MoveStructure::MoveStructure(MoviOptions* movi_options_) {
     movi_options = movi_options_;
     onebit = false;
-    verbose = movi_options->is_verbose();
-    logs = movi_options->is_logs();
 }
 
-MoveStructure::MoveStructure(std::string input_file_, bool onebit_, bool verbose_, bool logs_, uint16_t splitting_, bool constant_) {
+MoveStructure::MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t splitting_, bool constant_) {
+    movi_options = movi_options_;
     onebit = onebit_;
-    verbose = verbose_;
-    logs = logs_;
     splitting = splitting_;
     constant = constant_;
 
@@ -61,12 +58,11 @@ MoveStructure::MoveStructure(std::string input_file_, bool onebit_, bool verbose
     }
 
     reconstructed = false;
-    input_file = input_file_;
 
-    std::string bwt_filename = input_file + std::string(".bwt");
+    std::string bwt_filename = movi_options->get_ref_file() + std::string(".bwt");
     std::ifstream bwt_file(bwt_filename);
 
-    std::string thr_filename = input_file + std::string(".thr_pos");
+    std::string thr_filename = movi_options->get_ref_file() + std::string(".thr_pos");
     read_thresholds(thr_filename, thresholds);
 
     build(bwt_file);
@@ -200,7 +196,7 @@ uint32_t MoveStructure::compute_index(char row_char, char lookup_char) {
 }
 
 uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
-    if (verbose) {
+    if (movi_options->is_verbose()) {
         std::cerr << "\t in LF:\n";
         std::cerr << "\t \t i: " << i << " offset: " << offset << "\n";
     }
@@ -208,7 +204,7 @@ uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
     auto idx = row.get_id();
     offset = get_offset(i) + offset;
     uint16_t ff_count = 0;
-    if (verbose) {
+    if (movi_options->is_verbose()) {
         std::cerr << "\t \t i: " << i << " offset: " << offset << " idx: " << idx << "\n";
     }
 
@@ -222,12 +218,12 @@ uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
         ff_count = static_cast<uint16_t>(idx_);
     }
 
-    if (verbose) {
+    if (movi_options->is_verbose()) {
         std::cerr << "\t \t after fast forward:\n";
         std::cerr << "\t \t i: " << i << " offset: " << offset << " idx: " << idx << "\n";
     }
 
-    if (logs) {
+    if (movi_options->is_logs()) {
         if (ff_counts.find(ff_count) != ff_counts.end())
             ff_counts[ff_count] += 1;
         else
@@ -414,13 +410,12 @@ void MoveStructure::set_onebit() {
     onebit = true;
 }
 
-void MoveStructure::build_rlbwt(std::string bwt_filename) {
-    // std::string bwt_filename = static_cast<std::string>(input_file) + std::string(".bwt");
-    std::ifstream bwt_file(bwt_filename);    
+void MoveStructure::build_rlbwt() {
+    std::ifstream bwt_file(movi_options->get_bwt_file());
     bwt_file.clear();
     bwt_file.seekg(0,std::ios_base::end);
     std::ios_base::streampos end_pos = bwt_file.tellg();
-    if (verbose)
+    if (movi_options->is_verbose())
         std::cerr << "end_pos: " << end_pos << "\n";
     std::cerr << static_cast<uint64_t>(end_pos) << "\n";
     bwt_file.seekg(0);
@@ -459,7 +454,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     bwt_file.clear();
     bwt_file.seekg(0,std::ios_base::end);
     std::ios_base::streampos end_pos = bwt_file.tellg();
-    if (verbose)
+    if (movi_options->is_verbose())
         std::cerr << "end_pos: " << end_pos << "\n";
     bwt_file.seekg(0);    
     std::cerr << "building.. \n";
@@ -477,14 +472,14 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
     if (splitting) {
 
-        std::string splitting_filename = input_file + std::string(".d_col");
+        std::string splitting_filename = movi_options->get_ref_file() + std::string(".d_col");
         std::ifstream splitting_file(splitting_filename);
 
         bits.load(splitting_file);
         std::cerr << "bits.size after loading the d_col file: " << bits.size() << "\n";
     }
     else {
-        if (verbose)
+        if (movi_options->is_verbose())
             std::cerr << "static_cast<uint64_t>(end_pos): " << static_cast<uint64_t>(end_pos) << "\n";
         bits = sdsl::bit_vector(static_cast<uint64_t>(end_pos) + 1, 0); // 5137858051
         bits[0] = 1;
@@ -528,7 +523,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     else
         rlbwt_1bit_thresholds.resize(r);*/
     //    rlbwt_chars.resize(r);
-    if (verbose and bits.size() < 1000)
+    if (movi_options->is_verbose() and bits.size() < 1000)
         std::cerr << "bits: " << bits << "\n";
     rbits = sdsl::rank_support_v<>(&bits);
 
@@ -538,7 +533,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     for (uint64_t i = 1; i < all_chars_count; i++) {
         if (all_chars[i] != 0) {
             auto current_char = static_cast<unsigned char>(i);
-            if (verbose)
+            if (movi_options->is_verbose())
                 std::cerr << "i is " << i << "\t" << current_char 
                         << "\t" << all_chars[i] << " alphabet_index: " << alphabet_index << "\n";
 
@@ -576,14 +571,13 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         bit_vec[i] = 1;
     }
     std::cerr << "\nAll the Occ bit vectors are built.\n";
-
     for (auto& occ: occs) {
         std::cerr << occs_rank.size() << "\r";
-        if (verbose and (*occ).size() < 1000)
+        if (movi_options->is_verbose() and (*occ).size() < 1000)
             std::cerr << *occ << "\n";
         occs_rank.emplace_back(std::unique_ptr<sdsl::rank_support_v<> >(new sdsl::rank_support_v<>(occ.get())));
     }
-    if (verbose) {
+    if (movi_options->is_verbose()) {
         std::cerr << "size occs_rank:" << occs_rank.size() << "\n";
         std::cerr << "All Occ rank vectors are built.\n";
     }
@@ -595,7 +589,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     uint64_t r_idx = 0;
     uint64_t offset = 0;
     uint64_t max_len = 0;
-    if (verbose) {
+    if (movi_options->is_verbose()) {
         std::cerr << "bits.size(): " << bits.size() << "\n";
         std::cerr << "rank_support_v<>(&bits)(bits.size()): " << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
     }
@@ -630,7 +624,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             }
             offset = lf - sbits(pp_id + 1);
 
-            if (verbose and r_idx == 0) // or any run to be inspected
+            if (movi_options->is_verbose() and r_idx == 0) // or any run to be inspected
                 std::cerr << "r_idx: " << r_idx 
                           << " bwt_row: " << bwt_row
                           << " len: " << len
@@ -665,7 +659,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
             if (len > max_len)
                 max_len = len;
-            if (logs) {
+            if (movi_options->is_logs()) {
                 if (run_lengths.find(len) != run_lengths.end())
                     run_lengths[len] += 1;
                 else
@@ -694,7 +688,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::vector<uint64_t> alphabet_thresholds(alphabet.size(), length);
     uint64_t thr_i = original_r - 1;
     uint64_t run_p = 0;
-    if (verbose) {
+    if (movi_options->is_verbose()) {
         std::cerr << "thresholds.size():" << thresholds.size() << " length: " << length << " r: " << r <<  " original_r: " << original_r << "\n";
         std::cerr << "thresholds[r]: " << thresholds[original_r-1] << " r-1: " << thresholds[original_r - 2] << " r-2: " << thresholds[original_r - 3] << "\n";
     }
@@ -706,7 +700,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             std::cerr << "thr_i: " << thr_i << " i: " << i << "\n";
             exit(0);
         } */
-        if (verbose and i >= rlbwt.size() - 10) 
+        if (movi_options->is_verbose() and i >= rlbwt.size() - 10)
             std::cerr << "i: " << i << "\n"
                 << "rlbwt[i].get_offset(): " << get_offset(i) << "\n "
                 << "get_n(i): " << get_n(i) << "\n"
@@ -766,7 +760,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                     current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = alphabet_thresholds[j] - all_p[i];
                 }
                 // printing the values for last 10 runs to debug
-                if (verbose and i >= rlbwt.size() - 10) {
+                if (movi_options->is_verbose() and i >= rlbwt.size() - 10) {
                     std::cerr << "\t j: \t" << j << " "
                         << "alphabet[j]: " << alphabet[j] << "  "
                         << "alphamap_3[alphamap[rlbwt_c]][j]: " << alphamap_3[alphamap[rlbwt_c]][j] << " "
@@ -819,7 +813,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         last_runs.push_back(static_cast<uint64_t>(occ_rank - 1));
         last_offsets.push_back(char_count - all_p[last_runs.back()] - 1);
     }
-    if (verbose) {
+    if (movi_options->is_verbose()) {
         for (uint64_t i = 0; i < first_runs.size(); i++) {
             std::cerr << "<--- " << first_runs[i] << "\t" << first_offsets[i] << "\n";
             std::cerr << "    -\n    -\n    -\n";
@@ -879,16 +873,16 @@ void MoveStructure::compute_nexts() {
 
 uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx, uint64_t x) {
     uint64_t idx_ = idx;
-    if (verbose) {
+    if (movi_options->is_verbose()) {
         std::cerr << "\t \t fast forwarding:\n";
         std::cerr << " \t \t idx: " << idx << " offset: " << offset << " n:" << get_n_ff(idx) << "\n";
     }
     while (idx < r - 1 && offset >= get_n_ff(idx)) {
         offset -= get_n_ff(idx);
         idx += 1;
-        if (verbose) std::cerr << "\t \t ff offset based: +" << idx - idx_ << "\n";
+        if (movi_options->is_verbose()) std::cerr << "\t \t ff offset based: +" << idx - idx_ << "\n";
     }
-    if (verbose) 
+    if (movi_options->is_verbose())
         std::cerr << " \t \t idx: " << idx << " offset: " << offset << " n:" << get_n_ff(idx) << "\n";
     return idx - idx_;
 }
@@ -912,7 +906,7 @@ uint64_t MoveStructure::jump_up(uint64_t idx, char c, uint64_t& scan_count) {
         else
             jumps[scan_count] = 1;
     } */
-    if (verbose) 
+    if (movi_options->is_verbose())
         std::cerr << "\t \t \t \t idx after the while in the jump" << idx << "\n";
     return (row_c == c) ? idx : r;
 }
@@ -933,7 +927,7 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c, uint64_t& scan_count) {
         else
             jumps[scan_count] = 1;
     } */
-    if (verbose) 
+    if (movi_options->is_verbose())
         std::cerr << "\t \t \t \t idx after the while in the jump: " << idx << " " << c << " " << row_c << "\n";
     return (row_c == c) ? idx : r;
 }
@@ -974,7 +968,7 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
             // pos_on_r -= 1;
             return match_count;
         }
-        if (verbose) {
+        if (movi_options->is_verbose()) {
             std::cerr << ">>> " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
             std::cerr << ">>> " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
         }
@@ -1037,7 +1031,7 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
             }
         }
 #endif
-        if (verbose) {
+        if (movi_options->is_verbose()) {
           std::cerr << "<<< " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
           std::cerr << "<<< " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
         }
@@ -1094,7 +1088,7 @@ uint64_t MoveStructure::exact_matches(MoveQuery& mq) {
 
 uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     if (random) {
-        if (verbose)
+        if (movi_options->is_verbose())
             std::cerr << "Jumps are random - not with thresholds! \n";
         std::srand(time(0));
     }
@@ -1110,7 +1104,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     uint64_t scan_count = 0;
     auto t1 = std::chrono::high_resolution_clock::now();
 
-    if (verbose) {
+    if (movi_options->is_verbose()) {
         std::cerr << "beginning of the search \ton query: " << mq.query() << "\t";
         std::cerr << "and on BWT, idx(r-1): " << idx << " offset: " << offset << "\n";
     }
@@ -1118,11 +1112,11 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     uint64_t iteration_count = 0;
     while (pos_on_r > -1) {
         iteration_count += 1;
-        if (logs and (iteration_count-1)%200 == 0) {
+        if (movi_options->is_logs() and (iteration_count-1)%200 == 0) {
             t1 = std::chrono::high_resolution_clock::now();
         }
 
-        if (verbose)
+        if (movi_options->is_verbose())
             std::cerr << "Searching position " << pos_on_r << " of the read:\n";
 
         auto& row = rlbwt[idx];
@@ -1135,14 +1129,14 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
             match_len = 0;
             scan_count = 0;
 
-            if (verbose)
+            if (movi_options->is_verbose())
                 std::cerr << "\t The character " << R[pos_on_r] << " does not exist.\n";
         } else if (row_c == R[pos_on_r]) {
             // Case 1
             match_len += 1;
             scan_count = 0;
 
-            if (verbose) {
+            if (movi_options->is_verbose()) {
                 std::cerr << "\t Cas1: It was a match. \n" << "\t Continue the search...\n";
                 std::cerr << "\t match_len: " << match_len << "\n";
                 std::cerr << "\t current_id: " << idx << "\t row.id: " << row.get_id() << "\n" 
@@ -1152,7 +1146,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
         } else {
             // Case 2
             // Jumping up or down (randomly or with thresholds)
-            if (verbose)
+            if (movi_options->is_verbose())
                 std::cerr << "\t Case2: Not a match, looking for a match either up or down...\n";
 
             uint64_t idx_before_jump = idx;
@@ -1163,7 +1157,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
  
             char c = alphabet[rlbwt[idx].get_c_mm()];
 
-            if (verbose)
+            if (movi_options->is_verbose())
                 std::cerr << "\t up: " << up << " idx: " << idx << " c:" << c << "\n";
 
             // sanity check
@@ -1173,7 +1167,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                 // min(new_lcp, match_len + 1)
                 // But we cannot compute lcp here
                 offset = up ? get_n(idx) - 1 : 0;
-                if (verbose)
+                if (movi_options->is_verbose())
                     std::cerr << "\t idx: " << idx << " offset: " << offset << "\n";
             } else {
                 std::cerr << "\t \t This should not happen!\n";
@@ -1187,7 +1181,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                 std::cerr << "\n";
                 auto saved_idx = idx;
 
-                verbose = true;
+                movi_options->set_verbose(true);
                 jump_thresholds(saved_idx, offset, R[pos_on_r], scan_count);
                 exit(0);
             }
@@ -1199,7 +1193,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
         // LF step
         ff_count = LF_move(offset, idx);
         ff_count_tot += ff_count;
-        if (logs) {
+        if (movi_options->is_logs()) {
             if (iteration_count % 200 == 0) {
                 auto t2 = std::chrono::high_resolution_clock::now();
                 auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
@@ -1217,22 +1211,22 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
     uint64_t alphabet_index = alphamap[static_cast<uint64_t>(r_char)];
     scan_count = 0;
 
-    if (verbose)
+    if (movi_options->is_verbose())
         std::cerr << "\t \t \t jumping with thresholds ... \n";
 
     char rlbwt_char = alphabet[rlbwt[idx].get_c_jj()];
 
-    if (verbose) {
+    if (movi_options->is_verbose()) {
         std::cerr << "\t \t \t alphabet_index: " << alphabet_index << " r_char:" << r_char << " rlbwt_char:" << rlbwt_char << "\n";
         std::cerr << "\t \t \t idx:" << idx << "\n"
                   << "\t \t \t offset: " << offset << " threshold:" << get_thresholds(idx, alphamap_3[alphamap[rlbwt_char]][alphabet_index]) << "\n";
     }
 
     if (idx == end_bwt_idx) {
-        if (verbose) std::cerr << "\t \t \t idx == end_bwt_idx" 
+        if (movi_options->is_verbose()) std::cerr << "\t \t \t idx == end_bwt_idx"
                                 << "\n\t \t \t idx: " << idx << " end_bwt_idx: " << end_bwt_idx << "\n";
         if (offset >= end_bwt_idx_thresholds[alphabet_index]) {
-            if (verbose)
+            if (movi_options->is_verbose())
                 std::cerr << "\t \t \t Jumping down with thresholds:\n";
 #if MODE == 1
             if (constant) {
@@ -1251,7 +1245,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
                 std::cerr << "1: " << r_char << " " << alphabet[rlbwt[idx].get_c_mm()];
             return false;
         } else {
-            if (verbose)
+            if (movi_options->is_verbose())
                 std::cerr << "\t \t \t Jumping up with thresholds:\n";
 #if MODE == 1
             if (constant) {
@@ -1272,7 +1266,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
         }
     }
 
-    if (verbose) std::cerr << "\t \t \t rlbwt[idx].get_offset(): " << get_offset(idx) 
+    if (movi_options->is_verbose()) std::cerr << "\t \t \t rlbwt[idx].get_offset(): " << get_offset(idx)
                             << " get_thresholds(idx, alphabet_index): " << get_thresholds(idx, alphamap_3[alphamap[rlbwt_char]][alphabet_index]) 
                             << "\n\t \t \t idx:" << idx << "\n";
 
@@ -1285,7 +1279,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
                     << alphabet_index << "!\n";
 
     if (offset >= get_thresholds(idx, alphabet_index)) {
-        if (verbose)
+        if (movi_options->is_verbose())
             std::cerr << "\t \t \t Jumping down with thresholds:\n";
 #if MODE == 1
         if (constant) {
@@ -1308,7 +1302,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
         }
         return false;
     } else {
-        if (verbose)
+        if (movi_options->is_verbose())
             std::cerr << "\t \t \t Jumping up with thresholds:\n";
 #if MODE == 1
         scan_count += 1;
@@ -1344,47 +1338,47 @@ bool MoveStructure::jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_cou
     uint64_t jump = std::rand() % 2; // To replace with ...
     bool up = false;
     scan_count = 0;
-    if (verbose)
+    if (movi_options->is_verbose())
         std::cerr << "idx before jump: " << idx << "\n";
 
     if ( (jump == 1 && idx > 0) or idx == r - 1) {
-        if (verbose)
+        if (movi_options->is_verbose())
             std::cerr << "Jumping up randomly:\n";
 
         // jumping up
         up = true;
         idx = jump_up(saved_idx, r_char, scan_count);
-        if (verbose)
+        if (movi_options->is_verbose())
             std::cerr << "idx after jump: " << idx << "\n";
         char c = alphabet[rlbwt[idx].get_c()];
         if (c != r_char) {
-            if (verbose)
+            if (movi_options->is_verbose())
                 std::cerr << "Up didn't work, try jumping down:\n";
 
             // jump down
             up = false;
             idx = jump_down(saved_idx, r_char, scan_count);
-            if (verbose)
+            if (movi_options->is_verbose())
                 std::cerr << "idx after jump: " << idx << "\n";
         }
     } else {
-        if (verbose)
+        if (movi_options->is_verbose())
             std::cerr << "Jumping down randomly:\n";
 
         // jumping down
         up = false;
         idx = jump_down(saved_idx, r_char, scan_count);
-        if (verbose)
+        if (movi_options->is_verbose())
             std::cerr << "idx after jump: " << idx << "\n";
         char c = alphabet[rlbwt[idx].get_c()];
         if (c != r_char) {
-            if (verbose)
+            if (movi_options->is_verbose())
                 std::cerr << "Down didn't work, try jumping up:\n";
 
             // jump up
             up = true;
             idx = jump_up(saved_idx, r_char, scan_count);
-            if (verbose)
+            if (movi_options->is_verbose())
                 std::cerr << "idx after jump: " << idx << "\n";
         }
     }
@@ -1428,11 +1422,11 @@ bool MoveStructure::check_alphabet(char c) {
     return alphamap[static_cast<uint64_t>(c)] != alphamap.size();
 }
 
-void MoveStructure::serialize(std::string output_dir) {
-    mkdir(output_dir.c_str(),0777);
-    std::string fname = output_dir + "/movi_index.bin";
+void MoveStructure::serialize() {
+    mkdir(movi_options->get_index_dir().c_str(),0777);
+    std::string fname = movi_options->get_index_dir() + "/movi_index.bin";
     if (onebit)
-        fname = output_dir + "/movi_index_onebit.bin";
+        fname = movi_options->get_index_dir() + "/movi_index_onebit.bin";
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
     std::cerr << "length: " << length << " r: " << r << " end_bwt_idx: " << end_bwt_idx << "\n";
     fout.write(reinterpret_cast<char*>(&length), sizeof(length));
@@ -1487,10 +1481,10 @@ void MoveStructure::serialize(std::string output_dir) {
     fout.close();
 }
 
-void MoveStructure::deserialize(std::string index_dir) {
-    std::string fname = index_dir + "/movi_index.bin";
+void MoveStructure::deserialize() {
+    std::string fname = movi_options->get_index_dir() + "/movi_index.bin";
     if (onebit)
-        fname = index_dir + "/movi_index_onebit.bin";
+        fname = movi_options->get_index_dir() + "/movi_index_onebit.bin";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
     fin.seekg(0, std::ios::beg); 
 
