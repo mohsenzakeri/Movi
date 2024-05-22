@@ -26,7 +26,7 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
 
     read_processed = 0;
     strands = strands_;
-    if (mv_.logs) {
+    if (mv_.movi_options->is_logs()) {
         costs_file = std::ofstream(reads_file_name + "." + index_type + ".costs");
         scans_file = std::ofstream(reads_file_name + "." + index_type + ".scans");
         fastforwards_file = std::ofstream(reads_file_name + "." + index_type + ".fastforwards");
@@ -72,7 +72,7 @@ void ReadProcessor::process_char(Strand& process, MoveStructure& mv) {
         // if (mv.logs)
         //     process.t3 = std::chrono::high_resolution_clock::now();
         process.ff_count = mv.LF_move(process.offset, process.idx);
-        if (mv.logs) {
+        if (mv.movi_options->is_logs()) {
             // auto t4 = std::chrono::high_resolution_clock::now();
             auto t2 = std::chrono::high_resolution_clock::now();
             // auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - process.t1);
@@ -84,7 +84,7 @@ void ReadProcessor::process_char(Strand& process, MoveStructure& mv) {
             process.mq.add_scan(process.scan_count);
         }
     }
-    if (mv.logs) {
+    if (mv.movi_options->is_logs()) {
         process.t1 = std::chrono::high_resolution_clock::now();
         t1 = process.t1;
     }
@@ -198,7 +198,7 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
                 process_char(processes[i], mv);
                 // 2: if the read is done -> Write the pmls and go to next read
                 if (processes[i].pos_on_r <= -1) {
-                    write_pmls(processes[i], mv.logs, mv.movi_options->is_stdout());
+                    write_pmls(processes[i], mv.movi_options->is_logs(), mv.movi_options->is_stdout());
                     reset_process(processes[i], mv);
                     // 3: -- check if it was the last read in the file -> fnished_count++
                     if (processes[i].finished) {
@@ -219,7 +219,7 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
     gzclose(fp); // STEP 6: close the file handler
     std::cerr << "fp file closed!\n";
 
-    if (mv.logs) {
+    if (mv.movi_options->is_logs()) {
         costs_file.close();
         scans_file.close();
         fastforwards_file.close();
