@@ -42,8 +42,6 @@ class MoveRow{
         uint16_t get_offset() const;
         uint64_t get_id() const;
         char get_c() const;
-        char get_c_jj() const;
-        char get_c_mm() const;
 
         void set_overflow_n();
         void set_overflow_offset();
@@ -158,18 +156,6 @@ inline uint64_t MoveRow::get_id() const{
 }
 
 inline char MoveRow::get_c() const{
-    uint8_t a = static_cast<uint8_t>((overflow_bits & (~mask_c)) >> 8);
-    char c = static_cast<char>(a);
-    return c;
-}
-
-inline char MoveRow::get_c_jj() const{
-    uint8_t a = static_cast<uint8_t>((overflow_bits & (~mask_c)) >> 8);
-    char c = static_cast<char>(a);
-    return c;
-}
-
-inline char MoveRow::get_c_mm() const{
     uint8_t a = static_cast<uint8_t>((overflow_bits & (~mask_c)) >> 8);
     char c = static_cast<char>(a);
     return c;
