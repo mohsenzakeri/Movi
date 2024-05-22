@@ -5,7 +5,7 @@ uint32_t alphamap_3_[4][4] = {{3, 0, 1, 2},
                              {0, 1, 3, 2},
                              {0, 1, 2, 3}};
 
-ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_ = 4, bool query_pml = true, bool reverse_ = false) {
+ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_ = 4, bool query_pml = true, bool verbose_ = false, bool reverse_ = false) {
     // Solution for handling the stdin input: https://biowize.wordpress.com/2013/03/05/using-kseq-h-with-stdin/
     if (reads_file_name == "-") {
         FILE *instream = stdin;
@@ -31,6 +31,7 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
         scans_file = std::ofstream(reads_file_name + "." + index_type + ".scans");
         fastforwards_file = std::ofstream(reads_file_name + "." + index_type + ".fastforwards");
     }
+    verbose = verbose_;
     reverse = reverse_;
 }
 
