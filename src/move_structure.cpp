@@ -344,7 +344,7 @@ uint64_t MoveStructure::get_n(uint64_t idx) {
 }
 
 uint64_t MoveStructure::get_n_ff(uint64_t idx) {
-    if (rlbwt[idx].is_overflow_n_ff()) {
+    if (rlbwt[idx].is_overflow_n()) {
         return n_overflow[rlbwt[idx].get_n_ff()];
     } else {
         return rlbwt[idx].get_n_ff();
@@ -375,8 +375,17 @@ uint16_t MoveStructure::get_rlbwt_thresholds(uint64_t idx, uint16_t i) {
     }
 
 #if MODE == 0 || MODE == 1
-    if (!onebit) {
-        return rlbwt[idx].get_thresholds(i);
+    // if (!onebit) {
+    //     return rlbwt[idx].get_thresholds(i);
+    // }
+    uint8_t status = rlbwt[idx].get_threshold_status(i);
+    switch (status) {
+        case 0: return 0; break;
+        case 1: return rlbwt[idx].get_threshold(); break;
+        case 3: return get_n(idx); break;
+        default:
+            std::cerr << "Undefined status for thresholds status: " << status << "\n";
+            exit(0);
     }
 #endif
 
@@ -394,10 +403,28 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
     }
 
 #if MODE == 0 || MODE == 1
-    if (!onebit) {
-        // rlbwt_thresholds[idx][i] = value;
-        rlbwt[idx].set_thresholds(i, value);
+    uint8_t status = 0;
+    if (value == 0) {
+        status = 0;
+    } else if (value == get_n(idx)) {
+        status = 3;
+    } else {
+        status = 1;
+        // [TODO] Not all the states where the multiple non-trivial thresholds exists are checked here
+        if (rlbwt[idx].get_threshold() != value and
+            rlbwt[idx].get_threshold() != 0 and
+            rlbwt[idx].get_threshold() != get_n(idx) and
+            !rlbwt[idx].is_overflow_thresholds()) {
+            // std::cerr << "idx: " << idx << " i: " << i << " value: " << value << "\n";
+            // std::cerr << rlbwt[idx].get_threshold() << " " << !rlbwt[i].is_overflow_thresholds() << "\n";
+            // std::cerr << "There are more than 1 non-trivial threshold values.\n";
+            // exit(0);
+            rlbwt[i].set_overflow_thresholds();
+            return;
+        }
+        rlbwt[idx].set_threshold(value);
     }
+    rlbwt[idx].set_threshold_status(i, status);
 #endif
 
 #if MODE == 2
@@ -594,7 +621,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         std::cerr << "rank_support_v<>(&bits)(bits.size()): " << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
     }
     sbits = sdsl::select_support_mcl<>(&bits);
-    std::vector<uint64_t> all_p;
+    all_p.resize(r);
     for (uint64_t i = 0; i < length; i++) {
         if (i % 10000 == 0)
             std::cerr << i << "\r";
@@ -637,7 +664,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
             // rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
             rlbwt[r_idx].init(len, offset, pp_id);
-            all_p.push_back(bwt_row);
+            all_p[r_idx] = bwt_row;
             // To take care of cases where length of the run 
             // does not fit in uint16_t
             if (len >= std::numeric_limits<uint16_t>::max()) {
@@ -729,7 +756,6 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                                 << "alphamap_3[alphamap[rlbwt_c]][j] = " << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
                     exit(0); // TODO: add error handling
                 }
-
                 if (alphabet_thresholds[j] >= all_p[i] + get_n(i)) {
                     // rlbwt[i].thresholds[j] = get_n(i);
                     if (rlbwt_c == END_CHARACTER) {
@@ -1171,7 +1197,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                     std::cerr << "\t idx: " << idx << " offset: " << offset << "\n";
             } else {
                 std::cerr << "\t \t This should not happen!\n";
-                std::cerr << "\t \t r[pos]:" <<  R[pos_on_r] << " t[pointer]:" << c << "\n";
+                std::cerr << "\t \t pos: " << pos_on_r << " r[pos]:" <<  R[pos_on_r] << " t[pointer]:" << c << "\n";
                 std::cerr << "\t \t " << up << ", " << onebit << ", " << R[pos_on_r] << ", " << pos_on_r << "\n";
                 std::cerr << "\t \t ";
                 for (int k = 10; k > 0; --k)
@@ -1568,38 +1594,115 @@ void MoveStructure::deserialize() {
     fin.close();
 }
 
-void MoveStructure::analyze_rows() {
-    std::vector<uint64_t> counts(16,0);
-    for (uint64_t i = 0; i < r; i++) {
-        // std::cerr << i << " " << rlbwt[i].get_id() << " " << alphabet[rlbwt[i].get_c()] << " " << get_n(i) << " " << get_offset(i) << ":\t";
-        // for (int  j = 0; j < alphabet.size() - 1; j ++)
-        //     std::cerr << get_thresholds(i, j) << " ";
-        // std::cerr << "\n";
-        if (i%100000 == 0) std::cerr << i << "\r";
-        for (int j = 0; j < 16; j ++) {
-            if (get_n(i) >= std::pow(2,j)) {
-                counts[j] += 1;
+void MoveStructure::verify_lfs() {
+    uint64_t not_matched = 0;
+    for (uint64_t i = 0; i < all_p.size(); i++) {
+        std::uint64_t end_ = (i < all_p.size() - 1) ? all_p[i + 1] : length;
+        for (uint64_t j = all_p[i]; j < end_; j++) {
+            uint64_t offset_ = j - all_p[i];
+            uint64_t idx_ = i;
+            uint64_t lf = 0;
+            if (i != end_bwt_idx) {
+                lf = LF(j);
+            } else {
+                std::cerr << "end_run = " << i << " len: " << rlbwt[i].get_n () << "\n";
             }
-        }
-        if (i%10000 == 0) std::cerr << i << "\r";
-        if (((get_thresholds(i, 0) != 0 and get_thresholds(i, 0) != get_n(i)) and
-             (get_thresholds(i, 1) != 0 and get_thresholds(i, 1) != get_n(i)) and
-             (get_thresholds(i, 2) != 0 and get_thresholds(i, 2) != get_n(i)) and
-             (get_thresholds(i, 0) != get_thresholds(i, 1) or get_thresholds(i, 1) != get_thresholds(i, 2))) or
-            ((get_thresholds(i,0) != 0 and get_thresholds(i,0) != get_n(i) and get_thresholds(i,1) != 0 and get_thresholds(i,1) != get_n(i) and get_thresholds(i, 0) != get_thresholds(i, 1)) or
-             (get_thresholds(i,0) != 0 and get_thresholds(i,0) != get_n(i) and get_thresholds(i,2) != 0 and get_thresholds(i,2) != get_n(i) and get_thresholds(i, 0) != get_thresholds(i, 2)) or
-             (get_thresholds(i,2) != 0 and get_thresholds(i,2) != get_n(i) and get_thresholds(i,1) != 0 and get_thresholds(i,1) != get_n(i) and get_thresholds(i, 2) != get_thresholds(i, 1)))
-            ) {
-            if (get_n(i) >= 256) {
-                std::cerr << i << " " << rlbwt[i].get_id() << " " << alphabet[rlbwt[i].get_c()] << " " << get_n(i) << " " << get_offset(i) << ":\t";
-                for (int  j = 0; j < alphabet.size() - 1; j ++)
-                    std::cerr << get_thresholds(i, j) << " ";
-                std::cerr << "\n";
+            LF_move(offset_, idx_);
+            uint64_t lf_move = all_p[idx_] + offset_;
+            if (lf != lf_move) {
+                not_matched += 1;
+                std::cerr << "j\t" << j << "\n";
+                std::cerr << "idx\t" << i << "\n";
+                std::cerr << "offset\t" << j - all_p[i] << "\n";
+                std::cerr << "rlbwt[idx].get_id\t" << rlbwt[i].get_id() << "\n";
+                std::cerr << "get_offset(i)\t" << get_offset(i) << "\n";
+                for (uint64_t k = 0; k <= i; k++) {
+                    std::cerr << rlbwt[k].get_n() << " ";
+                }
+                std::cerr << "\n\n";
+
+                std::cerr << "lf\t" << lf << "\n";
+                std::cerr << "lf_move\t" << lf_move << "\n";
+                std::cerr << "idx_\t" << idx_ << "\n";
+                std::cerr << "offset_\t" << offset_ << "\n";
+                std::cerr << "all_p[idx_]\t" << all_p[idx_] << "\n";
+                std::cerr << "\n\n\n";
             }
         }
     }
+    if (not_matched == 0) {
+        std::cerr << "All the LF_move operations are correct.\n";
+    } else {
+        std::cerr << "There are " << not_matched << " LF_move operations that failed to match the true lf results.\n";
+    }
+}
+
+void MoveStructure::analyze_rows() {
+    for (int i = 0; i < first_runs.size(); i++) {
+        std::cerr << i << "\t" << first_runs[i] << "\t" << last_runs[i] << "\n";
+    }
+    std::vector<uint64_t> counts_length(16,0);
+    std::vector<uint64_t> counts_offset(16,0);
+    std::vector<uint64_t> counts_threshold0(16,0);
+    std::vector<uint64_t> counts_threshold1(16,0);
+    std::vector<uint64_t> counts_threshold2(16,0);
+    uint64_t counter = 0;
+    for (uint64_t i = 0; i < r; i++) {
+	 counter += 1;
+        if (i%100000 == 0) std::cerr << i << "\r";
+        for (int j = 0; j < 16; j ++) {
+            if (get_n(i) >= std::pow(2,j + 1)) {
+                counts_length[j] += 1;
+            }
+            if (get_offset(i) >= std::pow(2,j + 1)) {
+                counts_offset[j] += 1;
+            }
+            if (get_thresholds(i, 0) >= std::pow(2,j + 1)) {
+                counts_threshold0[j] += 1;
+            }
+            if (get_thresholds(i, 1) >= std::pow(2,j + 1)) {
+                counts_threshold1[j] += 1;
+            }
+            if (get_thresholds(i, 2) >= std::pow(2,j + 1)) {
+                counts_threshold2[j] += 1;
+            }
+        }
+        // if (((get_thresholds(i, 0) != 0 and get_thresholds(i, 0) != get_n(i)) and
+        //      (get_thresholds(i, 1) != 0 and get_thresholds(i, 1) != get_n(i)) and
+        //      (get_thresholds(i, 2) != 0 and get_thresholds(i, 2) != get_n(i)) and
+        //      (get_thresholds(i, 0) != get_thresholds(i, 1) or get_thresholds(i, 1) != get_thresholds(i, 2))) or
+        //     ((get_thresholds(i,0) != 0 and get_thresholds(i,0) != get_n(i) and get_thresholds(i,1) != 0 and get_thresholds(i,1) != get_n(i) and get_thresholds(i, 0) != get_thresholds(i, 1)) or
+        //      (get_thresholds(i,0) != 0 and get_thresholds(i,0) != get_n(i) and get_thresholds(i,2) != 0 and get_thresholds(i,2) != get_n(i) and get_thresholds(i, 0) != get_thresholds(i, 2)) or
+        //      (get_thresholds(i,2) != 0 and get_thresholds(i,2) != get_n(i) and get_thresholds(i,1) != 0 and get_thresholds(i,1) != get_n(i) and get_thresholds(i, 2) != get_thresholds(i, 1)))
+        //     ) {
+        //     if (get_n(i) >= 256) {
+        //         std::cerr << i << " " << rlbwt[i].get_id() << " " << alphabet[rlbwt[i].get_c()] << " " << get_n(i) << " " << get_offset(i) << ":\t";
+        //         for (int  j = 0; j < alphabet.size() - 1; j ++)
+        //             std::cerr << get_thresholds(i, j) << " ";
+        //         std::cerr << "\n";
+        //     }
+        // }
+    }
+    std::cerr << "counter: " << counter << "\n";
+    std::cerr << "\ncounts_length:\n";
     for (int j=0; j < 16; j++) {
-        std::cerr << j << ": " << counts[j] << "\n";
+        std::cerr << j + 1 << "\t" << counts_length[j] << "\n";
+    }
+    std::cerr << "\ncounts_offset:\n";
+    for (int j=0; j < 16; j++) {
+        std::cerr << j + 1 << "\t" << counts_offset[j] << "\n";
+    }
+    std::cerr << "\ncounts_threshold0:\n";
+    for (int j=0; j < 16; j++) {
+        std::cerr << j << ": " << counts_threshold0[j] << "\n";
+    }
+    std::cerr << "\ncounts_threshold1:\n";
+    for (int j=0; j < 16; j++) {
+        std::cerr << j << ": " << counts_threshold1[j] << "\n";
+    }
+    std::cerr << "\ncounts_threshold2:\n";
+    for (int j=0; j < 16; j++) {
+        std::cerr << j << ": " << counts_threshold2[j] << "\n";
     }
 }
 
