@@ -68,15 +68,14 @@ class MoveRow{
 #endif
         }
     private:
-        uint32_t id; // bwt run after the jump
+        uint32_t id; // bwt run after the LF-jump
         uint16_t n; // length of the run
-        uint16_t offset; // offset of the bwt row head of the current run in the new run after the jump
+        uint16_t offset; // offset of the bwt row head of the current run in the new run after the LF-jump
         uint16_t threshold;
-
         uint8_t overflow_bits;
-        // thresholds for all the rows:
+
 #if MODE == 0 or MODE == 1
-        uint8_t thresholds_status;
+        uint8_t thresholds_status; // Whether each threshold is at the boundary or it's a non-trivial value
 #endif
 
 #if MODE == 1
