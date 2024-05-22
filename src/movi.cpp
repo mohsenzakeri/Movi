@@ -354,7 +354,7 @@ int main(int argc, char** argv) {
         mv_.build_rlbwt();
     } else if (command == "LF") {
         MoveStructure mv_(&movi_options);
-        mv_.deserialize(movi_options.get_index_dir());
+        mv_.deserialize();
         std::cerr << "The move structure is read from the file successfully.\n";
         if (movi_options.get_LF_type() == "sequential")
             mv_.sequential_lf();
@@ -364,7 +364,7 @@ int main(int argc, char** argv) {
             mv_.reconstruct_lf();
     } else if (command == "stats") {
         MoveStructure mv_(&movi_options);
-        mv_.deserialize(movi_options.get_index_dir());
+        mv_.deserialize();
         mv_.print_stats();
     }
 }

@@ -424,8 +424,8 @@ void MoveStructure::build_rlbwt() {
     r = 0;
     size_t len = 0;
     
-    std::ofstream len_file(bwt_filename + ".len", std::ios::out | std::ios::binary);
-    std::ofstream heads_file(bwt_filename + ".heads");
+    std::ofstream len_file(movi_options->get_bwt_file() + ".len", std::ios::out | std::ios::binary);
+    std::ofstream heads_file(movi_options->get_bwt_file() + ".heads");
     while (current_char != EOF) {
         if (r % 10000 == 0)
             std::cerr << r << "\r";
