@@ -290,52 +290,42 @@ void ReadProcessor::reset_backward_search(Strand& process, MoveStructure& mv) {
 }
 
 bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t& match_count) {
-    // save the current range for reporting
-    process.range_prev = process.range;
-
     std::string& R = process.mq.query();
-    if (!mv.check_alphabet(R[process.pos_on_r])) {
-        match_count = 0;
-        return true;
-    }
 
     if (process.pos_on_r < R.length() - 1) {
-        mv.LF_move(process.range.offset_start, process.range.run_start);
-        mv.LF_move(process.range.offset_end, process.range.run_end);
-        process.range_prev = process.range;
-        if (process.pos_on_r == 0) {
-            if (((process.range.run_start < process.range.run_end) or
-                (process.range.run_start == process.range.run_end and process.range.offset_start <= process.range.offset_end)) and
-                (mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] == R[process.pos_on_r]) and
-                (mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] == R[process.pos_on_r])) {
-                if (process.pos_on_r == 0) {
-                    if (process.range.run_start == process.range.run_end) {
-                        match_count = process.range.offset_end - process.range.offset_start + 1;
-                    } else {
-                        match_count = (mv.rlbwt[process.range.run_start].get_n() - process.range.offset_start) + (process.range.offset_end + 1);
-                        for (uint64_t k = process.range.run_start + 1; k < process.range.run_end; k ++) {
-                            match_count += mv.rlbwt[k].get_n();
-                        }
-                    }
-                    return true;
-                }
-                // doing two LFs should happen here in the non-prefetch code
-            } else {
-                // The read was not found.
-                if (process.range_prev.run_start == process.range_prev.run_end) {
-                    match_count = process.range_prev.offset_end - process.range_prev.offset_start + 1;
+        if (((process.range.run_start < process.range.run_end) or
+            (process.range.run_start == process.range.run_end and process.range.offset_start <= process.range.offset_end)) and
+            (mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] == R[process.pos_on_r]) and
+            (mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] == R[process.pos_on_r])) {
+            mv.LF_move(process.range.offset_start, process.range.run_start);
+            mv.LF_move(process.range.offset_end, process.range.run_end);
+            if (process.pos_on_r == 0) {
+                if (process.range.run_start == process.range.run_end) {
+                    match_count = process.range.offset_end - process.range.offset_start + 1;
                 } else {
-                    match_count = (mv.rlbwt[process.range_prev.run_start].get_n() - process.range_prev.offset_start) +
-                                    (process.range_prev.offset_end + 1);
-                    for (uint64_t k = process.range_prev.run_start + 1; k < process.range_prev.run_end; k ++) {
+                    match_count = (mv.rlbwt[process.range.run_start].get_n() - process.range.offset_start) + (process.range.offset_end + 1);
+                    for (uint64_t k = process.range.run_start + 1; k < process.range.run_end; k ++) {
                         match_count += mv.rlbwt[k].get_n();
                     }
                 }
                 return true;
             }
+        } else {
+            // The read was not found.
+            if (process.range_prev.run_start == process.range_prev.run_end) {
+                match_count = process.range_prev.offset_end - process.range_prev.offset_start + 1;
+            } else {
+                match_count = (mv.rlbwt[process.range_prev.run_start].get_n() - process.range_prev.offset_start) +
+                                (process.range_prev.offset_end + 1);
+                for (uint64_t k = process.range_prev.run_start + 1; k < process.range_prev.run_end; k ++) {
+                    match_count += mv.rlbwt[k].get_n();
+                }
+            }
+            return true;
         }
     }
 
+    process.range_prev = process.range;
     process.pos_on_r -= 1;
     if (process.range.run_start == mv.end_bwt_idx or process.range.run_end == mv.end_bwt_idx or !mv.check_alphabet(R[process.pos_on_r])) {
         // The read was not found.
@@ -350,6 +340,7 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
         }
         return true;
     }
+
 #if MODE == 0
     while ((process.range.run_start < process.range.run_end) and (mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] != R[process.pos_on_r])) {
         process.range.run_start += 1;
