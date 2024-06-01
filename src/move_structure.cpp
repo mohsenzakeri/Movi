@@ -274,11 +274,8 @@ void MoveStructure::find_all_SA() {
     uint64_t offset = 0;
     uint64_t index = 0;
     uint64_t SA_val = rlbwt[0].get_ssa();
-    for (uint64_t i = 0; i <= tot_len; i++) {
+    for (uint64_t i = 0; i < tot_len; i++) {
         uint64_t row_ind = run_offsets[index] + offset;
-        if (offset == 0 && index == 0) {
-            std::cout << "i: " << i << std::endl;
-        }
         SA_entries[row_ind] = SA_val;
         LF_move(offset, index);
         SA_val = (SA_val - 1 + tot_len) % tot_len;
@@ -317,6 +314,25 @@ void MoveStructure::print_SA() {
     }
 }
 
+// Finds document sets for each run in the rlbwt.
+void MoveStructure::build_doc_sets() {
+    find_all_SA();
+    uint16_t num_docs = doc_offsets.size();
+
+    // Stores set of documents appearing in rows in each run.
+    doc_sets.resize(r, std::vector<bool>(num_docs, 0));
+    for (uint64_t i = 0; i < r; i++) {
+        auto &row = rlbwt[i];
+        uint64_t n = row.get_n();
+        for (uint64_t j = 0; j < n; j++) {
+            uint64_t row_ind = run_offsets[i] + j;
+            uint64_t SA = SA_entries[row_ind];
+            uint16_t doc = find_document(SA);
+            doc_sets[i][doc] = 1;
+        }
+    }
+}
+
 // Print information about which documents rows in the rlbwt belong to.
 void MoveStructure::print_documents() {
     std::ofstream out("../output/docs.txt");
@@ -327,7 +343,7 @@ void MoveStructure::print_documents() {
     // Stores sequence of documents of all rows in each run.
     std::vector<std::vector<uint16_t>> doc_runs(r, std::vector<uint16_t>());
     // Stores set of documents appearing in rows in each run.
-    std::vector<std::vector<bool>> doc_sets(r, std::vector<bool>(num_docs, 0));
+    doc_sets.resize(r, std::vector<bool>(num_docs, 0));
     for (uint64_t i = 0; i < r; i++) {
         auto &row = rlbwt[i];
         uint64_t n = row.get_n();
@@ -1325,6 +1341,9 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     uint64_t scan_count = 0;
     auto t1 = std::chrono::high_resolution_clock::now();
 
+    // Run indices of PML matches.
+    std::vector<uint64_t> indices;
+
     if (verbose) {
         std::cerr << "beginning of the search \ton query: " << mq.query() << "\t";
         std::cerr << "and on BWT, idx(r-1): " << idx << " offset: " << offset << "\n";
@@ -1408,6 +1427,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
             }
         }
 
+        indices.push_back(idx);
         mq.add_pml(match_len);
         pos_on_r -= 1;
 
@@ -1424,6 +1444,22 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
             mq.add_scan(scan_count);
         }
     }
+
+    std::vector<uint16_t> &pml_lens = mq.get_pml_lens();
+    std::vector<uint16_t> doc_cnts(doc_offsets.size());
+    for (unsigned i = 0; i < indices.size(); i++) {
+        if (pml_lens[i] > 0 && (i == indices.size() - 1 || pml_lens[i] > pml_lens[i + 1])) {
+            std::vector<bool> &cur_set = doc_sets[indices[i]];
+            for (unsigned j = 0; j < doc_offsets.size(); j++) {
+                doc_cnts[j] += cur_set[j];
+            } 
+        }
+    }
+    for (unsigned j = 0; j < doc_cnts.size(); j++) {
+        std::cout << doc_cnts[j];
+    }
+    std::cout << std::endl;
+    
     return ff_count_tot;
 }
 

@@ -321,9 +321,12 @@ int main(int argc, char** argv) {
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
         std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
         begin = std::chrono::system_clock::now();
+
+        mv_.build_doc_sets();
+
         query(mv_, movi_options);
 
-        mv_.print_documents();
+        //mv_.print_documents();
         
         end = std::chrono::system_clock::now();
         elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);

@@ -60,6 +60,9 @@ class MoveStructure {
         // Find which document a given SA entry belongs to.
         uint16_t find_document(uint64_t SA);
         void print_SA();
+        // Builds document sets for each run in rlbwt.
+        void build_doc_sets();
+        // Prints information about document sets and patterns.
         void print_documents();
     
         // uint64_t naive_lcp(uint64_t row1, uint64_t row2);
@@ -103,6 +106,9 @@ class MoveStructure {
     
         // Vector of all SA entries. For experiment purposes.
         std::vector<uint64_t> SA_entries;
+
+        // Document sets.
+        std::vector<std::vector<bool>> doc_sets;
     
         std::vector<uint64_t> first_runs;
         std::vector<uint64_t> first_offsets;

@@ -111,6 +111,7 @@ void ReadProcessor::process_char(Strand& process, MoveStructure& mv) {
             std::cerr << "\t \t This should not happen!\n";
         }
     }
+    std::cout << "Match: " << process.match_len << "\n";
     process.mq.add_pml(process.match_len);
     process.pos_on_r -= 1;
     // if (mv.logs)
