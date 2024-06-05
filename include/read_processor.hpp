@@ -33,8 +33,11 @@ struct Strand {
     Range range;
     Range range_prev;
 
+    bool kmer_extension;
     bool finished;
     int32_t pos_on_r;
+    uint32_t kmer_end;
+    int32_t kmer_start;
     uint64_t length_processed;
 
     uint64_t idx;
@@ -54,12 +57,17 @@ class ReadProcessor {
         // void process_regular();
         void process_latency_hiding(MoveStructure& mv);
         void backward_search_latency_hiding(MoveStructure& mv);
+        void kmer_search_latency_hiding(MoveStructure& mv, uint32_t k);
         bool next_read(Strand& process);
         void write_pmls(Strand& process, bool logs, bool write_stdout);
         void process_char(Strand& process, MoveStructure& mv);
-        bool backward_search(Strand& process, MoveStructure& mv, uint64_t& match_count);
+        bool backward_search(Strand& process, MoveStructure& mv, uint64_t& match_count, uint64_t read_end_pos);
         void reset_process(Strand& process, MoveStructure& mv);
         void reset_backward_search(Strand& process, MoveStructure& mv);
+        void reset_kmer_search(Strand& process, MoveStructure& mv, uint64_t k);
+        void next_kmer_search(Strand& process, MoveStructure& mv);
+        void next_kmer_search_negative_skip_all_heuristic(Strand& process, MoveStructure& mv, uint64_t k);
+        bool verify_kmer(Strand& process, MoveStructure& mv, uint64_t k);
     private:
         gzFile fp;
         kseq_t *seq;
@@ -70,6 +78,12 @@ class ReadProcessor {
         bool verbose = false;
         bool reverse = false;
         uint64_t read_processed;
+        uint64_t total_kmer_count;
+        uint64_t positive_kmer_count;
+        uint64_t negative_kmer_count;
+        uint64_t kmer_extension_count;
+        uint64_t kmer_extension_stopped_count;
+        uint64_t negative_kmer_extension_count;
 
         std::ofstream costs_file;
         std::ofstream scans_file;
