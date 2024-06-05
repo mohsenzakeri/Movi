@@ -67,10 +67,12 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     auto queryOptions = options.add_options("query")
         ("pml", "Compute the pseudo-matching lengths (PMLs)")
         ("count", "Compute the count queries")
+        ("kmer", "Search all the kmers")
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
         ("n,no-prefetch", "Disable prefetching for query")
+        ("k,k-length", "The length of the kmer", cxxopts::value<uint32_t>())
         ("s,strands", "Number of strands for query", cxxopts::value<int>())
         ("stdout", "Write the output to stdout")
         ("ignore-illegal-chars", "In the case of illegal characters (i.e., non-ACGT for genomic data), substitute the character with \'A\'(1) or a random character from the alphabet (2).", cxxopts::value<int>());
@@ -127,6 +129,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                 if (result.count("index") == 1 and result.count("read") == 1) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
                     movi_options.set_read_file(result["read"].as<std::string>());
+                    if (result.count("kmer") >= 1) { movi_options.set_kmer(true); }
+                    if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
                     if (result.count("count") >= 1) { movi_options.set_count(true); }
                     if (result.count("pml") >= 1) { movi_options.set_pml(true); }
                     if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
@@ -212,6 +216,8 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             rp.process_latency_hiding(mv_);
         } else if (movi_options.is_count()) {
             rp.backward_search_latency_hiding(mv_);
+        } else if (movi_options.is_kmer()) {
+            rp.kmer_search_latency_hiding(mv_, movi_options.get_k());
         }
     } else {
         gzFile fp;

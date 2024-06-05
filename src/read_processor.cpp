@@ -23,7 +23,12 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
         std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
         matches_file = std::ofstream(matches_file_name);
     }
-
+    total_kmer_count = 0;
+    positive_kmer_count = 0;
+    negative_kmer_count = 0;
+    kmer_extension_count = 0;
+    kmer_extension_stopped_count = 0;
+    negative_kmer_extension_count = 0;
     read_processed = 0;
     strands = strands_;
     if (mv_.movi_options->is_logs()) {
@@ -226,6 +231,131 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
     }
 }
 
+void ReadProcessor::kmer_search_latency_hiding(MoveStructure& mv, uint32_t k) {
+    std::vector<Strand> processes;
+    for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
+    std::cerr << strands << " processes are created.\n";
+
+    uint64_t fnished_count = 0;
+    for (uint64_t i = 0; i < strands; i++) {
+        if (fnished_count == 0) {
+            reset_kmer_search(processes[i], mv, k);
+            if (!processes[i].finished) {
+                next_kmer_search(processes[i], mv);
+            }
+        } else {
+            processes[i].finished = true;
+        }
+        if (processes[i].finished) {
+            std::cerr << "Warning: less than strands = " << strands << " reads.\n";
+            fnished_count += 1;
+        }
+    }
+    std::cerr << strands << " processes are initiated.\n";
+
+    uint64_t total_bs = 0;
+    // Assuming all the reads > k
+    while (fnished_count != strands) {
+        for (uint64_t i = 0; i < strands; i++) {
+            if (!processes[i].finished) {
+                uint64_t match_count = 0;
+                // 1: process next character
+                bool backward_search_finished = backward_search(processes[i], mv, match_count, processes[i].kmer_end);
+                total_bs += 1;
+                if (verbose)
+                    std::cerr << backward_search_finished << " " << processes[i].kmer_start << " "
+                              << processes[i].kmer_end << " " << processes[i].pos_on_r << "\n";
+                // if ((processes[i].pos_on_r == processes[i].kmer_start and processes[i].kmer_start != 0) or (processes[i].pos_on_r == -1 and processes[i].kmer_start == 0)) {
+                if (processes[i].pos_on_r == processes[i].kmer_start - 1) {
+                    // 2: if the kmer is found
+                    if (verbose)
+                        std::cerr << processes[i].pos_on_r << " " << processes[i].kmer_start << "\n";
+                    /*if (!verify_kmer(processes[i], mv, k)) {
+                        std::cerr << "kmer not verified!\n";
+                        exit(0);
+                    }*/
+                    if (verbose)
+                        std::cerr << "+ ";
+                    if (processes[i].kmer_start >= 0) {
+                        positive_kmer_count += 1;
+                        if (processes[i].kmer_extension)
+                            kmer_extension_count += 1;
+                        else
+                            processes[i].kmer_extension = true;
+                        processes[i].kmer_end -= 1;
+                        processes[i].kmer_start -= 1;
+                        if (processes[i].kmer_start >= 0)
+                            total_kmer_count += 1;
+                        /////next_kmer_search(processes[i], mv);
+                    } else {
+                        reset_kmer_search(processes[i], mv, k);
+                        next_kmer_search(processes[i], mv);
+                        // 3: -- check if it was the last read in the file -> fnished_count++
+                        if (processes[i].finished) {
+                            fnished_count += 1;
+                        }
+                    }
+                } else if (backward_search_finished and processes[i].kmer_extension) {
+                    // 2: if the kmer was not found during an extension
+                    if (processes[i].kmer_start >= 0)
+                        total_kmer_count -= 1;
+                    kmer_extension_stopped_count += 1;
+                    processes[i].kmer_end += 1;
+                    processes[i].kmer_start += 1;
+                    /////////processes[i].pos_on_r = processes[i].kmer_end;
+                    next_kmer_search(processes[i], mv);
+                } else if (backward_search_finished) {
+                    // 2: if the kmer was not found not during an extension
+                    negative_kmer_count += 1;
+                    if (processes[i].kmer_start >= 0) {
+                        next_kmer_search(processes[i], mv);
+                        // next_kmer_search_negative_skip_all_heuristic(processes[i], mv, k);
+                        if (processes[i].finished) {
+                            fnished_count += 1;
+                        }
+                    } else {
+                        reset_kmer_search(processes[i], mv, k);
+                        next_kmer_search(processes[i], mv);
+                        // 3: -- check if it was the last read in the file -> fnished_count++
+                        if (processes[i].finished) {
+                            fnished_count += 1;
+                        }
+                    }
+                } else if (processes[i].kmer_start < 0) {
+                    if (verbose)
+                        std::cerr << "- ";
+                    reset_kmer_search(processes[i], mv, k);
+                    next_kmer_search(processes[i], mv);
+                    // 3: -- check if it was the last read in the file -> fnished_count++
+                    if (processes[i].finished) {
+                        fnished_count += 1;
+                    }
+                } else {
+                    // 4: big jump with prefetch
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_start].get_id()));
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_end].get_id()));
+                }
+            }
+        }
+    }
+
+    std::cerr << "\n";
+    std::cerr << "total_bs: " << total_bs << "\n";
+    std::cerr << "positive_kmer_count: " << positive_kmer_count << "\n";
+    std::cerr << "negative_kmer_count: " << negative_kmer_count << "\n";
+    std::cerr << "total_kmer_count: " << total_kmer_count << "\n";
+    std::cerr << "kmer_extension_stopped_count: " << kmer_extension_stopped_count << "\n";
+    std::cerr << "kmer_extension_count: " << kmer_extension_count << "\n";
+    std::cerr << "negative_kmer_extension_count: " << negative_kmer_extension_count << "\n\n";
+
+    std::cerr << "pmls file closed!\n";
+
+    kseq_destroy(seq); // STEP 5: destroy seq
+    std::cerr << "kseq destroyed!\n";
+    gzclose(fp); // STEP 6: close the file handler
+    std::cerr << "fp file closed!\n";
+}
+
 void ReadProcessor::backward_search_latency_hiding(MoveStructure& mv) {
     std::vector<Strand> processes;
     for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
@@ -251,7 +381,7 @@ void ReadProcessor::backward_search_latency_hiding(MoveStructure& mv) {
             if (!processes[i].finished) {
                 // 1: process next character -- doing fast forward
                 uint64_t match_count = 0;
-                bool backward_search_finished = backward_search(processes[i], mv, match_count);
+                bool backward_search_finished = backward_search(processes[i], mv, match_count, processes[i].mq.query().length() - 1);
                 // 2: if the read is done -> Write the pmls and go to next read
                 if (backward_search_finished) {
                     auto& R = processes[i].mq.query();
@@ -274,8 +404,6 @@ void ReadProcessor::backward_search_latency_hiding(MoveStructure& mv) {
             }
         }
     }
-
-    std::cerr << "pmls file closed!\n";
     kseq_destroy(seq); // STEP 5: destroy seq
     std::cerr << "kseq destroyed!\n";
     gzclose(fp); // STEP 6: close the file handler
@@ -300,17 +428,84 @@ void ReadProcessor::reset_backward_search(Strand& process, MoveStructure& mv) {
     process.range.offset_end = mv.last_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
 }
 
-bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t& match_count) {
-    std::string& R = process.mq.query();
+void ReadProcessor::reset_kmer_search(Strand& process, MoveStructure& mv, uint64_t k) {
+    process.finished = next_read(process);
+    if (!process.finished) {
+        process.length_processed = 0;
+        process.kmer_start = process.read.length() - k + 1;
+        process.kmer_end = process.read.length() - 1 + 1;
+        process.pos_on_r = process.kmer_end;
+    }
+}
 
-    if (process.pos_on_r < R.length() - 1) {
+void ReadProcessor::next_kmer_search_negative_skip_all_heuristic(Strand& process, MoveStructure& mv, uint64_t k) {
+    process.kmer_extension = false;
+    std::string& R = process.mq.query();
+    process.kmer_start = process.pos_on_r - k;
+    if (process.kmer_start >= 0) {
+        total_kmer_count += (process.kmer_end - process.pos_on_r + 1);
+        negative_kmer_count += (process.kmer_end - process.pos_on_r);
+        negative_kmer_extension_count += (process.kmer_end - process.pos_on_r);
+        process.kmer_end = process.pos_on_r - 1;
+        process.pos_on_r = process.kmer_end;
+        process.match_len = 0;
+        process.range.run_start = mv.first_runs[mv.alphamap[R[process.pos_on_r]] + 1];
+        process.range.offset_start = mv.first_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
+        process.range.run_end = mv.last_runs[mv.alphamap[R[process.pos_on_r]] + 1];
+        process.range.offset_end = mv.last_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
+    } else {
+        total_kmer_count += (process.kmer_end - k + 1);
+        negative_kmer_count += (process.kmer_end - k + 1);
+        negative_kmer_extension_count += (process.kmer_end - k + 1);
+        reset_kmer_search(process, mv, k);
+        next_kmer_search(process, mv);
+    }
+}
+
+void ReadProcessor::next_kmer_search(Strand& process, MoveStructure& mv) {
+    process.kmer_extension = false;
+    std::string& R = process.mq.query();
+    process.kmer_start -=1;
+    if (process.kmer_start >= 0)
+        total_kmer_count += 1;
+    process.kmer_end -=1;
+    process.pos_on_r = process.kmer_end;
+    process.match_len = 0;
+    process.range.run_start = mv.first_runs[mv.alphamap[R[process.pos_on_r]] + 1];
+    process.range.offset_start = mv.first_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
+    process.range.run_end = mv.last_runs[mv.alphamap[R[process.pos_on_r]] + 1];
+    process.range.offset_end = mv.last_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
+}
+
+bool ReadProcessor::verify_kmer(Strand& process, MoveStructure& mv, uint64_t k) {
+    std::string& R = process.mq.query();
+    std::string kmer = R.substr (process.kmer_start, k);
+    int32_t pos_on_r = k - 1;
+    auto match_count = mv.backward_search(kmer, pos_on_r);
+    if (pos_on_r == 0 and match_count > 0) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t& match_count, uint64_t read_end_pos) {
+    std::string& R = process.mq.query();
+    if (verbose)
+        std::cerr << "backward search begins:\n" << process.pos_on_r << " "
+                  << R[process.pos_on_r] << " "
+                  << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
+                  << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
+
+    // if (process.pos_on_r < R.length() - 1) {
+    if (process.pos_on_r < read_end_pos) {
         if (((process.range.run_start < process.range.run_end) or
             (process.range.run_start == process.range.run_end and process.range.offset_start <= process.range.offset_end)) and
             (mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] == R[process.pos_on_r]) and
             (mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] == R[process.pos_on_r])) {
             mv.LF_move(process.range.offset_start, process.range.run_start);
             mv.LF_move(process.range.offset_end, process.range.run_end);
-            if (process.pos_on_r == 0) {
+            if (process.pos_on_r == -1) {
                 if (process.range.run_start == process.range.run_end) {
                     match_count = process.range.offset_end - process.range.offset_start + 1;
                 } else {
@@ -360,6 +555,10 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
     }
 
 #if MODE == 0
+    if (verbose)
+        std::cerr << "m1: " << process.range.run_start << " " << process.range.run_end << " "
+                  << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
+                  << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
     while ((process.range.run_start < process.range.run_end) and (mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] != R[process.pos_on_r])) {
         process.range.run_start += 1;
         process.range.offset_start = 0;
@@ -374,6 +573,11 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
             break;
         }
     }
+    if (verbose)
+        std::cerr << "m2: " << process.range.run_start << " " << process.range.run_end << " "
+                  << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
+                  << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
+                  << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
 #endif
 #if MODE == 1
     uint64_t read_alphabet_index = mv.alphamap[static_cast<uint64_t>(R[process.pos_on_r])];
@@ -418,6 +622,10 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
         }
     }
 #endif
-
+    if (verbose)
+        std::cerr << "bacward search ends:\n" << process.pos_on_r << " "
+                  << R[process.pos_on_r] << " "
+                  << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
+                  << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n----------\n";
     return false;
 }

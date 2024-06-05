@@ -20,9 +20,11 @@ class MoviOptions {
         bool if_verify() { return verify; }
         bool is_pml() { return pml_query; }
         bool is_count() { return count_query; }
+        bool is_kmer() { return kmer_query; }
         bool is_reverse() { return reverse; }
 	int ignore_illegal_chars_status() { return ilc; }
         size_t get_strands() { return strands; }
+        uint32_t get_k () { return k; }
         std::string get_command() { return command; }
         std::string get_LF_type() { return LF_type; }
 
@@ -37,7 +39,9 @@ class MoviOptions {
         void set_logs(bool logs_) { logs = logs_; }
         void set_verify(bool verify_) { verify = verify_; }
         void set_pml(bool pml_) { pml_query = pml_; }
-        void set_count(bool count_) { count_query = count_; pml_query = false;}
+        void set_count(bool count_) { count_query = count_; pml_query = false; }
+        void set_kmer(bool kmer_) { count_query = false; pml_query = false; kmer_query = kmer_; }
+        void set_k(uint32_t k_) { k = k_; }
         void set_reverse(bool reverse_) { reverse = reverse_; }
         bool set_ignore_illegal_chars(int ilc_) {
           if (ilc_ > 2 or ilc_ < 1)
@@ -94,11 +98,13 @@ class MoviOptions {
         bool split = false;
         bool pml_query = false;
         bool count_query = false;
+        bool kmer_query = false;
         bool reverse = false;
         bool prefetch = true;
         size_t strands = 16;
-        bool write_stdout = false;
+        uint32_t k = 31;
         bool verify = false;
+        bool write_stdout = false;
         bool verbose = false;
         bool logs = false;
 };

@@ -1216,8 +1216,6 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
         }
         if (((run_start < run_end) or (run_start == run_end and offset_start <= offset_end)) and
             (alphabet[rlbwt[run_start].get_c()] == R[pos_on_r] and alphabet[rlbwt[run_end].get_c()] == R[pos_on_r])) {
-            LF_move(offset_start, run_start);
-            LF_move(offset_end, run_end);
             if (pos_on_r == 0) {
                 uint64_t match_count = 0;
                 if (run_start == run_end) {
@@ -1231,6 +1229,8 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
                 // pos_on_r -= 1;
                 return match_count;
             }
+            LF_move(offset_start, run_start);
+            LF_move(offset_end, run_end);
         } else {
             // std::cerr << "Not found\n";
             uint64_t match_count = 0;
