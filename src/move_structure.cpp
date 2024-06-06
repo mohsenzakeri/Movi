@@ -419,7 +419,7 @@ void MoveStructure::build_rlbwt(std::string bwt_filename) {
     std::ifstream bwt_file(bwt_filename);    
     bwt_file.clear();
     bwt_file.seekg(0,std::ios_base::end);
-    std::ios_base::streampos end_pos = bwt_file.tellg();
+    std::streampos end_pos = bwt_file.tellg();
     if (verbose)
         std::cerr << "end_pos: " << end_pos << "\n";
     std::cerr << static_cast<uint64_t>(end_pos) << "\n";
@@ -458,7 +458,7 @@ void MoveStructure::build_rlbwt(std::string bwt_filename) {
 void MoveStructure::build(std::ifstream &bwt_file) {
     bwt_file.clear();
     bwt_file.seekg(0,std::ios_base::end);
-    std::ios_base::streampos end_pos = bwt_file.tellg();
+    std::streampos end_pos = bwt_file.tellg();
     if (verbose)
         std::cerr << "end_pos: " << end_pos << "\n";
     bwt_file.seekg(0);    
@@ -1575,37 +1575,71 @@ void MoveStructure::deserialize(std::string index_dir) {
 }
 
 void MoveStructure::analyze_rows() {
-    std::vector<uint64_t> counts(16,0);
+    for (int i = 0; i < first_runs.size(); i++) {
+        std::cerr << i << "\t" << first_runs[i] << "\t" << last_runs[i] << "\n";
+    }
+    std::vector<uint64_t> counts_length(16,0);
+    std::vector<uint64_t> counts_offset(16,0);
+    std::vector<uint64_t> counts_threshold0(16,0);
+    std::vector<uint64_t> counts_threshold1(16,0);
+    std::vector<uint64_t> counts_threshold2(16,0);
+    uint64_t counter = 0;
     for (uint64_t i = 0; i < r; i++) {
-        // std::cerr << i << " " << rlbwt[i].get_id() << " " << alphabet[rlbwt[i].get_c()] << " " << get_n(i) << " " << get_offset(i) << ":\t";
-        // for (int  j = 0; j < alphabet.size() - 1; j ++)
-        //     std::cerr << get_thresholds(i, j) << " ";
-        // std::cerr << "\n";
+	 counter += 1;
         if (i%100000 == 0) std::cerr << i << "\r";
         for (int j = 0; j < 16; j ++) {
-            if (get_n(i) >= std::pow(2,j)) {
-                counts[j] += 1;
+            if (get_n(i) >= std::pow(2,j + 1)) {
+                counts_length[j] += 1;
+            }
+            if (get_offset(i) >= std::pow(2,j + 1)) {
+                counts_offset[j] += 1;
+            }
+            if (get_thresholds(i, 0) >= std::pow(2,j + 1)) {
+                counts_threshold0[j] += 1;
+            }
+            if (get_thresholds(i, 1) >= std::pow(2,j + 1)) {
+                counts_threshold1[j] += 1;
+            }
+            if (get_thresholds(i, 2) >= std::pow(2,j + 1)) {
+                counts_threshold2[j] += 1;
             }
         }
-        if (i%10000 == 0) std::cerr << i << "\r";
-        if (((get_thresholds(i, 0) != 0 and get_thresholds(i, 0) != get_n(i)) and
-             (get_thresholds(i, 1) != 0 and get_thresholds(i, 1) != get_n(i)) and
-             (get_thresholds(i, 2) != 0 and get_thresholds(i, 2) != get_n(i)) and
-             (get_thresholds(i, 0) != get_thresholds(i, 1) or get_thresholds(i, 1) != get_thresholds(i, 2))) or
-            ((get_thresholds(i,0) != 0 and get_thresholds(i,0) != get_n(i) and get_thresholds(i,1) != 0 and get_thresholds(i,1) != get_n(i) and get_thresholds(i, 0) != get_thresholds(i, 1)) or
-             (get_thresholds(i,0) != 0 and get_thresholds(i,0) != get_n(i) and get_thresholds(i,2) != 0 and get_thresholds(i,2) != get_n(i) and get_thresholds(i, 0) != get_thresholds(i, 2)) or
-             (get_thresholds(i,2) != 0 and get_thresholds(i,2) != get_n(i) and get_thresholds(i,1) != 0 and get_thresholds(i,1) != get_n(i) and get_thresholds(i, 2) != get_thresholds(i, 1)))
-            ) {
-            if (get_n(i) >= 256) {
-                std::cerr << i << " " << rlbwt[i].get_id() << " " << alphabet[rlbwt[i].get_c()] << " " << get_n(i) << " " << get_offset(i) << ":\t";
-                for (int  j = 0; j < alphabet.size() - 1; j ++)
-                    std::cerr << get_thresholds(i, j) << " ";
-                std::cerr << "\n";
-            }
-        }
+        // if (((get_thresholds(i, 0) != 0 and get_thresholds(i, 0) != get_n(i)) and
+        //      (get_thresholds(i, 1) != 0 and get_thresholds(i, 1) != get_n(i)) and
+        //      (get_thresholds(i, 2) != 0 and get_thresholds(i, 2) != get_n(i)) and
+        //      (get_thresholds(i, 0) != get_thresholds(i, 1) or get_thresholds(i, 1) != get_thresholds(i, 2))) or
+        //     ((get_thresholds(i,0) != 0 and get_thresholds(i,0) != get_n(i) and get_thresholds(i,1) != 0 and get_thresholds(i,1) != get_n(i) and get_thresholds(i, 0) != get_thresholds(i, 1)) or
+        //      (get_thresholds(i,0) != 0 and get_thresholds(i,0) != get_n(i) and get_thresholds(i,2) != 0 and get_thresholds(i,2) != get_n(i) and get_thresholds(i, 0) != get_thresholds(i, 2)) or
+        //      (get_thresholds(i,2) != 0 and get_thresholds(i,2) != get_n(i) and get_thresholds(i,1) != 0 and get_thresholds(i,1) != get_n(i) and get_thresholds(i, 2) != get_thresholds(i, 1)))
+        //     ) {
+        //     if (get_n(i) >= 256) {
+        //         std::cerr << i << " " << rlbwt[i].get_id() << " " << alphabet[rlbwt[i].get_c()] << " " << get_n(i) << " " << get_offset(i) << ":\t";
+        //         for (int  j = 0; j < alphabet.size() - 1; j ++)
+        //             std::cerr << get_thresholds(i, j) << " ";
+        //         std::cerr << "\n";
+        //     }
+        // }
     }
+    std::cerr << "counter: " << counter << "\n";
+    std::cerr << "\ncounts_length:\n";
     for (int j=0; j < 16; j++) {
-        std::cerr << j << ": " << counts[j] << "\n";
+        std::cerr << j + 1 << "\t" << counts_length[j] << "\n";
+    }
+    std::cerr << "\ncounts_offset:\n";
+    for (int j=0; j < 16; j++) {
+        std::cerr << j + 1 << "\t" << counts_offset[j] << "\n";
+    }
+    std::cerr << "\ncounts_threshold0:\n";
+    for (int j=0; j < 16; j++) {
+        std::cerr << j << ": " << counts_threshold0[j] << "\n";
+    }
+    std::cerr << "\ncounts_threshold1:\n";
+    for (int j=0; j < 16; j++) {
+        std::cerr << j << ": " << counts_threshold1[j] << "\n";
+    }
+    std::cerr << "\ncounts_threshold2:\n";
+    for (int j=0; j < 16; j++) {
+        std::cerr << j << ": " << counts_threshold2[j] << "\n";
     }
 }
 

@@ -367,5 +367,6 @@ int main(int argc, char** argv) {
         MoveStructure mv_(&movi_options);
         mv_.deserialize(movi_options.get_index_dir());
         mv_.print_stats();
+        // mv_.analyze_rows();
     }
 }
