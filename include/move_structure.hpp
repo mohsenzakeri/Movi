@@ -59,7 +59,9 @@ class MoveStructure {
 
         uint64_t jump_up(uint64_t idx, char c, uint64_t& scan_count);
         uint64_t jump_down(uint64_t idx, char c, uint64_t& scan_count);
+#if MODE == 0 or MODE == 1 or MODE == 2
         bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
+#endif
         bool jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_count);
 
         void serialize();
@@ -74,11 +76,12 @@ class MoveStructure {
         std::unordered_map<uint64_t, uint64_t> run_lengths;
 
         uint64_t get_n(uint64_t idx);
-        uint64_t get_n_ff(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
+#if MODE == 0 or MODE == 1 or MODE == 2
         uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
+#endif
         void set_onebit();
 
         friend class ReadProcessor;

@@ -108,7 +108,12 @@ void ReadProcessor::process_char(Strand& process, MoveStructure& mv) {
         // Case 2
         // Jumping up or down (randomly or with thresholds)
         uint64_t idx_before_jump = process.idx;
+#if MODE == 0 or MODE == 1 or MODE == 2
         bool up = mv.jump_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
+#endif
+#if MODE == 3
+        bool up = mv.jump_randomly(process.idx, R[process.pos_on_r], process.scan_count);
+#endif
         process.match_len = 0;
         char c = mv.alphabet[mv.rlbwt[process.idx].get_c()];
         // sanity check

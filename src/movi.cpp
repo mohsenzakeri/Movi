@@ -25,6 +25,9 @@ std::string program() {
 #if MODE == 1
     return "constant";
 #endif
+#if MODE == 3
+    return "compact";
+#endif
 }
 
 kseq_t* open_kseq(gzFile& fp, std::string file_address) {

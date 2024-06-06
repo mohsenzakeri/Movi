@@ -343,15 +343,6 @@ uint64_t MoveStructure::get_n(uint64_t idx) {
     }
 }
 
-uint64_t MoveStructure::get_n_ff(uint64_t idx) {
-    if (rlbwt[idx].is_overflow_n()) {
-        return n_overflow[rlbwt[idx].get_n_ff()];
-    } else {
-        return rlbwt[idx].get_n_ff();
-    }
-}
-
-
 uint64_t MoveStructure::get_offset(uint64_t idx) {
     if (rlbwt[idx].is_overflow_offset()) {
         return offset_overflow[rlbwt[idx].get_offset()];
@@ -360,6 +351,7 @@ uint64_t MoveStructure::get_offset(uint64_t idx) {
     }
 }
 
+#if MODE == 0 or MODE == 1 or MODE == 2  // for all the threshold related functions
 uint64_t MoveStructure::get_thresholds(uint64_t idx, uint32_t alphabet_index) {
     if (rlbwt[idx].is_overflow_thresholds()) {
         return thresholds_overflow[get_rlbwt_thresholds(idx, alphabet_index)][alphabet_index];
@@ -432,6 +424,7 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
     rlbwt[idx].set_threshold(value);
 #endif
 }
+#endif // for all the threshold related functions
 
 void MoveStructure::set_onebit() {
     onebit = true;
@@ -712,6 +705,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
     // compute the thresholds
     // initialize the start threshold at the last row
+#if MODE == 0 or MODE == 1 or MODE == 2
     std::vector<uint64_t> alphabet_thresholds(alphabet.size(), length);
     uint64_t thr_i = original_r - 1;
     uint64_t run_p = 0;
@@ -733,7 +727,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                 << "get_n(i): " << get_n(i) << "\n"
                 << "thresholds[i]: " << thresholds[i] << " "
                 << "rlbwt_c: " << rlbwt_c << "\n";
-        
+
         std::vector<uint64_t> current_thresholds;
         current_thresholds.resize(alphabet.size() - 1);
         for (uint64_t j = 0; j < alphabet.size(); j++) {
@@ -819,6 +813,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     for (uint64_t j = 0; j < alphabet.size() - 1; j++) {
         set_rlbwt_thresholds(0, j, 0);
     }
+#endif
     first_runs.push_back(0);
     first_offsets.push_back(0);
     last_runs.push_back(0);
@@ -901,15 +896,15 @@ uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx, uint64_t x)
     uint64_t idx_ = idx;
     if (movi_options->is_verbose()) {
         std::cerr << "\t \t fast forwarding:\n";
-        std::cerr << " \t \t idx: " << idx << " offset: " << offset << " n:" << get_n_ff(idx) << "\n";
+        std::cerr << " \t \t idx: " << idx << " offset: " << offset << " n:" << get_n(idx) << "\n";
     }
-    while (idx < r - 1 && offset >= get_n_ff(idx)) {
-        offset -= get_n_ff(idx);
+    while (idx < r - 1 && offset >= get_n(idx)) {
+        offset -= get_n(idx);
         idx += 1;
         if (movi_options->is_verbose()) std::cerr << "\t \t ff offset based: +" << idx - idx_ << "\n";
     }
     if (movi_options->is_verbose())
-        std::cerr << " \t \t idx: " << idx << " offset: " << offset << " n:" << get_n_ff(idx) << "\n";
+        std::cerr << " \t \t idx: " << idx << " offset: " << offset << " n:" << get_n(idx) << "\n";
     return idx - idx_;
 }
 
@@ -1176,8 +1171,13 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                 std::cerr << "\t Case2: Not a match, looking for a match either up or down...\n";
 
             uint64_t idx_before_jump = idx;
+#if MODE == 0 or MODE == 1 or MODE == 2
             bool up = random ? jump_randomly(idx, R[pos_on_r], scan_count) : 
                                jump_thresholds(idx, offset, R[pos_on_r], scan_count);
+#endif
+#if MODE == 3
+            bool up = jump_randomly(idx, R[pos_on_r], scan_count);
+#endif
             match_len = 0;
             // scan_count = (!constant) ? std::abs((int)idx - (int)idx_before_jump) : 0;
  
@@ -1208,7 +1208,9 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                 auto saved_idx = idx;
 
                 movi_options->set_verbose(true);
+#if MODE == 0 or MODE == 1 or MODE == 2
                 jump_thresholds(saved_idx, offset, R[pos_on_r], scan_count);
+#endif
                 exit(0);
             }
         }
@@ -1232,6 +1234,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     return ff_count_tot;
 }
 
+#if MODE == 0 or MODE == 1 or MODE == 2
 bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count) {
     uint64_t saved_idx = idx;
     uint64_t alphabet_index = alphamap[static_cast<uint64_t>(r_char)];
@@ -1358,6 +1361,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
         std::cerr << "5: " << r_char << " " << alphabet[rlbwt[idx].get_c()];
     return false;
 }
+#endif
 
 bool MoveStructure::jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_count) {
     uint64_t saved_idx = idx;
@@ -1657,6 +1661,7 @@ void MoveStructure::analyze_rows() {
             if (get_offset(i) >= std::pow(2,j + 1)) {
                 counts_offset[j] += 1;
             }
+#if MODE == 0 or MODE == 1 or MODE == 2
             if (get_thresholds(i, 0) >= std::pow(2,j + 1)) {
                 counts_threshold0[j] += 1;
             }
@@ -1666,6 +1671,7 @@ void MoveStructure::analyze_rows() {
             if (get_thresholds(i, 2) >= std::pow(2,j + 1)) {
                 counts_threshold2[j] += 1;
             }
+#endif
         }
         // if (((get_thresholds(i, 0) != 0 and get_thresholds(i, 0) != get_n(i)) and
         //      (get_thresholds(i, 1) != 0 and get_thresholds(i, 1) != get_n(i)) and
