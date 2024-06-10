@@ -62,9 +62,10 @@ MoveStructure::MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t 
     std::string bwt_filename = movi_options->get_ref_file() + std::string(".bwt");
     std::ifstream bwt_file(bwt_filename);
 
+#if MODE == 0 or MODE == 1 or MODE == 2
     std::string thr_filename = movi_options->get_ref_file() + std::string(".thr_pos");
     read_thresholds(thr_filename, thresholds);
-
+#endif
     build(bwt_file);
 }
 
@@ -491,14 +492,12 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     // TODO Use a size based on the input size
 
     if (splitting) {
-
         std::string splitting_filename = movi_options->get_ref_file() + std::string(".d_col");
         std::ifstream splitting_file(splitting_filename);
 
         bits.load(splitting_file);
         std::cerr << "bits.size after loading the d_col file: " << bits.size() << "\n";
-    }
-    else {
+    } else {
         if (movi_options->is_verbose())
             std::cerr << "static_cast<uint64_t>(end_pos): " << static_cast<uint64_t>(end_pos) << "\n";
         bits = sdsl::bit_vector(static_cast<uint64_t>(end_pos) + 1, 0); // 5137858051
@@ -510,7 +509,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::cerr << "The main bit vector is built.\n";
     uint64_t bwt_curr_length = 0;
     while (current_char != EOF) { // && current_char != 10
-        uint64_t current_char_ = static_cast<uint64_t>(current_char);
+        uint64_t current_char_ = static_cast<uint64_t>(current_char); // Is this line important?!
         // if (current_char != 'A' and current_char != 'C' and current_char != 'G' and current_char != 'T')
         //    std::cerr << "\ncurrent_char:" << current_char << "---" << static_cast<uint64_t>(current_char) << "---\n";
         if (original_r % 100000 == 0) {
@@ -660,18 +659,20 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             all_p[r_idx] = bwt_row;
             // To take care of cases where length of the run 
             // does not fit in uint16_t
-            if (len >= std::numeric_limits<uint16_t>::max()) {
+            if (len > MAX_RUN_LENGTH) {
                 n_overflow.push_back(len);
-                if (n_overflow.size() - 1 >= std::numeric_limits<uint16_t>::max()) {
-                    std::cerr << "Warning: the number of runs with overflow n is beyond uint16_t! " << n_overflow.size() - 1 << "\n";
+                if (n_overflow.size() - 1 >= MAX_RUN_LENGTH) {
+                    std::cerr << "Warning: the number of runs with overflow n is beyond " << MAX_RUN_LENGTH<< "! " << n_overflow.size() - 1 << "\n";
+                    exit(0);
                 }
                 rlbwt[r_idx].set_n(n_overflow.size() - 1);
                 rlbwt[r_idx].set_overflow_n();
             }
-            if (offset >= std::numeric_limits<uint16_t>::max()) {
+            if (offset > MAX_RUN_LENGTH) {
                 offset_overflow.push_back(offset);
-                if (offset_overflow.size() - 1 >= std::numeric_limits<uint16_t>::max()) {
-                    std::cerr << "Warning: the number of runs with overflow offset is beyond uint16_t! " << offset_overflow.size() - 1 << "\n";
+                if (offset_overflow.size() - 1 >= MAX_RUN_LENGTH) {
+                    std::cerr << "Warning: the number of runs with overflow offset is beyond " << MAX_RUN_LENGTH<< "! " << offset_overflow.size() - 1 << "\n";
+                    exit(0);
                 }
                 rlbwt[r_idx].set_offset(offset_overflow.size() - 1);
                 rlbwt[r_idx].set_overflow_offset();
