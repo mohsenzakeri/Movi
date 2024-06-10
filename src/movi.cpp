@@ -342,7 +342,7 @@ int main(int argc, char** argv) {
     }
     std::string command = movi_options.get_command();
     if (command == "build") {
-        MoveStructure mv_(&movi_options, false, false, MODE == 1);
+        MoveStructure mv_(&movi_options, false, MODE == 1, MODE == 1);
         if (movi_options.if_verify()) {
             std::cerr << "Verifying the LF_move results...\n";
             mv_.verify_lfs();

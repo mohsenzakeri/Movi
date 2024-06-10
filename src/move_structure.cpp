@@ -637,7 +637,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
             // check the boundaries before performing select
             if (pp_id >= r) {
-                std::cerr << "pp_id: " << pp_id << "r: " << r << "i: " << i << "bwt_row: " << bwt_row << "lf: " << lf << "\n";
+                std::cerr << "pp_id: " << pp_id << " r: " << r << " i: " << i << " bwt_row: " << bwt_row << " lf: " << lf << "\n";
                 exit(0); // TODO: add error handling
             }
             if (lf < sbits(pp_id + 1)) {
