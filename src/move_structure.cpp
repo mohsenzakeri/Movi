@@ -619,7 +619,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         std::cerr << "bits.size(): " << bits.size() << "\n";
         std::cerr << "rank_support_v<>(&bits)(bits.size()): " << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
     }
-    sbits = sdsl::select_support_mcl<>(&bits);
+    // sbits = sdsl::select_support_mcl<>(&bits);
     for (uint64_t r_idx = 0; r_idx < r; r_idx++) {
         if (r_idx % 10000 == 0)
             std::cerr << r_idx << "\r";
@@ -637,11 +637,14 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             std::cerr << "pp_id: " << pp_id << " r: " << r << " r_idx: " << r_idx << " lf: " << lf << "\n";
             exit(0); // TODO: add error handling
         }
-        if (lf < sbits(pp_id + 1)) {
-            std::cerr << lf << " " << sbits(pp_id + 1);
+        //  sbits(pp_id + 1) is replaced by all_p[pp_id]
+        if (lf < all_p[pp_id]) {
+            std::cerr << lf << " " << all_p[pp_id];
             exit(0); // TODO: add error handling
         }
-        offset = lf - sbits(pp_id + 1);
+        offset = lf - all_p[pp_id];
+        /* if (sbits(pp_id + 1) != all_p[pp_id])
+            exit(0); */
 
         if (movi_options->is_verbose() and r_idx == 0) // or any run to be inspected
             std::cerr << "r_idx: " << r_idx
@@ -649,9 +652,10 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                         << " lf: " << lf
                         << " offset: " << offset
                         << " pp_id: " << pp_id
-                        << " sbits(pp_id): " << sbits(pp_id)
-                        << " sbits(pp_id + 1): " << sbits(pp_id + 1)
-                        << " sbits(pp_id - 1): " << sbits(pp_id - 1) << "\n";
+                        << " sbits(pp_id): " << all_p[pp_id - 1]
+                        << " sbits(pp_id + 1): " << all_p[pp_id]
+                        << " sbits(pp_id - 1): " << all_p[pp_id - 2]
+                        << "\n";
 
         // rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
         rlbwt[r_idx].init(len, offset, pp_id);
