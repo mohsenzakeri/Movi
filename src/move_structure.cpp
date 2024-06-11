@@ -197,17 +197,17 @@ uint32_t MoveStructure::compute_index(char row_char, char lookup_char) {
 }
 
 uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
-    if (movi_options->is_verbose()) {
+    /* if (movi_options->is_verbose()) {
         std::cerr << "\t in LF:\n";
         std::cerr << "\t \t i: " << i << " offset: " << offset << "\n";
-    }
+    } */
     auto& row = rlbwt[i];
     auto idx = row.get_id();
     offset = get_offset(i) + offset;
     uint16_t ff_count = 0;
-    if (movi_options->is_verbose()) {
+    /* if (movi_options->is_verbose()) {
         std::cerr << "\t \t i: " << i << " offset: " << offset << " idx: " << idx << "\n";
-    }
+    } */
 
     if (idx < r - 1 && offset >= get_n(idx)) {
         uint64_t idx_ = fast_forward(offset, idx, 0);
@@ -219,10 +219,10 @@ uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
         ff_count = static_cast<uint16_t>(idx_);
     }
 
-    if (movi_options->is_verbose()) {
+    /* if (movi_options->is_verbose()) {
         std::cerr << "\t \t after fast forward:\n";
         std::cerr << "\t \t i: " << i << " offset: " << offset << " idx: " << idx << "\n";
-    }
+    } */
 
     if (movi_options->is_logs()) {
         if (ff_counts.find(ff_count) != ff_counts.end())
@@ -581,17 +581,27 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
     std::cerr << "All the characters are indexed.\n";
 
+    all_p.resize(r + 1);
+    all_p[0] = 0;
+    uint64_t r_idx = 0;
     for (uint64_t i = 0; i < length; i++) {
         if (i % 10000 == 0)
             std::cerr <<"length processed: " << i << "\r";
-        if (static_cast<uint64_t>(bwt_string[i]) == END_CHARACTER)
+        if (i == length - 1 or bwt_string[i] != bwt_string[i+1] or bits[i+1]) {
+            all_p[r_idx + 1] = i + 1;
+            r_idx += 1;
+        }
+        if (static_cast<uint64_t>(bwt_string[i]) == END_CHARACTER) {
+            end_bwt_idx = r_idx - 1;
+            eof_row = r_idx - 1;
             continue;
+        }
         auto& bit_vec = *occs[alphamap[static_cast<uint64_t>(bwt_string[i])]];
         bit_vec[i] = 1;
     }
     std::cerr << "\nAll the Occ bit vectors are built.\n";
     for (auto& occ: occs) {
-        std::cerr << occs_rank.size() << "\r";
+        std::cerr << occs_rank.size() << "\n";
         if (movi_options->is_verbose() and (*occ).size() < 1000)
             std::cerr << *occ << "\n";
         occs_rank.emplace_back(std::unique_ptr<sdsl::rank_support_v<> >(new sdsl::rank_support_v<>(occ.get())));
@@ -603,9 +613,6 @@ void MoveStructure::build(std::ifstream &bwt_file) {
 
 
     // Building the move structure rows
-    uint64_t len = 0;
-    uint64_t bwt_row = 0;
-    uint64_t r_idx = 0;
     uint64_t offset = 0;
     uint64_t max_len = 0;
     if (movi_options->is_verbose()) {
@@ -613,93 +620,73 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         std::cerr << "rank_support_v<>(&bits)(bits.size()): " << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
     }
     sbits = sdsl::select_support_mcl<>(&bits);
-    all_p.resize(r);
-    for (uint64_t i = 0; i < length; i++) {
-        if (i % 10000 == 0)
-            std::cerr << i << "\r";
-        if (bwt_string[i] == static_cast<unsigned char>(END_CHARACTER) ) {
-            end_bwt_idx = r_idx;
+    for (uint64_t r_idx = 0; r_idx < r; r_idx++) {
+        if (r_idx % 10000 == 0)
+            std::cerr << r_idx << "\r";
+        uint64_t lf  = 0;
+        if (r_idx != end_bwt_idx)
+            lf = LF (all_p[r_idx]);
+        else
+            lf = 0;
+        uint64_t pp_id = rbits(lf) - 1;
+        if (bits[lf] == 1)
+            pp_id += 1;
+        uint64_t len = all_p[r_idx + 1] - all_p[r_idx];
+        // check the boundaries before performing select
+        if (pp_id >= r) {
+            std::cerr << "pp_id: " << pp_id << " r: " << r << " r_idx: " << r_idx << " lf: " << lf << "\n";
+            exit(0); // TODO: add error handling
         }
-        if (i == length - 1 or bwt_string[i] != bwt_string[i+1] or bits[i+1]) {
-            len += 1;
-            uint64_t lf  = 0;
-            if (bwt_string[i] != static_cast<unsigned char>(END_CHARACTER))
-                lf = LF(bwt_row);
+        if (lf < sbits(pp_id + 1)) {
+            std::cerr << lf << " " << sbits(pp_id + 1);
+            exit(0); // TODO: add error handling
+        }
+        offset = lf - sbits(pp_id + 1);
+
+        if (movi_options->is_verbose() and r_idx == 0) // or any run to be inspected
+            std::cerr << "r_idx: " << r_idx
+                        << " len: " << len
+                        << " lf: " << lf
+                        << " offset: " << offset
+                        << " pp_id: " << pp_id
+                        << " sbits(pp_id): " << sbits(pp_id)
+                        << " sbits(pp_id + 1): " << sbits(pp_id + 1)
+                        << " sbits(pp_id - 1): " << sbits(pp_id - 1) << "\n";
+
+        // rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
+        rlbwt[r_idx].init(len, offset, pp_id);
+        // To take care of cases where length of the run
+        // does not fit in uint16_t
+        if (len > MAX_RUN_LENGTH) {
+            n_overflow.push_back(len);
+            if (n_overflow.size() - 1 >= MAX_RUN_LENGTH) {
+                std::cerr << "Warning: the number of runs with overflow n is beyond " << MAX_RUN_LENGTH<< "! " << n_overflow.size() - 1 << "\n";
+                exit(0);
+            }
+            rlbwt[r_idx].set_n(n_overflow.size() - 1);
+            rlbwt[r_idx].set_overflow_n();
+        }
+        if (offset > MAX_RUN_LENGTH) {
+            offset_overflow.push_back(offset);
+            if (offset_overflow.size() - 1 >= MAX_RUN_LENGTH) {
+                std::cerr << "Warning: the number of runs with overflow offset is beyond " << MAX_RUN_LENGTH<< "! " << offset_overflow.size() - 1 << "\n";
+                exit(0);
+            }
+            rlbwt[r_idx].set_offset(offset_overflow.size() - 1);
+            rlbwt[r_idx].set_overflow_offset();
+        }
+
+        if (len > max_len)
+            max_len = len;
+        if (movi_options->is_logs()) {
+            if (run_lengths.find(len) != run_lengths.end())
+                run_lengths[len] += 1;
             else
-                lf = 0;
-            // bits[bwt_row] = 1;
-            uint64_t pp_id = rbits(lf) - 1;
-            if (bits[lf] == 1)
-                pp_id += 1;
-
-            // check the boundaries before performing select
-            if (pp_id >= r) {
-                std::cerr << "pp_id: " << pp_id << " r: " << r << " i: " << i << " bwt_row: " << bwt_row << " lf: " << lf << "\n";
-                exit(0); // TODO: add error handling
-            }
-            if (lf < sbits(pp_id + 1)) {
-                std::cerr << lf << " " << sbits(pp_id + 1);
-                exit(0); // TODO: add error handling
-            }
-            offset = lf - sbits(pp_id + 1);
-
-            if (movi_options->is_verbose() and r_idx == 0) // or any run to be inspected
-                std::cerr << "r_idx: " << r_idx 
-                          << " bwt_row: " << bwt_row
-                          << " len: " << len
-                          << " lf: " << lf 
-                          << " offset: " << offset
-                          << " pp_id: " << pp_id
-                          << " sbits(pp_id): " << sbits(pp_id)
-                          << " sbits(pp_id + 1): " << sbits(pp_id + 1)
-                          << " sbits(pp_id - 1): " << sbits(pp_id - 1) << "\n";
-
-            // rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
-            rlbwt[r_idx].init(len, offset, pp_id);
-            all_p[r_idx] = bwt_row;
-            // To take care of cases where length of the run 
-            // does not fit in uint16_t
-            if (len > MAX_RUN_LENGTH) {
-                n_overflow.push_back(len);
-                if (n_overflow.size() - 1 >= MAX_RUN_LENGTH) {
-                    std::cerr << "Warning: the number of runs with overflow n is beyond " << MAX_RUN_LENGTH<< "! " << n_overflow.size() - 1 << "\n";
-                    exit(0);
-                }
-                rlbwt[r_idx].set_n(n_overflow.size() - 1);
-                rlbwt[r_idx].set_overflow_n();
-            }
-            if (offset > MAX_RUN_LENGTH) {
-                offset_overflow.push_back(offset);
-                if (offset_overflow.size() - 1 >= MAX_RUN_LENGTH) {
-                    std::cerr << "Warning: the number of runs with overflow offset is beyond " << MAX_RUN_LENGTH<< "! " << offset_overflow.size() - 1 << "\n";
-                    exit(0);
-                }
-                rlbwt[r_idx].set_offset(offset_overflow.size() - 1);
-                rlbwt[r_idx].set_overflow_offset();
-            }
-
-            if (len > max_len)
-                max_len = len;
-            if (movi_options->is_logs()) {
-                if (run_lengths.find(len) != run_lengths.end())
-                    run_lengths[len] += 1;
-                else
-                    run_lengths[len] = 1;
-            }
-
-            rlbwt[r_idx].set_c(bwt_string[i], alphamap);
-
-            if (bwt_string[i] == static_cast<unsigned char>(END_CHARACTER)) {
-                eof_row = r_idx;
-                // bit1_after_eof = alphamap[bwt_string[i+1]];
-            }
-
-            bwt_row += len;
-            len = 0;
-            r_idx += 1;
-        } else if (bwt_string[i] == bwt_string[i+1]) {
-            len += 1;
+                run_lengths[len] = 1;
         }
+        rlbwt[r_idx].set_c(bwt_string[all_p[r_idx]], alphamap);
+
+        // bit1_after_eof = alphamap[bwt_string[i+1]];
     }
     std::cerr << "All the move rows are built.\n";
     std::cerr << "Max run length: " << max_len << "\n";
@@ -726,7 +713,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             std::cerr << "i: " << i << "\n"
                 << "rlbwt[i].get_offset(): " << get_offset(i) << "\n "
                 << "get_n(i): " << get_n(i) << "\n"
-                << "thresholds[i]: " << thresholds[i] << " "
+                << "thresholds[thr_i]: " << thresholds[thr_i] << " "
                 << "rlbwt_c: " << rlbwt_c << "\n";
 
         std::vector<uint64_t> current_thresholds;
@@ -895,17 +882,17 @@ void MoveStructure::compute_nexts() {
 
 uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx, uint64_t x) {
     uint64_t idx_ = idx;
-    if (movi_options->is_verbose()) {
+    /* if (movi_options->is_verbose()) {
         std::cerr << "\t \t fast forwarding:\n";
         std::cerr << " \t \t idx: " << idx << " offset: " << offset << " n:" << get_n(idx) << "\n";
-    }
+    } */
     while (idx < r - 1 && offset >= get_n(idx)) {
         offset -= get_n(idx);
         idx += 1;
-        if (movi_options->is_verbose()) std::cerr << "\t \t ff offset based: +" << idx - idx_ << "\n";
+        // if (movi_options->is_verbose()) std::cerr << "\t \t ff offset based: +" << idx - idx_ << "\n";
     }
-    if (movi_options->is_verbose())
-        std::cerr << " \t \t idx: " << idx << " offset: " << offset << " n:" << get_n(idx) << "\n";
+    /* if (movi_options->is_verbose())
+        std::cerr << " \t \t idx: " << idx << " offset: " << offset << " n:" << get_n(idx) << "\n"; */
     return idx - idx_;
 }
 
@@ -928,8 +915,8 @@ uint64_t MoveStructure::jump_up(uint64_t idx, char c, uint64_t& scan_count) {
         else
             jumps[scan_count] = 1;
     } */
-    if (movi_options->is_verbose())
-        std::cerr << "\t \t \t \t idx after the while in the jump" << idx << "\n";
+    /* if (movi_options->is_verbose())
+        std::cerr << "\t \t \t \t idx after the while in the jump" << idx << "\n";*/
     return (row_c == c) ? idx : r;
 }
 
@@ -949,8 +936,8 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c, uint64_t& scan_count) {
         else
             jumps[scan_count] = 1;
     } */
-    if (movi_options->is_verbose())
-        std::cerr << "\t \t \t \t idx after the while in the jump: " << idx << " " << c << " " << row_c << "\n";
+    /*if (movi_options->is_verbose())
+        std::cerr << "\t \t \t \t idx after the while in the jump: " << idx << " " << c << " " << row_c << "\n";*/
     return (row_c == c) ? idx : r;
 }
 
@@ -1194,8 +1181,8 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                 // min(new_lcp, match_len + 1)
                 // But we cannot compute lcp here
                 offset = up ? get_n(idx) - 1 : 0;
-                if (movi_options->is_verbose())
-                    std::cerr << "\t idx: " << idx << " offset: " << offset << "\n";
+                /* if (movi_options->is_verbose())
+                    std::cerr << "\t idx: " << idx << " offset: " << offset << "\n"; */
             } else {
                 std::cerr << "\t \t This should not happen!\n";
                 std::cerr << "\t \t pos: " << pos_on_r << " r[pos]:" <<  R[pos_on_r] << " t[pointer]:" << c << "\n";
