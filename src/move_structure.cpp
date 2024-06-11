@@ -612,7 +612,7 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     }
 
 
-    // Building the move structure rows
+    // Building the move structure rows with O(r) loop
     uint64_t offset = 0;
     uint64_t max_len = 0;
     if (movi_options->is_verbose()) {
