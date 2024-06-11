@@ -593,7 +593,6 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         }
         if (static_cast<uint64_t>(bwt_string[i]) == END_CHARACTER) {
             end_bwt_idx = r_idx - 1;
-            eof_row = r_idx - 1;
             continue;
         }
         auto& bit_vec = *occs[alphamap[static_cast<uint64_t>(bwt_string[i])]];
