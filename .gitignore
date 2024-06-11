@@ -35,3 +35,4 @@
 build*/*
 debug*/*
 .vscode/
+test_data/*.bin
