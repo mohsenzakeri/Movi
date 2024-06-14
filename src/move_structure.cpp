@@ -30,6 +30,9 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
 
     size_t i = 0;
     for (i = 0; i < length_thr; ++i) {
+        if (i % 100000 == 0) {
+            std::cerr << "read thresholds:\t" << i << "\r";
+        }
         size_t threshold = 0;
         if ((fread(&threshold, THRBYTES, 1, fd)) != 1)
             std::cerr <<("fread() file " + tmp_filename + " failed");
