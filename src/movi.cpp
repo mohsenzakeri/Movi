@@ -69,6 +69,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
     auto queryOptions = options.add_options("query")
         ("pml", "Compute the pseudo-matching lengths (PMLs)")
+        ("zm", "Compute the Ziv-Merhav cross parsing")
         ("count", "Compute the count queries")
         ("kmer", "Search all the kmers")
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
@@ -131,10 +132,11 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                 if (result.count("index") == 1 and result.count("read") == 1) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
                     movi_options.set_read_file(result["read"].as<std::string>());
-                    if (result.count("kmer") >= 1) { movi_options.set_kmer(true); }
+                    if (result.count("kmer") >= 1) { movi_options.set_kmer(); }
                     if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
-                    if (result.count("count") >= 1) { movi_options.set_count(true); }
-                    if (result.count("pml") >= 1) { movi_options.set_pml(true); }
+                    if (result.count("count") >= 1) { movi_options.set_count(); }
+                    if (result.count("zm") >= 1) { movi_options.set_zm(); }
+                    if (result.count("pml") >= 1) { movi_options.set_pml(); }
                     if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
                     if (movi_options.is_pml() and movi_options.is_count()) {
                         const std::string message = "Please only specify count or pml as the type of queries.";
@@ -210,6 +212,8 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_pml(), movi_options.is_verbose(), movi_options.is_reverse());
         if (movi_options.is_pml()) {
             rp.process_latency_hiding(mv_);
+        } else if (movi_options.is_zm()) {
+            rp.ziv_merhav_latency_hiding(mv_);
         } else if (movi_options.is_count()) {
             rp.backward_search_latency_hiding(mv_);
         } else if (movi_options.is_kmer()) {

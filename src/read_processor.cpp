@@ -6,6 +6,8 @@ uint32_t alphamap_3_[4][4] = {{3, 0, 1, 2},
                              {0, 1, 2, 3}};
 
 ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_ = 4, bool query_pml = true, bool verbose_ = false, bool reverse_ = false) {
+    verbose = verbose_;
+    reverse = mv_.movi_options->is_reverse();
     // Solution for handling the stdin input: https://biowize.wordpress.com/2013/03/05/using-kseq-h-with-stdin/
     if (reads_file_name == "-") {
         FILE *instream = stdin;
@@ -17,7 +19,12 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
     seq = kseq_init(fp); // STEP 3: initialize seq
     std::string index_type = mv_.index_type();
     if (query_pml) {
-        std::string pmls_file_name = reads_file_name + "." + index_type + ".mpml.bin";
+        std::string pmls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.mpml.bin" :
+                                               reads_file_name + "." + index_type + ".mpml.bin";
+        pmls_file = std::ofstream(pmls_file_name, std::ios::out | std::ios::binary);
+    } else if (mv_.movi_options->is_zm()) {
+        std::string pmls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.zm.bin" :
+                                               reads_file_name + "." + index_type + ".zm.bin";
         pmls_file = std::ofstream(pmls_file_name, std::ios::out | std::ios::binary);
     } else {
         std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
@@ -36,8 +43,6 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
         scans_file = std::ofstream(reads_file_name + "." + index_type + ".scans");
         fastforwards_file = std::ofstream(reads_file_name + "." + index_type + ".fastforwards");
     }
-    verbose = verbose_;
-    reverse = reverse_;
 }
 
 bool ReadProcessor::next_read(Strand& process) {
@@ -49,12 +54,13 @@ bool ReadProcessor::next_read(Strand& process) {
         process.st_length = seq->name.m;
         process.read_name = seq->name.s;
         process.read = seq->seq.s;
-        if (reverse)
+        if (reverse) {
             std::reverse(process.read.begin(), process.read.end());
+        }
         process.match_len = 0;
         process.ff_count = 0;
         process.scan_count = 0;
-        process.mq = MoveQuery(process.read);;
+        process.mq = MoveQuery(process.read);
         return false;
     } else {
         return true;
@@ -234,6 +240,87 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
         scans_file.close();
         fastforwards_file.close();
     }
+}
+
+/*void ReadProcessor::ziv_merhav(MoveStructure& mv) {
+    std::vector<Strand> process;
+    process.emplace_back(Strand());
+    reset_process(processes[0], mv);
+    while(!process[0].finished) {
+        processes[0].mq.add_pml(processes[i].match_len);
+        uint64_t match_count = 0;
+        bool backward_search_finished = backward_search(processes[0], mv, match_count, processes[0].kmer_end);
+    }
+}*/
+void ReadProcessor::ziv_merhav_latency_hiding(MoveStructure& mv) {
+    std::vector<Strand> processes;
+    for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
+    std::cerr << strands << " processes are created.\n";
+
+    uint64_t fnished_count = 0;
+    for (uint64_t i = 0; i < strands; i++) {
+        if (fnished_count == 0) {
+            // TODO:: update the reset function
+            reset_process(processes[i], mv);
+            reset_backward_search(processes[i], mv);
+            processes[i].kmer_end = processes[i].pos_on_r - 1;
+            processes[i].match_len = 0;
+        } else {
+            processes[i].finished = true;
+        }
+        if (processes[i].finished) {
+            std::cerr << "Warning: less than strands = " << strands << " reads.\n";
+            fnished_count += 1;
+        }
+    }
+    std::cerr << strands << " processes are initiated.\n";
+
+    uint64_t total_bs = 0;
+    while (fnished_count != strands) {
+        for (uint64_t i = 0; i < strands; i++) {
+            if (!processes[i].finished) {
+                processes[i].mq.add_pml(processes[i].match_len);
+                uint64_t match_count = 0;
+                // 1: process next character
+                bool backward_search_finished = backward_search(processes[i], mv, match_count, processes[i].kmer_end);
+                total_bs += 1;
+                if (verbose)
+                    std::cerr << backward_search_finished << " " << processes[i].kmer_end << " " << processes[i].pos_on_r << "\n";
+
+                if (backward_search_finished and processes[i].pos_on_r > 0) {
+                    reset_backward_search(processes[i], mv);
+                    processes[i].kmer_end = processes[i].pos_on_r - 1;
+                    processes[i].match_len = 0;
+                } else if (processes[i].pos_on_r <= 0) {
+                    write_pmls(processes[i], mv.movi_options->is_logs(), mv.movi_options->is_stdout());
+                    reset_process(processes[i], mv);
+                    reset_backward_search(processes[i], mv);
+                    processes[i].kmer_end = processes[i].pos_on_r - 1;
+                    processes[i].match_len = 0;
+                    // 3: -- check if it was the last read in the file -> fnished_count++
+                    if (processes[i].finished) {
+                        fnished_count += 1;
+                    }
+                } else {
+                    // 4: big jump with prefetch
+                    if (!backward_search_finished)
+                        processes[i].match_len += 1;
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_start].get_id()));
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_end].get_id()));
+                }
+            }
+        }
+    }
+
+    std::cerr << "\n";
+    std::cerr << "total_bs for ziv_merhav: " << total_bs << "\n";
+
+    std::cerr << "pmls file closed!\n";
+
+    kseq_destroy(seq); // STEP 5: destroy seq
+    std::cerr << "kseq destroyed!\n";
+    gzclose(fp); // STEP 6: close the file handler
+    std::cerr << "fp file closed!\n";
 }
 
 void ReadProcessor::kmer_search_latency_hiding(MoveStructure& mv, uint32_t k) {
