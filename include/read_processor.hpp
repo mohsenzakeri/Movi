@@ -41,6 +41,7 @@ class ReadProcessor {
         ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_, bool query_pml, bool verbose_, bool reverse_);
         // void process_regular();
         void process_latency_hiding(MoveStructure& mv);
+        void ziv_merhav_latency_hiding(MoveStructure& mv);
         void backward_search_latency_hiding(MoveStructure& mv);
         void kmer_search_latency_hiding(MoveStructure& mv, uint32_t k);
         bool next_read(Strand& process);
