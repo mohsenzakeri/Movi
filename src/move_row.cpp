@@ -108,6 +108,6 @@ void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
 #if MODE == 3
     uint16_t c_16 = static_cast<uint16_t>(alphamap[c_]);
     n = n & mask_c;
-    n = n | (c_16 << 4);
+    n = n | (c_16 << 12);
 #endif
 }
