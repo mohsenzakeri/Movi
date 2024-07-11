@@ -118,7 +118,7 @@ std::string MoveStructure::index_type() {
                   << "\nconstant:" << constant
                   << "\nsplitting:" << splitting
                   << "\n";
-    }
+    }*/
     exit(0);
 }
 
