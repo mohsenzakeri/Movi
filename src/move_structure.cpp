@@ -90,7 +90,19 @@ MoveStructure::MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t 
 }*/
 
 std::string MoveStructure::index_type() {
-    if (!onebit and !constant and splitting == 0) {
+#if MODE == 0
+    return "default";
+#endif
+#if MODE == 1
+    return "constant";
+#endif
+#if MODE == 2
+    return "onebit";
+#endif
+#if MODE == 3
+    return "compact";
+#endif
+    /*if (!onebit and !constant and splitting == 0) {
         return "default";
     } else if (constant and splitting != 0 and !onebit) {
         return "constant";
