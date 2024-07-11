@@ -629,7 +629,7 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
         return true;
     }
 
-#if MODE == 0
+#if MODE == 0 or MODE == 3
     if (verbose)
         std::cerr << "m1: " << process.range.run_start << " " << process.range.run_end << " "
                   << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
