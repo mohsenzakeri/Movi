@@ -352,6 +352,9 @@ void MoveStructure::random_lf() {
 }
 
 uint64_t MoveStructure::get_n(uint64_t idx) {
+#if MODE == 3
+    return rlbwt[idx].get_n();
+#endif
     if (rlbwt[idx].is_overflow_n()) {
         return n_overflow[rlbwt[idx].get_n()];
     } else {
@@ -360,6 +363,9 @@ uint64_t MoveStructure::get_n(uint64_t idx) {
 }
 
 uint64_t MoveStructure::get_offset(uint64_t idx) {
+#if MODE == 3
+    return rlbwt[idx].get_offset();
+#endif
     if (rlbwt[idx].is_overflow_offset()) {
         return offset_overflow[rlbwt[idx].get_offset()];
     } else {
@@ -519,18 +525,34 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         bits[0] = 1;
     }
 
-
-
     std::cerr << "The main bit vector is built.\n";
     uint64_t bwt_curr_length = 0;
+    uint16_t run_length = 0;
     while (current_char != EOF) { // && current_char != 10
         uint64_t current_char_ = static_cast<uint64_t>(current_char); // Is this line important?!
+        run_length += 1;
         // if (current_char != 'A' and current_char != 'C' and current_char != 'G' and current_char != 'T')
         //    std::cerr << "\ncurrent_char:" << current_char << "---" << static_cast<uint64_t>(current_char) << "---\n";
         if (original_r % 100000 == 0) {
             std::cerr << "original_r: " << original_r << "\t";
             std::cerr << "bwt_curr_length: " << bwt_curr_length << "\r";
         }
+#if MODE == 3
+        if (run_length == MAX_RUN_LENGTH) {
+            r += 1;
+            run_length = 0;
+            bits[bwt_curr_length] = 1;
+            if (current_char != bwt_string[bwt_curr_length - 1]) {
+                original_r += 1;
+            }
+        } else if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
+            original_r += 1;
+            r += 1;
+            run_length = 0;
+            bits[bwt_curr_length] = 1;
+        }
+#endif
+#if MODE == 0 or MODE == 1 or MODE == 2
         if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
             original_r += 1;
             if (!splitting) bits[bwt_curr_length] = 1;
@@ -538,14 +560,16 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         if (splitting && bwt_curr_length > 0 && bits[bwt_curr_length]) {
             r += 1;
         }
+#endif
         bwt_string[bwt_curr_length] = current_char;
         bwt_curr_length++;
         all_chars[current_char] += 1;
 
         current_char = bwt_file.get();
     }
-
+#if MODE == 0 or MODE == 1 or MODE == 2
     if (!splitting) r = original_r;
+#endif
 
     std::cerr << "\n\nr: " << r << "\n";
     std::cerr << "original_r: " << original_r << "\n";
