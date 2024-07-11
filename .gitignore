@@ -36,4 +36,5 @@ build*/*
 debug*/*
 .vscode/
 test_data/*.bin
-test_data/test_out
+test_data/*.txt
+# test_data/test_out
