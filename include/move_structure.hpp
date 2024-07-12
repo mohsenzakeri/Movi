@@ -24,6 +24,13 @@
 #define END_CHARACTER 0
 #define THRBYTES 5 
 
+struct ftab_row {
+    uint64_t start_run;
+    uint64_t start_offsets;
+    uint64_t end_runs;
+    uint64_t end_offsets;
+};
+
 class MoveStructure {
     public:
         MoveStructure(MoviOptions* movi_options_);
@@ -49,6 +56,7 @@ class MoveStructure {
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
         uint32_t compute_index(char row_char, char lookup_char);
         void compute_nexts();
+        void compute_ftab(size_t k);
 
         // The following are used during development only
         // std::string reconstruct();
@@ -121,6 +129,7 @@ class MoveStructure {
         std::vector<uint64_t> first_offsets;
         std::vector<uint64_t> last_runs;
         std::vector<uint64_t> last_offsets;
+        std::vector<ftab_row> ftab;
 
         std::string orig_string;
         bool reconstructed;

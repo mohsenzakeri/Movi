@@ -881,6 +881,13 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::cerr << "The move structure building is done.\n";
 }
 
+void MoveStructure::compute_ftab(size_t k) {
+    ftab.resize(4^k);
+    for (size_t i = 0; i < 4^k; i++) {
+
+    }
+}
+
 uint64_t scan_count;
 #if MODE == 1
 void MoveStructure::compute_nexts() {
