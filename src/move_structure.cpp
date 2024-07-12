@@ -538,12 +538,14 @@ void MoveStructure::build() {
             alphamap[static_cast<size_t>(chars[i])] = i;
             sdsl::bit_vector* new_bit_vector = new sdsl::bit_vector(length, 0);
             occs.emplace_back(std::unique_ptr<sdsl::bit_vector>(new_bit_vector));
+            std::cerr << i + 1 << " alphabet bitvectors " << (i==0 ? "is" : "are") << " built.\r";
         }
+        std::cerr << "\n";
 
         std::ifstream len_file(bwt_filename + ".len", std::ios::in | std::ios::binary);
         std::ifstream heads_file(bwt_filename + ".heads", std::ios::in | std::ios::binary);
         std::vector<char> heads_((std::istreambuf_iterator<char>(heads_file)), std::istreambuf_iterator<char>());
-        std::cerr << heads_.size() << "\n";
+        std::cerr << "Number of BWT runs: " << heads_.size() << "\n";
         /* heads_file.clear();
         heads_file.seekg(0, std::ios_base::end);
         std::streampos heads_end_pos = heads_file.tellg();
@@ -553,7 +555,7 @@ void MoveStructure::build() {
         std::vector<char> heads;
         for (uint64_t i = 0; i < original_r; i++) {
             if (i>0 && i % 100000 == 0)
-                std::cerr << "original_r: " << i << "\t";
+                std::cerr << "original_r: " << i << "\r";
             size_t len = 0;
             len_file.read(reinterpret_cast<char*>(&len), 5);
 #if MODE == 3
