@@ -24,6 +24,13 @@
 #define END_CHARACTER 0
 #define THRBYTES 5 
 
+struct ftab_row {
+    uint64_t start_run;
+    uint64_t start_offsets;
+    uint64_t end_runs;
+    uint64_t end_offsets;
+};
+
 class MoveStructure {
     public:
         MoveStructure(MoviOptions* movi_options_);
@@ -52,6 +59,7 @@ class MoveStructure {
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
         uint32_t compute_index(char row_char, char lookup_char);
         void compute_nexts();
+        void compute_ftab(size_t k);
 
         // uint64_t naive_lcp(uint64_t row1, uint64_t row2);
         // uint64_t naive_sa(uint64_t bwt_row);
@@ -69,10 +77,6 @@ class MoveStructure {
         void analyze_rows();
         bool check_alphabet(char& c);
 
-        std::unordered_map<uint32_t, uint32_t> jumps;
-        std::unordered_map<uint32_t, uint32_t> ff_counts;
-        std::unordered_map<uint64_t, uint64_t> run_lengths;
-
         uint64_t get_n(uint64_t idx);
         //uint64_t get_n_ff(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
@@ -83,10 +87,6 @@ class MoveStructure {
 
         friend class ReadProcessor;
     private:
-        std::vector<uint64_t> first_runs;
-        std::vector<uint64_t> first_offsets;
-        std::vector<uint64_t> last_runs;
-        std::vector<uint64_t> last_offsets;
         bool onebit;
         bool constant;
         uint16_t splitting;
@@ -112,6 +112,27 @@ class MoveStructure {
         // Example: alphamap[A] -> 0, alphamap[C] -> 1
         std::vector<uint64_t> alphamap;
 
+        // The move structure rows
+        std::vector<MoveRow> rlbwt;
+
+        // auxilary datastructures for the length, offset and thresholds overflow
+        std::vector<uint64_t> n_overflow;
+        std::vector<uint64_t> offset_overflow;
+        std::vector<std::vector<uint64_t> > thresholds_overflow;
+
+        // Values used for starting the beckawrd search
+        std::vector<uint64_t> first_runs;
+        std::vector<uint64_t> first_offsets;
+        std::vector<uint64_t> last_runs;
+        std::vector<uint64_t> last_offsets;
+        std::vector<ftab_row> ftab;
+
+        // Used for gathering statistics
+        std::unordered_map<uint32_t, uint32_t> jumps;
+        std::unordered_map<uint32_t, uint32_t> ff_counts;
+        std::unordered_map<uint64_t, uint64_t> run_lengths;
+
+        // The following are only used for construction, not stored in the index
         std::vector<uint64_t> all_p;
         std::vector<std::unique_ptr<sdsl::bit_vector> > occs;
         std::vector<std::unique_ptr<sdsl::rank_support_v<> > > occs_rank;
@@ -120,12 +141,6 @@ class MoveStructure {
         sdsl::select_support_mcl<> sbits;
         sdsl::int_vector<> thresholds;
 
-        std::vector<MoveRow> rlbwt;
         uint64_t eof_row;
-
-        // auxilary datastructures for the length, offset and thresholds overflow
-        std::vector<uint64_t> n_overflow;
-        std::vector<uint64_t> offset_overflow;
-        std::vector<std::vector<uint64_t> > thresholds_overflow;
 };
 #endif
