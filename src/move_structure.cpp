@@ -657,13 +657,14 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         std::cerr << "bits.size(): " << bits.size() << "\n";
         std::cerr << "rank_support_v<>(&bits)(bits.size()): " << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
     }
-    // sbits = sdsl::select_support_mcl<>(&bits);
+    //if (splitting)
+    //    sbits = sdsl::select_support_mcl<>(&bits);
     for (uint64_t r_idx = 0; r_idx < r; r_idx++) {
         if (r_idx % 10000 == 0)
             std::cerr << r_idx << "\r";
         uint64_t lf  = 0;
         if (r_idx != end_bwt_idx)
-            lf = LF (all_p[r_idx]);
+            lf = LF(all_p[r_idx]);
         else
             lf = 0;
         uint64_t pp_id = rbits(lf) - 1;
@@ -675,11 +676,17 @@ void MoveStructure::build(std::ifstream &bwt_file) {
             std::cerr << "pp_id: " << pp_id << " r: " << r << " r_idx: " << r_idx << " lf: " << lf << "\n";
             exit(0); // TODO: add error handling
         }
-        //  sbits(pp_id + 1) is replaced by all_p[pp_id]
+        //TODO: Can we really not use sbits?
+        // sbits(pp_id + 1) is replaced by all_p[pp_id]
+        // if (lf < sbits(pp_id + 1)) {
         if (lf < all_p[pp_id]) {
-            std::cerr << lf << " " << all_p[pp_id];
+            // std::cerr << lf << " " << sbits(pp_id + 1);
+            std::cerr << pp_id << " " << lf << " " << all_p[pp_id] << "\n";
             exit(0); // TODO: add error handling
         }
+        // if (splitting)
+        //     offset = lf - sbits(pp_id + 1);
+        // else
         offset = lf - all_p[pp_id];
         /* if (sbits(pp_id + 1) != all_p[pp_id])
             exit(0); */
@@ -690,9 +697,9 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                         << " lf: " << lf
                         << " offset: " << offset
                         << " pp_id: " << pp_id
-                        << " sbits(pp_id): " << all_p[pp_id - 1]
+                        /*<< " sbits(pp_id): " << all_p[pp_id - 1]
                         << " sbits(pp_id + 1): " << all_p[pp_id]
-                        << " sbits(pp_id - 1): " << all_p[pp_id - 2]
+                        << " sbits(pp_id - 1): " << all_p[pp_id - 2]*/
                         << "\n";
 
         // rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
@@ -727,7 +734,6 @@ void MoveStructure::build(std::ifstream &bwt_file) {
                 run_lengths[len] = 1;
         }
         rlbwt[r_idx].set_c(bwt_string[all_p[r_idx]], alphamap);
-
         // bit1_after_eof = alphamap[bwt_string[i+1]];
     }
     std::cerr << "All the move rows are built.\n";
