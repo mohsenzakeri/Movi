@@ -242,16 +242,6 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
     }
 }
 
-/*void ReadProcessor::ziv_merhav(MoveStructure& mv) {
-    std::vector<Strand> process;
-    process.emplace_back(Strand());
-    reset_process(processes[0], mv);
-    while(!process[0].finished) {
-        processes[0].mq.add_pml(processes[i].match_len);
-        uint64_t match_count = 0;
-        bool backward_search_finished = backward_search(processes[0], mv, match_count, processes[0].kmer_end);
-    }
-}*/
 void ReadProcessor::ziv_merhav_latency_hiding(MoveStructure& mv) {
     std::vector<Strand> processes;
     for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
@@ -263,7 +253,7 @@ void ReadProcessor::ziv_merhav_latency_hiding(MoveStructure& mv) {
             // TODO:: update the reset function
             reset_process(processes[i], mv);
             reset_backward_search(processes[i], mv);
-            processes[i].kmer_end = processes[i].pos_on_r - 1;
+            processes[i].kmer_end = processes[i].pos_on_r;
             processes[i].match_len = 0;
         } else {
             processes[i].finished = true;
@@ -279,7 +269,6 @@ void ReadProcessor::ziv_merhav_latency_hiding(MoveStructure& mv) {
     while (fnished_count != strands) {
         for (uint64_t i = 0; i < strands; i++) {
             if (!processes[i].finished) {
-                processes[i].mq.add_pml(processes[i].match_len);
                 uint64_t match_count = 0;
                 // 1: process next character
                 bool backward_search_finished = backward_search(processes[i], mv, match_count, processes[i].kmer_end);
@@ -292,10 +281,11 @@ void ReadProcessor::ziv_merhav_latency_hiding(MoveStructure& mv) {
                     processes[i].kmer_end = processes[i].pos_on_r - 1;
                     processes[i].match_len = 0;
                 } else if (processes[i].pos_on_r <= 0) {
+                    processes[i].mq.add_pml(processes[i].match_len);
                     write_pmls(processes[i], mv.movi_options->is_logs(), mv.movi_options->is_stdout());
                     reset_process(processes[i], mv);
                     reset_backward_search(processes[i], mv);
-                    processes[i].kmer_end = processes[i].pos_on_r - 1;
+                    processes[i].kmer_end = processes[i].pos_on_r;
                     processes[i].match_len = 0;
                     // 3: -- check if it was the last read in the file -> fnished_count++
                     if (processes[i].finished) {
@@ -303,8 +293,10 @@ void ReadProcessor::ziv_merhav_latency_hiding(MoveStructure& mv) {
                     }
                 } else {
                     // 4: big jump with prefetch
-                    if (!backward_search_finished)
+                    if (!backward_search_finished) {
+                        processes[i].mq.add_pml(processes[i].match_len);
                         processes[i].match_len += 1;
+                    }
                     my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_start].get_id()));
                     my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_end].get_id()));
                 }
@@ -587,7 +579,7 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
             (mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] == R[process.pos_on_r])) {
             mv.LF_move(process.range.offset_start, process.range.run_start);
             mv.LF_move(process.range.offset_end, process.range.run_end);
-            if (process.pos_on_r == -1) {
+            if (process.pos_on_r <= -1) {
                 if (process.range.run_start == process.range.run_end) {
                     match_count = process.range.offset_end - process.range.offset_start + 1;
                 } else {
