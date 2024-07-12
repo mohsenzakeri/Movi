@@ -39,7 +39,7 @@ class MoveStructure {
         bool check_mode();
         std::string index_type();
         void set_onebit();
-        void build(std::ifstream &bwt_file);
+        void build();
         void build_rlbwt();
         uint64_t query_pml(MoveQuery& mq, bool random);
         uint64_t backward_search(std::string& R,  int32_t& pos_on_r);
@@ -87,7 +87,6 @@ class MoveStructure {
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
 #endif
-
         friend class ReadProcessor;
     private:
         MoviOptions* movi_options;

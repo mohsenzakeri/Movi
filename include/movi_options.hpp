@@ -12,6 +12,7 @@ class MoviOptions {
             LF_type = "reconstruct";
             pml_query = true;
         }
+        bool is_preprocessed() { return preprocessed; }
         bool is_split() { return split; }
         bool no_prefetch() { return !prefetch; }
         bool is_stdout() { return write_stdout; }
@@ -34,6 +35,7 @@ class MoviOptions {
         std::string get_pml_file() { return pml_file; }
         std::string get_index_dir() { return index_dir; }
 
+        void set_preprocessed(bool preprocessed_) { preprocessed = preprocessed_; }
         void set_stdout(bool write_stdout_) { write_stdout = write_stdout_; }
         void set_verbose(bool verbose_) { verbose = verbose_; }
         void set_logs(bool logs_) { logs = logs_; }
@@ -88,6 +90,7 @@ class MoviOptions {
         std::string pml_file;
         std::string index_dir;
         std::string LF_type;
+        bool preprocessed = false;
         bool split = false;
         bool pml_query = false;
         bool zm_query = false;

@@ -65,6 +65,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     auto buildOptions = options.add_options("build")
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("f,fasta", "Reference file", cxxopts::value<std::string>())
+        ("preprocessed", "The BWT is preprocessed into heads and lens files")
         ("verify", "Verify if all the LF_move operations are correct");
 
     auto queryOptions = options.add_options("query")
@@ -123,6 +124,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     movi_options.set_ref_file(result["fasta"].as<std::string>());
                     if (result.count("verify")) {
                         movi_options.set_verify(true);
+                    }
+                    if (result.count("preprocessed")) {
+                        movi_options.set_preprocessed(true);
                     }
                 } else {
                     const std::string message = "Please include one index directory and one fasta file.";
