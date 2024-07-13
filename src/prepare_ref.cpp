@@ -8,7 +8,7 @@
 // STEP 1: declare the type of file handler and the read() function
 KSEQ_INIT(gzFile, gzread)
 
-void read_fasta(const char* file_name, std::ofstream& clean_fasta) {
+void read_fasta(const char* file_name, std::ofstream& clean_fasta, bool rc) {
     gzFile fp;
     kseq_t *seq;
     int l;
@@ -31,16 +31,19 @@ void read_fasta(const char* file_name, std::ofstream& clean_fasta) {
             }
             // if (c != 65 && c != 67 && c != 71 && c != 84) seq->seq.s[i] = 'A';
             if (c != 'A' && c != 'C' && c != 'G' && c != 'T') seq->seq.s[i] = 'A';
-            switch (seq->seq.s[i]) {
-                case 'A': seq_rc[seq->seq.l - 1 - i] = 'T'; break;
-                case 'C': seq_rc[seq->seq.l - 1 - i] = 'G'; break;
-                case 'G': seq_rc[seq->seq.l - 1 - i] = 'C'; break;
-                case 'T': seq_rc[seq->seq.l - 1 - i] = 'A'; break;
-                default: std::cerr << "The alphabet still includes non-ACTG after cleaning!\n"; exit(0);
+            if (rc) {
+                switch (seq->seq.s[i]) {
+                    case 'A': seq_rc[seq->seq.l - 1 - i] = 'T'; break;
+                    case 'C': seq_rc[seq->seq.l - 1 - i] = 'G'; break;
+                    case 'G': seq_rc[seq->seq.l - 1 - i] = 'C'; break;
+                    case 'T': seq_rc[seq->seq.l - 1 - i] = 'A'; break;
+                    default: std::cerr << "The alphabet still includes non-ACTG after cleaning!\n"; exit(0);
+                }
             }
         }
         clean_fasta << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
-        clean_fasta << '>' << seq->name.s << "_rev_comp" << '\n' << seq_rc << '\n';
+        if (rc)
+            clean_fasta << '>' << seq->name.s << "_rev_comp" << '\n' << seq_rc << '\n';
     }
 
     kseq_destroy(seq);
@@ -50,18 +53,20 @@ void read_fasta(const char* file_name, std::ofstream& clean_fasta) {
 int main(int argc, char* argv[]) {
     // Fasta/q reader from http://lh3lh3.users.sourceforge.net/parsefastq.shtml
     bool input_type = (argc > 3 and std::string(argv[3]) == "list");
+    bool rc = (argc > 4 and std::string(argv[4]) == "fw") ? false : true;
+    std::cerr << rc << "\n";
     std::ofstream clean_fasta(static_cast<std::string>(argv[2]));
     if (input_type) {
         std::ifstream list_file(static_cast<std::string>(argv[1]));
         std::string fasta_file = "";
         while (std::getline(list_file, fasta_file)) {
             std::cerr << fasta_file << "\n";
-            read_fasta(fasta_file.data(), clean_fasta);
+            read_fasta(fasta_file.data(), clean_fasta, rc);
         }
     } else {
         std::cerr << argv[1] << "\n";
         std::cerr << argv[2] << "\n";
-        read_fasta(argv[1], clean_fasta);
+        read_fasta(argv[1], clean_fasta, rc);
     }
     clean_fasta.close();
 
