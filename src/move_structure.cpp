@@ -1111,6 +1111,7 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
     uint64_t run_end_prev = run_end;
     uint64_t offset_end_prev = offset_end;
     uint64_t scan_count = 0;
+    bool first_iteration = true;
     while (pos_on_r > -1) {
         // save the current interval for reporting
         run_start_prev = run_start;
@@ -1118,7 +1119,7 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
         run_end_prev = run_end;
         offset_end_prev = offset_end;
         pos_on_r -= 1;
-        if (run_start == end_bwt_idx or run_end == end_bwt_idx or !check_alphabet(R[pos_on_r])) {
+        if ((!first_iteration and (run_start == end_bwt_idx or run_end == end_bwt_idx)) or !check_alphabet(R[pos_on_r])) {
             // std::cerr << "Not found\n";
             uint64_t match_count = 0;
             if (run_start_prev == run_end_prev) {
@@ -1231,6 +1232,7 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
             return match_count;
         }
         // pos_on_r -= 1;
+        first_iteration = false;
     }
     std::cerr << "Should not get here!\n";
     return 0;
