@@ -325,9 +325,10 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
         }
     }
 
+    bool first_iteration = process.pos_on_r == process.read.length() - 1;
     process.range_prev = process.range;
     process.pos_on_r -= 1;
-    if (process.range.run_start == mv.end_bwt_idx or process.range.run_end == mv.end_bwt_idx or !mv.check_alphabet(R[process.pos_on_r])) {
+    if ((!first_iteration and (process.range.run_start == mv.end_bwt_idx or process.range.run_end == mv.end_bwt_idx)) or !mv.check_alphabet(R[process.pos_on_r])) {
         // The read was not found.
         if (process.range_prev.run_start == process.range_prev.run_end) {
             match_count = process.range_prev.offset_end - process.range_prev.offset_start + 1;
