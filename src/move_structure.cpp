@@ -854,10 +854,58 @@ void MoveStructure::build(std::ifstream &bwt_file) {
     std::cerr << "The move structure building is done.\n";
 }
 
-void MoveStructure::compute_ftab(size_t k) {
-    ftab.resize(4^k);
-    for (size_t i = 0; i < 4^k; i++) {
+uint64_t kmer_to_number(size_t k, std::string kmer, std::vector<uint64_t>& alphamap) {
+    if (kmer.length() != k) {
+        std::cerr << "The k does not match the kmer length!\n";
+        exit(0);
+    }
 
+    uint64_t res = 0;
+    for (size_t i = 0; i < k; i++) {
+        uint64_t char_code = alphamap[kmer[i]];
+        res = (char_code << ((k-i-1)*2)) | res;
+    }
+    return res;
+}
+
+std::string number_to_kmer(size_t j, size_t m, std::vector<unsigned char>& alphabet) {
+    std::string kmer = "";
+    for (int i = m - 2; i >= 0; i -= 2) {
+        size_t pair = (j >> i) & 0b11;
+        // std::cerr << i << " " << pair << " ";
+        kmer += alphabet[pair];
+    }
+    return kmer;
+}
+
+void MoveStructure::compute_ftab(size_t k) {
+    MoveInterval empty_interval(1, 0, 0, 0);
+    uint64_t ftab_size = std::pow(4, k);
+    std::cerr << "ftab_size: " << ftab_size*sizeof(MoveInterval)*std::pow(10, -6) << " MB \n";
+    ftab.resize(ftab_size);
+    for (uint64_t i = 0; i < ftab_size; i++) {
+        std::string kmer = number_to_kmer(i, 2*(k), alphabet);
+        uint64_t kmer_code = kmer_to_number(k, kmer, alphamap);
+        if (kmer_code != i) {
+            std::cerr << kmer << " " << i << " " << kmer_code << "\n";
+        }
+        int32_t pos_on_kmer = k - 1;
+        MoveInterval interval(
+            first_runs[alphamap[kmer[pos_on_kmer]] + 1],
+            first_offsets[alphamap[kmer[pos_on_kmer]] + 1],
+            last_runs[alphamap[kmer[pos_on_kmer]] + 1],
+            last_offsets[alphamap[kmer[pos_on_kmer]] + 1]
+        );
+        uint64_t match_count = backward_search(kmer,  pos_on_kmer, interval).count(rlbwt);
+        if (match_count >= 0 and pos_on_kmer == 0) {
+            ftab[i] = interval;
+        } else {
+            // std::cerr << kmer << " not found!\n";
+            ftab[i] = empty_interval;
+        }
+        // if (pos_on_kmer != 0) pos_on_kmer += 1;
+        // std::cerr << kmer << "\n";
+        // std::cerr << kmer.length() - pos_on_kmer << "/" << kmer.length() << "\t" << match_count << "\n";
     }
 }
 
