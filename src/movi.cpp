@@ -266,11 +266,11 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     pmls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
                 }
             } else if (movi_options.is_count()) {
-                // std::string R = std::string(seq->seq.s);
                 int32_t pos_on_r = query_seq.length() - 1;
-                uint64_t match_count = mv_.backward_search(query_seq, pos_on_r);
+                // uint64_t match_count = mv_.backward_search(query_seq, pos_on_r);
+                // if (pos_on_r != 0) pos_on_r += 1;
+                uint64_t match_count = mv_.query_backward_search(query_seq, pos_on_r);
                 count_file << seq->name.s << "\t";
-                if (pos_on_r != 0) pos_on_r += 1;
                 count_file << query_seq.length() - pos_on_r << "/" << query_seq.length() << "\t" << match_count << "\n";                
             }
 
