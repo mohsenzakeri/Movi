@@ -38,11 +38,11 @@ struct Strand {
 
 class ReadProcessor {
     public:
-        ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_, bool query_pml, bool verbose_, bool reverse_);
+        ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_, bool verbose_, bool reverse_);
         // void process_regular();
         void process_latency_hiding(MoveStructure& mv);
         void ziv_merhav_latency_hiding(MoveStructure& mv);
-        void backward_search_latency_hiding(MoveStructure& mv);
+        // void backward_search_latency_hiding(MoveStructure& mv);
         void kmer_search_latency_hiding(MoveStructure& mv, uint32_t k);
         bool next_read(Strand& process);
         void write_pmls(Strand& process, bool logs, bool write_stdout);

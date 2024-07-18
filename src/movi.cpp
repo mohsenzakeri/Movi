@@ -213,13 +213,13 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
 void query(MoveStructure& mv_, MoviOptions& movi_options) {
     if (!movi_options.no_prefetch()) {
-        ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_pml(), movi_options.is_verbose(), movi_options.is_reverse());
+        ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
         if (movi_options.is_pml()) {
             rp.process_latency_hiding(mv_);
         } else if (movi_options.is_zm()) {
             rp.ziv_merhav_latency_hiding(mv_);
         } else if (movi_options.is_count()) {
-            rp.backward_search_latency_hiding(mv_);
+            rp.process_latency_hiding(mv_);
         } else if (movi_options.is_kmer()) {
             rp.kmer_search_latency_hiding(mv_, movi_options.get_k());
         }
