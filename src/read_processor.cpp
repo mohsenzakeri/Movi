@@ -228,7 +228,7 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
                     } else if (is_count) {
                         auto& R = processes[i].mq.query();
                         matches_file << processes[i].read_name << "\t";
-                        if (processes[i].pos_on_r != 0) processes[i].pos_on_r += 1;
+                        // if (processes[i].pos_on_r != 0) processes[i].pos_on_r += 1;
                         matches_file << R.length() - processes[i].pos_on_r << "/" << R.length() << "\t" << match_count << "\n";
 
                         reset_process(processes[i], mv);
@@ -524,20 +524,15 @@ void ReadProcessor::kmer_search_latency_hiding(MoveStructure& mv, uint32_t k) {
 
 void ReadProcessor::reset_backward_search(Strand& process, MoveStructure& mv) {
     std::string& R = process.mq.query();
-
-    if (!mv.check_alphabet(R[process.pos_on_r])) {
-      // The character does not exist, so we return the empty interval
-      process.range.run_start = 1;
-      process.range.run_end = 0;
-      process.range.offset_start = 0;
-      process.range.offset_end = 0;
-      return;
+    if (mv.check_alphabet(R[process.pos_on_r])) {
+        process.range.run_start = mv.first_runs[mv.alphamap[R[process.pos_on_r]] + 1];
+        process.range.offset_start = mv.first_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
+        process.range.run_end = mv.last_runs[mv.alphamap[R[process.pos_on_r]] + 1];
+        process.range.offset_end = mv.last_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
+    } else {
+        MoveInterval empty_interval(1, 0, 0, 0);
+        process.range = empty_interval;
     }
-
-    process.range.run_start = mv.first_runs[mv.alphamap[R[process.pos_on_r]] + 1];
-    process.range.offset_start = mv.first_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
-    process.range.run_end = mv.last_runs[mv.alphamap[R[process.pos_on_r]] + 1];
-    process.range.offset_end = mv.last_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
 }
 
 void ReadProcessor::reset_kmer_search(Strand& process, MoveStructure& mv, uint64_t k) {
@@ -608,9 +603,49 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
                   << R[process.pos_on_r] << " "
                   << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
                   << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
+    bool first_iteration = process.pos_on_r == process.read.length() - 1;
+    if (first_iteration) {
+        if (!mv.check_alphabet(R[process.pos_on_r])) {
+            match_count = 0;
+            process.pos_on_r += 1;
+            return true;
+        }
+        process.range_prev = process.range;
+        mv.update_interval(process.range, R[process.pos_on_r - 1]);
+    }
+
+    if (!process.range.is_empty()) {
+        mv.LF_move(process.range.offset_start, process.range.run_start);
+        mv.LF_move(process.range.offset_end, process.range.run_end);
+    } else {
+        match_count = process.range_prev.count(mv.rlbwt);
+        return true;
+    }
+    process.pos_on_r -= 1;
+    if (process.pos_on_r <= 0) {
+        match_count = process.range.count(mv.rlbwt);
+        return true;
+    }
+
+    if (!mv.check_alphabet(R[process.pos_on_r - 1])) {
+        match_count = process.range.count(mv.rlbwt);
+        return true;
+    }
+    process.range_prev = process.range;
+
+    if (verbose)
+        std::cerr << "before: " << process.range.run_start << " " << process.range.run_end << " "
+                  << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
+                  << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
+    mv.update_interval(process.range, R[process.pos_on_r - 1]);
+    if (verbose)
+        std::cerr << "after: " << process.range.run_start << " " << process.range.run_end << " "
+                  << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
+                  << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
+                  << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
 
     // if (process.pos_on_r < R.length() - 1) {
-    if (process.pos_on_r < read_end_pos) {
+    /* if (process.pos_on_r < read_end_pos) {
         if (((process.range.run_start < process.range.run_end) or
             (process.range.run_start == process.range.run_end and process.range.offset_start <= process.range.offset_end)) and
             (mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] == R[process.pos_on_r]) and
@@ -733,7 +768,7 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
             process.range.offset_end = mv.rlbwt[process.range.run_end].get_n() - 1;
         }
     }
-#endif
+#endif*/
     if (verbose)
         std::cerr << "bacward search ends:\n" << process.pos_on_r << " "
                   << R[process.pos_on_r] << " "
