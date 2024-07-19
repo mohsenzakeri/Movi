@@ -530,8 +530,8 @@ void ReadProcessor::reset_backward_search(Strand& process, MoveStructure& mv) {
         process.range.run_end = mv.last_runs[mv.alphamap[R[process.pos_on_r]] + 1];
         process.range.offset_end = mv.last_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
     } else {
-        MoveInterval empty_interval(1, 0, 0, 0);
-        process.range = empty_interval;
+        // The current character should be skipped with corresponding match length equals to 0
+        process.range.make_empty();
     }
 }
 
@@ -596,20 +596,24 @@ bool ReadProcessor::verify_kmer(Strand& process, MoveStructure& mv, uint64_t k) 
     }
 }
 
-bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t& match_count, uint64_t read_end_pos) {
+bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t& match_count, uint64_t end_pos) {
     std::string& R = process.mq.query();
     if (verbose)
         std::cerr << "backward search begins:\n" << process.pos_on_r << " "
-                  << R[process.pos_on_r] << " "
-                  << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
-                  << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
-    bool first_iteration = process.pos_on_r == process.read.length() - 1;
+                    << R[process.pos_on_r] << " "
+                    << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
+                    << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
+    bool first_iteration = process.pos_on_r == end_pos;
     if (first_iteration) {
-        if (!mv.check_alphabet(R[process.pos_on_r])) {
-            match_count = 0;
+        if (process.range.is_empty()) {
             process.pos_on_r += 1;
             return true;
         }
+
+        if (!mv.check_alphabet(R[process.pos_on_r - 1])) {
+            return true;
+        }
+
         process.range_prev = process.range;
         mv.update_interval(process.range, R[process.pos_on_r - 1]);
     }
@@ -617,11 +621,14 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
     if (!process.range.is_empty()) {
         mv.LF_move(process.range.offset_start, process.range.run_start);
         mv.LF_move(process.range.offset_end, process.range.run_end);
-    } else {
+        process.pos_on_r -= 1;
+    }
+
+    if (process.range.is_empty()) {
         match_count = process.range_prev.count(mv.rlbwt);
         return true;
     }
-    process.pos_on_r -= 1;
+
     if (process.pos_on_r <= 0) {
         match_count = process.range.count(mv.rlbwt);
         return true;
@@ -631,148 +638,19 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
         match_count = process.range.count(mv.rlbwt);
         return true;
     }
+
     process.range_prev = process.range;
 
     if (verbose)
         std::cerr << "before: " << process.range.run_start << " " << process.range.run_end << " "
-                  << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
-                  << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
+                    << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
+                    << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
     mv.update_interval(process.range, R[process.pos_on_r - 1]);
     if (verbose)
         std::cerr << "after: " << process.range.run_start << " " << process.range.run_end << " "
-                  << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
-                  << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
-                  << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
+                    << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
+                    << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
+                    << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
 
-    // if (process.pos_on_r < R.length() - 1) {
-    /* if (process.pos_on_r < read_end_pos) {
-        if (((process.range.run_start < process.range.run_end) or
-            (process.range.run_start == process.range.run_end and process.range.offset_start <= process.range.offset_end)) and
-            (mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] == R[process.pos_on_r]) and
-            (mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] == R[process.pos_on_r])) {
-            mv.LF_move(process.range.offset_start, process.range.run_start);
-            mv.LF_move(process.range.offset_end, process.range.run_end);
-            if (process.pos_on_r <= -1) {
-                if (process.range.run_start == process.range.run_end) {
-                    match_count = process.range.offset_end - process.range.offset_start + 1;
-                } else {
-                    match_count = (mv.rlbwt[process.range.run_start].get_n() - process.range.offset_start) + (process.range.offset_end + 1);
-                    for (uint64_t k = process.range.run_start + 1; k < process.range.run_end; k ++) {
-                        match_count += mv.rlbwt[k].get_n();
-                    }
-                }
-                return true;
-            }
-        } else {
-            // The read was not found.
-            if (process.range_prev.run_start == process.range_prev.run_end) {
-                match_count = process.range_prev.offset_end - process.range_prev.offset_start + 1;
-            } else {
-                match_count = (mv.rlbwt[process.range_prev.run_start].get_n() - process.range_prev.offset_start) +
-                                (process.range_prev.offset_end + 1);
-                for (uint64_t k = process.range_prev.run_start + 1; k < process.range_prev.run_end; k ++) {
-                    match_count += mv.rlbwt[k].get_n();
-                }
-            }
-            return true;
-        }
-    }
-
-    bool first_iteration = process.pos_on_r == process.read.length() - 1;
-    process.range_prev = process.range;
-
-    if (!mv.check_alphabet(R[process.pos_on_r])) {
-        match_count = 0;
-        return true;
-    }
-
-    process.pos_on_r -= 1;
-    if ((!first_iteration and (process.range.run_start == mv.end_bwt_idx or process.range.run_end == mv.end_bwt_idx)) or !mv.check_alphabet(R[process.pos_on_r])) {
-        // The read was not found.
-        if (process.range_prev.run_start == process.range_prev.run_end) {
-            match_count = process.range_prev.offset_end - process.range_prev.offset_start + 1;
-        } else {
-            match_count = (mv.rlbwt[process.range_prev.run_start].get_n() - process.range_prev.offset_start) +
-                            (process.range_prev.offset_end + 1);
-            for (uint64_t k = process.range_prev.run_start + 1; k < process.range_prev.run_end; k ++) {
-                match_count += mv.rlbwt[k].get_n();
-            }
-        }
-        return true;
-    }
-
-#if MODE == 0
-    if (verbose)
-        std::cerr << "m1: " << process.range.run_start << " " << process.range.run_end << " "
-                  << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
-                  << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
-    while ((process.range.run_start < process.range.run_end) and (mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] != R[process.pos_on_r])) {
-        process.range.run_start += 1;
-        process.range.offset_start = 0;
-        if (process.range.run_start >= mv.r) {
-            break;
-        }
-    }
-    while ((process.range.run_end > process.range.run_start) and (mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] != R[process.pos_on_r])) {
-        process.range.run_end -= 1;
-        process.range.offset_end = mv.rlbwt[process.range.run_end].get_n() - 1;
-        if (process.range.run_end == 0) {
-            break;
-        }
-    }
-    if (verbose)
-        std::cerr << "m2: " << process.range.run_start << " " << process.range.run_end << " "
-                  << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
-                  << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
-                  << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
-#endif
-#if MODE == 1
-    uint64_t read_alphabet_index = mv.alphamap[static_cast<uint64_t>(R[process.pos_on_r])];
-    if ((process.range.run_start < process.range.run_end) and (mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] != R[process.pos_on_r])) {
-        if (process.range.run_start == 0) {
-            while ((process.range.run_start < process.range.run_end) and (mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] != R[process.pos_on_r])) {
-                process.range.run_start += 1;
-                process.range.offset_start = 0;
-                if (process.range.run_start >= mv.r) {
-                    break;
-                }
-            }
-        } else {
-            char rlbwt_char = mv.alphabet[mv.rlbwt[process.range.run_start].get_c()];
-            uint64_t alphabet_index = alphamap_3_[mv.alphamap[rlbwt_char]][read_alphabet_index];
-            if (mv.rlbwt[process.range.run_start].get_next_down(alphabet_index) == std::numeric_limits<uint16_t>::max()) {
-                process.range.run_start = mv.r;
-            } else {
-                uint64_t run_start = process.range.run_start + mv.rlbwt[process.range.run_start].get_next_down(alphabet_index);
-                if (run_start <= process.range.run_end) {
-                    process.range.run_start = run_start;
-                } else {
-                    process.range.run_start = process.range.run_end;
-                }
-                process.range.offset_start = 0;
-            }
-        }
-    }
-    if ((process.range.run_end > process.range.run_start) and (mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] != R[process.pos_on_r])) {
-        char rlbwt_char = mv.alphabet[mv.rlbwt[process.range.run_end].get_c()];
-        uint64_t alphabet_index = alphamap_3_[mv.alphamap[rlbwt_char]][read_alphabet_index];
-        if (mv.rlbwt[process.range.run_end].get_next_up(alphabet_index) == std::numeric_limits<uint16_t>::max()) {
-            process.range.run_end = mv.r;
-        } else {
-            uint64_t run_end = process.range.run_end - mv.rlbwt[process.range.run_end].get_next_up(alphabet_index);
-            if (run_end >= process.range.run_start) {
-                process.range.run_end = run_end;
-            } else {
-                process.range.run_end = process.range.run_start;
-            }
-            process.range.offset_end = mv.rlbwt[process.range.run_end].get_n() - 1;
-        }
-    }
-#endif*/
-    if (verbose)
-        std::cerr << "bacward search ends:\n" << process.pos_on_r << " "
-                  << R[process.pos_on_r] << " "
-                  << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
-                  << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n----------\n";
     return false;
 }

@@ -47,7 +47,7 @@ class ReadProcessor {
         bool next_read(Strand& process);
         void write_pmls(Strand& process, bool logs, bool write_stdout);
         void process_char(Strand& process, MoveStructure& mv);
-        bool backward_search(Strand& process, MoveStructure& mv, uint64_t& match_count, uint64_t read_end_pos);
+        bool backward_search(Strand& process, MoveStructure& mv, uint64_t& match_count, uint64_t end_pos);
         void reset_process(Strand& process, MoveStructure& mv);
         void reset_backward_search(Strand& process, MoveStructure& mv);
         void reset_kmer_search(Strand& process, MoveStructure& mv, uint64_t k);

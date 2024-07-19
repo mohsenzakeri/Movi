@@ -50,6 +50,13 @@ struct MoveInterval {
         offset_end = offset_end_;
     }
 
+    void make_empty() {
+        run_start = 1;
+        offset_start = 0;
+        run_end = 0;
+        offset_end = 0;
+    }
+
     bool is_empty() {
         return !((run_start < run_end) or (run_start == run_end and offset_start <= offset_end));
     }
@@ -123,6 +130,7 @@ class MoveStructure {
         void analyze_rows();
         bool check_alphabet(char& c);
 
+        char get_char(uint64_t idx);
         uint64_t get_n(uint64_t idx);
         //uint64_t get_n_ff(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
