@@ -66,7 +66,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
     auto queryOptions = options.add_options("query")
         ("pml", "Compute the pseudo-matching lengths (PMLs)")
-        ("zm", "Compute the Ziv-Merhav cross parsing")
+        ("zml", "Compute the Ziv-Merhav cross parsing length (ZMLs)")
         ("count", "Compute the count queries")
         ("kmer", "Search all the kmers")
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
@@ -79,7 +79,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("ignore-illegal-chars", "In the case of illegal characters (i.e., non-ACGT for genomic data), substitute the character with \'A\'(1) or a random character from the alphabet (2).", cxxopts::value<int>());
 
     auto viewOptions = options.add_options("view")
-        ("pml-file", "PML file in the binary format", cxxopts::value<std::string>());
+        ("mls-file", "The matching lengths (PML or ZML) file in the binary format", cxxopts::value<std::string>());
 
     auto rlbwtOptions = options.add_options("rlbwt")
         ("bwt-file", "BWT file", cxxopts::value<std::string>());
@@ -133,7 +133,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("kmer") >= 1) { movi_options.set_kmer(); }
                     if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
                     if (result.count("count") >= 1) { movi_options.set_count(); }
-                    if (result.count("zm") >= 1) { movi_options.set_zm(); }
+                    if (result.count("zml") >= 1) { movi_options.set_zml(); }
                     if (result.count("pml") >= 1) { movi_options.set_pml(); }
                     if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
                     if (result.count("ignore-illegal-chars") == 1) {
@@ -169,8 +169,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
             } else if (command == "view") {
-                if (result.count("pml-file") == 1) {
-                    movi_options.set_pml_file(result["pml-file"].as<std::string>());
+                if (result.count("mls-file") == 1) {
+                    movi_options.set_mls_file(result["mls-file"].as<std::string>());
                 } else {
                     const std::string message = "Please specify one pml file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
@@ -216,7 +216,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
         if (movi_options.is_pml()) {
             rp.process_latency_hiding(mv_);
-        } else if (movi_options.is_zm()) {
+        } else if (movi_options.is_zml()) {
             rp.ziv_merhav_latency_hiding(mv_);
         } else if (movi_options.is_count()) {
             rp.process_latency_hiding(mv_);
@@ -238,10 +238,12 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         }
         uint64_t total_ff_count = 0;
 
-        std::ofstream pmls_file;
+        std::ofstream mls_file;
         std::ofstream count_file;
         if (movi_options.is_pml())
-            pmls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".mpml.bin", std::ios::out | std::ios::binary);
+            mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".mpml.bin", std::ios::out | std::ios::binary);
+        else if (movi_options.is_zml())
+            mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".zml.bin", std::ios::out | std::ios::binary);
         else if (movi_options.is_count())
             count_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".matches");
 
@@ -252,15 +254,19 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             read_processed += 1 ;
             std::string query_seq = seq->seq.s;
             MoveQuery mq;
-            if (movi_options.is_pml()) {
+            if (movi_options.is_pml() or movi_options.is_zml()) {
                 if (movi_options.is_reverse())
                     std::reverse(query_seq.begin(), query_seq.end());
                 mq = MoveQuery(query_seq);
                 bool random_jump = false;
-                total_ff_count += mv_.query_pml(mq, random_jump);
+                if (movi_options.is_pml())
+                    total_ff_count += mv_.query_pml(mq, random_jump);
+                else if (movi_options.is_zml()) {
+                    total_ff_count += mv_.query_zml(mq);
+                }
                 if (movi_options.is_stdout()) {
                     std::cout << ">" << seq->name.s << " \n";
-                    auto& pml_lens = mq.get_pml_lens();
+                    auto& pml_lens = mq.get_matching_lengths();
                     uint64_t mq_pml_lens_size = pml_lens.size();
                     for (int64_t i = mq_pml_lens_size - 1; i >= 0; i--) {
                         std::cout << pml_lens[i] << " ";
@@ -268,12 +274,12 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     std::cout << "\n";
                 } else {
                     uint16_t st_length = seq->name.m;
-                    pmls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
-                    pmls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
-                    auto& pml_lens = mq.get_pml_lens();
+                    mls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
+                    mls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
+                    auto& pml_lens = mq.get_matching_lengths();
                     uint64_t mq_pml_lens_size = pml_lens.size();
-                    pmls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
-                    pmls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+                    mls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
+                    mls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
                 }
             } else if (movi_options.is_count()) {
                 int32_t pos_on_r = query_seq.length() - 1;
@@ -303,13 +309,13 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             }
         }
         
-        if (movi_options.is_pml()) {
+        if (movi_options.is_pml() or movi_options.is_zml()) {
             std::cerr << "all fast forward counts: " << total_ff_count << "\n";
-            pmls_file.close();
-            std::cerr << "pmls file closed.\n";
+            mls_file.close();
+            std::cerr << "The output file for the matching lengths closed.\n";
         } else if (movi_options.is_count()) {
             count_file.close();
-            std::cerr << "count file is closed.\n";
+            std::cerr << "The count file is closed.\n";
         }
         if (movi_options.is_logs()) {
             costs_file.close();
@@ -321,23 +327,23 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 }
 
 void view(MoviOptions& movi_options) {
-    std::ifstream pmls_file(movi_options.get_pml_file(), std::ios::in | std::ios::binary);
-    pmls_file.seekg(0, std::ios::beg);
+    std::ifstream mls_file(movi_options.get_mls_file(), std::ios::in | std::ios::binary);
+    mls_file.seekg(0, std::ios::beg);
     while (true) {
         uint16_t st_length = 0;
-        pmls_file.read(reinterpret_cast<char*>(&st_length), sizeof(st_length));
-        if (pmls_file.eof()) break;
+        mls_file.read(reinterpret_cast<char*>(&st_length), sizeof(st_length));
+        if (mls_file.eof()) break;
 
         std::string read_name;
         read_name.resize(st_length);
-        pmls_file.read(reinterpret_cast<char*>(&read_name[0]), st_length);
+        mls_file.read(reinterpret_cast<char*>(&read_name[0]), st_length);
         read_name.erase(std::find(read_name.begin(), read_name.end(), '\0'), read_name.end());
         std::cout << ">" << read_name << " \n";
         uint64_t mq_pml_lens_size = 0;
-        pmls_file.read(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
+        mls_file.read(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
         std::vector<uint16_t> pml_lens;
         pml_lens.resize(mq_pml_lens_size);
-        pmls_file.read(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+        mls_file.read(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
         for (int64_t i = mq_pml_lens_size - 1; i >= 0; i--) {
             std::cout << pml_lens[i] << " ";
         }

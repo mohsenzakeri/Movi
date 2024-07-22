@@ -19,13 +19,13 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
     seq = kseq_init(fp); // STEP 3: initialize seq
     std::string index_type = mv_.index_type();
     if (mv_.movi_options->is_pml()) {
-        std::string pmls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.mpml.bin" :
+        std::string mls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.mpml.bin" :
                                                reads_file_name + "." + index_type + ".mpml.bin";
-        pmls_file = std::ofstream(pmls_file_name, std::ios::out | std::ios::binary);
-    } else if (mv_.movi_options->is_zm()) {
-        std::string pmls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.zm.bin" :
-                                               reads_file_name + "." + index_type + ".zm.bin";
-        pmls_file = std::ofstream(pmls_file_name, std::ios::out | std::ios::binary);
+        mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
+    } else if (mv_.movi_options->is_zml()) {
+        std::string mls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.zml.bin" :
+                                               reads_file_name + "." + index_type + ".zml.bin";
+        mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
     } else if (mv_.movi_options->is_count()) {
         std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
         matches_file = std::ofstream(matches_file_name);
@@ -130,7 +130,7 @@ void ReadProcessor::process_char(Strand& process, MoveStructure& mv) {
             std::cerr << "\t \t This should not happen!\n";
         }
     }
-    process.mq.add_pml(process.match_len);
+    process.mq.add_ml(process.match_len);
     process.pos_on_r -= 1;
     // if (mv.logs)
     //     process.t2 = std::chrono::high_resolution_clock::now();
@@ -139,7 +139,7 @@ void ReadProcessor::process_char(Strand& process, MoveStructure& mv) {
     // process.ff_count_tot += ff_count;
 }
 
-void ReadProcessor::write_pmls(Strand& process, bool logs, bool write_stdout) {
+void ReadProcessor::write_mls(Strand& process, bool logs, bool write_stdout) {
     if (logs) {
         auto t2 = std::chrono::high_resolution_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
@@ -149,19 +149,19 @@ void ReadProcessor::write_pmls(Strand& process, bool logs, bool write_stdout) {
     }
     if (write_stdout) {
         std::cout << ">" << process.read_name << " \n";
-        auto& pml_lens = process.mq.get_pml_lens();
-        uint64_t mq_pml_lens_size = pml_lens.size();
-        for (int64_t i = mq_pml_lens_size - 1; i >= 0; i--) {
-            std::cout << pml_lens[i] << " ";
+        auto& matching_lens = process.mq.get_matching_lengths();
+        uint64_t mq_lens_size = matching_lens.size();
+        for (int64_t i = mq_lens_size - 1; i >= 0; i--) {
+            std::cout << matching_lens[i] << " ";
         }
         std::cout << "\n";
     } else {
-        pmls_file.write(reinterpret_cast<char*>(&process.st_length), sizeof(process.st_length));
-        pmls_file.write(reinterpret_cast<char*>(&process.read_name[0]), process.st_length);
-        auto& pml_lens = process.mq.get_pml_lens();
-        uint64_t mq_pml_lens_size = pml_lens.size();
-        pmls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
-        pmls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+        mls_file.write(reinterpret_cast<char*>(&process.st_length), sizeof(process.st_length));
+        mls_file.write(reinterpret_cast<char*>(&process.read_name[0]), process.st_length);
+        auto& ml_lens = process.mq.get_matching_lengths();
+        uint64_t mq_lens_size = ml_lens.size();
+        mls_file.write(reinterpret_cast<char*>(&mq_lens_size), sizeof(mq_lens_size));
+        mls_file.write(reinterpret_cast<char*>(&ml_lens[0]), mq_lens_size * sizeof(ml_lens[0]));
     }
 
     if (logs) {
@@ -223,7 +223,7 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
                 if ((is_pml and processes[i].pos_on_r <= -1) or
                     (is_count and backward_search_finished)) {
                     if (is_pml) {
-                        write_pmls(processes[i], mv.movi_options->is_logs(), mv.movi_options->is_stdout());
+                        write_mls(processes[i], mv.movi_options->is_logs(), mv.movi_options->is_stdout());
                         reset_process(processes[i], mv);
                     } else if (is_count) {
                         auto& R = processes[i].mq.query();
@@ -252,7 +252,7 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
     }
 
     if (is_pml) {
-        pmls_file.close();
+        mls_file.close();
         std::cerr << "pmls file closed!\n";
     } else if (is_count) {
         matches_file.close();
@@ -309,8 +309,8 @@ void ReadProcessor::ziv_merhav_latency_hiding(MoveStructure& mv) {
                     processes[i].kmer_end = processes[i].pos_on_r - 1;
                     processes[i].match_len = 0;
                 } else if (processes[i].pos_on_r <= 0) {
-                    processes[i].mq.add_pml(processes[i].match_len);
-                    write_pmls(processes[i], mv.movi_options->is_logs(), mv.movi_options->is_stdout());
+                    processes[i].mq.add_ml(processes[i].match_len);
+                    write_mls(processes[i], mv.movi_options->is_logs(), mv.movi_options->is_stdout());
                     reset_process(processes[i], mv);
                     reset_backward_search(processes[i], mv);
                     processes[i].kmer_end = processes[i].pos_on_r;
@@ -322,7 +322,7 @@ void ReadProcessor::ziv_merhav_latency_hiding(MoveStructure& mv) {
                 } else {
                     // 4: big jump with prefetch
                     if (!backward_search_finished) {
-                        processes[i].mq.add_pml(processes[i].match_len);
+                        processes[i].mq.add_ml(processes[i].match_len);
                         processes[i].match_len += 1;
                     }
                     my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_start].get_id()));
@@ -335,7 +335,7 @@ void ReadProcessor::ziv_merhav_latency_hiding(MoveStructure& mv) {
     std::cerr << "\n";
     std::cerr << "total_bs for ziv_merhav: " << total_bs << "\n";
 
-    std::cerr << "pmls file closed!\n";
+    std::cerr << "The output file for the matching lengths closed.\n";
 
     kseq_destroy(seq); // STEP 5: destroy seq
     std::cerr << "kseq destroyed!\n";
@@ -459,8 +459,6 @@ void ReadProcessor::kmer_search_latency_hiding(MoveStructure& mv, uint32_t k) {
     std::cerr << "kmer_extension_stopped_count: " << kmer_extension_stopped_count << "\n";
     std::cerr << "kmer_extension_count: " << kmer_extension_count << "\n";
     std::cerr << "negative_kmer_extension_count: " << negative_kmer_extension_count << "\n\n";
-
-    std::cerr << "pmls file closed!\n";
 
     kseq_destroy(seq); // STEP 5: destroy seq
     std::cerr << "kseq destroyed!\n";
