@@ -7,7 +7,7 @@ class MoviOptions {
             command = "";
             ref_file = "";
             read_file = "";
-            pml_file = "";
+            mls_file = "";
             index_dir = "";
             LF_type = "reconstruct";
             pml_query = true;
@@ -20,7 +20,7 @@ class MoviOptions {
         bool is_logs() { return logs; }
         bool if_verify() { return verify; }
         bool is_pml() { return pml_query; }
-        bool is_zm() { return zm_query; }
+        bool is_zml() { return zml_query; }
         bool is_count() { return count_query; }
         bool is_kmer() { return kmer_query; }
         bool is_reverse() { return reverse; }
@@ -32,7 +32,7 @@ class MoviOptions {
         std::string get_ref_file() { return ref_file; }
         std::string get_bwt_file() { return bwt_file; }
         std::string get_read_file() { return read_file; }
-        std::string get_pml_file() { return pml_file; }
+        std::string get_mls_file() { return mls_file; }
         std::string get_index_dir() { return index_dir; }
 
         void set_preprocessed(bool preprocessed_) { preprocessed = preprocessed_; }
@@ -40,10 +40,10 @@ class MoviOptions {
         void set_verbose(bool verbose_) { verbose = verbose_; }
         void set_logs(bool logs_) { logs = logs_; }
         void set_verify(bool verify_) { verify = verify_; }
-        void set_pml()   { pml_query = true; count_query = false; kmer_query = false; zm_query = false; }
-        void set_count() { count_query = true; pml_query = false; kmer_query = false; zm_query = false; }
-        void set_kmer()  { kmer_query = true; pml_query = false; count_query = false; zm_query = false; }
-        void set_zm()    { zm_query = true; pml_query = false; count_query = false; kmer_query = false; }
+        void set_pml()   { pml_query = true; count_query = false; kmer_query = false; zml_query = false; }
+        void set_zml()   { zml_query = true; pml_query = false; count_query = false; kmer_query = false; }
+        void set_count() { count_query = true; pml_query = false; kmer_query = false; zml_query = false; }
+        void set_kmer()  { kmer_query = true; pml_query = false; count_query = false; zml_query = false; }
         void set_k(uint32_t k_) { k = k_; }
         void set_reverse(bool reverse_) { reverse = reverse_; }
         void set_prefetch(bool prefetch_) { prefetch = prefetch_; }
@@ -60,7 +60,7 @@ class MoviOptions {
         void set_ref_file(std::string file_address) { ref_file = file_address; }
         void set_bwt_file(std::string file_address) { bwt_file = file_address; }
         void set_read_file(std::string file_address) { read_file = file_address; }
-        void set_pml_file(std::string file_address) { pml_file = file_address; }
+        void set_mls_file(std::string file_address) { mls_file = file_address; }
         void set_index_dir(std::string dir) { index_dir = dir; }
 
         void print_options() {
@@ -68,11 +68,11 @@ class MoviOptions {
             std::cerr << "ref_file:\t" << ref_file << "\n";
             std::cerr << "bwt_file:\t" << bwt_file << "\n";
             std::cerr << "read_file:\t" << read_file << "\n";
-            std::cerr << "pml_file:\t" << pml_file << "\n";
+            std::cerr << "mls_file:\t" << mls_file << "\n";
             std::cerr << "index_dir:\t" << index_dir << "\n";
             std::cerr << "LF_type:\t" << LF_type << "\n";
             std::cerr << "pml_query:\t" << pml_query << "\n";
-            std::cerr << "zm_query:\t" << zm_query << "\n";
+            std::cerr << "zml_query:\t" << zml_query << "\n";
             std::cerr << "count_query:\t" << count_query << "\n";
             std::cerr << "reverse:\t" << reverse << "\n";
             std::cerr << "prefetch:\t" << prefetch << "\n";
@@ -87,13 +87,13 @@ class MoviOptions {
         std::string ref_file;
         std::string bwt_file;
         std::string read_file;
-        std::string pml_file;
+        std::string mls_file;
         std::string index_dir;
         std::string LF_type;
         bool preprocessed = false;
         bool split = false;
         bool pml_query = false;
-        bool zm_query = false;
+        bool zml_query = false;
         bool count_query = false;
         bool kmer_query = false;
         bool reverse = false;

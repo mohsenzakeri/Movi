@@ -1217,6 +1217,7 @@ MoveInterval MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r, 
     // Otherwise the interval corresponding to match from the end until and including the updated pos_on_r will be returned
     // The input interval is non-empty and corresponds to the interval that matches the read (R) at pos_on_r
     MoveInterval prev_interval = interval;
+    uint64_t match_len = 1;
     while (pos_on_r > 0 and !interval.is_empty()) {
         if (!check_alphabet(R[pos_on_r - 1])) {
             return interval;
@@ -1236,6 +1237,86 @@ MoveInterval MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r, 
     }
 }
 
+MoveInterval MoveStructure::initialize_backward_search(std::string& query_seq,  int32_t& pos_on_r) {
+    // Initialize assuming that the character at pos_on_r exists in the alphabet
+    MoveInterval interval(
+        first_runs[alphamap[query_seq[pos_on_r]] + 1],
+        first_offsets[alphamap[query_seq[pos_on_r]] + 1],
+        last_runs[alphamap[query_seq[pos_on_r]] + 1],
+        last_offsets[alphamap[query_seq[pos_on_r]] + 1]
+    );
+    return interval;
+}
+
+uint64_t MoveStructure::backward_search_step(std::string& R,  int32_t& pos_on_r, MoveInterval& interval) {
+    // It is assumed that the interval represents a match until and including the position pos_on_r
+    // Then we try to see if the match can be extended to position pos_on_r - 1
+    // The interval becomes empty if the match cannot be extended
+    // otherwise it is updated according to the character on pos_on_r - 1
+    uint64_t ff_count = 0;
+    if (pos_on_r <= 0) {
+        std::cerr << "The backward search step never be called on position 0 of the read.\n";
+        exit(0);
+    }
+
+    if (!check_alphabet(R[pos_on_r - 1])) {
+        interval.make_empty();
+        return ff_count;
+    }
+
+    update_interval(interval, R[pos_on_r - 1]);
+    if (!interval.is_empty()) {
+        ff_count += LF_move(interval.offset_start, interval.run_start);
+        ff_count += LF_move(interval.offset_end, interval.run_end);
+    }
+
+    return ff_count;
+}
+
+uint64_t MoveStructure::query_zml(MoveQuery& mq) {
+    auto& query_seq = mq.query();
+    int32_t pos_on_r = query_seq.length() - 1;
+    uint64_t match_len = 0;
+    uint64_t ff_count_tot = 0;
+
+    while (!check_alphabet(query_seq[pos_on_r]) and pos_on_r >= 0) {
+        mq.add_ml(0);
+        pos_on_r -= 1;
+    }
+    if (!check_alphabet(query_seq[pos_on_r])) {
+        // Special case where no character in the read exists in the index.
+        return 0;
+    }
+
+    MoveInterval interval = initialize_backward_search(query_seq, pos_on_r);
+
+    while (pos_on_r > 0) {
+        ff_count_tot += backward_search_step(query_seq,  pos_on_r, interval);
+        if (!interval.is_empty()) {
+            mq.add_ml(match_len);
+            pos_on_r -= 1;
+            match_len += 1;
+        } else {
+            mq.add_ml(match_len);
+            pos_on_r -= 1;
+            match_len = 0;
+            while (!check_alphabet(query_seq[pos_on_r]) and pos_on_r > 0) {
+                mq.add_ml(match_len);
+                pos_on_r -= 1;
+            }
+            // Special case where the character at position 0 of the read does not exist in the index.
+            if (check_alphabet(query_seq[pos_on_r]))
+                interval = initialize_backward_search(query_seq, pos_on_r);
+        }
+    }
+    if (interval.is_empty()) {
+        match_len = 0;
+    }
+    mq.add_ml(match_len);
+
+    return ff_count_tot;
+}
+
 uint64_t MoveStructure::query_backward_search(std::string& query_seq,  int32_t& pos_on_r) {
     // Check the special case of non-existing character at the end of the read
     // before initializing the interval based on that character
@@ -1244,13 +1325,8 @@ uint64_t MoveStructure::query_backward_search(std::string& query_seq,  int32_t& 
         return 0;
     }
     // Initial the interval by matching the character at the end of the read (pos_on_r)
-    MoveInterval interval(
-        first_runs[alphamap[query_seq[pos_on_r]] + 1],
-        first_offsets[alphamap[query_seq[pos_on_r]] + 1],
-        last_runs[alphamap[query_seq[pos_on_r]] + 1],
-        last_offsets[alphamap[query_seq[pos_on_r]] + 1]
-    );
-    return backward_search(query_seq,  pos_on_r, interval).count(rlbwt);
+    MoveInterval initial_interval = initialize_backward_search(query_seq, pos_on_r);
+    return backward_search(query_seq,  pos_on_r, initial_interval).count(rlbwt);
 }
 
 uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
@@ -1395,27 +1471,13 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
     return 0;
 }
 
-/* uint64_t MoveStructure::exact_matches(MoveQuery& mq) {
-    std::string& R = mq.query();
-    int32_t pos_on_r = R.length() - 1;
-    uint64_t backward_search_count = 0;
-    while (pos_on_r > -1) {
-        backward_search_count += 1;
-        int32_t pos_on_r_before = pos_on_r;
-        uint64_t match_count = backward_search(R, pos_on_r);
-        uint16_t match_len = pos_on_r_before - pos_on_r;
-        mq.add_pml(match_len);
-    }
-    return backward_search_count;
-} */
-
 uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     if (random) {
         if (movi_options->is_verbose())
             std::cerr << "Jumps are random - not with thresholds! \n";
         std::srand(time(0));
     }
-    
+
     auto& R = mq.query();
     int32_t pos_on_r = R.length() - 1;
     uint64_t idx = r - 1; // std::rand() % r; // r - 1
@@ -1517,7 +1579,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
             }
         }
 
-        mq.add_pml(match_len);
+        mq.add_ml(match_len);
         pos_on_r -= 1;
 
         // LF step
