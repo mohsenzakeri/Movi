@@ -352,6 +352,14 @@ void MoveStructure::random_lf() {
     std::cerr << "Total fast forward: " << ff_count_tot << "\n";
 }
 
+
+char MoveStructure::get_char(uint64_t idx) {
+    if (idx == end_bwt_idx)
+        return '$';
+    else
+        return alphabet[rlbwt[idx].get_c()];
+}
+
 uint64_t MoveStructure::get_n(uint64_t idx) {
 #if MODE == 3
     return rlbwt[idx].get_n();
@@ -1029,7 +1037,6 @@ std::string number_to_kmer(size_t j, size_t m, std::vector<unsigned char>& alpha
 }
 
 void MoveStructure::compute_ftab(size_t k) {
-    MoveInterval empty_interval(1, 0, 0, 0);
     uint64_t ftab_size = std::pow(4, k);
     std::cerr << "ftab_size: " << ftab_size*sizeof(MoveInterval)*std::pow(10, -6) << " MB \n";
     ftab.resize(ftab_size);
@@ -1051,7 +1058,7 @@ void MoveStructure::compute_ftab(size_t k) {
             ftab[i] = interval;
         } else {
             // std::cerr << kmer << " not found!\n";
-            ftab[i] = empty_interval;
+            ftab[i].make_empty();
         }
         // if (pos_on_kmer != 0) pos_on_kmer += 1;
         // std::cerr << kmer << "\n";
@@ -1162,15 +1169,19 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c, uint64_t& scan_count) {
 }
 
 void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
+    if (!check_alphabet(next_char)) {
+        std::cerr << "This should not happen! The character should have been checked before.\n";
+        exit(0);
+    }
 #if MODE == 0 or MODE == 3
-    while ((interval.run_start <= interval.run_end) and (alphabet[rlbwt[interval.run_start].get_c()] != next_char)) { //  >= or >
+    while (interval.run_start <= interval.run_end and get_char(interval.run_start) != next_char) { //  >= or >
         interval.run_start += 1;
         interval.offset_start = 0;
         if (interval.run_start >= r) {
             break;
         }
     }
-    while ((interval.run_end >= interval.run_start) and alphabet[rlbwt[interval.run_end].get_c()] != next_char) { //  >= or >
+    while (interval.run_end >= interval.run_start and get_char(interval.run_end) != next_char) { //  >= or >
         interval.run_end -= 1;
         interval.offset_end = rlbwt[interval.run_end].get_n() - 1;
         if (interval.run_end == 0) {
@@ -1220,26 +1231,22 @@ void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
 
 MoveInterval MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r, MoveInterval interval) {
     // If the pattern is found, the pos_on_r will be equal to 0 and the interval will be non-empty
-    // Otherwise the interval corresponding to end to updated pos_on_r will be returned
+    // Otherwise the interval corresponding to match from the end until and including the updated pos_on_r will be returned
     // The input interval is non-empty and corresponds to the interval that matches the read (R) at pos_on_r
     MoveInterval prev_interval = interval;
-    // std::cerr << R << "\n";
     while (pos_on_r > 0 and !interval.is_empty()) {
-        // std::cerr << pos_on_r << " " << interval << "\n";
         if (!check_alphabet(R[pos_on_r - 1])) {
             return interval;
         }
         prev_interval = interval;
         update_interval(interval, R[pos_on_r - 1]);
-        // std::cerr << pos_on_r - 1 << " " << interval << "\n";
         if (!interval.is_empty()) {
             LF_move(interval.offset_start, interval.run_start);
             LF_move(interval.offset_end, interval.run_end);
+            pos_on_r -= 1;
         }
-        pos_on_r -= 1;
     }
     if (interval.is_empty()) {
-        pos_on_r += 1;
         return prev_interval;
     } else {
         return interval;
@@ -1247,10 +1254,13 @@ MoveInterval MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r, 
 }
 
 uint64_t MoveStructure::query_backward_search(std::string& query_seq,  int32_t& pos_on_r) {
+    // Check the special case of non-existing character at the end of the read
+    // before initializing the interval based on that character
     if (!check_alphabet(query_seq[pos_on_r])) {
-        pos_on_r += 1;
+        pos_on_r += 1; // even the character at the end_pos was not found.
         return 0;
     }
+    // Initial the interval by matching the character at the end of the read (pos_on_r)
     MoveInterval interval(
         first_runs[alphamap[query_seq[pos_on_r]] + 1],
         first_offsets[alphamap[query_seq[pos_on_r]] + 1],
