@@ -45,7 +45,7 @@ class ReadProcessor {
         // void backward_search_latency_hiding(MoveStructure& mv);
         void kmer_search_latency_hiding(MoveStructure& mv, uint32_t k);
         bool next_read(Strand& process);
-        void write_pmls(Strand& process, bool logs, bool write_stdout);
+        void write_mls(Strand& process, bool logs, bool write_stdout);
         void process_char(Strand& process, MoveStructure& mv);
         bool backward_search(Strand& process, MoveStructure& mv, uint64_t& match_count, uint64_t end_pos);
         void reset_process(Strand& process, MoveStructure& mv);
@@ -58,7 +58,7 @@ class ReadProcessor {
         gzFile fp;
         kseq_t *seq;
         int l;
-        std::ofstream pmls_file;
+        std::ofstream mls_file;
         std::ofstream matches_file;
         int strands;
         bool verbose = false;
