@@ -1004,10 +1004,58 @@ void MoveStructure::build() {
     std::cerr << "The move structure building is done.\n";
 }
 
-void MoveStructure::compute_ftab(size_t k) {
-    ftab.resize(4^k);
-    for (size_t i = 0; i < 4^k; i++) {
+uint64_t kmer_to_number(size_t k, std::string kmer, std::vector<uint64_t>& alphamap) {
+    if (kmer.length() != k) {
+        std::cerr << "The k does not match the kmer length!\n";
+        exit(0);
+    }
 
+    uint64_t res = 0;
+    for (size_t i = 0; i < k; i++) {
+        uint64_t char_code = alphamap[kmer[i]];
+        res = (char_code << ((k-i-1)*2)) | res;
+    }
+    return res;
+}
+
+std::string number_to_kmer(size_t j, size_t m, std::vector<unsigned char>& alphabet) {
+    std::string kmer = "";
+    for (int i = m - 2; i >= 0; i -= 2) {
+        size_t pair = (j >> i) & 0b11;
+        // std::cerr << i << " " << pair << " ";
+        kmer += alphabet[pair];
+    }
+    return kmer;
+}
+
+void MoveStructure::compute_ftab(size_t k) {
+    MoveInterval empty_interval(1, 0, 0, 0);
+    uint64_t ftab_size = std::pow(4, k);
+    std::cerr << "ftab_size: " << ftab_size*sizeof(MoveInterval)*std::pow(10, -6) << " MB \n";
+    ftab.resize(ftab_size);
+    for (uint64_t i = 0; i < ftab_size; i++) {
+        std::string kmer = number_to_kmer(i, 2*(k), alphabet);
+        uint64_t kmer_code = kmer_to_number(k, kmer, alphamap);
+        if (kmer_code != i) {
+            std::cerr << kmer << " " << i << " " << kmer_code << "\n";
+        }
+        int32_t pos_on_kmer = k - 1;
+        MoveInterval interval(
+            first_runs[alphamap[kmer[pos_on_kmer]] + 1],
+            first_offsets[alphamap[kmer[pos_on_kmer]] + 1],
+            last_runs[alphamap[kmer[pos_on_kmer]] + 1],
+            last_offsets[alphamap[kmer[pos_on_kmer]] + 1]
+        );
+        uint64_t match_count = backward_search(kmer,  pos_on_kmer, interval).count(rlbwt);
+        if (match_count >= 0 and pos_on_kmer == 0) {
+            ftab[i] = interval;
+        } else {
+            // std::cerr << kmer << " not found!\n";
+            ftab[i] = empty_interval;
+        }
+        // if (pos_on_kmer != 0) pos_on_kmer += 1;
+        // std::cerr << kmer << "\n";
+        // std::cerr << kmer.length() - pos_on_kmer << "/" << kmer.length() << "\t" << match_count << "\n";
     }
 }
 
@@ -1113,6 +1161,105 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c, uint64_t& scan_count) {
     return (row_c == c) ? idx : r;
 }
 
+void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
+#if MODE == 0 or MODE == 3
+    while ((interval.run_start <= interval.run_end) and (alphabet[rlbwt[interval.run_start].get_c()] != next_char)) { //  >= or >
+        interval.run_start += 1;
+        interval.offset_start = 0;
+        if (interval.run_start >= r) {
+            break;
+        }
+    }
+    while ((interval.run_end >= interval.run_start) and alphabet[rlbwt[interval.run_end].get_c()] != next_char) { //  >= or >
+        interval.run_end -= 1;
+        interval.offset_end = rlbwt[interval.run_end].get_n() - 1;
+        if (interval.run_end == 0) {
+            break;
+        }
+    }
+#endif
+#if MODE == 1
+    std::cerr << alphabet[rlbwt[interval.run_start].get_c()] << " " << alphabet[rlbwt[interval.run_end].get_c()] << " " << next_char << "\n";
+    uint64_t read_alphabet_index = alphamap[static_cast<uint64_t>(next_char)];
+    if ((interval.run_start <= interval.run_end) and (alphabet[rlbwt[interval.run_start].get_c()] != next_char)) {
+        if (interval.run_start == 0) {
+            // To check if this case ever happens. If not, we should get rid of this condition.
+            std::cerr << "run_start is 0 before updating the interval!\n";
+            while ((interval.run_start <= interval.run_end) and (alphabet[rlbwt[interval.run_start].get_c()] != next_char)) {
+                interval.run_start += 1;
+                interval.offset_start = 0;
+                if (interval.run_start >= r) {
+                    break;
+                }
+            }
+        } else {
+            char rlbwt_char = alphabet[rlbwt[interval.run_start].get_c()];
+            uint64_t alphabet_index = alphamap_3[alphamap[rlbwt_char]][read_alphabet_index];
+            if (rlbwt[interval.run_start].get_next_down(alphabet_index) == std::numeric_limits<uint16_t>::max()) {
+                interval.run_start = r;
+            } else {
+                uint64_t run_start_ = interval.run_start + rlbwt[interval.run_start].get_next_down(alphabet_index);
+                interval.run_start = run_start_;
+                interval.offset_start = 0;
+            }
+        }
+    }
+    if ((interval.run_end >= interval.run_start) and (alphabet[rlbwt[interval.run_end].get_c()] != next_char)) {
+        char rlbwt_char = alphabet[rlbwt[interval.run_end].get_c()];
+        uint64_t alphabet_index = alphamap_3[alphamap[rlbwt_char]][read_alphabet_index];
+        if (rlbwt[interval.run_end].get_next_up(alphabet_index) == std::numeric_limits<uint16_t>::max()) {
+            interval.run_end = r;
+        } else {
+            uint64_t run_end_ = interval.run_end - rlbwt[interval.run_end].get_next_up(alphabet_index);
+            interval.run_end = run_end_;
+            interval.offset_end = rlbwt[interval.run_end].get_n() - 1;
+        }
+    }
+#endif
+}
+
+MoveInterval MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r, MoveInterval interval) {
+    // If the pattern is found, the pos_on_r will be equal to 0 and the interval will be non-empty
+    // Otherwise the interval corresponding to end to updated pos_on_r will be returned
+    // The input interval is non-empty and corresponds to the interval that matches the read (R) at pos_on_r
+    MoveInterval prev_interval = interval;
+    // std::cerr << R << "\n";
+    while (pos_on_r > 0 and !interval.is_empty()) {
+        // std::cerr << pos_on_r << " " << interval << "\n";
+        if (!check_alphabet(R[pos_on_r - 1])) {
+            return interval;
+        }
+        prev_interval = interval;
+        update_interval(interval, R[pos_on_r - 1]);
+        // std::cerr << pos_on_r - 1 << " " << interval << "\n";
+        if (!interval.is_empty()) {
+            LF_move(interval.offset_start, interval.run_start);
+            LF_move(interval.offset_end, interval.run_end);
+        }
+        pos_on_r -= 1;
+    }
+    if (interval.is_empty()) {
+        pos_on_r += 1;
+        return prev_interval;
+    } else {
+        return interval;
+    }
+}
+
+uint64_t MoveStructure::query_backward_search(std::string& query_seq,  int32_t& pos_on_r) {
+    if (!check_alphabet(query_seq[pos_on_r])) {
+        pos_on_r += 1;
+        return 0;
+    }
+    MoveInterval interval(
+        first_runs[alphamap[query_seq[pos_on_r]] + 1],
+        first_offsets[alphamap[query_seq[pos_on_r]] + 1],
+        last_runs[alphamap[query_seq[pos_on_r]] + 1],
+        last_offsets[alphamap[query_seq[pos_on_r]] + 1]
+    );
+    return backward_search(query_seq,  pos_on_r, interval).count(rlbwt);
+}
+
 uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
     if (!check_alphabet(R[pos_on_r])) {
         return 0;
@@ -1128,6 +1275,7 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
     uint64_t run_end_prev = run_end;
     uint64_t offset_end_prev = offset_end;
     uint64_t scan_count = 0;
+    bool first_iteration = true;
     while (pos_on_r > -1) {
         // save the current interval for reporting
         run_start_prev = run_start;
@@ -1135,7 +1283,7 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
         run_end_prev = run_end;
         offset_end_prev = offset_end;
         pos_on_r -= 1;
-        if (run_start == end_bwt_idx or run_end == end_bwt_idx or !check_alphabet(R[pos_on_r])) {
+        if ((!first_iteration and (run_start == end_bwt_idx or run_end == end_bwt_idx)) or !check_alphabet(R[pos_on_r])) {
             // std::cerr << "Not found\n";
             uint64_t match_count = 0;
             if (run_start_prev == run_end_prev) {
@@ -1153,7 +1301,7 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
             std::cerr << ">>> " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
             std::cerr << ">>> " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
         }
-#if MODE == 0
+#if MODE == 0 or MODE == 3
         while ((run_start < run_end) and (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r])) {
             run_start += 1;
             offset_start = 0;
@@ -1213,8 +1361,8 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
         }
 #endif
         if (movi_options->is_verbose()) {
-          std::cerr << "<<< " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
-          std::cerr << "<<< " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
+            std::cerr << "<<< " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
+            std::cerr << "<<< " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
         }
         if (((run_start < run_end) or (run_start == run_end and offset_start <= offset_end)) and
             (alphabet[rlbwt[run_start].get_c()] == R[pos_on_r] and alphabet[rlbwt[run_end].get_c()] == R[pos_on_r])) {
@@ -1248,12 +1396,13 @@ uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
             return match_count;
         }
         // pos_on_r -= 1;
+        first_iteration = false;
     }
     std::cerr << "Should not get here!\n";
     return 0;
 }
 
-uint64_t MoveStructure::exact_matches(MoveQuery& mq) {
+/* uint64_t MoveStructure::exact_matches(MoveQuery& mq) {
     std::string& R = mq.query();
     int32_t pos_on_r = R.length() - 1;
     uint64_t backward_search_count = 0;
@@ -1265,7 +1414,7 @@ uint64_t MoveStructure::exact_matches(MoveQuery& mq) {
         mq.add_pml(match_len);
     }
     return backward_search_count;
-}
+} */
 
 uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     if (random) {
@@ -1340,7 +1489,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
 #endif
             match_len = 0;
             // scan_count = (!constant) ? std::abs((int)idx - (int)idx_before_jump) : 0;
- 
+
             char c = alphabet[rlbwt[idx].get_c()];
 
             if (movi_options->is_verbose())

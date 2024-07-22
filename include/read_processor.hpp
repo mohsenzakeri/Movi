@@ -9,29 +9,14 @@
 // STEP 1: declare the type of file handler and the read() function
 KSEQ_INIT(gzFile, gzread)
 
-struct Range {
-    Range() {}
-    Range& operator =(const Range& range) {
-        run_start = range.run_start;
-        offset_start = range.offset_start;
-        run_end = range.run_end;
-        offset_end = range.offset_end;
-        return *this;
-    }
-    uint64_t run_start;
-    uint64_t offset_start;
-    uint64_t run_end;
-    uint64_t offset_end;
-};
-
 struct Strand {
     Strand() {}
     uint16_t st_length;
     std::string read_name;
     std::string read;
     MoveQuery mq;
-    Range range;
-    Range range_prev;
+    MoveInterval range;
+    MoveInterval range_prev;
 
     bool kmer_extension;
     bool finished;
@@ -53,11 +38,11 @@ struct Strand {
 
 class ReadProcessor {
     public:
-        ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_, bool query_pml, bool verbose_, bool reverse_);
+        ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_, bool verbose_, bool reverse_);
         // void process_regular();
         void process_latency_hiding(MoveStructure& mv);
         void ziv_merhav_latency_hiding(MoveStructure& mv);
-        void backward_search_latency_hiding(MoveStructure& mv);
+        // void backward_search_latency_hiding(MoveStructure& mv);
         void kmer_search_latency_hiding(MoveStructure& mv, uint32_t k);
         bool next_read(Strand& process);
         void write_pmls(Strand& process, bool logs, bool write_stdout);

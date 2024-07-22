@@ -5,7 +5,7 @@ uint32_t alphamap_3_[4][4] = {{3, 0, 1, 2},
                              {0, 1, 3, 2},
                              {0, 1, 2, 3}};
 
-ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_ = 4, bool query_pml = true, bool verbose_ = false, bool reverse_ = false) {
+ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_ = 4, bool verbose_ = false, bool reverse_ = false) {
     verbose = verbose_;
     reverse = mv_.movi_options->is_reverse();
     // Solution for handling the stdin input: https://biowize.wordpress.com/2013/03/05/using-kseq-h-with-stdin/
@@ -18,7 +18,7 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
 
     seq = kseq_init(fp); // STEP 3: initialize seq
     std::string index_type = mv_.index_type();
-    if (query_pml) {
+    if (mv_.movi_options->is_pml()) {
         std::string pmls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.mpml.bin" :
                                                reads_file_name + "." + index_type + ".mpml.bin";
         pmls_file = std::ofstream(pmls_file_name, std::ios::out | std::ios::binary);
@@ -26,7 +26,7 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
         std::string pmls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.zm.bin" :
                                                reads_file_name + "." + index_type + ".zm.bin";
         pmls_file = std::ofstream(pmls_file_name, std::ios::out | std::ios::binary);
-    } else {
+    } else if (mv_.movi_options->is_count()) {
         std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
         matches_file = std::ofstream(matches_file_name);
     }
@@ -189,6 +189,12 @@ void ReadProcessor::write_pmls(Strand& process, bool logs, bool write_stdout) {
 }
 
 void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
+    bool is_pml = mv.movi_options->is_pml();
+    bool is_count = mv.movi_options->is_count();
+    if (is_pml and is_count) {
+        std::cerr << "Error parsing the input, both pml and count queries cannot be done at the same time.\n";
+        exit(0);
+    }
     std::vector<Strand> processes;
     for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
     std::cerr << strands << " processes are created.\n";
@@ -211,25 +217,52 @@ void ReadProcessor::process_latency_hiding(MoveStructure& mv) {
         for (uint64_t i = 0; i < strands; i++) {
             if (!processes[i].finished) {
                 // 1: process next character -- doing fast forward
-                process_char(processes[i], mv);
+                uint64_t match_count = 0; // used for the count queries
+                bool backward_search_finished = false; // used for the count queries
+                if (is_pml) {
+                    process_char(processes[i], mv);
+                } else if (is_count) {
+                    backward_search_finished = backward_search(processes[i], mv, match_count, processes[i].mq.query().length() - 1);
+                }
                 // 2: if the read is done -> Write the pmls and go to next read
-                if (processes[i].pos_on_r <= -1) {
-                    write_pmls(processes[i], mv.movi_options->is_logs(), mv.movi_options->is_stdout());
-                    reset_process(processes[i], mv);
+                if ((is_pml and processes[i].pos_on_r <= -1) or
+                    (is_count and backward_search_finished)) {
+                    if (is_pml) {
+                        write_pmls(processes[i], mv.movi_options->is_logs(), mv.movi_options->is_stdout());
+                        reset_process(processes[i], mv);
+                    } else if (is_count) {
+                        auto& R = processes[i].mq.query();
+                        matches_file << processes[i].read_name << "\t";
+                        // if (processes[i].pos_on_r != 0) processes[i].pos_on_r += 1;
+                        matches_file << R.length() - processes[i].pos_on_r << "/" << R.length() << "\t" << match_count << "\n";
+
+                        reset_process(processes[i], mv);
+                        reset_backward_search(processes[i], mv);
+                    }
                     // 3: -- check if it was the last read in the file -> fnished_count++
                     if (processes[i].finished) {
                         fnished_count += 1;
                     }
                 } else {
                     // 4: big jump with prefetch
-                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].idx].get_id()));
+                    if (is_pml) {
+                        my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].idx].get_id()));
+                    } else if (is_count) {
+                        my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_start].get_id()));
+                        my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_end].get_id()));
+                    }
                 }
             }
         }
     }
 
-    pmls_file.close();
-    std::cerr << "pmls file closed!\n";
+    if (is_pml) {
+        pmls_file.close();
+        std::cerr << "pmls file closed!\n";
+    } else if (is_count) {
+        matches_file.close();
+        std::cerr << "match_file file closed!\n";
+    }
     kseq_destroy(seq); // STEP 5: destroy seq
     std::cerr << "kseq destroyed!\n";
     gzclose(fp); // STEP 6: close the file handler
@@ -440,7 +473,7 @@ void ReadProcessor::kmer_search_latency_hiding(MoveStructure& mv, uint32_t k) {
     std::cerr << "fp file closed!\n";
 }
 
-void ReadProcessor::backward_search_latency_hiding(MoveStructure& mv) {
+/* void ReadProcessor::backward_search_latency_hiding(MoveStructure& mv) {
     std::vector<Strand> processes;
     for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
     std::cerr << strands << " processes are created.\n";
@@ -492,14 +525,19 @@ void ReadProcessor::backward_search_latency_hiding(MoveStructure& mv) {
     std::cerr << "kseq destroyed!\n";
     gzclose(fp); // STEP 6: close the file handler
     std::cerr << "fp file closed!\n";
-}
+} */
 
 void ReadProcessor::reset_backward_search(Strand& process, MoveStructure& mv) {
     std::string& R = process.mq.query();
-    process.range.run_start = mv.first_runs[mv.alphamap[R[process.pos_on_r]] + 1];
-    process.range.offset_start = mv.first_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
-    process.range.run_end = mv.last_runs[mv.alphamap[R[process.pos_on_r]] + 1];
-    process.range.offset_end = mv.last_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
+    if (mv.check_alphabet(R[process.pos_on_r])) {
+        process.range.run_start = mv.first_runs[mv.alphamap[R[process.pos_on_r]] + 1];
+        process.range.offset_start = mv.first_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
+        process.range.run_end = mv.last_runs[mv.alphamap[R[process.pos_on_r]] + 1];
+        process.range.offset_end = mv.last_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
+    } else {
+        MoveInterval empty_interval(1, 0, 0, 0);
+        process.range = empty_interval;
+    }
 }
 
 void ReadProcessor::reset_kmer_search(Strand& process, MoveStructure& mv, uint64_t k) {
@@ -570,9 +608,49 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
                   << R[process.pos_on_r] << " "
                   << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
                   << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
+    bool first_iteration = process.pos_on_r == process.read.length() - 1;
+    if (first_iteration) {
+        if (!mv.check_alphabet(R[process.pos_on_r])) {
+            match_count = 0;
+            process.pos_on_r += 1;
+            return true;
+        }
+        process.range_prev = process.range;
+        mv.update_interval(process.range, R[process.pos_on_r - 1]);
+    }
+
+    if (!process.range.is_empty()) {
+        mv.LF_move(process.range.offset_start, process.range.run_start);
+        mv.LF_move(process.range.offset_end, process.range.run_end);
+    } else {
+        match_count = process.range_prev.count(mv.rlbwt);
+        return true;
+    }
+    process.pos_on_r -= 1;
+    if (process.pos_on_r <= 0) {
+        match_count = process.range.count(mv.rlbwt);
+        return true;
+    }
+
+    if (!mv.check_alphabet(R[process.pos_on_r - 1])) {
+        match_count = process.range.count(mv.rlbwt);
+        return true;
+    }
+    process.range_prev = process.range;
+
+    if (verbose)
+        std::cerr << "before: " << process.range.run_start << " " << process.range.run_end << " "
+                  << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
+                  << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
+    mv.update_interval(process.range, R[process.pos_on_r - 1]);
+    if (verbose)
+        std::cerr << "after: " << process.range.run_start << " " << process.range.run_end << " "
+                  << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
+                  << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
+                  << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
 
     // if (process.pos_on_r < R.length() - 1) {
-    if (process.pos_on_r < read_end_pos) {
+    /* if (process.pos_on_r < read_end_pos) {
         if (((process.range.run_start < process.range.run_end) or
             (process.range.run_start == process.range.run_end and process.range.offset_start <= process.range.offset_end)) and
             (mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] == R[process.pos_on_r]) and
@@ -605,9 +683,10 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
         }
     }
 
+    bool first_iteration = process.pos_on_r == process.read.length() - 1;
     process.range_prev = process.range;
     process.pos_on_r -= 1;
-    if (process.range.run_start == mv.end_bwt_idx or process.range.run_end == mv.end_bwt_idx or !mv.check_alphabet(R[process.pos_on_r])) {
+    if ((!first_iteration and (process.range.run_start == mv.end_bwt_idx or process.range.run_end == mv.end_bwt_idx)) or !mv.check_alphabet(R[process.pos_on_r])) {
         // The read was not found.
         if (process.range_prev.run_start == process.range_prev.run_end) {
             match_count = process.range_prev.offset_end - process.range_prev.offset_start + 1;
@@ -688,7 +767,7 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
             process.range.offset_end = mv.rlbwt[process.range.run_end].get_n() - 1;
         }
     }
-#endif
+#endif*/
     if (verbose)
         std::cerr << "bacward search ends:\n" << process.pos_on_r << " "
                   << R[process.pos_on_r] << " "

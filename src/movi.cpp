@@ -213,13 +213,13 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
 void query(MoveStructure& mv_, MoviOptions& movi_options) {
     if (!movi_options.no_prefetch()) {
-        ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_pml(), movi_options.is_verbose(), movi_options.is_reverse());
+        ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
         if (movi_options.is_pml()) {
             rp.process_latency_hiding(mv_);
         } else if (movi_options.is_zm()) {
             rp.ziv_merhav_latency_hiding(mv_);
         } else if (movi_options.is_count()) {
-            rp.backward_search_latency_hiding(mv_);
+            rp.process_latency_hiding(mv_);
         } else if (movi_options.is_kmer()) {
             rp.kmer_search_latency_hiding(mv_, movi_options.get_k());
         }
@@ -276,11 +276,11 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     pmls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
                 }
             } else if (movi_options.is_count()) {
-                // std::string R = std::string(seq->seq.s);
                 int32_t pos_on_r = query_seq.length() - 1;
-                uint64_t match_count = mv_.backward_search(query_seq, pos_on_r);
+                // uint64_t match_count = mv_.backward_search(query_seq, pos_on_r);
+                // if (pos_on_r != 0) pos_on_r += 1;
+                uint64_t match_count = mv_.query_backward_search(query_seq, pos_on_r);
                 count_file << seq->name.s << "\t";
-                if (pos_on_r != 0) pos_on_r += 1;
                 count_file << query_seq.length() - pos_on_r << "/" << query_seq.length() << "\t" << match_count << "\n";                
             }
 
