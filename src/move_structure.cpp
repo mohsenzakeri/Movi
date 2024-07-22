@@ -496,12 +496,29 @@ void MoveStructure::build_rlbwt() {
 void MoveStructure::build() {
     std::string bwt_filename = movi_options->get_ref_file() + std::string(".bwt");
     std::ifstream bwt_file(bwt_filename);
-    bwt_file.clear();
-    bwt_file.seekg(0, std::ios_base::end);
-    std::streampos end_pos = bwt_file.tellg();
-    if (movi_options->is_verbose())
-        std::cerr << "end_pos: " << end_pos << "\n";
-    bwt_file.seekg(0);
+    uint64_t end_pos = 0;
+    if (movi_options->is_preprocessed()) {
+        std::ifstream heads_file(bwt_filename + ".heads", std::ios::in | std::ios::binary);
+        std::vector<char> heads_((std::istreambuf_iterator<char>(heads_file)), std::istreambuf_iterator<char>());
+        std::cerr << "Number of BWT runs: " << heads_.size() << "\n";
+        original_r  = heads_.size();
+        std::ifstream len_file(bwt_filename + ".len", std::ios::in | std::ios::binary);
+        for (uint64_t i = 0; i < original_r; i++) {
+            if (i>0 && i % 100000 == 0)
+                std::cerr << "original_r: " << i << "\r";
+            size_t len = 0;
+            len_file.read(reinterpret_cast<char*>(&len), 5);
+            end_pos += len;
+        }
+    } else {
+        bwt_file.clear();
+        bwt_file.seekg(0, std::ios_base::end);
+        std::streampos end_pos_ = bwt_file.tellg();
+        if (movi_options->is_verbose())
+            std::cerr << "end_pos: " << end_pos_ << "\n";
+        bwt_file.seekg(0);
+        end_pos = static_cast<uint64_t>(end_pos_);
+    }
     std::cerr << "building.. \n";
     if (splitting) {
         std::string splitting_filename = movi_options->get_ref_file() + std::string(".d_col");
