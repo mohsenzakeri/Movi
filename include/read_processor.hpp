@@ -40,21 +40,23 @@ class ReadProcessor {
     public:
         ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_, bool verbose_, bool reverse_);
         // void process_regular();
-        void process_latency_hiding(MoveStructure& mv);
-        void ziv_merhav_latency_hiding(MoveStructure& mv);
-        // void backward_search_latency_hiding(MoveStructure& mv);
-        void kmer_search_latency_hiding(MoveStructure& mv, uint32_t k);
+        void process_latency_hiding();
+        void ziv_merhav_latency_hiding();
+        // void backward_search_latency_hiding();
+        void kmer_search_latency_hiding(uint32_t k);
         bool next_read(Strand& process);
-        void write_mls(Strand& process, bool logs, bool write_stdout);
-        void process_char(Strand& process, MoveStructure& mv);
-        bool backward_search(Strand& process, MoveStructure& mv, uint64_t& match_count, uint64_t end_pos);
-        void reset_process(Strand& process, MoveStructure& mv);
-        void reset_backward_search(Strand& process, MoveStructure& mv);
-        void reset_kmer_search(Strand& process, MoveStructure& mv, uint64_t k);
-        void next_kmer_search(Strand& process, MoveStructure& mv);
-        void next_kmer_search_negative_skip_all_heuristic(Strand& process, MoveStructure& mv, uint64_t k);
-        bool verify_kmer(Strand& process, MoveStructure& mv, uint64_t k);
+        void write_mls(Strand& process);
+        void write_count(Strand& process, uint64_t match_count);
+        void process_char(Strand& process);
+        bool backward_search(Strand& process, uint64_t& match_count, uint64_t end_pos);
+        void reset_process(Strand& process);
+        void reset_backward_search(Strand& process);
+        void reset_kmer_search(Strand& process, uint64_t k);
+        void next_kmer_search(Strand& process);
+        void next_kmer_search_negative_skip_all_heuristic(Strand& process, uint64_t k);
+        bool verify_kmer(Strand& process, uint64_t k);
     private:
+        MoveStructure& mv;
         gzFile fp;
         kseq_t *seq;
         int l;
@@ -70,7 +72,6 @@ class ReadProcessor {
         uint64_t kmer_extension_count;
         uint64_t kmer_extension_stopped_count;
         uint64_t negative_kmer_extension_count;
-
         std::ofstream costs_file;
         std::ofstream scans_file;
         std::ofstream fastforwards_file;
