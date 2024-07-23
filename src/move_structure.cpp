@@ -1236,16 +1236,20 @@ MoveInterval MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r, 
     MoveInterval prev_interval = interval;
     uint64_t match_len = 1;
     while (pos_on_r > 0 and !interval.is_empty()) {
-        if (!check_alphabet(R[pos_on_r - 1])) {
+        /*if (!check_alphabet(R[pos_on_r - 1])) {
             return interval;
-        }
+        }*/
         prev_interval = interval;
-        update_interval(interval, R[pos_on_r - 1]);
+        backward_search_step(R, pos_on_r, interval);
+        if (!interval.is_empty()) {
+            pos_on_r -= 1;
+        }
+        /*update_interval(interval, R[pos_on_r - 1]);
         if (!interval.is_empty()) {
             LF_move(interval.offset_start, interval.run_start);
             LF_move(interval.offset_end, interval.run_end);
             pos_on_r -= 1;
-        }
+        }*/
     }
     if (interval.is_empty()) {
         return prev_interval;
