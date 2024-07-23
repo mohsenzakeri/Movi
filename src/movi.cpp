@@ -215,13 +215,13 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
     if (!movi_options.no_prefetch()) {
         ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
         if (movi_options.is_pml()) {
-            rp.process_latency_hiding(mv_);
+            rp.process_latency_hiding();
         } else if (movi_options.is_zml()) {
-            rp.ziv_merhav_latency_hiding(mv_);
+            rp.ziv_merhav_latency_hiding();
         } else if (movi_options.is_count()) {
-            rp.process_latency_hiding(mv_);
+            rp.process_latency_hiding();
         } else if (movi_options.is_kmer()) {
-            rp.kmer_search_latency_hiding(mv_, movi_options.get_k());
+            rp.kmer_search_latency_hiding(movi_options.get_k());
         }
     } else {
         gzFile fp;
@@ -240,12 +240,14 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
         std::ofstream mls_file;
         std::ofstream count_file;
-        if (movi_options.is_pml())
-            mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".mpml.bin", std::ios::out | std::ios::binary);
-        else if (movi_options.is_zml())
-            mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".zml.bin", std::ios::out | std::ios::binary);
-        else if (movi_options.is_count())
-            count_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".matches");
+        if (!movi_options.is_stdout()) {
+            if (movi_options.is_pml())
+                mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".mpml.bin", std::ios::out | std::ios::binary);
+            else if (movi_options.is_zml())
+                mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".zml.bin", std::ios::out | std::ios::binary);
+            else if (movi_options.is_count())
+                count_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".matches");
+        }
 
         uint64_t read_processed = 0;
         while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
@@ -286,8 +288,13 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 // uint64_t match_count = mv_.backward_search(query_seq, pos_on_r);
                 // if (pos_on_r != 0) pos_on_r += 1;
                 uint64_t match_count = mv_.query_backward_search(query_seq, pos_on_r);
-                count_file << seq->name.s << "\t";
-                count_file << query_seq.length() - pos_on_r << "/" << query_seq.length() << "\t" << match_count << "\n";                
+                if (movi_options.is_stdout()) {
+                    std::cout << seq->name.s << "\t";
+                    std::cout << query_seq.length() - pos_on_r << "/" << query_seq.length() << "\t" << match_count << "\n";
+                } else {
+                    count_file << seq->name.s << "\t";
+                    count_file << query_seq.length() - pos_on_r << "/" << query_seq.length() << "\t" << match_count << "\n";
+                }
             }
 
             if (movi_options.is_logs()) {
@@ -311,10 +318,14 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         
         if (movi_options.is_pml() or movi_options.is_zml()) {
             std::cerr << "all fast forward counts: " << total_ff_count << "\n";
-            mls_file.close();
+            if (!movi_options.is_stdout()) {
+                mls_file.close();
+            }
             std::cerr << "The output file for the matching lengths closed.\n";
         } else if (movi_options.is_count()) {
-            count_file.close();
+            if (!movi_options.is_stdout()) {
+                count_file.close();
+            }
             std::cerr << "The count file is closed.\n";
         }
         if (movi_options.is_logs()) {
