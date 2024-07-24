@@ -20,8 +20,8 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
     std::string index_type = mv_.index_type();
     if (!mv_.movi_options->is_stdout()) {
         if (mv_.movi_options->is_pml()) {
-            std::string mls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.mpml.bin" :
-                                                reads_file_name + "." + index_type + ".mpml.bin";
+            std::string mls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.pml.bin" :
+                                                reads_file_name + "." + index_type + ".pml.bin";
             mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
         } else if (mv_.movi_options->is_zml()) {
             std::string mls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.zml.bin" :
