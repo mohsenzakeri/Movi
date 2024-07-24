@@ -41,6 +41,7 @@ class ReadProcessor {
     public:
         ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_, bool verbose_, bool reverse_);
         // void process_regular();
+        uint64_t initialize_strands(std::vector<Strand>& processes);
         void process_latency_hiding();
         // void ziv_merhav_latency_hiding();
         // void backward_search_latency_hiding();
@@ -52,9 +53,9 @@ class ReadProcessor {
         bool backward_search(Strand& process, uint64_t end_pos);
         void reset_process(Strand& process);
         void reset_backward_search(Strand& process);
-        void reset_kmer_search(Strand& process, uint64_t k);
+        void reset_kmer_search(Strand& process);
         void next_kmer_search(Strand& process);
-        void next_kmer_search_negative_skip_all_heuristic(Strand& process, uint64_t k);
+        void next_kmer_search_negative_skip_all_heuristic(Strand& process);
         bool verify_kmer(Strand& process, uint64_t k);
     private:
         MoveStructure& mv;
@@ -64,6 +65,7 @@ class ReadProcessor {
         std::ofstream mls_file;
         std::ofstream matches_file;
         int strands;
+        uint32_t k;
         bool verbose = false;
         bool reverse = false;
         uint64_t read_processed;
