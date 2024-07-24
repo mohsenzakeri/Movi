@@ -1154,7 +1154,8 @@ uint64_t MoveStructure::query_zml(MoveQuery& mq) {
         mq.add_ml(0);
         pos_on_r -= 1;
     }
-    if (!check_alphabet(query_seq[pos_on_r])) {
+
+    if (pos_on_r < 0) {
         // Special case where no character in the read exists in the index.
         return 0;
     }
