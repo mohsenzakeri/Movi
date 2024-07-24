@@ -187,25 +187,24 @@ void ReadProcessor::write_mls(Strand& process) {
     }
 }
 
-void ReadProcessor::write_count(Strand& process, uint64_t match_count) {
+void ReadProcessor::write_count(Strand& process) {
     auto& R = process.mq.query();
     bool write_stdout = mv.movi_options->is_stdout();
     if (write_stdout) {
         std::cout << process.read_name << "\t";
-        // if (process.pos_on_r != 0) process.pos_on_r += 1;
-        std::cout << R.length() - process.pos_on_r << "/" << R.length() << "\t" << match_count << "\n";
+        std::cout << R.length() - process.pos_on_r << "/" << R.length() << "\t" << process.match_count << "\n";
     } else {
         matches_file << process.read_name << "\t";
-        // if (process.pos_on_r != 0) process.pos_on_r += 1;
-        matches_file << R.length() - process.pos_on_r << "/" << R.length() << "\t" << match_count << "\n";
+        matches_file << R.length() - process.pos_on_r << "/" << R.length() << "\t" << process.match_count << "\n";
     }
 }
 
 void ReadProcessor::process_latency_hiding() {
     bool is_pml = mv.movi_options->is_pml();
+    bool is_zml = mv.movi_options->is_zml();
     bool is_count = mv.movi_options->is_count();
-    if (is_pml and is_count) {
-        std::cerr << "Error parsing the input, both pml and count queries cannot be done at the same time.\n";
+    if ((is_pml and is_count) or (is_pml and is_zml) or (is_count and is_zml)) {
+        std::cerr << "Error parsing the input, multipe types of queries cannot be processed at the same time.\n";
         exit(0);
     }
     std::vector<Strand> processes;
@@ -216,6 +215,10 @@ void ReadProcessor::process_latency_hiding() {
         if (fnished_count == 0) {
             reset_process(processes[i]);
             reset_backward_search(processes[i]);
+            if (is_zml) {
+                processes[i].kmer_end = processes[i].pos_on_r;
+                processes[i].match_len = 0;
+            }
         } else {
             processes[i].finished = true;
         }
@@ -230,22 +233,43 @@ void ReadProcessor::process_latency_hiding() {
         for (uint64_t i = 0; i < strands; i++) {
             if (!processes[i].finished) {
                 // 1: process next character -- doing fast forward
-                uint64_t match_count = 0; // used for the count queries
-                bool backward_search_finished = false; // used for the count queries
+                // process.match_count = 0; // used for the count queries
+                bool backward_search_finished = false; // used for the count and zml queries
                 if (is_pml) {
                     process_char(processes[i]);
                 } else if (is_count) {
-                    backward_search_finished = backward_search(processes[i], match_count, processes[i].mq.query().length() - 1);
+                    backward_search_finished = backward_search(processes[i], processes[i].mq.query().length() - 1);
+                } else if (is_zml) {
+                    backward_search_finished = backward_search(processes[i], processes[i].kmer_end);
                 }
                 // 2: if the read is done -> Write the pmls and go to next read
-                if ((is_pml and processes[i].pos_on_r <= -1) or (is_count and backward_search_finished)) {
+                if ((is_pml and processes[i].pos_on_r <= -1) or
+                    (is_count and backward_search_finished) or
+                    (is_zml and (backward_search_finished and processes[i].pos_on_r > 0)) or
+                    (is_zml and (processes[i].pos_on_r <= 0))) {
                     if (is_pml) {
                         write_mls(processes[i]);
                         reset_process(processes[i]);
                     } else if (is_count) {
-                        write_count(processes[i], match_count);
+                        write_count(processes[i]);
                         reset_process(processes[i]);
                         reset_backward_search(processes[i]);
+                    } else if (is_zml) {
+                        if (backward_search_finished and processes[i].pos_on_r > 0) {
+                            processes[i].mq.add_ml(processes[i].match_len);
+                            processes[i].pos_on_r -= 1;
+                            reset_backward_search(processes[i]);
+                            processes[i].kmer_end = processes[i].pos_on_r;
+                            processes[i].match_len = 0;
+                            continue;
+                        } else if (processes[i].pos_on_r <= 0) {
+                            processes[i].mq.add_ml(processes[i].match_len);
+                            write_mls(processes[i]);
+                            reset_process(processes[i]);
+                            reset_backward_search(processes[i]);
+                            processes[i].kmer_end = processes[i].pos_on_r;
+                            processes[i].match_len = 0;
+                        }
                     }
                     // 3: -- check if it was the last read in the file -> fnished_count++
                     if (processes[i].finished) {
@@ -253,9 +277,13 @@ void ReadProcessor::process_latency_hiding() {
                     }
                 } else {
                     // 4: big jump with prefetch
+                    /* if (is_zml and !backward_search_finished) {
+                        processes[i].mq.add_ml(processes[i].match_len);
+                        processes[i].match_len += 1;
+                    } */
                     if (is_pml) {
                         my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].idx].get_id()));
-                    } else if (is_count) {
+                    } else if (is_count or is_zml) {
                         my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_start].get_id()));
                         my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_end].get_id()));
                     }
@@ -264,17 +292,16 @@ void ReadProcessor::process_latency_hiding() {
         }
     }
 
-    if (is_pml) {
-        if (!mv.movi_options->is_stdout()) {
+    if (!mv.movi_options->is_stdout()) {
+        if (is_pml or is_zml) {
             mls_file.close();
-        }
-        std::cerr << "pmls file closed!\n";
-    } else if (is_count) {
-        if (!mv.movi_options->is_stdout()) {
+            std::cerr << "Matching lengths file is closed!\n";
+        } else if (is_count) {
             matches_file.close();
+            std::cerr << "match_file file closed!\n";
         }
-        std::cerr << "match_file file closed!\n";
     }
+
     kseq_destroy(seq); // STEP 5: destroy seq
     std::cerr << "kseq destroyed!\n";
     gzclose(fp); // STEP 6: close the file handler
@@ -287,7 +314,7 @@ void ReadProcessor::process_latency_hiding() {
     }
 }
 
-void ReadProcessor::ziv_merhav_latency_hiding() {
+/* void ReadProcessor::ziv_merhav_latency_hiding() {
     std::vector<Strand> processes;
     for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
     std::cerr << strands << " processes are created.\n";
@@ -314,9 +341,8 @@ void ReadProcessor::ziv_merhav_latency_hiding() {
     while (fnished_count != strands) {
         for (uint64_t i = 0; i < strands; i++) {
             if (!processes[i].finished) {
-                uint64_t match_count = 0;
                 // 1: process next character
-                bool backward_search_finished = backward_search(processes[i], match_count, processes[i].kmer_end);
+                bool backward_search_finished = backward_search(processes[i], processes[i].kmer_end);
                 total_bs += 1;
                 if (verbose)
                     std::cerr << backward_search_finished << " " << processes[i].kmer_end << " " << processes[i].pos_on_r << "\n";
@@ -358,7 +384,7 @@ void ReadProcessor::ziv_merhav_latency_hiding() {
     std::cerr << "kseq destroyed!\n";
     gzclose(fp); // STEP 6: close the file handler
     std::cerr << "fp file closed!\n";
-}
+} */
 
 void ReadProcessor::kmer_search_latency_hiding(uint32_t k) {
     std::vector<Strand> processes;
@@ -387,9 +413,8 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k) {
     while (fnished_count != strands) {
         for (uint64_t i = 0; i < strands; i++) {
             if (!processes[i].finished) {
-                uint64_t match_count = 0;
                 // 1: process next character
-                bool backward_search_finished = backward_search(processes[i], match_count, processes[i].kmer_end);
+                bool backward_search_finished = backward_search(processes[i], processes[i].kmer_end);
                 total_bs += 1;
                 if (verbose)
                     std::cerr << backward_search_finished << " " << processes[i].kmer_start << " "
@@ -507,15 +532,14 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k) {
         for (uint64_t i = 0; i < strands; i++) {
             if (!processes[i].finished) {
                 // 1: process next character -- doing fast forward
-                uint64_t match_count = 0;
-                bool backward_search_finished = backward_search(processes[i], match_count, processes[i].mq.query().length() - 1);
+                bool backward_search_finished = backward_search(processes[i], processes[i].mq.query().length() - 1);
                 // 2: if the read is done -> Write the pmls and go to next read
                 if (backward_search_finished) {
                     auto& R = processes[i].mq.query();
                     // matches_file << processes[i].read_name << (processes[i].pos_on_r == 0 ? "\tFound\t" : "\tNot-Found\t");
                     matches_file << processes[i].read_name << "\t";
                     if (processes[i].pos_on_r != 0) processes[i].pos_on_r += 1;
-                    matches_file << R.length() - processes[i].pos_on_r << "/" << R.length() << "\t" << match_count << "\n";
+                    matches_file << R.length() - processes[i].pos_on_r << "/" << R.length() << "\t" << process.match_count << "\n";
 
                     reset_process(processes[i]);
                     reset_backward_search(processes[i]);
@@ -538,16 +562,36 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k) {
 } */
 
 void ReadProcessor::reset_backward_search(Strand& process) {
-    std::string& R = process.mq.query();
-    if (mv.check_alphabet(R[process.pos_on_r])) {
-        process.range.run_start = mv.first_runs[mv.alphamap[R[process.pos_on_r]] + 1];
-        process.range.offset_start = mv.first_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
-        process.range.run_end = mv.last_runs[mv.alphamap[R[process.pos_on_r]] + 1];
-        process.range.offset_end = mv.last_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
+    // This function initialize the starting range for performing backward search
+    // The initialization is based on the character at pos_on_r
+    // If that character does not exist in the alphabet, it moves pos_on_r until finding a character that exists
+    // If no character of the alphabet exists in the read, it makes the range empty
+    process.match_count = 0;
+    std::string& query_seq = process.mq.query();
+    if (mv.movi_options->is_count() and !mv.check_alphabet(query_seq[process.pos_on_r])) {
+        process.range.make_empty();
+        return;
+    }
+    while (!mv.check_alphabet(query_seq[process.pos_on_r]) and process.pos_on_r >= 0) {
+        process.mq.add_ml(0);
+        process.pos_on_r -= 1;
+    }
+    if (process.pos_on_r < 0) {
+        // Special case where no character in the read exists in the index.
+        process.range.make_empty();
+        return;
+    }
+    process.range = mv.initialize_backward_search(query_seq, process.pos_on_r);
+    process.match_count = process.range.count(mv.rlbwt);
+    /*if (mv.check_alphabet(query_seq[process.pos_on_r])) {
+        process.range.run_start = mv.first_runs[mv.alphamap[query_seq[process.pos_on_r]] + 1];
+        process.range.offset_start = mv.first_offsets[mv.alphamap[query_seq[process.pos_on_r]] + 1];
+        process.range.run_end = mv.last_runs[mv.alphamap[query_seq[process.pos_on_r]] + 1];
+        process.range.offset_end = mv.last_offsets[mv.alphamap[query_seq[process.pos_on_r]] + 1];
     } else {
         // The current character should be skipped with corresponding match length equals to 0
         process.range.make_empty();
-    }
+    }*/
 }
 
 void ReadProcessor::reset_kmer_search(Strand& process, uint64_t k) {
@@ -611,7 +655,15 @@ bool ReadProcessor::verify_kmer(Strand& process, uint64_t k) {
     }
 }
 
-bool ReadProcessor::backward_search(Strand& process, uint64_t& match_count, uint64_t end_pos) {
+bool ReadProcessor::backward_search(Strand& process, uint64_t end_pos) {
+    // This function performs one step backward search, suitable for queries with latency hiding
+    // If it is the first step of the current search, it has to update the interval first,
+    // Otherwise, it starts from the LF steps and continues until the next LF steps
+    // The functions might stops before or after the LF step
+    // The backward search is empty in two conditions:
+    // 1) It is the count query and the last character on the read does not exist in the alphabet
+    // 2) No character on the read exists in the alphabet
+    // The first_iteration condition should be only true after the reset_backward_search function
     std::string& R = process.mq.query();
     if (verbose)
         std::cerr << "backward search begins:\n" << process.pos_on_r << " "
@@ -621,7 +673,7 @@ bool ReadProcessor::backward_search(Strand& process, uint64_t& match_count, uint
     bool first_iteration = process.pos_on_r == end_pos;
     if (first_iteration) {
         if (process.range.is_empty()) {
-            process.pos_on_r += 1;
+            process.pos_on_r += 1; // Why is this line necessary?
             return true;
         }
 
@@ -636,26 +688,40 @@ bool ReadProcessor::backward_search(Strand& process, uint64_t& match_count, uint
     if (!process.range.is_empty()) {
         mv.LF_move(process.range.offset_start, process.range.run_start);
         mv.LF_move(process.range.offset_end, process.range.run_end);
+        // The last update_interval has been based on pos_on_r - 1
+        // the range cannot be empty after the LF step if it was not empty before the LF steps
+        // Therefore, we can safely say that the read at position pos_on_r - 1 is matched now.
         process.pos_on_r -= 1;
-    }
-
-    if (process.range.is_empty()) {
-        match_count = process.range_prev.count(mv.rlbwt);
+        if (mv.movi_options->is_zml()) {
+            process.mq.add_ml(process.match_len);
+            process.match_len += 1;
+        }
+        // To make the pos_on_r match the range currently represented after the two LF steps.
+    } else {
+        // Since the range has become empty after the update, we should count the previous position
+        process.match_count = process.range_prev.count(mv.rlbwt);
         return true;
     }
 
     if (process.pos_on_r <= 0) {
-        match_count = process.range.count(mv.rlbwt);
+        // If we are at position 0 after the last LF step, we can finish the procedure
+        process.match_count = process.range.count(mv.rlbwt);
+        if (process.pos_on_r < 0) {
+            std::cerr << "This should never happen.\n";
+            exit(0);
+        }
         return true;
     }
 
+    // The following steps is the preparations for the next LF steps
     if (!mv.check_alphabet(R[process.pos_on_r - 1])) {
-        match_count = process.range.count(mv.rlbwt);
+        // If the next character does not belong, we can stop the backward search.
+        process.match_count = process.range.count(mv.rlbwt);
         return true;
     }
-
+    // Store the current range as range_prev in case the range becomes empty after the update
+    // If the range becomes empty, it means that the match cannot be extended.
     process.range_prev = process.range;
-
     if (verbose)
         std::cerr << "before: " << process.range.run_start << " " << process.range.run_end << " "
                     << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "

@@ -28,6 +28,7 @@ struct Strand {
     uint64_t idx;
     uint64_t offset;
     uint64_t match_len;
+    uint64_t match_count;
 
     uint64_t ff_count;
     uint64_t scan_count;
@@ -41,14 +42,14 @@ class ReadProcessor {
         ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_, bool verbose_, bool reverse_);
         // void process_regular();
         void process_latency_hiding();
-        void ziv_merhav_latency_hiding();
+        // void ziv_merhav_latency_hiding();
         // void backward_search_latency_hiding();
         void kmer_search_latency_hiding(uint32_t k);
         bool next_read(Strand& process);
         void write_mls(Strand& process);
-        void write_count(Strand& process, uint64_t match_count);
+        void write_count(Strand& process);
         void process_char(Strand& process);
-        bool backward_search(Strand& process, uint64_t& match_count, uint64_t end_pos);
+        bool backward_search(Strand& process, uint64_t end_pos);
         void reset_process(Strand& process);
         void reset_backward_search(Strand& process);
         void reset_kmer_search(Strand& process, uint64_t k);

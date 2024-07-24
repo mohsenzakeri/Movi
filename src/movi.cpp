@@ -214,11 +214,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 void query(MoveStructure& mv_, MoviOptions& movi_options) {
     if (!movi_options.no_prefetch()) {
         ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
-        if (movi_options.is_pml()) {
-            rp.process_latency_hiding();
-        } else if (movi_options.is_zml()) {
-            rp.ziv_merhav_latency_hiding();
-        } else if (movi_options.is_count()) {
+        if (movi_options.is_pml() or movi_options.is_zml() or movi_options.is_count()) {
             rp.process_latency_hiding();
         } else if (movi_options.is_kmer()) {
             rp.kmer_search_latency_hiding(movi_options.get_k());
