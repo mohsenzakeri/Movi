@@ -233,7 +233,6 @@ void ReadProcessor::process_latency_hiding() {
         for (uint64_t i = 0; i < strands; i++) {
             if (!processes[i].finished) {
                 // 1: process next character -- doing fast forward
-                // process.match_count = 0; // used for the count queries
                 bool backward_search_finished = false; // used for the count and zml queries
                 if (is_pml) {
                     process_char(processes[i]);
@@ -277,10 +276,6 @@ void ReadProcessor::process_latency_hiding() {
                     }
                 } else {
                     // 4: big jump with prefetch
-                    /* if (is_zml and !backward_search_finished) {
-                        processes[i].mq.add_ml(processes[i].match_len);
-                        processes[i].match_len += 1;
-                    } */
                     if (is_pml) {
                         my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].idx].get_id()));
                     } else if (is_count or is_zml) {
@@ -583,15 +578,6 @@ void ReadProcessor::reset_backward_search(Strand& process) {
     }
     process.range = mv.initialize_backward_search(query_seq, process.pos_on_r);
     process.match_count = process.range.count(mv.rlbwt);
-    /*if (mv.check_alphabet(query_seq[process.pos_on_r])) {
-        process.range.run_start = mv.first_runs[mv.alphamap[query_seq[process.pos_on_r]] + 1];
-        process.range.offset_start = mv.first_offsets[mv.alphamap[query_seq[process.pos_on_r]] + 1];
-        process.range.run_end = mv.last_runs[mv.alphamap[query_seq[process.pos_on_r]] + 1];
-        process.range.offset_end = mv.last_offsets[mv.alphamap[query_seq[process.pos_on_r]] + 1];
-    } else {
-        // The current character should be skipped with corresponding match length equals to 0
-        process.range.make_empty();
-    }*/
 }
 
 void ReadProcessor::reset_kmer_search(Strand& process, uint64_t k) {
