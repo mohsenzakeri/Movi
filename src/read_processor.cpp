@@ -208,16 +208,17 @@ void ReadProcessor::process_latency_hiding() {
     bool is_pml = mv.movi_options->is_pml();
     bool is_zml = mv.movi_options->is_zml();
     bool is_count = mv.movi_options->is_count();
+
     if ((is_pml and is_count) or (is_pml and is_zml) or (is_count and is_zml)) {
         std::cerr << "Error parsing the input, multipe types of queries cannot be processed at the same time.\n";
         exit(0);
     }
-    std::vector<Strand> processes;
-    for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
+
+
+    /*for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
     std::cerr << strands << " processes are created.\n";
-    uint64_t fnished_count = 0;
     for (uint64_t i = 0; i < strands; i++) {
-        if (fnished_count == 0) {
+        if (finished_count == 0) {
             reset_process(processes[i]);
             reset_backward_search(processes[i]);
             if (is_zml) {
@@ -229,12 +230,15 @@ void ReadProcessor::process_latency_hiding() {
         }
         if (processes[i].finished) {
             std::cerr << "Warning: less than strands = " << strands << " reads.\n";
-            fnished_count += 1;
+            finished_count += 1;
         }
-    }
+    }*/
+
+    std::vector<Strand> processes;
+    uint64_t finished_count = initialize_strands(processes);
     std::cerr << strands << " processes are initiated.\n";
 
-    while (fnished_count != strands) {
+    while (finished_count != strands) {
         for (uint64_t i = 0; i < strands; i++) {
             if (!processes[i].finished) {
                 // 1: process next character -- doing fast forward
@@ -275,9 +279,9 @@ void ReadProcessor::process_latency_hiding() {
                             processes[i].match_len = 0;
                         }
                     }
-                    // 3: -- check if it was the last read in the file -> fnished_count++
+                    // 3: -- check if it was the last read in the file -> finished_count++
                     if (processes[i].finished) {
-                        fnished_count += 1;
+                        finished_count += 1;
                     }
                 } else {
                     // 4: big jump with prefetch
@@ -319,9 +323,9 @@ void ReadProcessor::process_latency_hiding() {
     for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
     std::cerr << strands << " processes are created.\n";
 
-    uint64_t fnished_count = 0;
+    uint64_t finished_count = 0;
     for (uint64_t i = 0; i < strands; i++) {
-        if (fnished_count == 0) {
+        if (finished_count == 0) {
             // TODO:: update the reset function
             reset_process(processes[i]);
             reset_backward_search(processes[i]);
@@ -332,13 +336,13 @@ void ReadProcessor::process_latency_hiding() {
         }
         if (processes[i].finished) {
             std::cerr << "Warning: less than strands = " << strands << " reads.\n";
-            fnished_count += 1;
+            finished_count += 1;
         }
     }
     std::cerr << strands << " processes are initiated.\n";
 
     uint64_t total_bs = 0;
-    while (fnished_count != strands) {
+    while (finished_count != strands) {
         for (uint64_t i = 0; i < strands; i++) {
             if (!processes[i].finished) {
                 // 1: process next character
@@ -358,9 +362,9 @@ void ReadProcessor::process_latency_hiding() {
                     reset_backward_search(processes[i]);
                     processes[i].kmer_end = processes[i].pos_on_r;
                     processes[i].match_len = 0;
-                    // 3: -- check if it was the last read in the file -> fnished_count++
+                    // 3: -- check if it was the last read in the file -> finished_count++
                     if (processes[i].finished) {
-                        fnished_count += 1;
+                        finished_count += 1;
                     }
                 } else {
                     // 4: big jump with prefetch
@@ -386,15 +390,44 @@ void ReadProcessor::process_latency_hiding() {
     std::cerr << "fp file closed!\n";
 } */
 
-void ReadProcessor::kmer_search_latency_hiding(uint32_t k) {
-    std::vector<Strand> processes;
+uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes) {
+    uint64_t finished_count = 0;
     for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
     std::cerr << strands << " processes are created.\n";
-
-    uint64_t fnished_count = 0;
     for (uint64_t i = 0; i < strands; i++) {
-        if (fnished_count == 0) {
-            reset_kmer_search(processes[i], k);
+        if (finished_count == 0) {
+            if (mv.movi_options->is_kmer()) {
+                reset_kmer_search(processes[i]);
+                if (!processes[i].finished) {
+                    next_kmer_search(processes[i]);
+                }
+            } else {
+                reset_process(processes[i]);
+                reset_backward_search(processes[i]);
+                if (mv.movi_options->is_zml()) {
+                    processes[i].kmer_end = processes[i].pos_on_r;
+                    processes[i].match_len = 0;
+                }
+            }
+        } else {
+            processes[i].finished = true;
+        }
+        if (processes[i].finished) {
+            std::cerr << "Warning: less than strands = " << strands << " reads.\n";
+            finished_count += 1;
+        }
+    }
+    return finished_count;
+}
+
+void ReadProcessor::kmer_search_latency_hiding(uint32_t k_) {
+    k = k_;
+    /*for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
+    std::cerr << strands << " processes are created.\n";
+
+    for (uint64_t i = 0; i < strands; i++) {
+        if (finished_count == 0) {
+            reset_kmer_search(processes[i]);
             if (!processes[i].finished) {
                 next_kmer_search(processes[i]);
             }
@@ -403,14 +436,17 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k) {
         }
         if (processes[i].finished) {
             std::cerr << "Warning: less than strands = " << strands << " reads.\n";
-            fnished_count += 1;
+            finished_count += 1;
         }
-    }
+    }*/
+
+    std::vector<Strand> processes;
+    uint64_t finished_count = initialize_strands(processes);
     std::cerr << strands << " processes are initiated.\n";
 
     uint64_t total_bs = 0;
     // Assuming all the reads > k
-    while (fnished_count != strands) {
+    while (finished_count != strands) {
         for (uint64_t i = 0; i < strands; i++) {
             if (!processes[i].finished) {
                 // 1: process next character
@@ -442,11 +478,11 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k) {
                             total_kmer_count += 1;
                         /////next_kmer_search(processes[i]);
                     } else {
-                        reset_kmer_search(processes[i], k);
+                        reset_kmer_search(processes[i]);
                         next_kmer_search(processes[i]);
-                        // 3: -- check if it was the last read in the file -> fnished_count++
+                        // 3: -- check if it was the last read in the file -> finished_count++
                         if (processes[i].finished) {
-                            fnished_count += 1;
+                            finished_count += 1;
                         }
                     }
                 } else if (backward_search_finished and processes[i].kmer_extension) {
@@ -465,24 +501,24 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k) {
                         next_kmer_search(processes[i]);
                         // next_kmer_search_negative_skip_all_heuristic(processes[i], k);
                         if (processes[i].finished) {
-                            fnished_count += 1;
+                            finished_count += 1;
                         }
                     } else {
-                        reset_kmer_search(processes[i], k);
+                        reset_kmer_search(processes[i]);
                         next_kmer_search(processes[i]);
-                        // 3: -- check if it was the last read in the file -> fnished_count++
+                        // 3: -- check if it was the last read in the file -> finished_count++
                         if (processes[i].finished) {
-                            fnished_count += 1;
+                            finished_count += 1;
                         }
                     }
                 } else if (processes[i].kmer_start < 0) {
                     if (verbose)
                         std::cerr << "- ";
-                    reset_kmer_search(processes[i], k);
+                    reset_kmer_search(processes[i]);
                     next_kmer_search(processes[i]);
-                    // 3: -- check if it was the last read in the file -> fnished_count++
+                    // 3: -- check if it was the last read in the file -> finished_count++
                     if (processes[i].finished) {
-                        fnished_count += 1;
+                        finished_count += 1;
                     }
                 } else {
                     // 4: big jump with prefetch
@@ -513,9 +549,9 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k) {
     for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
     std::cerr << strands << " processes are created.\n";
 
-    uint64_t fnished_count = 0;
+    uint64_t finished_count = 0;
     for (uint64_t i = 0; i < strands; i++) {
-        if (fnished_count == 0) {
+        if (finished_count == 0) {
             reset_process(processes[i]);
             reset_backward_search(processes[i]);
         } else {
@@ -523,12 +559,12 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k) {
         }
         if (processes[i].finished) {
             std::cerr << "Warning: less than strands = " << strands << " reads.\n";
-            fnished_count += 1;
+            finished_count += 1;
         }
     }
     std::cerr << strands << " processes are initiated.\n";
 
-    while (fnished_count != strands) {
+    while (finished_count != strands) {
         for (uint64_t i = 0; i < strands; i++) {
             if (!processes[i].finished) {
                 // 1: process next character -- doing fast forward
@@ -543,9 +579,9 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k) {
 
                     reset_process(processes[i]);
                     reset_backward_search(processes[i]);
-                    // 3: -- check if it was the last read in the file -> fnished_count++
+                    // 3: -- check if it was the last read in the file -> finished_count++
                     if (processes[i].finished) {
-                        fnished_count += 1;
+                        finished_count += 1;
                     }
                 } else {
                     // 4: big jump with prefetch
@@ -585,7 +621,7 @@ void ReadProcessor::reset_backward_search(Strand& process) {
     process.match_count = process.range.count(mv.rlbwt);
 }
 
-void ReadProcessor::reset_kmer_search(Strand& process, uint64_t k) {
+void ReadProcessor::reset_kmer_search(Strand& process) {
     process.finished = next_read(process);
     if (!process.finished) {
         process.length_processed = 0;
@@ -595,7 +631,7 @@ void ReadProcessor::reset_kmer_search(Strand& process, uint64_t k) {
     }
 }
 
-void ReadProcessor::next_kmer_search_negative_skip_all_heuristic(Strand& process, uint64_t k) {
+void ReadProcessor::next_kmer_search_negative_skip_all_heuristic(Strand& process) {
     process.kmer_extension = false;
     std::string& R = process.mq.query();
     process.kmer_start = process.pos_on_r - k;
@@ -614,7 +650,7 @@ void ReadProcessor::next_kmer_search_negative_skip_all_heuristic(Strand& process
         total_kmer_count += (process.kmer_end - k + 1);
         negative_kmer_count += (process.kmer_end - k + 1);
         negative_kmer_extension_count += (process.kmer_end - k + 1);
-        reset_kmer_search(process, k);
+        reset_kmer_search(process);
         next_kmer_search(process);
     }
 }
