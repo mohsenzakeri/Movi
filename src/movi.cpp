@@ -238,7 +238,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         std::ofstream count_file;
         if (!movi_options.is_stdout()) {
             if (movi_options.is_pml())
-                mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".mpml.bin", std::ios::out | std::ios::binary);
+                mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".pml.bin", std::ios::out | std::ios::binary);
             else if (movi_options.is_zml())
                 mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".zml.bin", std::ios::out | std::ios::binary);
             else if (movi_options.is_count())
