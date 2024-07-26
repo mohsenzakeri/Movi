@@ -903,11 +903,13 @@ void MoveStructure::compute_ftab(size_t k) {
             last_runs[alphamap[kmer[pos_on_kmer]] + 1],
             last_offsets[alphamap[kmer[pos_on_kmer]] + 1]
         );
-        uint64_t match_count = backward_search(kmer,  pos_on_kmer, interval).count(rlbwt);
+        MoveInterval kmer_interval = backward_search(kmer,  pos_on_kmer, interval);
+        uint64_t match_count = kmer_interval.count(rlbwt);
         if (match_count >= 0 and pos_on_kmer == 0) {
-            ftab[i] = interval;
+            //std::cerr << kmer << " " << match_count << " " << kmer_interval << "\n";
+            ftab[i] = kmer_interval;
         } else {
-            // std::cerr << kmer << " not found!\n";
+            //std::cerr << kmer << " not found!\n";
             ftab[i].make_empty();
         }
         // if (pos_on_kmer != 0) pos_on_kmer += 1;
