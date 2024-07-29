@@ -906,10 +906,20 @@ void MoveStructure::compute_ftab(size_t k) {
         MoveInterval kmer_interval = backward_search(kmer,  pos_on_kmer, interval);
         uint64_t match_count = kmer_interval.count(rlbwt);
         if (match_count >= 0 and pos_on_kmer == 0) {
-            //std::cerr << kmer << " " << match_count << " " << kmer_interval << "\n";
+            // std::cerr << kmer << " " << match_count << " " << kmer_interval << "\n";
+            // if (!(ftab[i] == kmer_interval)) {
+            //     std::cerr << "ftab[i] is different from kmer_interval: " << i << "\n";
+            //     std::cerr << ftab[i] << "\n" << kmer_interval << "\n";
+            //     exit(0);
+            // }
             ftab[i] = kmer_interval;
         } else {
-            //std::cerr << kmer << " not found!\n";
+            // std::cerr << kmer << " not found!\n";
+            // if (!ftab[i].is_empty()) {
+            //     std::cerr << "ftab[i] is non-empty and different from kmer_interval: " << i << "\n";
+            //     std::cerr << ftab[i].is_empty() << "\n" << match_count << " " << (pos_on_kmer == 0) << "\n";
+            //     exit(0);
+            // }
             ftab[i].make_empty();
         }
         // if (pos_on_kmer != 0) pos_on_kmer += 1;
