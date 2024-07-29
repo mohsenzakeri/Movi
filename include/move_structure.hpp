@@ -79,6 +79,13 @@ struct MoveInterval {
         output << mi.run_start << ":" << mi.offset_start << " --- " << mi.run_end << ":" << mi.offset_end;
         return output;
     }
+
+    bool operator==(const MoveInterval &m) {
+        if (run_start == m.run_start and offset_start == m.offset_start and
+            run_end == m.run_end and offset_end == m.offset_end)
+            return true;
+        return false;
+    }
 };
 
 class MoveStructure {
