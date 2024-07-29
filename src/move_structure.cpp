@@ -1068,6 +1068,39 @@ void MoveStructure::compute_ftab(size_t k) {
     }
 }
 
+void MoveStructure::write_ftab(size_t k) {
+    uint64_t ftab_size = std::pow(4, k);
+    if (ftab_size != ftab.size()) {
+        std::cerr << "The size of the ftab is not correct: " << ftab_size << " != " << ftab.size() << "\n";
+        exit(0);
+    }
+    std::string fname = movi_options->get_index_dir() + "/ftab." + std::to_string(k) + ".bin";
+    std::ofstream fout(fname, std::ios::out | std::ios::binary);
+    fout.write(reinterpret_cast<char*>(&k), sizeof(k));
+    fout.write(reinterpret_cast<char*>(&ftab_size), sizeof(ftab_size));
+    fout.write(reinterpret_cast<char*>(&ftab[0]), ftab_size*sizeof(ftab[0]));
+    fout.close();
+}
+
+void MoveStructure::read_ftab(size_t k) {
+    std::string fname = movi_options->get_index_dir() + "/ftab." + std::to_string(k) + ".bin";
+    std::ifstream fin(fname, std::ios::in | std::ios::binary);
+    fin.read(reinterpret_cast<char*>(&ftab_k), sizeof(ftab_k));
+    if (k != ftab_k) {
+        std::cerr << "ftab_k is different from k.\n";
+        exit(0);
+    }
+    uint64_t ftab_size = 0;
+    fin.read(reinterpret_cast<char*>(&ftab_size), sizeof(ftab_size));
+    if (ftab_size != std::pow(4, ftab_k)) {
+        std::cerr << "The size of the ftab is not correct: " << ftab_size << " != " << std::pow(4, ftab_k) << "\n";
+        exit(0);
+    }
+    ftab.resize(ftab_size);
+    fin.read(reinterpret_cast<char*>(&ftab[0]), ftab_size*sizeof(ftab[0]));
+    fin.close();
+}
+
 uint64_t scan_count;
 #if MODE == 1
 void MoveStructure::compute_nexts() {

@@ -119,6 +119,8 @@ class MoveStructure {
         uint32_t compute_index(char row_char, char lookup_char);
         void compute_nexts();
         void compute_ftab(size_t k);
+        void write_ftab(size_t k);
+        void read_ftab(size_t k);
 
         // The following are used during development only
         // std::string reconstruct();
@@ -156,6 +158,7 @@ class MoveStructure {
 	bool onebit;
         bool constant;
         uint16_t splitting;
+        size_t ftab_k;
 
         std::string bwt_string;
         uint64_t length;
