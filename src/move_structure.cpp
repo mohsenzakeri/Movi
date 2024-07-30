@@ -1159,18 +1159,28 @@ MoveInterval MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r, 
     }
 }
 
-MoveInterval MoveStructure::initialize_backward_search(std::string& query_seq,  int32_t& pos_on_r) {
+MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq,  int32_t& pos_on_r, uint64_t& match_len) {
     // Initialize assuming that the character at pos_on_r exists in the alphabet
+    auto& query_seq = mq.query();
+
     size_t ftab_k = movi_options->get_ftab_k();
-    if (pos_on_r >= ftab_k - 1 and ftab_k > 0) {
+    if (ftab_k > 0 and pos_on_r >= ftab_k - 1) {
         uint64_t kmer_code = kmer_to_number(ftab_k, query_seq.substr(pos_on_r - ftab_k + 1, ftab_k), alphamap);
         if (kmer_code != std::numeric_limits<uint64_t>::max()) {
             if (!ftab[kmer_code].is_empty()) {
+                // Add the skipped matching length, e.g., for zml computation
+                if (movi_options->is_zml()) {
+                    for (size_t i = 0; i < ftab_k - 1; i++) {
+                        mq.add_ml(i);
+                        match_len = ftab_k - 1;
+                    }
+                }
                 pos_on_r = pos_on_r - ftab_k + 1;
                 return ftab[kmer_code];
             }
         }
     }
+    // If we reach here, we know the ftab could not be used, so we initialize regularly
     MoveInterval interval(
         first_runs[alphamap[query_seq[pos_on_r]] + 1],
         first_offsets[alphamap[query_seq[pos_on_r]] + 1],
@@ -1221,7 +1231,7 @@ uint64_t MoveStructure::query_zml(MoveQuery& mq) {
         return 0;
     }
 
-    MoveInterval interval = initialize_backward_search(query_seq, pos_on_r);
+    MoveInterval interval = initialize_backward_search(mq, pos_on_r, match_len);
 
     while (pos_on_r > 0) {
         ff_count_tot += backward_search_step(query_seq,  pos_on_r, interval);
@@ -1239,7 +1249,7 @@ uint64_t MoveStructure::query_zml(MoveQuery& mq) {
             }
             // Special case where the character at position 0 of the read does not exist in the index.
             if (check_alphabet(query_seq[pos_on_r]))
-                interval = initialize_backward_search(query_seq, pos_on_r);
+                interval = initialize_backward_search(mq, pos_on_r, match_len);
         }
     }
     if (interval.is_empty()) {
@@ -1250,7 +1260,8 @@ uint64_t MoveStructure::query_zml(MoveQuery& mq) {
     return ff_count_tot;
 }
 
-uint64_t MoveStructure::query_backward_search(std::string& query_seq,  int32_t& pos_on_r) {
+uint64_t MoveStructure::query_backward_search(MoveQuery& mq,  int32_t& pos_on_r) {
+    auto& query_seq = mq.query();
     // Check the special case of non-existing character at the end of the read
     // before initializing the interval based on that character
     if (!check_alphabet(query_seq[pos_on_r])) {
@@ -1258,7 +1269,8 @@ uint64_t MoveStructure::query_backward_search(std::string& query_seq,  int32_t& 
         return 0;
     }
     // Initial the interval by matching the character at the end of the read (pos_on_r)
-    MoveInterval initial_interval = initialize_backward_search(query_seq, pos_on_r);
+    uint64_t not_used = 0;
+    MoveInterval initial_interval = initialize_backward_search(mq, pos_on_r, not_used);
     return backward_search(query_seq,  pos_on_r, initial_interval).count(rlbwt);
 }
 
