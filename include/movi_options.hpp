@@ -26,6 +26,7 @@ class MoviOptions {
         bool is_reverse() { return reverse; }
         size_t get_strands() { return strands; }
         uint32_t get_k () { return k; }
+        uint32_t get_ftab_k () { return ftab_k; }
         std::string get_command() { return command; }
         std::string get_LF_type() { return LF_type; }
 
@@ -45,6 +46,7 @@ class MoviOptions {
         void set_count() { count_query = true; pml_query = false; kmer_query = false; zml_query = false; }
         void set_kmer()  { kmer_query = true; pml_query = false; count_query = false; zml_query = false; }
         void set_k(uint32_t k_) { k = k_; }
+        void set_ftab_k(uint32_t ftab_k_) { ftab_k = ftab_k_; }
         void set_reverse(bool reverse_) { reverse = reverse_; }
         void set_prefetch(bool prefetch_) { prefetch = prefetch_; }
         void set_strands(size_t strands_) { strands = strands_; }
@@ -74,6 +76,7 @@ class MoviOptions {
             std::cerr << "pml_query:\t" << pml_query << "\n";
             std::cerr << "zml_query:\t" << zml_query << "\n";
             std::cerr << "count_query:\t" << count_query << "\n";
+            std::cerr << "ftab_k:\t" << ftab_k << "\n";
             std::cerr << "reverse:\t" << reverse << "\n";
             std::cerr << "prefetch:\t" << prefetch << "\n";
             std::cerr << "strands:\t" << strands << "\n";
@@ -100,6 +103,7 @@ class MoviOptions {
         bool prefetch = true;
         size_t strands = 16;
         uint32_t k = 31;
+        uint32_t ftab_k = 0;
         bool verify = false;
         bool write_stdout = false;
         bool verbose = false;

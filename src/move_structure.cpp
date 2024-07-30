@@ -1036,17 +1036,20 @@ std::string number_to_kmer(size_t j, size_t m, std::vector<unsigned char>& alpha
     return kmer;
 }
 
-void MoveStructure::compute_ftab(size_t k) {
-    uint64_t ftab_size = std::pow(4, k);
+void MoveStructure::compute_ftab() {
+    size_t ftab_k = movi_options->get_ftab_k();
+
+    uint64_t ftab_size = std::pow(4, ftab_k);
     std::cerr << "ftab_size: " << ftab_size*sizeof(MoveInterval)*std::pow(10, -6) << " MB \n";
+    ftab.clear();
     ftab.resize(ftab_size);
     for (uint64_t i = 0; i < ftab_size; i++) {
-        std::string kmer = number_to_kmer(i, 2*(k), alphabet);
-        uint64_t kmer_code = kmer_to_number(k, kmer, alphamap);
+        std::string kmer = number_to_kmer(i, 2*(ftab_k), alphabet);
+        uint64_t kmer_code = kmer_to_number(ftab_k, kmer, alphamap);
         if (kmer_code != i) {
             std::cerr << kmer << " " << i << " " << kmer_code << "\n";
         }
-        int32_t pos_on_kmer = k - 1;
+        int32_t pos_on_kmer = ftab_k - 1;
         MoveInterval interval(
             first_runs[alphamap[kmer[pos_on_kmer]] + 1],
             first_offsets[alphamap[kmer[pos_on_kmer]] + 1],
@@ -1078,28 +1081,28 @@ void MoveStructure::compute_ftab(size_t k) {
     }
 }
 
-void MoveStructure::write_ftab(size_t k) {
-    uint64_t ftab_size = std::pow(4, k);
+void MoveStructure::write_ftab() {
+    size_t ftab_k = movi_options->get_ftab_k();
+
+    uint64_t ftab_size = std::pow(4, ftab_k);
     if (ftab_size != ftab.size()) {
         std::cerr << "The size of the ftab is not correct: " << ftab_size << " != " << ftab.size() << "\n";
         exit(0);
     }
-    std::string fname = movi_options->get_index_dir() + "/ftab." + std::to_string(k) + ".bin";
+    std::string fname = movi_options->get_index_dir() + "/ftab." + std::to_string(ftab_k) + ".bin";
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
-    fout.write(reinterpret_cast<char*>(&k), sizeof(k));
+    fout.write(reinterpret_cast<char*>(&ftab_k), sizeof(ftab_k));
     fout.write(reinterpret_cast<char*>(&ftab_size), sizeof(ftab_size));
     fout.write(reinterpret_cast<char*>(&ftab[0]), ftab_size*sizeof(ftab[0]));
     fout.close();
 }
 
-void MoveStructure::read_ftab(size_t k) {
-    std::string fname = movi_options->get_index_dir() + "/ftab." + std::to_string(k) + ".bin";
+void MoveStructure::read_ftab() {
+    size_t ftab_k = movi_options->get_ftab_k();
+    std::string fname = movi_options->get_index_dir() + "/ftab." + std::to_string(ftab_k) + ".bin";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
     fin.read(reinterpret_cast<char*>(&ftab_k), sizeof(ftab_k));
-    if (k != ftab_k) {
-        std::cerr << "ftab_k is different from k.\n";
-        exit(0);
-    }
+
     uint64_t ftab_size = 0;
     fin.read(reinterpret_cast<char*>(&ftab_size), sizeof(ftab_size));
     if (ftab_size != std::pow(4, ftab_k)) {
