@@ -221,7 +221,8 @@ void ReadProcessor::process_latency_hiding() {
                 if (is_pml) {
                     process_char(processes[i]);
                 } else if (is_count) {
-                    backward_search_finished = backward_search(processes[i], processes[i].mq.query().length() - 1);
+                    // backward_search_finished = backward_search(processes[i], processes[i].mq.query().length() - 1);
+                    backward_search_finished = backward_search(processes[i], processes[i].kmer_end);
                 } else if (is_zml) {
                     backward_search_finished = backward_search(processes[i], processes[i].kmer_end);
                 }
@@ -576,6 +577,7 @@ void ReadProcessor::reset_backward_search(Strand& process) {
         return;
     }
     process.range = mv.initialize_backward_search(query_seq, process.pos_on_r);
+    process.kmer_end = process.pos_on_r;
     process.match_count = process.range.count(mv.rlbwt);
 }
 
