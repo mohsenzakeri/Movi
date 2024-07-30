@@ -121,9 +121,9 @@ class MoveStructure {
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
         uint32_t compute_index(char row_char, char lookup_char);
         void compute_nexts();
-        void compute_ftab(size_t k);
-        void write_ftab(size_t k);
-        void read_ftab(size_t k);
+        void compute_ftab();
+        void write_ftab();
+        void read_ftab();
 
         // uint64_t naive_lcp(uint64_t row1, uint64_t row2);
         // uint64_t naive_sa(uint64_t bwt_row);
@@ -152,10 +152,10 @@ class MoveStructure {
 
         friend class ReadProcessor;
     private:
+        MoviOptions* movi_options;
 	bool onebit;
         bool constant;
         uint16_t splitting;
-        MoviOptions* movi_options;
 
         size_t ftab_k;
         std::string bwt_string;

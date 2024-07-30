@@ -74,6 +74,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
         ("n,no-prefetch", "Disable prefetching for query")
         ("k,k-length", "The length of the kmer", cxxopts::value<uint32_t>())
+        ("t,ftab-k", "The length of the ftba kmer", cxxopts::value<uint32_t>())
         ("s,strands", "Number of strands for query", cxxopts::value<int>())
         ("stdout", "Write the output to stdout")
         ("ignore-illegal-chars", "In the case of illegal characters (i.e., non-ACGT for genomic data), substitute the character with \'A\'(1) or a random character from the alphabet (2).", cxxopts::value<int>());
@@ -90,6 +91,10 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
     auto statsOptions = options.add_options("stats")
         ("i,index", "Index directory", cxxopts::value<std::string>());
+
+    auto ftabOptions = options.add_options("ftab")
+        ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("f,ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>());
 
     options.parse_positional({ "command" });
 
@@ -130,8 +135,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                 if (result.count("index") == 1 and result.count("read") == 1) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
                     movi_options.set_read_file(result["read"].as<std::string>());
-                    if (result.count("kmer") >= 1) { movi_options.set_kmer(); }
                     if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
+                    if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
+                    if (result.count("kmer") >= 1) { movi_options.set_kmer(); }
                     if (result.count("count") >= 1) { movi_options.set_count(); }
                     if (result.count("zml") >= 1) { movi_options.set_zml(); }
                     if (result.count("pml") >= 1) { movi_options.set_pml(); }
@@ -195,6 +201,14 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     const std::string message = "Please specify the index directory file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
+            } else if (command == "ftab") {
+                if (result.count("index") and result.count("ftab-k")) {
+                    movi_options.set_index_dir(result["index"].as<std::string>());
+                    movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>()));
+                } else {
+                    const std::string message = "Please specify the index directory file and the k length for the ftab.";
+                    cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                }
             } else {
                 const std::string message = "Invalid command: \"" + command + "\"";
                 cxxopts::throw_or_mimic<cxxopts::exceptions::no_such_option>(message);
@@ -212,6 +226,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 }
 
 void query(MoveStructure& mv_, MoviOptions& movi_options) {
+    if (movi_options.get_ftab_k() != 0)
+        mv_.read_ftab();
+
     if (!movi_options.no_prefetch()) {
         ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
         if (movi_options.is_pml() or movi_options.is_zml() or movi_options.is_count()) {
@@ -406,5 +423,10 @@ int main(int argc, char** argv) {
         mv_.deserialize();
         mv_.print_stats();
         // mv_.analyze_rows();
+    } else if (command == "ftab") {
+        MoveStructure mv_(&movi_options);
+        mv_.deserialize();
+        mv_.compute_ftab();
+        mv_.write_ftab();
     }
 }
