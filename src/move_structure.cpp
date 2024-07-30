@@ -1311,6 +1311,16 @@ MoveInterval MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r, 
 
 MoveInterval MoveStructure::initialize_backward_search(std::string& query_seq,  int32_t& pos_on_r) {
     // Initialize assuming that the character at pos_on_r exists in the alphabet
+    size_t ftab_k = movi_options->get_ftab_k();
+    if (pos_on_r >= ftab_k - 1 and ftab_k > 0) {
+        uint64_t kmer_code = kmer_to_number(ftab_k, query_seq.substr(pos_on_r - ftab_k + 1, ftab_k), alphamap);
+        if (kmer_code != std::numeric_limits<uint64_t>::max()) {
+            if (!ftab[kmer_code].is_empty()) {
+                pos_on_r = pos_on_r - ftab_k + 1;
+                return ftab[kmer_code];
+            }
+        }
+    }
     MoveInterval interval(
         first_runs[alphamap[query_seq[pos_on_r]] + 1],
         first_offsets[alphamap[query_seq[pos_on_r]] + 1],
