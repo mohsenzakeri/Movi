@@ -300,7 +300,8 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 int32_t pos_on_r = query_seq.length() - 1;
                 // uint64_t match_count = mv_.backward_search(query_seq, pos_on_r);
                 // if (pos_on_r != 0) pos_on_r += 1;
-                uint64_t match_count = mv_.query_backward_search(query_seq, pos_on_r);
+                mq = MoveQuery(query_seq);
+                uint64_t match_count = mv_.query_backward_search(mq, pos_on_r);
                 if (movi_options.is_stdout()) {
                     std::cout << seq->name.s << "\t";
                     std::cout << query_seq.length() - pos_on_r << "/" << query_seq.length() << "\t" << match_count << "\n";

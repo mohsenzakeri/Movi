@@ -581,7 +581,7 @@ void ReadProcessor::reset_backward_search(Strand& process) {
         process.range.make_empty();
         return;
     }
-    process.range = mv.initialize_backward_search(query_seq, process.pos_on_r);
+    process.range = mv.initialize_backward_search(process.mq, process.pos_on_r, process.match_len);
     process.kmer_end = process.pos_on_r;
     process.match_count = process.range.count(mv.rlbwt);
 }
