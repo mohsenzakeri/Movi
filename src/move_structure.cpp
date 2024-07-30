@@ -870,6 +870,9 @@ uint64_t kmer_to_number(size_t k, std::string kmer, std::vector<uint64_t>& alpha
 
     uint64_t res = 0;
     for (size_t i = 0; i < k; i++) {
+        if (alphamap[static_cast<uint64_t>(kmer[i])] == alphamap.size()) {
+            return std::numeric_limits<uint64_t>::max();
+        }
         uint64_t char_code = alphamap[kmer[i]];
         res = (char_code << ((k-i-1)*2)) | res;
     }
