@@ -48,6 +48,7 @@ class ReadProcessor {
         void kmer_search_latency_hiding(uint32_t k);
         bool next_read(Strand& process);
         void write_mls(Strand& process);
+        void compute_match_count(Strand& process);
         void write_count(Strand& process);
         void process_char(Strand& process);
         bool backward_search(Strand& process, uint64_t end_pos);

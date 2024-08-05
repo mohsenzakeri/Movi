@@ -193,6 +193,7 @@ void ReadProcessor::write_mls(Strand& process) {
 }
 
 void ReadProcessor::write_count(Strand& process) {
+    compute_match_count(process);
     auto& R = process.mq.query();
     bool write_stdout = mv.movi_options->is_stdout();
     if (write_stdout) {
@@ -201,6 +202,19 @@ void ReadProcessor::write_count(Strand& process) {
     } else {
         matches_file << process.read_name << "\t";
         matches_file << R.length() - process.pos_on_r << "/" << R.length() << "\t" << process.match_count << "\n";
+    }
+}
+
+void ReadProcessor::compute_match_count(Strand& process) {
+    if (process.range.is_empty() and process.range_prev.is_empty())
+        process.match_count = 0;
+    else if (process.range.is_empty() and !process.range_prev.is_empty())
+        process.match_count = process.range_prev.count(mv.rlbwt);
+    else if (!process.range.is_empty())
+        process.match_count = process.range.count(mv.rlbwt);
+    else {
+        std::cerr << "This should not happen, for match count computation.\n";
+        exit(0);
     }
 }
 
@@ -570,6 +584,7 @@ void ReadProcessor::reset_backward_search(Strand& process) {
     std::string& query_seq = process.mq.query();
     if (mv.movi_options->is_count() and !mv.check_alphabet(query_seq[process.pos_on_r])) {
         process.range.make_empty();
+        process.range_prev.make_empty();
         return;
     }
     while (!mv.check_alphabet(query_seq[process.pos_on_r]) and process.pos_on_r >= 0) {
@@ -579,11 +594,12 @@ void ReadProcessor::reset_backward_search(Strand& process) {
     if (process.pos_on_r < 0) {
         // Special case where no character in the read exists in the index.
         process.range.make_empty();
+        process.range_prev.make_empty();
         return;
     }
     process.range = mv.initialize_backward_search(process.mq, process.pos_on_r, process.match_len);
     process.kmer_end = process.pos_on_r;
-    process.match_count = process.range.count(mv.rlbwt);
+    // Very expensive operation: process.match_count = process.range.count(mv.rlbwt);
 }
 
 void ReadProcessor::reset_kmer_search(Strand& process) {
@@ -691,13 +707,13 @@ bool ReadProcessor::backward_search(Strand& process, uint64_t end_pos) {
         // To make the pos_on_r match the range currently represented after the two LF steps.
     } else {
         // Since the range has become empty after the update, we should count the previous position
-        process.match_count = process.range_prev.count(mv.rlbwt);
+        // Very expensive operation: process.match_count = process.range_prev.count(mv.rlbwt);
         return true;
     }
 
     if (process.pos_on_r <= 0) {
         // If we are at position 0 after the last LF step, we can finish the procedure
-        process.match_count = process.range.count(mv.rlbwt);
+        // Very expensive operation: process.match_count = process.range.count(mv.rlbwt);
         if (process.pos_on_r < 0) {
             std::cerr << "This should never happen.\n";
             exit(0);
@@ -708,7 +724,7 @@ bool ReadProcessor::backward_search(Strand& process, uint64_t end_pos) {
     // The following steps is the preparations for the next LF steps
     if (!mv.check_alphabet(R[process.pos_on_r - 1])) {
         // If the next character does not belong, we can stop the backward search.
-        process.match_count = process.range.count(mv.rlbwt);
+        // Very expensive operation: process.match_count = process.range.count(mv.rlbwt);
         return true;
     }
     // Store the current range as range_prev in case the range becomes empty after the update
