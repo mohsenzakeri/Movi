@@ -258,7 +258,6 @@ void ReadProcessor::process_latency_hiding() {
                             processes[i].pos_on_r -= 1;
                             reset_backward_search(processes[i]);
                             processes[i].kmer_end = processes[i].pos_on_r;
-                            processes[i].match_len = 0;
                             continue;
                         } else if (processes[i].pos_on_r <= 0) {
                             processes[i].mq.add_ml(processes[i].match_len);
@@ -266,7 +265,6 @@ void ReadProcessor::process_latency_hiding() {
                             reset_process(processes[i]);
                             reset_backward_search(processes[i]);
                             processes[i].kmer_end = processes[i].pos_on_r;
-                            processes[i].match_len = 0;
                         }
                     }
                     // 3: -- check if it was the last read in the file -> finished_count++
@@ -394,10 +392,10 @@ uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes) {
             } else {
                 reset_process(processes[i]);
                 reset_backward_search(processes[i]);
-                if (mv.movi_options->is_zml()) {
+                /* if (mv.movi_options->is_zml()) {
                     processes[i].kmer_end = processes[i].pos_on_r;
-                    processes[i].match_len = 0;
-                }
+                    //processes[i].match_len = 0;
+                } */
             }
         } else {
             processes[i].finished = true;
@@ -576,6 +574,7 @@ void ReadProcessor::reset_backward_search(Strand& process) {
     // If that character does not exist in the alphabet, it moves pos_on_r until finding a character that exists
     // If no character of the alphabet exists in the read, it makes the range empty
     process.match_count = 0;
+    process.match_len = 0;
     std::string& query_seq = process.mq.query();
     if (mv.movi_options->is_count() and !mv.check_alphabet(query_seq[process.pos_on_r])) {
         process.range.make_empty();
