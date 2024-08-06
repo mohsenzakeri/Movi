@@ -909,7 +909,7 @@ void MoveStructure::compute_ftab() {
             last_runs[alphamap[kmer[pos_on_kmer]] + 1],
             last_offsets[alphamap[kmer[pos_on_kmer]] + 1]
         );
-        MoveInterval kmer_interval = backward_search(kmer,  pos_on_kmer, interval);
+        MoveInterval kmer_interval = backward_search(kmer, pos_on_kmer, interval);
         uint64_t match_count = kmer_interval.count(rlbwt);
         if (match_count >= 0 and pos_on_kmer == 0) {
             // std::cerr << kmer << " " << match_count << " " << kmer_interval << "\n";
@@ -1130,7 +1130,7 @@ void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
 #endif
 }
 
-MoveInterval MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r, MoveInterval interval) {
+MoveInterval MoveStructure::backward_search(std::string& R, int32_t& pos_on_r, MoveInterval interval) {
     // If the pattern is found, the pos_on_r will be equal to 0 and the interval will be non-empty
     // Otherwise the interval corresponding to match from the end until and including the updated pos_on_r will be returned
     // The input interval is non-empty and corresponds to the interval that matches the read (R) at pos_on_r
@@ -1159,11 +1159,8 @@ MoveInterval MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r, 
     }
 }
 
-MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq,  int32_t& pos_on_r, uint64_t& match_len) {
-    // Initialize assuming that the character at pos_on_r exists in the alphabet
+MoveInterval MoveStructure::try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k) {
     auto& query_seq = mq.query();
-
-    size_t ftab_k = movi_options->get_ftab_k();
     if (ftab_k > 0 and pos_on_r >= ftab_k - 1) {
         uint64_t kmer_code = kmer_to_number(ftab_k, query_seq.substr(pos_on_r - ftab_k + 1, ftab_k), alphamap);
         if (kmer_code != std::numeric_limits<uint64_t>::max()) {
@@ -1180,7 +1177,20 @@ MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq,  int32_t& 
             }
         }
     }
+    // If we reach here, we know the ftab could not be used, so we return an empty interval
+    MoveInterval empty_interval;
+    empty_interval.make_empty();
+    return empty_interval;
+}
+
+MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len) {
+    // Initialize assuming that the character at pos_on_r exists in the alphabet
+    size_t ftab_k = movi_options->get_ftab_k();
+    MoveInterval ftab_res = try_ftab(mq, pos_on_r, match_len, ftab_k);
+    if (!ftab_res.is_empty())
+        return ftab_res;
     // If we reach here, we know the ftab could not be used, so we initialize regularly
+    auto& query_seq = mq.query();
     MoveInterval interval(
         first_runs[alphamap[query_seq[pos_on_r]] + 1],
         first_offsets[alphamap[query_seq[pos_on_r]] + 1],
@@ -1190,7 +1200,7 @@ MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq,  int32_t& 
     return interval;
 }
 
-uint64_t MoveStructure::backward_search_step(std::string& R,  int32_t& pos_on_r, MoveInterval& interval) {
+uint64_t MoveStructure::backward_search_step(std::string& R, int32_t& pos_on_r, MoveInterval& interval) {
     // It is assumed that the interval represents a match until and including the position pos_on_r
     // Then we try to see if the match can be extended to position pos_on_r - 1
     // The interval becomes empty if the match cannot be extended
@@ -1234,7 +1244,7 @@ uint64_t MoveStructure::query_zml(MoveQuery& mq) {
     MoveInterval interval = initialize_backward_search(mq, pos_on_r, match_len);
 
     while (pos_on_r > 0) {
-        ff_count_tot += backward_search_step(query_seq,  pos_on_r, interval);
+        ff_count_tot += backward_search_step(query_seq, pos_on_r, interval);
         if (!interval.is_empty()) {
             mq.add_ml(match_len);
             pos_on_r -= 1;
@@ -1260,7 +1270,7 @@ uint64_t MoveStructure::query_zml(MoveQuery& mq) {
     return ff_count_tot;
 }
 
-uint64_t MoveStructure::query_backward_search(MoveQuery& mq,  int32_t& pos_on_r) {
+uint64_t MoveStructure::query_backward_search(MoveQuery& mq, int32_t& pos_on_r) {
     auto& query_seq = mq.query();
     // Check the special case of non-existing character at the end of the read
     // before initializing the interval based on that character
@@ -1271,10 +1281,10 @@ uint64_t MoveStructure::query_backward_search(MoveQuery& mq,  int32_t& pos_on_r)
     // Initial the interval by matching the character at the end of the read (pos_on_r)
     uint64_t not_used = 0;
     MoveInterval initial_interval = initialize_backward_search(mq, pos_on_r, not_used);
-    return backward_search(query_seq,  pos_on_r, initial_interval).count(rlbwt);
+    return backward_search(query_seq, pos_on_r, initial_interval).count(rlbwt);
 }
 
-uint64_t MoveStructure::backward_search(std::string& R,  int32_t& pos_on_r) {
+uint64_t MoveStructure::backward_search(std::string& R, int32_t& pos_on_r) {
     if (!check_alphabet(R[pos_on_r])) {
         return 0;
     }
