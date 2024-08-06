@@ -99,12 +99,13 @@ class MoveStructure {
         void build();
         void build_rlbwt();
         uint64_t query_pml(MoveQuery& mq, bool random);
-        uint64_t query_backward_search(MoveQuery& mq,  int32_t& pos_on_r);
+        uint64_t query_backward_search(MoveQuery& mq, int32_t& pos_on_r);
         uint64_t query_zml(MoveQuery& mq);
-        uint64_t backward_search(std::string& R,  int32_t& pos_on_r);
-        uint64_t backward_search_step(std::string& R,  int32_t& pos_on_r, MoveInterval& interval);
-        MoveInterval backward_search(std::string& R,  int32_t& pos_on_r, MoveInterval interval);
-        MoveInterval initialize_backward_search(MoveQuery& mq,  int32_t& pos_on_r, uint64_t& match_len);
+        uint64_t backward_search(std::string& R, int32_t& pos_on_r);
+        uint64_t backward_search_step(std::string& R, int32_t& pos_on_r, MoveInterval& interval);
+        MoveInterval backward_search(std::string& R, int32_t& pos_on_r, MoveInterval interval);
+        MoveInterval initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len);
+        MoveInterval try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k);
         void update_interval(MoveInterval& interval, char next_char);
 
         void sequential_lf();
