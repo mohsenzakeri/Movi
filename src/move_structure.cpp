@@ -44,6 +44,8 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
 MoveStructure::MoveStructure(MoviOptions* movi_options_) {
     movi_options = movi_options_;
     onebit = false;
+    no_ftab = 0;
+    all_initializations = 0;
 }
 
 MoveStructure::MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t splitting_, bool constant_) {
@@ -51,6 +53,8 @@ MoveStructure::MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t 
     onebit = onebit_;
     splitting = splitting_;
     constant = constant_;
+    no_ftab = 0;
+    all_initializations = 0;
 
     if (!check_mode()) {
         std::cerr << "Your settings: \n"
@@ -952,19 +956,40 @@ void MoveStructure::write_ftab() {
 
 void MoveStructure::read_ftab() {
     size_t ftab_k = movi_options->get_ftab_k();
-    std::string fname = movi_options->get_index_dir() + "/ftab." + std::to_string(ftab_k) + ".bin";
-    std::ifstream fin(fname, std::ios::in | std::ios::binary);
-    fin.read(reinterpret_cast<char*>(&ftab_k), sizeof(ftab_k));
+    if (movi_options->is_multi_ftab()) {
+        ftabs.resize(ftab_k);
+        while (ftab_k > 1) {
+            std::string fname = movi_options->get_index_dir() + "/ftab." + std::to_string(ftab_k) + ".bin";
+            std::ifstream fin(fname, std::ios::in | std::ios::binary);
+            fin.read(reinterpret_cast<char*>(&ftab_k), sizeof(ftab_k));
 
-    uint64_t ftab_size = 0;
-    fin.read(reinterpret_cast<char*>(&ftab_size), sizeof(ftab_size));
-    if (ftab_size != std::pow(4, ftab_k)) {
-        std::cerr << "The size of the ftab is not correct: " << ftab_size << " != " << std::pow(4, ftab_k) << "\n";
-        exit(0);
+            uint64_t ftab_size = 0;
+            fin.read(reinterpret_cast<char*>(&ftab_size), sizeof(ftab_size));
+            if (ftab_size != std::pow(4, ftab_k)) {
+                std::cerr << "The size of the ftab is not correct: " << ftab_size << " != " << std::pow(4, ftab_k) << "\n";
+                exit(0);
+            }
+            std::vector<MoveInterval> new_ftab;
+            new_ftab.resize(ftab_size);
+            fin.read(reinterpret_cast<char*>(&new_ftab[0]), ftab_size*sizeof(new_ftab[0]));
+            fin.close();
+            ftabs[ftab_k - 1] = new_ftab;
+            ftab_k -= 1;
+        }
+    } else {
+        std::string fname = movi_options->get_index_dir() + "/ftab." + std::to_string(ftab_k) + ".bin";
+        std::ifstream fin(fname, std::ios::in | std::ios::binary);
+        fin.read(reinterpret_cast<char*>(&ftab_k), sizeof(ftab_k));
+        uint64_t ftab_size = 0;
+        fin.read(reinterpret_cast<char*>(&ftab_size), sizeof(ftab_size));
+        if (ftab_size != std::pow(4, ftab_k)) {
+            std::cerr << "The size of the ftab is not correct: " << ftab_size << " != " << std::pow(4, ftab_k) << "\n";
+            exit(0);
+        }
+        ftab.resize(ftab_size);
+        fin.read(reinterpret_cast<char*>(&ftab[0]), ftab_size*sizeof(ftab[0]));
+        fin.close();
     }
-    ftab.resize(ftab_size);
-    fin.read(reinterpret_cast<char*>(&ftab[0]), ftab_size*sizeof(ftab[0]));
-    fin.close();
 }
 
 uint64_t scan_count;
@@ -1161,10 +1186,11 @@ MoveInterval MoveStructure::backward_search(std::string& R, int32_t& pos_on_r, M
 
 MoveInterval MoveStructure::try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k) {
     auto& query_seq = mq.query();
-    if (ftab_k > 0 and pos_on_r >= ftab_k - 1) {
+    if (ftab_k > 1 and pos_on_r >= ftab_k - 1) {
         uint64_t kmer_code = kmer_to_number(ftab_k, query_seq.substr(pos_on_r - ftab_k + 1, ftab_k), alphamap);
         if (kmer_code != std::numeric_limits<uint64_t>::max()) {
-            if (!ftab[kmer_code].is_empty()) {
+            auto& current_ftab = movi_options->is_multi_ftab() ? ftabs[ftab_k - 1] : ftab;
+            if (!current_ftab[kmer_code].is_empty()) {
                 // Add the skipped matching length, e.g., for zml computation
                 if (movi_options->is_zml()) {
                     for (size_t i = 0; i < ftab_k - 1; i++) {
@@ -1173,7 +1199,7 @@ MoveInterval MoveStructure::try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t&
                     }
                 }
                 pos_on_r = pos_on_r - ftab_k + 1;
-                return ftab[kmer_code];
+                return current_ftab[kmer_code];
             }
         }
     }
@@ -1184,12 +1210,29 @@ MoveInterval MoveStructure::try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t&
 }
 
 MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len) {
+    all_initializations += 1;
     // Initialize assuming that the character at pos_on_r exists in the alphabet
     size_t ftab_k = movi_options->get_ftab_k();
-    MoveInterval ftab_res = try_ftab(mq, pos_on_r, match_len, ftab_k);
-    if (!ftab_res.is_empty())
-        return ftab_res;
+    if (movi_options->is_multi_ftab()) {
+        while (ftab_k > 1 and pos_on_r >= ftab_k - 1) {
+            //std::cerr << ftab_k << "\n";
+            MoveInterval ftab_res = try_ftab(mq, pos_on_r, match_len, ftab_k);
+            if (!ftab_res.is_empty())
+                return ftab_res;
+            ftab_k -= 2;
+        }
+    } else {
+        MoveInterval ftab_res = try_ftab(mq, pos_on_r, match_len, ftab_k);
+        if (!ftab_res.is_empty())
+            return ftab_res;
+    }
     // If we reach here, we know the ftab could not be used, so we initialize regularly
+    if (movi_options->is_multi_ftab() and ftab_k < movi_options->get_ftab_k()) {
+        ftab_k += 2;
+    }
+    if (pos_on_r >= ftab_k - 1) {
+        no_ftab += 1;
+    }
     auto& query_seq = mq.query();
     MoveInterval interval(
         first_runs[alphamap[query_seq[pos_on_r]] + 1],

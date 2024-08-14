@@ -24,6 +24,7 @@ class MoviOptions {
         bool is_kmer() { return kmer_query; }
         bool is_reverse() { return reverse; }
 	int ignore_illegal_chars_status() { return ilc; }
+        bool is_multi_ftab() { return multi_ftab; }
         size_t get_strands() { return strands; }
         uint32_t get_k () { return k; }
         uint32_t get_ftab_k () { return ftab_k; }
@@ -46,6 +47,7 @@ class MoviOptions {
         void set_kmer()  { kmer_query = true; pml_query = false; count_query = false; zml_query = false; }
         void set_k(uint32_t k_) { k = k_; }
         void set_ftab_k(uint32_t ftab_k_) { ftab_k = ftab_k_; }
+        void set_multi_ftab(bool multi_ftab_) { multi_ftab = multi_ftab_; }
         void set_reverse(bool reverse_) { reverse = reverse_; }
         bool set_ignore_illegal_chars(int ilc_) {
           if (ilc_ > 2 or ilc_ < 1)
@@ -111,6 +113,7 @@ class MoviOptions {
         size_t strands = 16;
         uint32_t k = 31;
         uint32_t ftab_k = 0;
+        bool multi_ftab = false;
         bool verify = false;
         bool write_stdout = false;
         bool verbose = false;

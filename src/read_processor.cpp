@@ -294,6 +294,9 @@ void ReadProcessor::process_latency_hiding() {
         }
     }
 
+    std::cerr << "no_ftab: " << mv.no_ftab << "\n";
+    std::cerr << "all_initializations: " << mv.all_initializations << "\n";
+
     kseq_destroy(seq); // STEP 5: destroy seq
     std::cerr << "kseq destroyed!\n";
     gzclose(fp); // STEP 6: close the file handler
