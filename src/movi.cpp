@@ -79,6 +79,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("n,no-prefetch", "Disable prefetching for query")
         ("k,k-length", "The length of the kmer", cxxopts::value<uint32_t>())
         ("t,ftab-k", "The length of the ftba kmer", cxxopts::value<uint32_t>())
+        ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
         ("s,strands", "Number of strands for query", cxxopts::value<int>())
         ("stdout", "Write the output to stdout");
 
@@ -143,6 +144,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     movi_options.set_read_file(result["read"].as<std::string>());
                     if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
                     if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
+                    if (result.count("multi-ftab") == 1) { movi_options.set_multi_ftab(true); }
                     if (result.count("kmer") >= 1) { movi_options.set_kmer(); }
                     if (result.count("count") >= 1) { movi_options.set_count(); }
                     if (result.count("zml") >= 1) { movi_options.set_zml(); }

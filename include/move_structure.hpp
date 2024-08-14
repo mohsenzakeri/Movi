@@ -194,12 +194,15 @@ class MoveStructure {
         std::vector<uint64_t> first_offsets;
         std::vector<uint64_t> last_runs;
         std::vector<uint64_t> last_offsets;
+        std::vector<std::vector<MoveInterval> > ftabs;
         std::vector<MoveInterval> ftab;
 
         std::string orig_string;
         bool reconstructed;
 
         // Used for gathering statistics
+        uint64_t no_ftab;
+        uint64_t all_initializations;
         std::unordered_map<uint32_t, uint32_t> jumps;
         std::unordered_map<uint32_t, uint32_t> ff_counts;
         std::unordered_map<uint64_t, uint64_t> run_lengths;
