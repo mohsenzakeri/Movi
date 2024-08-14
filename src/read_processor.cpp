@@ -283,6 +283,16 @@ void ReadProcessor::backward_search_latency_hiding(MoveStructure& mv) {
 
 void ReadProcessor::reset_backward_search(Strand& process, MoveStructure& mv) {
     std::string& R = process.mq.query();
+
+    if (!mv.check_alphabet(R[process.pos_on_r])) {
+      // The character does not exist, so we return the empty interval
+      process.range.run_start = 1;
+      process.range.run_end = 0;
+      process.range.offset_start = 0;
+      process.range.offset_end = 0;
+      return;
+    }
+
     process.range.run_start = mv.first_runs[mv.alphamap[R[process.pos_on_r]] + 1];
     process.range.offset_start = mv.first_offsets[mv.alphamap[R[process.pos_on_r]] + 1];
     process.range.run_end = mv.last_runs[mv.alphamap[R[process.pos_on_r]] + 1];
@@ -327,6 +337,12 @@ bool ReadProcessor::backward_search(Strand& process, MoveStructure& mv, uint64_t
 
     bool first_iteration = process.pos_on_r == process.read.length() - 1;
     process.range_prev = process.range;
+
+    if (!mv.check_alphabet(R[process.pos_on_r])) {
+        match_count = 0;
+        return true;
+    }
+
     process.pos_on_r -= 1;
     if ((!first_iteration and (process.range.run_start == mv.end_bwt_idx or process.range.run_end == mv.end_bwt_idx)) or !mv.check_alphabet(R[process.pos_on_r])) {
         // The read was not found.
