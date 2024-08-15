@@ -24,9 +24,9 @@ const uint8_t mask_overflow_thresholds = static_cast<uint8_t>(~(((1U << 1) - 1) 
 const uint16_t mask_id =  static_cast<uint16_t>(~(((1U << 4) - 1) << 12));                  // 11110000 00000000
 const uint16_t mask_offset =  static_cast<uint16_t>(~(((1U << 12) - 1) << 0));              // 00001111 11111111
 const uint16_t mask_n =  static_cast<uint16_t>(~(((1U << 12) - 1) << 0));                   // 00001111 11111111
-const uint16_t mask_c = static_cast<uint16_t>(~(((1U << 2) - 1) << 12));                    // 00110000 00000000
-const uint16_t mask_overflow_n = static_cast<uint16_t>(~(((1U << 1) - 1) << 4));            // 01000000 00000000
-const uint16_t mask_overflow_offset = static_cast<uint16_t>(~(((1U << 1) - 1) << 5));       // 10000000 00000000
+const uint16_t mask_c = static_cast<uint16_t>(~(((1U << 4) - 1) << 12));                    // 11110000 00000000
+// const uint16_t mask_overflow_n = static_cast<uint16_t>(~(((1U << 1) - 1) << 4));            // 01000000 00000000
+// const uint16_t mask_overflow_offset = static_cast<uint16_t>(~(((1U << 1) - 1) << 5));       // 10000000 00000000
 #define MAX_RUN_LENGTH 4095 // 2^12-1
 #endif
 
@@ -172,7 +172,9 @@ inline bool MoveRow::is_overflow_n() const{
     uint8_t res = extract_value(overflow_bits, mask_overflow_n, 4);
 #endif
 #if MODE == 3
-    uint16_t res = extract_value(n, mask_overflow_n, 14);
+    std::cerr << "The length overflow should not occur in the compressed mode.\n";
+    uint16_t res = 1;
+    // uint16_t res = extract_value(n, mask_overflow_n, 14);
 #endif
     return !static_cast<bool>(res);
 }
@@ -182,7 +184,9 @@ inline bool MoveRow::is_overflow_offset() const{
     uint8_t res = extract_value(overflow_bits, mask_overflow_offset, 5);
 #endif
 #if MODE == 3
-    uint16_t res = extract_value(n, mask_overflow_offset, 15);
+    std::cerr << "The offset overflow should not occur in the compressed mode.\n";
+    uint16_t res = 1;
+    // uint16_t res = extract_value(n, mask_overflow_offset, 15);
 #endif
     return !static_cast<bool>(res);
 }

@@ -56,8 +56,10 @@ void MoveRow::set_overflow_n() {
     overflow_bits = overflow_bits | (1 >> 4);
 #endif
 #if MODE == 3
-    n = n & mask_overflow_n;
-    n = n | (1 >> 14);
+    std::cerr << "The length overflow should not occur in the compressed mode.\n";
+    exit(0);
+    // n = n & mask_overflow_n;
+    // n = n | (1 >> 14);
 #endif
 }
 
@@ -82,8 +84,10 @@ void MoveRow::set_overflow_offset() {
     overflow_bits = overflow_bits | (1 >> 5);
 #endif
 #if MODE == 3
-    n = n & mask_overflow_offset;
-    n = n | (1 >> 15);
+    std::cerr << "The offset overflow should not occur in the compressed mode.\n";
+    exit(0);
+    // n = n & mask_overflow_offset;
+    // n = n | (1 >> 15);
 #endif
 }
 

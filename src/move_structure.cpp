@@ -836,6 +836,7 @@ void MoveStructure::build() {
         // To take care of cases where length of the run
         // does not fit in uint16_t
         if (len > MAX_RUN_LENGTH) {
+            // Should not get here in the compact mode: MODE = 3
             n_overflow.push_back(len);
             if (n_overflow.size() - 1 >= MAX_RUN_LENGTH) {
                 std::cerr << "Warning: the number of runs with overflow n is beyond " << MAX_RUN_LENGTH<< "! " << n_overflow.size() - 1 << "\n";
@@ -845,6 +846,7 @@ void MoveStructure::build() {
             rlbwt[r_idx].set_overflow_n();
         }
         if (offset > MAX_RUN_LENGTH) {
+            // Should not get here in the compact mode: MODE = 3
             offset_overflow.push_back(offset);
             if (offset_overflow.size() - 1 >= MAX_RUN_LENGTH) {
                 std::cerr << "Warning: the number of runs with overflow offset is beyond " << MAX_RUN_LENGTH<< "! " << offset_overflow.size() - 1 << "\n";
