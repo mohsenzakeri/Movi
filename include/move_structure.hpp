@@ -140,7 +140,7 @@ class MoveStructure {
         void verify_lfs();
         void print_stats();
         void analyze_rows();
-        bool check_alphabet(char c);
+        bool check_alphabet(char& c);
 
         void serialize();
         void deserialize();

@@ -1658,7 +1658,6 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
         uint64_t row_idx = idx;
         char row_c = alphabet[row.get_c()];
 
-        // if (alphamap[static_cast<uint64_t>(R[pos_on_r])] == alphamap.size()) {
         if (!check_alphabet(R[pos_on_r])) {
             // The character from the read does not exist in the reference
             match_len = 0;
@@ -1957,12 +1956,18 @@ bool MoveStructure::jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_cou
     }
 }*/
 
-bool MoveStructure::check_alphabet(char c) {
+bool MoveStructure::check_alphabet(char& c) {
     // for (char c_: alphabet) {
     //     if (c == c_)
     //         return true;
     // }
     // return false;
+    if (movi_options->ignore_illegal_chars_status() > 0) {
+        if (alphamap[static_cast<uint64_t>(c)] == alphamap.size()) {
+            c = movi_options->ignore_illegal_chars_status() == 1 ?  'A' : alphabet[ std::rand() % alphabet.size() ];
+            return true;
+        }
+    }
     return alphamap[static_cast<uint64_t>(c)] != alphamap.size();
 }
 

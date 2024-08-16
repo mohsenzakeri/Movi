@@ -25,6 +25,7 @@ class MoviOptions {
         bool is_kmer() { return kmer_query; }
         bool is_reverse() { return reverse; }
         bool is_multi_ftab() { return multi_ftab; }
+        int ignore_illegal_chars_status() { return ilc; }
         size_t get_strands() { return strands; }
         uint32_t get_k () { return k; }
         uint32_t get_ftab_k () { return ftab_k; }
@@ -50,6 +51,14 @@ class MoviOptions {
         void set_ftab_k(uint32_t ftab_k_) { ftab_k = ftab_k_; }
         void set_multi_ftab(bool multi_ftab_) { multi_ftab = multi_ftab_; }
         void set_reverse(bool reverse_) { reverse = reverse_; }
+        bool set_ignore_illegal_chars(int ilc_) {
+            if (ilc_ > 2 or ilc_ < 1)
+                return false;
+            ilc = ilc_;
+	        if (ilc == 2)
+                std::srand(time(0));
+            return true;
+        }
         void set_prefetch(bool prefetch_) { prefetch = prefetch_; }
         void set_strands(size_t strands_) { strands = strands_; }
         void set_command(std::string command_) { command = command_; }
@@ -96,6 +105,7 @@ class MoviOptions {
         std::string index_dir;
         std::string LF_type;
         bool preprocessed = false;
+        int ilc = 0;
         bool split = false;
         bool pml_query = false;
         bool zml_query = false;
