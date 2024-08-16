@@ -20,6 +20,7 @@ class MoviOptions {
         bool is_pml() { return pml_query; }
         bool is_count() { return count_query; }
         bool is_reverse() { return reverse; }
+	int ignore_illegal_chars_status() { return ilc; }
         size_t get_strands() { return strands; }
         std::string get_command() { return command; }
         std::string get_LF_type() { return LF_type; }
@@ -36,6 +37,14 @@ class MoviOptions {
         void set_pml(bool pml_) { pml_query = pml_; }
         void set_count(bool count_) { count_query = count_; pml_query = false;}
         void set_reverse(bool reverse_) { reverse = reverse_; }
+        bool set_ignore_illegal_chars(int ilc_) {
+          if (ilc_ > 2 or ilc_ < 1)
+            return false;
+          ilc = ilc_;
+	  if (ilc == 2)
+            std::srand(time(0));
+          return true;
+        }
         void set_prefetch(bool prefetch_) { prefetch = prefetch_; }
         void set_strands(size_t strands_) { strands = strands_; }
         void set_command(std::string command_) { command = command_; }
@@ -78,6 +87,7 @@ class MoviOptions {
         std::string pml_file;
         std::string index_dir;
         std::string LF_type;
+        int ilc = 0;
         bool split = false;
         bool pml_query = false;
         bool count_query = false;

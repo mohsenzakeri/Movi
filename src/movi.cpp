@@ -71,7 +71,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
         ("n,no-prefetch", "Disable prefetching for query")
         ("s,strands", "Number of strands for query", cxxopts::value<int>())
-        ("stdout", "Write the output to stdout");
+        ("stdout", "Write the output to stdout")
+        ("ignore-illegal-chars", "In the case of illegal characters (i.e., non-ACGT for genomic data), substitute the character with \'A\'(1) or a random character from the alphabet (2).", cxxopts::value<int>());
 
     auto viewOptions = options.add_options("view")
         ("pml-file", "PML file in the binary format", cxxopts::value<std::string>());
@@ -125,6 +126,12 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("count") >= 1) { movi_options.set_count(true); }
                     if (result.count("pml") >= 1) { movi_options.set_pml(true); }
                     if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
+                    if (result.count("ignore-illegal-chars") == 1) {
+                      if (!movi_options.set_ignore_illegal_chars(result["ignore-illegal-chars"].as<int>())) {
+                        const std::string message = "ignore-illegal-chars should be either 1 (set illegal chars to \'A\') or 2 (set illegal chars to a random char).";
+                        cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+		      }
+                    }
                     if (movi_options.is_pml() and movi_options.is_count()) {
                         const std::string message = "Please only specify count or pml as the type of queries.";
                         cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
