@@ -66,7 +66,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("f,fasta", "Reference file", cxxopts::value<std::string>())
         ("preprocessed", "The BWT is preprocessed into heads and lens files")
-        ("verify", "Verify if all the LF_move operations are correct");
+        ("verify", "Verify if all the LF_move operations are correct")
+        ("ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>())
+        ("multi-ftab", "Use ftabs with smaller k values if the largest one fails");
 
     auto queryOptions = options.add_options("query")
         ("pml", "Compute the pseudo-matching lengths (PMLs)")
@@ -78,7 +80,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
         ("n,no-prefetch", "Disable prefetching for query")
         ("k,k-length", "The length of the kmer", cxxopts::value<uint32_t>())
-        ("t,ftab-k", "The length of the ftba kmer", cxxopts::value<uint32_t>())
+        ("ftab-k", "The length of the ftba kmer", cxxopts::value<uint32_t>())
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
         ("s,strands", "Number of strands for query", cxxopts::value<int>())
         ("stdout", "Write the output to stdout")
@@ -99,7 +101,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
     auto ftabOptions = options.add_options("ftab")
         ("i,index", "Index directory", cxxopts::value<std::string>())
-        ("f,ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>());
+        ("ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>())
+        ("multi-ftab", "Use ftabs with smaller k values if the largest one fails");
 
     options.parse_positional({ "command" });
 
@@ -216,6 +219,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                 if (result.count("index") and result.count("ftab-k")) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
                     movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>()));
+                    if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
                 } else {
                     const std::string message = "Please specify the index directory file and the k length for the ftab.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
@@ -234,6 +238,21 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         return false;
     }
     return true;
+}
+
+void build_ftab(MoveStructure& mv_, MoviOptions& movi_options)  {
+    if (movi_options.is_multi_ftab() and movi_options.get_ftab_k() > 1) {
+        int max_ftab = movi_options.get_ftab_k();
+        for (int i = 2; i <= max_ftab; i++) {
+            movi_options.set_ftab_k(i);
+            mv_.compute_ftab();
+            mv_.write_ftab();
+            std::cerr << "The ftab table for k = " << i << " is built and stored in the index directory.\n";
+        }
+    } else if (movi_options.get_ftab_k() > 1) {
+        mv_.compute_ftab();
+        mv_.write_ftab();
+    }
 }
 
 void query(MoveStructure& mv_, MoviOptions& movi_options) {
@@ -400,18 +419,8 @@ int main(int argc, char** argv) {
             mv_.verify_lfs();
         }
         mv_.serialize();
+        build_ftab(mv_, movi_options);
         std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
-        if (movi_options.is_multi_ftab() and movi_options.get_ftab_k() > 1) {
-            int max_ftab = movi_options.get_ftab_k();
-            for (int i = 2; i <= max_ftab; i++) {
-                movi_options.set_ftab_k(i);
-                mv_.compute_ftab();
-                mv_.write_ftab();
-            }
-        } else if (movi_options.get_ftab_k() > 1) {
-            mv_.compute_ftab();
-            mv_.write_ftab();
-        }
     } else if (command == "query") {
         MoveStructure mv_(&movi_options);
         auto begin = std::chrono::system_clock::now();
@@ -448,7 +457,6 @@ int main(int argc, char** argv) {
     } else if (command == "ftab") {
         MoveStructure mv_(&movi_options);
         mv_.deserialize();
-        mv_.compute_ftab();
-        mv_.write_ftab();
+        build_ftab(mv_, movi_options);
     }
 }
