@@ -129,6 +129,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                 if (result.count("index") == 1 and result.count("fasta") == 1) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
                     movi_options.set_ref_file(result["fasta"].as<std::string>());
+                    if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
+                    if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
                     if (result.count("verify")) {
                         movi_options.set_verify(true);
                     }
@@ -145,7 +147,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     movi_options.set_read_file(result["read"].as<std::string>());
                     if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
                     if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
-                    if (result.count("multi-ftab") == 1) { movi_options.set_multi_ftab(true); }
+                    if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
                     if (result.count("kmer") >= 1) { movi_options.set_kmer(); }
                     if (result.count("count") >= 1) { movi_options.set_count(); }
                     if (result.count("zml") >= 1) { movi_options.set_zml(); }
@@ -399,6 +401,17 @@ int main(int argc, char** argv) {
         }
         mv_.serialize();
         std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
+        if (movi_options.is_multi_ftab() and movi_options.get_ftab_k() > 1) {
+            int max_ftab = movi_options.get_ftab_k();
+            for (int i = 2; i <= max_ftab; i++) {
+                movi_options.set_ftab_k(i);
+                mv_.compute_ftab();
+                mv_.write_ftab();
+            }
+        } else if (movi_options.get_ftab_k() > 1) {
+            mv_.compute_ftab();
+            mv_.write_ftab();
+        }
     } else if (command == "query") {
         MoveStructure mv_(&movi_options);
         auto begin = std::chrono::system_clock::now();
