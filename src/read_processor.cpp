@@ -104,7 +104,7 @@ void ReadProcessor::process_char(Strand& process, MoveStructure& mv) {
         uint64_t idx_before_jump = process.idx;
         bool up = mv.jump_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
         process.match_len = 0;
-        char c = mv.alphabet[mv.rlbwt[process.idx].get_c_mm()];
+        char c = mv.alphabet[mv.rlbwt[process.idx].get_c()];
         // sanity check
         if (c == R[process.pos_on_r]) {
             // Observing a match after the jump

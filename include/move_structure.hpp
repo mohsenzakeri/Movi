@@ -74,7 +74,7 @@ class MoveStructure {
         std::unordered_map<uint64_t, uint64_t> run_lengths;
 
         uint64_t get_n(uint64_t idx);
-        uint64_t get_n_ff(uint64_t idx);
+        //uint64_t get_n_ff(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
         uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);

@@ -37,13 +37,10 @@ class MoveRow{
         // uint64_t get_p() const;
         // uint64_t get_pp() const;
         uint16_t get_n() const;
-        uint16_t get_n_ff() const;
         uint16_t get_offset() const;
         uint64_t get_id() const;
         uint8_t get_threshold_status(uint16_t i) const;
         char get_c() const;
-        char get_c_jj() const;
-        char get_c_mm() const;
 
         void set_overflow_n();
         void set_overflow_offset();
@@ -135,10 +132,6 @@ inline uint8_t MoveRow::get_threshold_status(uint16_t i) const {
 }
 
 inline uint16_t MoveRow::get_n() const{
-    return n;
-}
-
-inline uint16_t MoveRow::get_n_ff() const{
     return n;
 }
 
