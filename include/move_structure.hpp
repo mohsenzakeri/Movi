@@ -68,7 +68,6 @@ class MoveStructure {
         void print_stats();
         void analyze_rows();
         bool check_alphabet(char& c);
-        void print_stats();
 
         std::unordered_map<uint32_t, uint32_t> jumps;
         std::unordered_map<uint32_t, uint32_t> ff_counts;
