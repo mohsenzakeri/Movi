@@ -1066,7 +1066,7 @@ void MoveStructure::compute_ftab() {
             last_runs[alphamap[kmer[pos_on_kmer]] + 1],
             last_offsets[alphamap[kmer[pos_on_kmer]] + 1]
         );
-        MoveInterval kmer_interval = backward_search(kmer, pos_on_kmer, interval);
+        MoveInterval kmer_interval = backward_search(kmer, pos_on_kmer, interval, std::numeric_limits<int32_t>::max());
         uint64_t match_count = kmer_interval.count(rlbwt);
         if (match_count >= 0 and pos_on_kmer == 0) {
             // std::cerr << kmer << " " << match_count << " " << kmer_interval << "\n";
@@ -1309,12 +1309,13 @@ void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
 #endif
 }
 
-MoveInterval MoveStructure::backward_search(std::string& R, int32_t& pos_on_r, MoveInterval interval) {
+MoveInterval MoveStructure::backward_search(std::string& R, int32_t& pos_on_r, MoveInterval interval, int32_t max_length) {
     // If the pattern is found, the pos_on_r will be equal to 0 and the interval will be non-empty
     // Otherwise the interval corresponding to match from the end until and including the updated pos_on_r will be returned
     // The input interval is non-empty and corresponds to the interval that matches the read (R) at pos_on_r
     MoveInterval prev_interval = interval;
-    uint64_t match_len = 1;
+    // uint64_t match_len = 1; --- unused variable
+    int32_t pos_on_r_saved = pos_on_r;
     while (pos_on_r > 0 and !interval.is_empty()) {
         /*if (!check_alphabet(R[pos_on_r - 1])) {
             return interval;
@@ -1330,6 +1331,10 @@ MoveInterval MoveStructure::backward_search(std::string& R, int32_t& pos_on_r, M
             LF_move(interval.offset_end, interval.run_end);
             pos_on_r -= 1;
         }*/
+
+        // The following is only for the backward_search is called for "look ahead" for kmer skipping
+        if (pos_on_r_saved - pos_on_r > max_length)
+            break;
     }
     if (interval.is_empty()) {
         return prev_interval;
@@ -1480,9 +1485,130 @@ uint64_t MoveStructure::query_backward_search(MoveQuery& mq, int32_t& pos_on_r) 
     // Initial the interval by matching the character at the end of the read (pos_on_r)
     uint64_t not_used = 0;
     MoveInterval initial_interval = initialize_backward_search(mq, pos_on_r, not_used);
-    return backward_search(query_seq, pos_on_r, initial_interval).count(rlbwt);
+    return backward_search(query_seq, pos_on_r, initial_interval, std::numeric_limits<int32_t>::max()).count(rlbwt);
 }
 
+bool MoveStructure::look_ahead_ftab(MoveQuery& mq, uint32_t pos_on_r, int32_t& step) {
+    size_t ftab_k = movi_options->get_ftab_k();
+    size_t k = movi_options->get_k();
+    auto& query_seq = mq.query();
+    // int32_t pos_on_r_ahead = pos_on_r - static_cast<int32_t>(k/2);
+    for (step = 0; step <= 19 ; step += 1) {
+        int32_t pos_on_r_ahead = pos_on_r - k + ftab_k + step;
+        uint64_t kmer_code = kmer_to_number(ftab_k, query_seq.substr(pos_on_r_ahead - ftab_k + 1, ftab_k), alphamap);
+        if (kmer_code != std::numeric_limits<uint64_t>::max() and !ftab[kmer_code].is_empty()) {
+            // return true;
+        } else {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool MoveStructure::look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r, int32_t step) {
+    size_t ftab_k = movi_options->get_ftab_k();
+    size_t k = movi_options->get_k();
+    auto& query_seq = mq.query();
+
+    uint64_t match_len = 0;
+    int32_t pos_on_r_ahead = pos_on_r - step;
+    MoveInterval initial_interval = initialize_backward_search(mq, pos_on_r_ahead, match_len);
+    backward_search(query_seq, pos_on_r_ahead, initial_interval, k - step - match_len);
+    if (pos_on_r - pos_on_r_ahead >= k - 1) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r) {
+    size_t ftab_k = movi_options->get_ftab_k();
+    size_t k = movi_options->get_k();
+    auto& query_seq = mq.query();
+    int32_t pos_on_r_saved = pos_on_r;
+    // look ahead for possible skipping
+    // int32_t step = 0;
+    // if (ftab_k > 1 and !look_ahead_ftab(mq, pos_on_r, step)) {
+    //     kmer_stats.look_ahead_skipped += k - ftab_k - step;
+    //     pos_on_r = pos_on_r - k + ftab_k + step - 1;
+    //     pos_on_r_saved = pos_on_r;
+    // }
+    uint64_t match_len = 0;
+    MoveInterval initial_interval;
+    do {
+        initial_interval = initialize_backward_search(mq, pos_on_r, match_len);
+        if (match_len == 0 and ftab_k > 1) {
+            kmer_stats.initialize_skipped += 1;
+            pos_on_r -= 1;
+            pos_on_r_saved = pos_on_r;
+        }
+    } while (match_len == 0 and pos_on_r >= k - 1 and ftab_k > 1);
+    /* if (pos_on_r < k - 1) {
+        return 0;
+    } */
+
+    auto backward_search_result = backward_search(query_seq, pos_on_r, initial_interval, std::numeric_limits<int32_t>::max());
+    if (backward_search_result.is_empty()) {
+        // We get here when there is an illegal character at pos_on_r, just skip the current position
+        pos_on_r = pos_on_r_saved - 1;
+        kmer_stats.backward_search_empty += 1;
+        return 0;
+    } else {
+        if (pos_on_r_saved - pos_on_r >= k - 1) {
+            // At leat one kmer was found, update the postion and return the count
+            uint64_t kmers_found = pos_on_r_saved - pos_on_r - k + 2;
+            kmer_stats.positive_skipped += kmers_found - 1;
+            pos_on_r = pos_on_r + k - 2;
+	        return kmers_found;
+        } else {
+            // No kmer was found, update the postion
+            kmer_stats.backward_search_failed += 1;
+            pos_on_r = pos_on_r_saved - 1;
+            return 0;
+        }
+    }
+}
+
+void MoveStructure::query_all_kmers(MoveQuery& mq) {
+    size_t ftab_k = movi_options->get_ftab_k();
+    size_t k = movi_options->get_k();
+    auto& query_seq = mq.query();
+    int32_t pos_on_r = query_seq.length() - 1;
+
+    if (k == 1) {
+        uint64_t kmers_found = 0;
+        while (pos_on_r >= 0) {
+            kmers_found += check_alphabet(query_seq[pos_on_r]) ? 1 : 0;
+            pos_on_r -= 1;
+        }
+        kmer_stats.positive_kmers += kmers_found;
+        return;
+    }
+
+    while (!check_alphabet(query_seq[pos_on_r])) {
+        pos_on_r -= 1; // Find the first position where the character is legal
+    }
+
+    while (pos_on_r >= k - 1) {
+        // int32_t step = 0;
+        int32_t step = 5;
+        // if (ftab_k > 1 and !look_ahead(mq, pos_on_r, step)) {
+        //    kmer_stats.look_ahead_skipped += k - ftab_k - step;
+        //    pos_on_r = pos_on_r - k + ftab_k + step - 1;
+        if (pos_on_r >= k -1 + step and !look_ahead_backward_search(mq, pos_on_r, step)) {
+            kmer_stats.look_ahead_skipped += step + 1;
+            pos_on_r = pos_on_r - step - 1;
+        } else {
+            kmer_stats.positive_kmers += query_kmers_from(mq, pos_on_r);
+        }
+
+        while (!check_alphabet(query_seq[pos_on_r])) {
+            pos_on_r -= 1; // Find the first position where the character is legal
+        }
+    }
+}
+
+// The following code is an old impelementation of the backkward search and is depricated as of Summer 2024.
 uint64_t MoveStructure::backward_search(std::string& R, int32_t& pos_on_r) {
     if (!check_alphabet(R[pos_on_r])) {
         return 0;

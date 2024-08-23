@@ -341,6 +341,9 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     count_file << seq->name.s << "\t";
                     count_file << query_seq.length() - pos_on_r << "/" << query_seq.length() << "\t" << match_count << "\n";
                 }
+            } else if (movi_options.is_kmer()) {
+                mq = MoveQuery(query_seq);
+                mv_.query_all_kmers(mq);
             }
 
             if (movi_options.is_logs()) {
@@ -373,7 +376,11 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 count_file.close();
             }
             std::cerr << "The count file is closed.\n";
+        } else if (movi_options.is_kmer()) {
+            std::cout << "\n\nNumber of kmers found in the index: " << mv_.kmer_stats.positive_kmers << "\n\n\n";
+            mv_.kmer_stats.print();
         }
+
         if (movi_options.is_logs()) {
             costs_file.close();
             scans_file.close();
