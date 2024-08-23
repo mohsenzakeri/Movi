@@ -462,6 +462,7 @@ int main(int argc, char** argv) {
         MoveStructure mv_(&movi_options);
         mv_.deserialize();
         mv_.print_stats();
+        // mv_.compute_run_lcp();
         // mv_.analyze_rows();
     } else if (command == "ftab") {
         MoveStructure mv_(&movi_options);

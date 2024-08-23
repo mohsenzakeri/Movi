@@ -1018,6 +1018,33 @@ void MoveStructure::build() {
     std::cerr << "The move structure building is done.\n";
 }
 
+void MoveStructure::compute_run_lcp() {
+    std::cout << "run,length,lcp\n";
+    for (int i = 0; i < r; i++) {
+        if (i % 1000 == 0) std::cerr << i << "\r";
+        if (get_n(i) > 1) {
+            uint64_t id_top = i;
+            uint64_t id_bottom = i;
+            uint64_t offset_top = 0;
+            uint64_t offset_bottom = get_n(i) - 1;
+
+            uint64_t lcp = 0;
+            char c_top = get_char(id_top);
+            char c_bottom = get_char(id_bottom);
+            while (c_top == c_bottom and lcp <= 32) {
+                lcp += 1;
+                LF_move(offset_top, id_top);
+                LF_move(offset_bottom, id_bottom);
+                c_top = get_char(id_top);
+                c_bottom = get_char(id_bottom);
+            }
+            std::cout << i << "," << get_n(i) << "," << lcp << "\n";
+        } else {
+            std::cout << i << "," << 1 << "," << -1 << "\n";
+        }
+    }
+}
+
 uint64_t kmer_to_number(size_t k, std::string kmer, std::vector<uint64_t>& alphamap) {
     if (kmer.length() != k) {
         std::cerr << "The k does not match the kmer length!\n";
