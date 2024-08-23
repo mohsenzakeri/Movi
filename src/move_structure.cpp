@@ -877,18 +877,18 @@ uint64_t kmer_to_number(size_t k, std::string kmer, std::vector<uint64_t>& alpha
         if (alphamap[static_cast<uint64_t>(kmer[i])] == alphamap.size()) {
             return std::numeric_limits<uint64_t>::max();
         }
-        uint64_t char_code = alphamap[kmer[i]];
+        uint64_t char_code = alphamap[kmer[i]] - alphamap['A'];
         res = (char_code << ((k-i-1)*2)) | res;
     }
     return res;
 }
 
-std::string number_to_kmer(size_t j, size_t m, std::vector<unsigned char>& alphabet) {
+std::string number_to_kmer(size_t j, size_t m, std::vector<unsigned char>& alphabet, std::vector<uint64_t>& alphamap) {
     std::string kmer = "";
     for (int i = m - 2; i >= 0; i -= 2) {
         size_t pair = (j >> i) & 0b11;
         // std::cerr << i << " " << pair << " ";
-        kmer += alphabet[pair];
+        kmer += alphabet[pair + alphamap['A']];
     }
     return kmer;
 }
@@ -900,8 +900,9 @@ void MoveStructure::compute_ftab() {
     std::cerr << "ftab_size: " << ftab_size*sizeof(MoveInterval)*std::pow(10, -6) << " MB \n";
     ftab.clear();
     ftab.resize(ftab_size);
+    std::cerr << "Number of ftab entries (ftab-k=" << ftab_k << "): " << ftab_size << "\n";
     for (uint64_t i = 0; i < ftab_size; i++) {
-        std::string kmer = number_to_kmer(i, 2*(ftab_k), alphabet);
+        std::string kmer = number_to_kmer(i, 2*(ftab_k), alphabet, alphamap);
         uint64_t kmer_code = kmer_to_number(ftab_k, kmer, alphamap);
         if (kmer_code != i) {
             std::cerr << kmer << " " << i << " " << kmer_code << "\n";
@@ -982,6 +983,7 @@ void MoveStructure::read_ftab() {
         fin.read(reinterpret_cast<char*>(&ftab_k), sizeof(ftab_k));
         uint64_t ftab_size = 0;
         fin.read(reinterpret_cast<char*>(&ftab_size), sizeof(ftab_size));
+        std::cerr << "ftab_k: " << ftab_k << "\t" << "ftab_size: " << ftab_size << "\n";
         if (ftab_size != std::pow(4, ftab_k)) {
             std::cerr << "The size of the ftab is not correct: " << ftab_size << " != " << std::pow(4, ftab_k) << "\n";
             exit(0);
@@ -1195,8 +1197,10 @@ MoveInterval MoveStructure::try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t&
                 if (movi_options->is_zml()) {
                     for (size_t i = 0; i < ftab_k - 1; i++) {
                         mq.add_ml(i);
-                        match_len = ftab_k - 1;
                     }
+                }
+                if (movi_options->is_zml() or movi_options->is_kmer()) {
+                    match_len = ftab_k - 1;
                 }
                 pos_on_r = pos_on_r - ftab_k + 1;
                 return current_ftab[kmer_code];
@@ -1221,7 +1225,7 @@ MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq, int32_t& p
                 return ftab_res;
             ftab_k -= 2;
         }
-    } else {
+    } else if (ftab_k > 1) {
         MoveInterval ftab_res = try_ftab(mq, pos_on_r, match_len, ftab_k);
         if (!ftab_res.is_empty())
             return ftab_res;

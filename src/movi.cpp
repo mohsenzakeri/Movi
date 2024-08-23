@@ -234,7 +234,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     return true;
 }
 
-void build_ftab(MoveStructure& mv_, MoviOptions& movi_options)  {
+void build_ftab(MoveStructure& mv_, MoviOptions& movi_options) {
     if (movi_options.is_multi_ftab() and movi_options.get_ftab_k() > 1) {
         int max_ftab = movi_options.get_ftab_k();
         for (int i = 2; i <= max_ftab; i++) {
@@ -250,8 +250,10 @@ void build_ftab(MoveStructure& mv_, MoviOptions& movi_options)  {
 }
 
 void query(MoveStructure& mv_, MoviOptions& movi_options) {
-    if (movi_options.get_ftab_k() != 0)
+    if (movi_options.get_ftab_k() != 0) {
         mv_.read_ftab();
+        std::cerr<<"Ftab was read!\n";
+    }
 
     if (!movi_options.no_prefetch()) {
         ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
