@@ -9,37 +9,26 @@
 // STEP 1: declare the type of file handler and the read() function
 KSEQ_INIT(gzFile, gzread)
 
-struct Range {
-    Range() {}
-    Range& operator =(const Range& range) {
-        run_start = range.run_start;
-        offset_start = range.offset_start;
-        run_end = range.run_end;
-        offset_end = range.offset_end;
-        return *this;
-    }
-    uint64_t run_start;
-    uint64_t offset_start;
-    uint64_t run_end;
-    uint64_t offset_end;
-};
-
 struct Strand {
     Strand() {}
     uint16_t st_length;
     std::string read_name;
     std::string read;
     MoveQuery mq;
-    Range range;
-    Range range_prev;
+    MoveInterval range;
+    MoveInterval range_prev;
 
+    bool kmer_extension;
     bool finished;
     int32_t pos_on_r;
+    uint32_t kmer_end;
+    int32_t kmer_start;
     uint64_t length_processed;
 
     uint64_t idx;
     uint64_t offset;
     uint64_t match_len;
+    uint64_t match_count;
 
     uint64_t ff_count;
     uint64_t scan_count;
@@ -50,27 +39,43 @@ struct Strand {
 
 class ReadProcessor {
     public:
-        ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_, bool query_pml, bool reverse_);
+        ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_, bool verbose_, bool reverse_);
         // void process_regular();
-        void process_latency_hiding(MoveStructure& mv);
-        void backward_search_latency_hiding(MoveStructure& mv);
+        uint64_t initialize_strands(std::vector<Strand>& processes);
+        void process_latency_hiding();
+        // void ziv_merhav_latency_hiding();
+        // void backward_search_latency_hiding();
+        void kmer_search_latency_hiding(uint32_t k);
         bool next_read(Strand& process);
-        void write_pmls(Strand& process, bool logs, bool write_stdout);
-        void process_char(Strand& process, MoveStructure& mv);
-        bool backward_search(Strand& process, MoveStructure& mv, uint64_t& match_count);
-        void reset_process(Strand& process, MoveStructure& mv);
-        void reset_backward_search(Strand& process, MoveStructure& mv);
+        void write_mls(Strand& process);
+        void compute_match_count(Strand& process);
+        void write_count(Strand& process);
+        void process_char(Strand& process);
+        bool backward_search(Strand& process, uint64_t end_pos);
+        void reset_process(Strand& process);
+        void reset_backward_search(Strand& process);
+        void reset_kmer_search(Strand& process);
+        void next_kmer_search(Strand& process);
+        void next_kmer_search_negative_skip_all_heuristic(Strand& process);
+        bool verify_kmer(Strand& process, uint64_t k);
     private:
+        MoveStructure& mv;
         gzFile fp;
         kseq_t *seq;
         int l;
-        std::ofstream pmls_file;
+        std::ofstream mls_file;
         std::ofstream matches_file;
         int strands;
+        uint32_t k;
         bool verbose = false;
         bool reverse = false;
         uint64_t read_processed;
-
+        uint64_t total_kmer_count;
+        uint64_t positive_kmer_count;
+        uint64_t negative_kmer_count;
+        uint64_t kmer_extension_count;
+        uint64_t kmer_extension_stopped_count;
+        uint64_t negative_kmer_extension_count;
         std::ofstream costs_file;
         std::ofstream scans_file;
         std::ofstream fastforwards_file;
