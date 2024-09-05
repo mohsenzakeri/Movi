@@ -152,7 +152,7 @@ class MoveStructure {
         void compute_nexts();
         void compute_ftab();
         void write_ftab();
-        void compute_run_lcp();
+        void compute_run_lcs();
         void read_ftab();
 
         // The following are used during development only
