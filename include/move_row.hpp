@@ -21,13 +21,25 @@ const uint8_t mask_overflow_thresholds = static_cast<uint8_t>(~(((1U << 1) - 1) 
 #define MAX_RUN_LENGTH 65535 // 2^16 - 1
 #endif
 #if MODE == 3
-const uint16_t mask_id =  static_cast<uint16_t>(~(((1U << 4) - 1) << 12));                  // 11110000 00000000
-const uint16_t mask_offset =  static_cast<uint16_t>(~(((1U << 12) - 1) << 0));              // 00001111 11111111
-const uint16_t mask_n =  static_cast<uint16_t>(~(((1U << 12) - 1) << 0));                   // 00001111 11111111
-const uint16_t mask_c = static_cast<uint16_t>(~(((1U << 4) - 1) << 12));                    // 11110000 00000000
-// const uint16_t mask_overflow_n = static_cast<uint16_t>(~(((1U << 1) - 1) << 4));            // 01000000 00000000
-// const uint16_t mask_overflow_offset = static_cast<uint16_t>(~(((1U << 1) - 1) << 5));       // 10000000 00000000
-#define MAX_RUN_LENGTH 4095 // 2^12-1
+// const uint16_t mask_id =  static_cast<uint16_t>(~(((1U << 4) - 1) << 12));               // 11110000 00000000
+// const uint16_t mask_offset =  static_cast<uint16_t>(~(((1U << 12) - 1) << 0));           // 00001111 11111111
+// const uint16_t mask_n =  static_cast<uint16_t>(~(((1U << 12) - 1) << 0));                // 00001111 11111111
+// const uint16_t mask_c = static_cast<uint16_t>(~(((1U << 4) - 1) << 12));                 // 11110000 00000000
+// #define MAX_RUN_LENGTH 4095  // 2^12 - 1
+
+const uint16_t shift_offset = 0;
+const uint16_t mask_offset =  static_cast<uint16_t>(~(((1U << 11) - 1) << shift_offset));   // 00000111 11111111
+const uint16_t shift_n = 0;
+const uint16_t mask_n =  static_cast<uint16_t>(~(((1U << 11) - 1) << shift_n));             // 00000111 11111111
+const uint16_t shift_c = 11;
+const uint16_t mask_c =  static_cast<uint16_t>(~(((1U << 3) - 1) << shift_c));              // 00111000 00000000
+const uint16_t shift_id1 = 11;
+const uint16_t mask_id1 = static_cast<uint16_t>(~(((1U << 5) - 1) << shift_id1));           // 11111000 00000000
+const uint16_t shift_id2 = 14;
+const uint16_t mask_id2 = static_cast<uint16_t>(~(((1U << 2) - 1) << shift_id2));           // 11000000 00000000
+#define MAX_RUN_LENGTH  2047    // 2^11 - 1
+#define BLOCK_SIZE      4194304 // 2^22
+#define MAX_BLOCKED_ID  8388607 // 2^23 - 1
 #endif
 
 
@@ -84,13 +96,17 @@ class MoveRow{
             return 12;
 #endif
 #if MODE == 3
-            return 8;
+            return 6;
 #endif
         }
     private:
-        uint32_t id; // bwt run after the LF-jump
-        uint16_t n; // length of the run
-        uint16_t offset; // offset of the bwt row head of the current run in the new run after the LF-jump
+#if MODE == 3
+        uint16_t id;        // The least significant bits of the bwt run after the LF-jump (distance from the block check point)
+#else
+        uint32_t id;        // The least significant bits of the bwt run after the LF-jump
+#endif
+        uint16_t n;         // length of the run
+        uint16_t offset;    // offset of the bwt row head of the current run in the new run after the LF-jump
 
 #if MODE == 0 or MODE == 1 or MODE == 2
         uint16_t threshold;
@@ -124,7 +140,7 @@ inline uint16_t MoveRow::get_n() const{
     return n;
 #endif
 #if MODE == 3
-    uint16_t res = static_cast<uint16_t>(extract_value(n, mask_n, 0));
+    uint16_t res = static_cast<uint16_t>(extract_value(n, mask_n, shift_n));
     return res;
 #endif
 }
@@ -134,7 +150,7 @@ inline uint16_t MoveRow::get_offset() const{
     return offset;
 #endif
 #if MODE == 3
-    uint16_t res = static_cast<uint16_t>(extract_value(offset, mask_offset, 0));
+    uint16_t res = static_cast<uint16_t>(extract_value(offset, mask_offset, shift_offset));
     return res;
 #endif
 }
@@ -143,12 +159,18 @@ inline uint64_t MoveRow::get_id() const{
 #if MODE == 0 or MODE == 1 or MODE == 2
     if (overflow_bits != 0) {
         uint64_t res = static_cast<uint64_t>(extract_value(overflow_bits, mask_id, 0));
+        res = res << 32;
 #endif
 #if MODE == 3
-    if (offset >= 2^12) {
-        uint64_t res = static_cast<uint64_t>(extract_value(offset, mask_id, 12));
+    if (n >= (1 << shift_id1) ) {
+        uint64_t res = static_cast<uint64_t>(extract_value(n, mask_id1, shift_id1));
+        res = res << 16;
+        if (offset >= (1 << shift_id2) ) {
+            uint64_t res2 = static_cast<uint64_t>(extract_value(offset, mask_id2, shift_id2));
+            res2 = res2 << 21;
+            res = res | res2;
+        }
 #endif
-        res = res << 32;
         uint64_t c = static_cast<uint64_t>(id);
         c = c | res;
         return c;
@@ -162,7 +184,7 @@ inline char MoveRow::get_c() const{
     return static_cast<char>(extract_value(thresholds_status, mask_c, 6));
 #endif
 #if MODE == 3
-    return static_cast<char>(extract_value(n, mask_c, 12));
+    return static_cast<char>(extract_value(offset, mask_c, shift_c));
 #endif
 }
 

@@ -217,6 +217,7 @@ class MoveStructure {
 
         // The move structure rows
         std::vector<MoveRow> rlbwt;
+        std::vector<std::vector<uint64_t>> id_blocks;
 
         // auxilary datastructures for the length, offset and thresholds overflow
         std::vector<uint64_t> n_overflow;

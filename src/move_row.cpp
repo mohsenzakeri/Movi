@@ -50,10 +50,10 @@ void MoveRow::set_n(uint16_t n_) {
     n = n_;
 #endif
 #if MODE == 3
-    n = n & mask_n;
-    if (n_ < 2^12)
-        n = n | n_;
-    else {
+    if (n_ <= MAX_RUN_LENGTH) {
+        n = n & mask_n;
+        n = n | (n_ << shift_n);
+    } else {
         std::cerr << "The length is greater than 2^12: " << n_ << "\n";
         exit(0);
     }
@@ -76,10 +76,10 @@ void MoveRow::set_offset(uint16_t offset_) {
     offset = offset_;
 #endif
 #if MODE == 3
-    offset = offset & mask_offset;
-    if (offset_ < 2^12)
-        offset = offset | offset_;
-    else {
+    if (offset_ <= MAX_RUN_LENGTH) {
+        offset = offset & mask_offset;
+        offset = offset | (offset_ << shift_offset);
+    } else {
         std::cerr << "The offset is greater than 2^12: " << offset_ << "\n";
         exit(0);
     }
@@ -104,8 +104,10 @@ void MoveRow::set_id(uint64_t id_) {
     overflow_bits = overflow_bits | (id_ >> 32);
 #endif
 #if MODE == 3
-    offset = offset & mask_id;
-    offset = offset | (id_ >> 32);
+    n = n & mask_id1;
+    n = n | ((id_ >> 16) << shift_id1);
+    offset = offset & mask_id2;
+    offset = offset | ((id_ >> 21) << shift_id2);
 #endif
 }
 
@@ -117,7 +119,7 @@ void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
 #endif
 #if MODE == 3
     uint16_t c_16 = static_cast<uint16_t>(alphamap[c_]);
-    n = n & mask_c;
-    n = n | (c_16 << 12);
+    offset = offset & mask_c;
+    offset = offset | (c_16 << shift_c);
 #endif
 }
