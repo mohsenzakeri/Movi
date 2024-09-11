@@ -221,7 +221,7 @@ uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
         std::cerr << "\t \t i: " << i << " offset: " << offset << "\n";
     } */
     auto& row = rlbwt[i];
-    auto idx = row.get_id();
+    auto idx = get_id(i);
     offset = get_offset(i) + offset;
     uint16_t ff_count = 0;
     /* if (movi_options->is_verbose()) {
@@ -356,6 +356,9 @@ void MoveStructure::random_lf() {
     std::cerr << "Total fast forward: " << ff_count_tot << "\n";
 }
 
+uint64_t MoveStructure::get_id(uint64_t idx) {
+    return rlbwt[idx].get_id();
+}
 
 char MoveStructure::get_char(uint64_t idx) {
     if (idx == end_bwt_idx)
@@ -1839,8 +1842,8 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
             if (movi_options->is_verbose()) {
                 std::cerr << "\t Cas1: It was a match. \n" << "\t Continue the search...\n";
                 std::cerr << "\t match_len: " << match_len << "\n";
-                std::cerr << "\t current_id: " << idx << "\t row.id: " << row.get_id() << "\n" 
-                          << "\t row.get_n: " << get_n(row_idx) << " rlbwt[idx].get_n: " << get_n(row.get_id()) << "\n"
+                std::cerr << "\t current_id: " << idx << "\t row.id: " << get_id(row_idx) << "\n"
+                          << "\t row.get_n: " << get_n(row_idx) << " rlbwt[idx].get_n: " << get_n(get_id(row_idx)) << "\n"
                           << "\t offset: " << offset << "\t row.get_offset(): " << get_offset(row_idx) << "\n";
             }
         } else {
@@ -2303,7 +2306,7 @@ void MoveStructure::verify_lfs() {
                 std::cerr << "j\t" << j << "\n";
                 std::cerr << "idx\t" << i << "\n";
                 std::cerr << "offset\t" << j - all_p[i] << "\n";
-                std::cerr << "rlbwt[idx].get_id\t" << rlbwt[i].get_id() << "\n";
+                std::cerr << "rlbwt[idx].get_id\t" << get_id(i) << "\n";
                 std::cerr << "get_offset(i)\t" << get_offset(i) << "\n";
                 for (uint64_t k = 0; k <= i; k++) {
                     std::cerr << rlbwt[k].get_n() << " ";
@@ -2367,7 +2370,7 @@ void MoveStructure::analyze_rows() {
         //      (get_thresholds(i,2) != 0 and get_thresholds(i,2) != get_n(i) and get_thresholds(i,1) != 0 and get_thresholds(i,1) != get_n(i) and get_thresholds(i, 2) != get_thresholds(i, 1)))
         //     ) {
         //     if (get_n(i) >= 256) {
-        //         std::cerr << i << " " << rlbwt[i].get_id() << " " << alphabet[rlbwt[i].get_c()] << " " << get_n(i) << " " << get_offset(i) << ":\t";
+        //         std::cerr << i << " " << get_id(i) << " " << alphabet[rlbwt[i].get_c()] << " " << get_n(i) << " " << get_offset(i) << ":\t";
         //         for (int  j = 0; j < alphabet.size() - 1; j ++)
         //             std::cerr << get_thresholds(i, j) << " ";
         //         std::cerr << "\n";

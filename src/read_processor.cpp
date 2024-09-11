@@ -279,10 +279,10 @@ void ReadProcessor::process_latency_hiding() {
                 } else {
                     // 4: big jump with prefetch
                     if (is_pml) {
-                        my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].idx].get_id()));
+                        my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.get_id(processes[i].idx)));
                     } else if (is_count or is_zml) {
-                        my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_start].get_id()));
-                        my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_end].get_id()));
+                        my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.get_id(processes[i].range.run_start)));
+                        my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.get_id(processes[i].range.run_end)));
                     }
                 }
             }
@@ -501,8 +501,8 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k_) {
                     }
                 } else {
                     // 4: big jump with prefetch
-                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_start].get_id()));
-                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_end].get_id()));
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.get_id(processes[i].range.run_start)));
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.get_id(processes[i].range.run_end)));
                 }
             }
         }

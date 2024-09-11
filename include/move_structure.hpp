@@ -180,6 +180,7 @@ class MoveStructure {
         char get_char(uint64_t idx);
         uint64_t get_n(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
+        uint64_t get_id(uint64_t idx);
 #if MODE == 0 or MODE == 1 or MODE == 2
         uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
