@@ -18,7 +18,7 @@ const uint8_t mask_id =  static_cast<uint8_t>(~(((1U << 4) - 1) << 0));         
 const uint8_t mask_overflow_n = static_cast<uint8_t>(~(((1U << 1) - 1) << 4));           // 00010000
 const uint8_t mask_overflow_offset = static_cast<uint8_t>(~(((1U << 1) - 1) << 5));      // 00100000
 const uint8_t mask_overflow_thresholds = static_cast<uint8_t>(~(((1U << 1) - 1) << 6));  // 01000000
-#define MAX_RUN_LENGTH 65535 // 2^16-1
+#define MAX_RUN_LENGTH 65535 // 2^16 - 1
 #endif
 #if MODE == 3
 const uint16_t mask_id =  static_cast<uint16_t>(~(((1U << 4) - 1) << 12));                  // 11110000 00000000
@@ -99,7 +99,6 @@ class MoveRow{
 #if MODE == 0 or MODE == 1
         uint8_t thresholds_status; // Whether each threshold is at the boundary or it's a non-trivial value
 #endif
-
 #if MODE == 1
         // to store pointers for avoiding scanning
         uint16_t next_up[3];
@@ -108,14 +107,14 @@ class MoveRow{
 };
 
 #if MODE == 0 or MODE == 1 or MODE == 2
-inline uint8_t extract_value(uint8_t source, uint8_t mask, uint16_t offset_bits) {
-    uint8_t res = (source & (~mask)) >> offset_bits;
+inline uint8_t extract_value(uint8_t source, uint8_t mask, uint16_t shift) {
+    uint8_t res = (source & (~mask)) >> shift;
     return res;
 }
 #endif
 #if MODE == 3
-inline uint16_t extract_value(uint16_t source, uint16_t mask, uint16_t offset_bits) {
-    uint16_t res = (source & (~mask)) >> offset_bits;
+inline uint16_t extract_value(uint16_t source, uint16_t mask, uint16_t shift) {
+    uint16_t res = (source & (~mask)) >> shift;
     return res;
 }
 #endif
@@ -174,7 +173,6 @@ inline bool MoveRow::is_overflow_n() const{
 #if MODE == 3
     std::cerr << "The length overflow should not occur in the compressed mode.\n";
     uint16_t res = 1;
-    // uint16_t res = extract_value(n, mask_overflow_n, 14);
 #endif
     return !static_cast<bool>(res);
 }
@@ -186,7 +184,6 @@ inline bool MoveRow::is_overflow_offset() const{
 #if MODE == 3
     std::cerr << "The offset overflow should not occur in the compressed mode.\n";
     uint16_t res = 1;
-    // uint16_t res = extract_value(n, mask_overflow_offset, 15);
 #endif
     return !static_cast<bool>(res);
 }

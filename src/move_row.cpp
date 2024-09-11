@@ -12,7 +12,17 @@ void MoveRow::init(uint16_t n_, uint16_t offset_, uint64_t id_) {
     overflow_bits = std::numeric_limits<uint8_t>::max();
 #endif
     this->set_n(n_);
+    if (n_ != this->get_n()) {
+        std::cerr << "The length setter or getter is not working properly.\n";
+        std::cerr << n_ << " " << this->get_n() << "\n";
+        exit(0);
+    }
     this->set_offset(offset_);
+    if (offset_ != this->get_offset()) {
+        std::cerr << "The offset setter or getter is not working properly.\n";
+        std::cerr << offset_ << " " << this->get_offset() << "\n";
+        exit(0);
+    }
     this->set_id(id_);
 }
 
@@ -58,8 +68,6 @@ void MoveRow::set_overflow_n() {
 #if MODE == 3
     std::cerr << "The length overflow should not occur in the compressed mode.\n";
     exit(0);
-    // n = n & mask_overflow_n;
-    // n = n | (1 >> 14);
 #endif
 }
 
@@ -86,13 +94,11 @@ void MoveRow::set_overflow_offset() {
 #if MODE == 3
     std::cerr << "The offset overflow should not occur in the compressed mode.\n";
     exit(0);
-    // n = n & mask_overflow_offset;
-    // n = n | (1 >> 15);
 #endif
 }
 
 void MoveRow::set_id(uint64_t id_) {
-    id = id_;
+    id = id_; // Store the least significant bits in the didicated id variable
 #if MODE == 0 or MODE == 1 or MODE == 2
     overflow_bits = overflow_bits & mask_id;
     overflow_bits = overflow_bits | (id_ >> 32);

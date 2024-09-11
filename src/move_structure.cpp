@@ -997,8 +997,17 @@ void MoveStructure::build() {
             first_offsets.push_back(last_offset + 1);
         }
         char_count += counts[i];
+        // char_count points to the position of the first row with character i in the BWT
+        if (movi_options->is_verbose())
+            std::cerr << i << " char_count: " << char_count << "\n";
         auto occ_rank = rbits(char_count);
+        // occ_rank is the number of set bits until and including the last row with character i - 1
+        if (movi_options->is_verbose())
+            std::cerr << i << " occ_rank: " << occ_rank << "\n";
+        // The index of the run is number of set bits - 1 (because we count from 0):
         last_runs.push_back(static_cast<uint64_t>(occ_rank - 1));
+        if (movi_options->is_verbose())
+            std::cerr << char_count << " " << all_p[last_runs.back()] << " " << get_n(last_runs.back()) <<  "\n";
         last_offsets.push_back(char_count - all_p[last_runs.back()] - 1);
     }
     if (movi_options->is_verbose()) {
