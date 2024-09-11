@@ -62,9 +62,11 @@ class MoveStructure {
         void print_SA();
         // Builds document sets for each run in rlbwt.
         void build_doc_sets();
-        // Prints information about document sets and patterns.
-        void print_documents();
-    
+        // Builds document information for all rows.
+        void build_doc_pats();
+        // Writes frequencies of document sets to file.
+        void write_doc_set_freqs(std::string fname);
+        
         // uint64_t naive_lcp(uint64_t row1, uint64_t row2);
         // uint64_t naive_sa(uint64_t bwt_row);
         // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
@@ -73,9 +75,14 @@ class MoveStructure {
         uint64_t jump_down(uint64_t idx, char c, uint64_t& scan_count);
         bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
         bool jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_count);
-
+        
+        void serialize_doc_pats(std::string output_dir);
+        void deserialize_doc_pats(std::string index_dir);
+        void serialize_doc_sets(std::string output_dir);
+        void deserialize_doc_sets(std::string index_dir);
         void serialize(std::string output_dir);
         void deserialize(std::string index_dir);
+        
         void print_stats();
         bool check_alphabet(char c);
 
@@ -83,6 +90,8 @@ class MoveStructure {
         std::unordered_map<uint32_t, uint32_t> ff_counts;
         std::unordered_map<uint64_t, uint64_t> run_lengths;
 
+        void set_use_doc_pats(bool val) { use_doc_pats = val; }
+        int get_num_docs() { return num_docs; }
         uint64_t get_n(uint64_t idx);
         uint64_t get_n_ff(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
@@ -92,6 +101,8 @@ class MoveStructure {
         void set_onebit();
         void read_SA_entries(std::string filename, bool head);
     
+        // Counts of genotype queries outputting each document.
+        std::vector<uint32_t> genotype_cnts;
     
         friend class ReadProcessor;
     private:
@@ -100,6 +111,7 @@ class MoveStructure {
     
         // Sorted vector of the start offsets of each document.  
         std::vector<uint64_t> doc_offsets;
+        int num_docs;
 
         // Offset of run heads in the rlbwt. For experimental purposes.
         std::vector<uint64_t> run_offsets;
@@ -108,7 +120,14 @@ class MoveStructure {
         std::vector<uint64_t> SA_entries;
 
         // Document sets.
-        std::vector<std::vector<bool>> doc_sets;
+        std::vector<sdsl::bit_vector> unique_doc_sets;
+        std::vector<uint32_t> doc_set_inds;
+
+        // Document patterns.
+        std::vector<uint8_t> doc_pats;
+
+        // Flag to determine which document method to use
+        bool use_doc_pats;
     
         std::vector<uint64_t> first_runs;
         std::vector<uint64_t> first_offsets;
@@ -155,4 +174,36 @@ class MoveStructure {
         std::vector<uint64_t> offset_overflow;
         std::vector<std::vector<uint64_t> > thresholds_overflow;
 };
+
+class DocSet {
+public:
+    int size;
+    sdsl::bit_vector bv;
+
+    DocSet(int n) : size(n) { bv.resize(n); }
+    bool operator==(const DocSet &o) const {
+        for (int i = 0; i < size; i++) {
+            if (bv[i] != o.bv[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+};
+
+template<>
+struct std::hash<DocSet> {
+    const size_t MOD = 1000000007;
+    std::size_t operator()(const DocSet &dc) const {
+        size_t hash = 0;
+        for (int i = 0; i < dc.size; i++) {
+            hash = hash * 2 + dc.bv[i];
+            if (hash >= MOD) {
+                hash -= MOD;
+            }
+        }
+        return hash;
+    }
+};
+
 #endif

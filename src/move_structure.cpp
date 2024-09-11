@@ -316,34 +316,37 @@ void MoveStructure::print_SA() {
 
 // Finds document sets for each run in the rlbwt.
 void MoveStructure::build_doc_sets() {
-    find_all_SA();
-    uint16_t num_docs = doc_offsets.size();
-
     // Stores set of documents appearing in rows in each run.
-    doc_sets.resize(r, std::vector<bool>(num_docs, 0));
+    std::unordered_map<DocSet, uint32_t> unique;
+    doc_set_inds.resize(r);
+    int unique_cnt = 0;
     for (uint64_t i = 0; i < r; i++) {
         auto &row = rlbwt[i];
         uint64_t n = row.get_n();
+        DocSet cur(num_docs);
         for (uint64_t j = 0; j < n; j++) {
             uint64_t row_ind = run_offsets[i] + j;
             uint64_t SA = SA_entries[row_ind];
             uint16_t doc = find_document(SA);
-            doc_sets[i][doc] = 1;
+            cur.bv[doc] = 1;
         }
+        if (unique.count(cur)) {
+            doc_set_inds[i] = unique[cur];
+        } else {
+            doc_set_inds[i] = unique_cnt;
+            unique[cur] = unique_cnt++;
+        }
+    }
+
+    unique_doc_sets.resize(unique_cnt);
+    for (auto it = unique.begin(); it != unique.end(); it++) {
+        unique_doc_sets[it->second] = it->first.bv;
     }
 }
 
-// Print information about which documents rows in the rlbwt belong to.
-void MoveStructure::print_documents() {
-    std::ofstream out("../output/docs.txt");
+void MoveStructure::build_doc_pats() {
+    doc_pats.resize(length);
 
-    find_all_SA();
-    uint16_t num_docs = doc_offsets.size();
-    
-    // Stores sequence of documents of all rows in each run.
-    std::vector<std::vector<uint16_t>> doc_runs(r, std::vector<uint16_t>());
-    // Stores set of documents appearing in rows in each run.
-    doc_sets.resize(r, std::vector<bool>(num_docs, 0));
     for (uint64_t i = 0; i < r; i++) {
         auto &row = rlbwt[i];
         uint64_t n = row.get_n();
@@ -351,91 +354,9 @@ void MoveStructure::print_documents() {
             uint64_t row_ind = run_offsets[i] + j;
             uint64_t SA = SA_entries[row_ind];
             uint16_t doc = find_document(SA);
-            
-            doc_runs[i].push_back(doc);
-            doc_sets[i][doc] = 1;
+            doc_pats[row_ind] = doc;
         }
     }
-    std::cout << std::endl;
-
-    std::unordered_map<std::string, uint64_t> pat_occ;
-    std::unordered_map<std::string, uint64_t> set_occ;
-    for (uint64_t i = 0; i < r; i++) {
-        std::stringstream ss_pat;
-        std::stringstream ss_set;
-        for (uint64_t j = 0; j < doc_runs[i].size(); j++) {
-            ss_pat << (char) (doc_runs[i][j] + 'A');
-        }
-        for (uint16_t j = 0; j < num_docs; j++) {
-            if (doc_sets[i][j]) {
-                ss_set << (char) (j + 'A');
-            }
-        }
-        
-        std::string doc_pat = ss_pat.str();
-        std::string doc_set = ss_set.str();
-
-        pat_occ[doc_pat]++;
-        set_occ[doc_set]++;
-    }
-
-    std::vector<std::pair<uint64_t, std::string>> set_sorted(set_occ.size());
-    uint64_t ind = 0;
-    for (auto it = set_occ.begin(); it != set_occ.end(); it++, ind++) {
-        set_sorted[ind] = {it->second, it->first};
-    }
-    sort(set_sorted.begin(), set_sorted.end());
-
-    std::vector<std::pair<uint64_t, std::string>> pat_sorted(pat_occ.size());
-    ind = 0;
-    for (auto it = pat_occ.begin(); it != pat_occ.end(); it++, ind++) {
-        pat_sorted[ind] = {it->second, it->first};
-    }
-    sort(pat_sorted.begin(), pat_sorted.end());
-
-
-    std::ofstream info("../output/info.txt");
-    info << "==================================PATTERNS===============================" << std::endl;
-    ind = 0;
-    uint64_t cum_sum = 0;
-    for (auto it = pat_sorted.rbegin(); it != pat_sorted.rend(); it++) {
-        if (ind % 100000 == 0) {
-            double frac = (double) cum_sum / r;
-            info << ind << ": " << frac << std::endl;
-        }
-        cum_sum += it->first;
-        ind++;
-    }
-    info << "===================================SETS==================================" << std::endl;
-    ind = 0;
-    cum_sum = 0;
-    for (auto it = set_sorted.rbegin(); it != set_sorted.rend(); it++) {
-        if (ind % 10 == 0) {
-            double frac = (double) cum_sum / r;
-            info << ind << ": " << frac << std::endl;
-        }
-        cum_sum += it->first;
-        ind++;
-    }
-    info.close();
-    
-    const int MAX_PRINT = 1000;
-    out << "Total Length: " << SA_entries.size() << ", # BWT Runs: " << r << ", # Documents: " << num_docs << std::endl;
-    out << "# Unique Document Patterns: " << pat_occ.size() << ", # Unique Document Sets: " << set_occ.size() << std::endl; 
-    out << "==================================DOCUMENT PATTERNS=======================================" << std::endl; 
-    int cnt = 0;
-    for (auto it = pat_sorted.rbegin(); it != pat_sorted.rend(); it++) {
-        out << it->first << ": " << it->second << std::endl;
-        if (++cnt >= MAX_PRINT) break;
-    }
-
-    out << "====================================DOCUMENT SETS==========================================" << std::endl; 
-    cnt = 0;
-    for (auto it = set_sorted.rbegin(); it != set_sorted.rend(); it++) {
-        out << it->first << ": " << it->second << std::endl;
-        if (++cnt >= MAX_PRINT) break;
-    }
-    out.close();
 }
 
 // Read SA samples from file.
@@ -1343,6 +1264,8 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
 
     // Run indices of PML matches.
     std::vector<uint64_t> indices;
+    // Offsets within runs of PML matches.
+    std::vector<uint32_t> offsets;
 
     if (verbose) {
         std::cerr << "beginning of the search \ton query: " << mq.query() << "\t";
@@ -1428,6 +1351,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
         }
 
         indices.push_back(idx);
+        offsets.push_back(offset);
         mq.add_pml(match_len);
         pos_on_r -= 1;
 
@@ -1445,20 +1369,43 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
         }
     }
 
+    // Get length of each document to use for penalization.
+    std::vector<uint64_t> doc_sizes(doc_offsets.size());
+    uint64_t max_size = 0;
+    for (int i = 1; i < doc_offsets.size(); i++) {
+        doc_sizes[i - 1] = doc_offsets[i] - doc_offsets[i - 1];
+        max_size = std::max(max_size, doc_sizes[i - 1]);
+    }
+    doc_sizes[doc_sizes.size() - 1] = length - doc_offsets[doc_offsets.size() - 1];
+    max_size = std::max(max_size, doc_sizes[doc_sizes.size() - 1]);
+
     std::vector<uint16_t> &pml_lens = mq.get_pml_lens();
-    std::vector<uint16_t> doc_cnts(doc_offsets.size());
+    std::vector<double> doc_cnts(doc_offsets.size());
+    const int thres = 0;
     for (unsigned i = 0; i < indices.size(); i++) {
-        if (pml_lens[i] > 0 && (i == indices.size() - 1 || pml_lens[i] > pml_lens[i + 1])) {
-            std::vector<bool> &cur_set = doc_sets[indices[i]];
+        // if (pml_lens[i] >= thres && (i == indices.size() - 1 || pml_lens[i] > pml_lens[i + 1])) {
+        if (pml_lens[i] >= thres) {
+            /*uint64_t full_ind = run_offsets[indices[i]] + offsets[i];
+            uint16_t cur_doc = doc_pats[full_ind];
+            doc_cnts[cur_doc] += (double) max_size / doc_sizes[cur_doc];*/
+
+            sdsl::bit_vector &cur_set = unique_doc_sets[doc_set_inds[indices[i]]];
             for (unsigned j = 0; j < doc_offsets.size(); j++) {
-                doc_cnts[j] += cur_set[j];
-            } 
+                if (cur_set[j]) {
+                    doc_cnts[j] += (double) max_size / doc_sizes[j] * pml_lens[i];
+                }
+            }
         }
     }
-    for (unsigned j = 0; j < doc_cnts.size(); j++) {
-        std::cout << doc_cnts[j];
+
+    // Document occuring the most is the genotype we think the query is from.
+    uint16_t max_ind = 0;
+    for (unsigned j = 1; j < doc_cnts.size(); j++) {
+        if (doc_cnts[j] > doc_cnts[max_ind]) {
+            max_ind = j;
+        }
     }
-    std::cout << std::endl;
+    genotype_cnts[max_ind]++;
     
     return ff_count_tot;
 }
@@ -1679,6 +1626,54 @@ bool MoveStructure::check_alphabet(char c) {
     return alphamap[static_cast<uint64_t>(c)] != alphamap.size();
 }
 
+void MoveStructure::serialize_doc_pats(std::string output_dir) {
+    std::string fname = output_dir + "/doc_pats.bin";
+    std::ofstream fout(fname, std::ios::out | std::ios::binary);
+    
+    fout.write(reinterpret_cast<char*>(&doc_pats[0]), length * sizeof(doc_pats[0]));
+    fout.close();
+}
+
+void MoveStructure::deserialize_doc_pats(std::string index_dir) {
+    std::string fname = index_dir + "/doc_pats.bin";
+    std::ifstream fin(fname, std::ios::in | std::ios::binary);
+    
+    doc_pats.resize(length);
+    fin.read(reinterpret_cast<char*>(&doc_pats[0]), length * sizeof(doc_pats[0]));
+    fin.close();
+}
+
+void MoveStructure::serialize_doc_sets(std::string output_dir) {
+    std::string fname = output_dir + "/doc_sets.bin";
+    std::ofstream fout(fname, std::ios::out | std::ios::binary);
+    
+    size_t unique_cnt = unique_doc_sets.size();
+    std::cerr << "Number of unique document sets: " << unique_cnt << std::endl; 
+    fout.write(reinterpret_cast<char*>(&unique_cnt), sizeof(unique_cnt));
+    for (size_t i = 0; i < unique_doc_sets.size(); i++) {
+        unique_doc_sets[i].serialize(fout);
+    }
+    fout.write(reinterpret_cast<char*>(&doc_set_inds[0]), r * sizeof(doc_set_inds[0]));
+    fout.close();
+}
+
+void MoveStructure::deserialize_doc_sets(std::string index_dir) {
+    std::string fname = index_dir + "/doc_sets.bin";
+    std::ifstream fin(fname, std::ios::in | std::ios::binary);
+    
+    size_t unique_cnt = 0;
+    fin.read(reinterpret_cast<char*>(&unique_cnt), sizeof(unique_cnt));
+    std::cerr << "Number of unique document sets: " << unique_cnt << std::endl; 
+    unique_doc_sets.resize(unique_cnt);
+    for (size_t i = 0; i < unique_cnt; i++) {
+        unique_doc_sets[i].load(fin);
+    }
+    doc_set_inds.resize(r);
+    fin.read(reinterpret_cast<char*>(&doc_set_inds[0]), r * sizeof(doc_set_inds[0]));
+
+    fin.close();
+}
+
 void MoveStructure::serialize(std::string output_dir) {
     mkdir(output_dir.c_str(),0777);
     std::string fname = output_dir + "/movi_index.bin";
@@ -1832,6 +1827,15 @@ void MoveStructure::deserialize(std::string index_dir) {
         doc_offsets.push_back(doc_offset);
     }
     doc_offsets_file.close();
+    num_docs = doc_offsets.size();
+
+    // Read in run offsets.
+    uint64_t cur_offset = 0;
+    run_offsets.resize(r);
+    for (uint64_t i = 0; i < r; i++) {
+        run_offsets[i] = cur_offset;
+        cur_offset += rlbwt[i].get_n();
+    }
 }
 
 void MoveStructure::print_stats() {
@@ -1842,4 +1846,17 @@ void MoveStructure::print_stats() {
         std::cerr << "original_r: " << original_r << "\n";
         std::cerr << "n/original_r: " << length/original_r << "\n";
     }
+}
+
+void MoveStructure::write_doc_set_freqs(std::string fname) {
+    std::ofstream out(fname);
+    std::vector<uint64_t> freqs(unique_doc_sets.size());
+    for (int doc_set_ind : doc_set_inds) {
+        freqs[doc_set_ind]++;
+    }
+    sort(freqs.begin(), freqs.end());
+    for (int i = freqs.size() - 1; i >= 0; i--) {
+        out << freqs[i] << "\n";
+    }
+    out.close();
 }

@@ -6,10 +6,12 @@
 
 #include "kseq.h"
 
+// const uint64_t LENGTH_PER_SPECIES = 20000000; 
+
 // STEP 1: declare the type of file handler and the read() function
 KSEQ_INIT(gzFile, gzread)
 
-// Reads fasta file. Returns the total length of all sequences in the file.
+// Reads fasta file. Returns the total length in number of base pairs.
 uint64_t read_fasta(const char* file_name,std::ofstream& clean_fasta) {
     gzFile fp;
     kseq_t *seq;

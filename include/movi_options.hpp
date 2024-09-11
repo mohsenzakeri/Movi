@@ -17,6 +17,7 @@ class MoviOptions {
         bool is_count() { return count_query; }
         bool is_reverse() { return reverse; }
         size_t get_strands() { return strands; }
+        bool is_full_color() { return full_color; }
         std::string get_command() { return command; }
         std::string get_LF_type() { return LF_type; }
 
@@ -41,6 +42,7 @@ class MoviOptions {
                 return false;
             return true;
         }
+        void set_full_color(bool val) { full_color = val; }
 
         void set_ref_file(std::string file_address) { ref_file = file_address; }
         void set_bwt_file(std::string file_address) { bwt_file = file_address; }
@@ -80,4 +82,5 @@ class MoviOptions {
         size_t strands = 16;
         bool verbose = false;
         bool logs = false;
+        bool full_color = false;
 };
