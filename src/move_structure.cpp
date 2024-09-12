@@ -2379,10 +2379,12 @@ void MoveStructure::deserialize() {
 #if MODE == 3
     uint64_t id_blocks_size = 0;
     fin.read(reinterpret_cast<char*>(&id_blocks_size), sizeof(id_blocks_size));
+    std::cerr << "id_blocks_size: " << id_blocks_size << "\n";
     if (id_blocks_size > 0) {
         id_blocks.resize(alphabet.size());
         for (uint64_t i = 0; i < alphabet.size(); i++) {
-            fin.read(reinterpret_cast<char*>(&id_blocks[0]), id_blocks_size*sizeof(uint64_t));
+            id_blocks[i].resize(id_blocks_size);
+            fin.read(reinterpret_cast<char*>(&id_blocks[i][0]), id_blocks_size*sizeof(uint64_t));
         }
     }
 #endif
