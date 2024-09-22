@@ -1614,6 +1614,7 @@ void MoveStructure::query_all_kmers(MoveQuery& mq) {
     auto& query_seq = mq.query();
     int32_t pos_on_r = query_seq.length() - 1;
 
+    // To handle a special case for k equal to 1
     if (k == 1) {
         uint64_t kmers_found = 0;
         while (pos_on_r >= 0) {
