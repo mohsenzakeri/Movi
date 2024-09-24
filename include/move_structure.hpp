@@ -155,6 +155,18 @@ class MoveStructure {
         void compute_run_lcs();
         void read_ftab();
 
+        // Finds SA entries of all rows in BWT.
+        void find_all_SA();
+        // Find which document a given SA entry belongs to.
+        uint16_t find_document(uint64_t SA);
+        void print_SA();
+        // Builds document sets for each run in rlbwt.
+        void build_doc_sets();
+        // Builds document information for all rows.
+        void build_doc_pats();
+        // Writes frequencies of document sets to file.
+        void write_doc_set_freqs(std::string fname);
+        
         // The following are used during development only
         // std::string reconstruct();
         // char compute_char(uint64_t idx);
@@ -168,7 +180,14 @@ class MoveStructure {
         bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
 #endif
         bool jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_count);
-
+        
+        void serialize_doc_pats(std::string output_dir);
+        void deserialize_doc_pats(std::string index_dir);
+        void serialize_doc_sets(std::string output_dir);
+        void deserialize_doc_sets(std::string index_dir);
+        void serialize(std::string output_dir);
+        void deserialize(std::string index_dir);
+        
         void verify_lfs();
         void print_stats();
         void analyze_rows();
@@ -177,6 +196,8 @@ class MoveStructure {
         void serialize();
         void deserialize();
 
+        void set_use_doc_pats(bool val) { use_doc_pats = val; }
+        int get_num_docs() { return num_docs; }
         char get_char(uint64_t idx);
         uint64_t get_n(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
@@ -184,12 +205,44 @@ class MoveStructure {
         uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
-#endif
+        // Counts of genotype queries outputting each document.
+        std::vector<uint32_t> genotype_cnts;
+    
+        friend class ReadProcessor;
+    private:
+        // Sorted vector of the start offsets of each document.  
+        std::vector<uint64_t> doc_offsets;
+        int num_docs;
+
+        // Offset of run heads in the rlbwt. For experimental purposes.
+        std::vector<uint64_t> run_offsets;
+    
+        // Vector of all SA entries. For experiment purposes.
+        std::vector<uint64_t> SA_entries;
+
+        // Document sets.
+        std::vector<sdsl::bit_vector> unique_doc_sets;
+        std::vector<uint32_t> doc_set_inds;
+
+        // Mask for most frequent document sets.
+        std::vector<bool> top_X_frequent;
+
+        // Document patterns.
+        std::vector<uint8_t> doc_pats;
+
+        // Flag to determine which document method to use
+        bool use_doc_pats;
+    
+        std::vector<uint64_t> first_runs;
+        std::vector<uint64_t> first_offsets;
+        std::vector<uint64_t> last_runs;
+        std::vector<uint64_t> last_offsets;
+        bool onebit;
         KmerStatistics kmer_stats;
         friend class ReadProcessor;
     private:
         MoviOptions* movi_options;
-	    bool onebit;
+  	    bool onebit;
         bool constant;
         uint16_t splitting;
 
@@ -250,4 +303,33 @@ class MoveStructure {
         // sdsl::select_support_mcl<> sbits;
 };
 
-#endif
+class DocSet {
+public:
+    int size;
+    sdsl::bit_vector bv;
+
+    DocSet(int n) : size(n) { bv.resize(n); }
+    bool operator==(const DocSet &o) const {
+        for (int i = 0; i < size; i++) {
+            if (bv[i] != o.bv[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+};
+
+template<>
+struct std::hash<DocSet> {
+    const size_t MOD = 1000000007;
+    std::size_t operator()(const DocSet &dc) const {
+        size_t hash = 0;
+        for (int i = 0; i < dc.size; i++) {
+            hash = hash * 2 + dc.bv[i];
+            if (hash >= MOD) {
+                hash -= MOD;
+            }
+        }
+        return hash;
+    }
+};

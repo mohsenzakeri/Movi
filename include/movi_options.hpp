@@ -27,6 +27,7 @@ class MoviOptions {
         bool is_multi_ftab() { return multi_ftab; }
         int ignore_illegal_chars_status() { return ilc; }
         size_t get_strands() { return strands; }
+        bool is_full_color() { return full_color; }
         uint32_t get_k () { return k; }
         uint32_t get_ftab_k () { return ftab_k; }
         std::string get_command() { return command; }
@@ -37,6 +38,7 @@ class MoviOptions {
         std::string get_read_file() { return read_file; }
         std::string get_mls_file() { return mls_file; }
         std::string get_index_dir() { return index_dir; }
+        std::string get_out_file() { return out_file; }
 
         void set_preprocessed(bool preprocessed_) { preprocessed = preprocessed_; }
         void set_stdout(bool write_stdout_) { write_stdout = write_stdout_; }
@@ -69,6 +71,8 @@ class MoviOptions {
                 return false;
             return true;
         }
+        void set_full_color(bool val) { full_color = val; }
+        void set_out_file(std::string out_file_) { out_file = out_file_; }
 
         void set_ref_file(std::string file_address) { ref_file = file_address; }
         void set_bwt_file(std::string file_address) { bwt_file = file_address; }
@@ -104,6 +108,7 @@ class MoviOptions {
         std::string mls_file;
         std::string index_dir;
         std::string LF_type;
+        std::string out_file;
         bool preprocessed = false;
         int ilc = 0;
         bool split = false;
@@ -121,6 +126,5 @@ class MoviOptions {
         bool write_stdout = false;
         bool verbose = false;
         bool logs = false;
+        bool full_color = false;
 };
-
-#endif

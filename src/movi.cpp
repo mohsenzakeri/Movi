@@ -30,6 +30,22 @@ std::string program() {
 #endif
 }
 
+// Extract filename from path (excluding . extension)
+std::string extract_filename_from_path(std::string path) {
+    int slash_ind = -1;
+    int dot_ind = -1;
+    for (int i = path.length() - 1; i >= 0; i--) {
+        if (slash_ind == -1 && path[i] == '/') {
+            slash_ind = i;
+        }
+        if (dot_ind == -1 && path[i] == '.') {
+            dot_ind = i;
+        }
+    }
+    std::string filename = path.substr(slash_ind + 1, dot_ind - slash_ind - 1);
+    return filename;
+}
+
 kseq_t* open_kseq(gzFile& fp, std::string file_address) {
     std::cerr << "file_address: " << file_address << "\n";
     kseq_t *seq;
@@ -72,6 +88,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
     auto queryOptions = options.add_options("query")
         ("pml", "Compute the pseudo-matching lengths (PMLs)")
+        ("full", "Use full coloring information to compute pseudo-matching lengths (PMLs)")
         ("zml", "Compute the Ziv-Merhav cross parsing length (ZMLs)")
         ("count", "Compute the count queries")
         ("kmer", "Search all the kmers")
@@ -79,6 +96,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
         ("n,no-prefetch", "Disable prefetching for query")
+        ("out_file", "Output file if computing PMLs for classification", cxxopts::value<std::string>());
         ("k,k-length", "The length of the kmer", cxxopts::value<uint32_t>())
         ("ftab-k", "The length of the ftba kmer", cxxopts::value<uint32_t>())
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
@@ -86,6 +104,11 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("stdout", "Write the output to stdout")
         ("ignore-illegal-chars", "In the case of illegal characters (i.e., non-ACGT for genomic data), substitute the character with \'A\'(1) or a random character from the alphabet (2).", cxxopts::value<int>());
 
+    // ./movi-default color --index [index_dir] --full
+    auto colorOptions = options.add_options("color")
+        ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("full", "Whether or not to store all document information (or just the sets for each run)");
+                
     auto viewOptions = options.add_options("view")
         ("mls-file", "The matching lengths (PML or ZML) file in the binary format", cxxopts::value<std::string>());
 
@@ -144,17 +167,35 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     const std::string message = "Please include one index directory and one fasta file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
+            } else if (command == "color") { 
+                if (result.count("index") == 1) {
+                    movi_options.set_index_dir(result["index"].as<std::string>());
+                    if (result.count("full")) {
+                        movi_options.set_full_color(true);
+                    }
+                } else {
+                    const std::string message = "Please include one index directory and one fasta file.";
+                    cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                }
             } else if (command == "query") {
                 if (result.count("index") == 1 and result.count("read") == 1) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
                     movi_options.set_read_file(result["read"].as<std::string>());
+                    if (result.count("pml") >= 1) { 
+                        movi_options.set_pml(true); 
+                        if (result.count("full")) {
+                            movi_options.set_full_color(true);
+                        }
+                        if (result.count("out_file")) {
+                            movi_options.set_out_file(result["out_file"].as<std::string>());
+                        }
+                    }
                     if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
                     if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
                     if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
                     if (result.count("kmer") >= 1) { movi_options.set_kmer(); }
                     if (result.count("count") >= 1) { movi_options.set_count(); }
                     if (result.count("zml") >= 1) { movi_options.set_zml(); }
-                    if (result.count("pml") >= 1) { movi_options.set_pml(); }
                     if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
                     if (result.count("ignore-illegal-chars") == 1) {
                         if (!movi_options.set_ignore_illegal_chars(result["ignore-illegal-chars"].as<int>())) {
@@ -287,6 +328,8 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         std::ofstream count_file;
         if (!movi_options.is_stdout()) {
             if (movi_options.is_pml())
+                // genotype_cnts tracks which documents the genotype queries think each read is from.
+                mv_.genotype_cnts.resize(mv_.get_num_docs()); 
                 mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".pml.bin", std::ios::out | std::ios::binary);
             else if (movi_options.is_zml())
                 mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".zml.bin", std::ios::out | std::ios::binary);
@@ -365,7 +408,15 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             }
         }
         
-        if (movi_options.is_pml() or movi_options.is_zml()) {
+        if (movi_options.is_pml()) {
+            // Write genotype query results to file.
+            std::ofstream out(movi_options.get_out_file(), std::ofstream::app);
+            for (uint16_t i = 0; i < mv_.get_num_docs(); i++) {
+                out << mv_.genotype_cnts[i] << " ";
+            }
+            out << std::endl;
+            out.close();
+        } else if (movi_options.is_pml() or movi_options.is_zml()) {
             std::cerr << "all fast forward counts: " << total_ff_count << "\n";
             if (!movi_options.is_stdout()) {
                 mls_file.close();
@@ -421,6 +472,7 @@ int main(int argc, char** argv) {
         return 0;
     }
     std::string command = movi_options.get_command();
+
     if (command == "build") {
         MoveStructure mv_(&movi_options, false, MODE == 1, MODE == 1);
         if (movi_options.if_verify()) {
@@ -430,6 +482,28 @@ int main(int argc, char** argv) {
         mv_.serialize();
         build_ftab(mv_, movi_options);
         std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
+    } else if (command == "color") {
+        MoveStructure mv_(movi_options.is_verbose(), movi_options.is_logs());
+        auto begin = std::chrono::system_clock::now();
+
+        mv_.deserialize(movi_options.get_index_dir());
+        auto end = std::chrono::system_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+        std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+        begin = std::chrono::system_clock::now();
+
+        mv_.find_all_SA();
+        if (movi_options.is_full_color()) {
+            mv_.build_doc_pats();
+            mv_.serialize_doc_pats(movi_options.get_index_dir());
+        } else {
+            mv_.build_doc_sets();
+            mv_.serialize_doc_sets(movi_options.get_index_dir());
+        }
+
+        end = std::chrono::system_clock::now();
+        elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+        std::printf("Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);
     } else if (command == "query") {
         MoveStructure mv_(&movi_options);
         auto begin = std::chrono::system_clock::now();
@@ -438,7 +512,15 @@ int main(int argc, char** argv) {
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
         std::fprintf(stderr, "Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
         begin = std::chrono::system_clock::now();
+
+        mv_.set_use_doc_pats(movi_options.is_full_color());
+        if (movi_options.is_full_color()) {
+            mv_.deserialize_doc_pats(movi_options.get_index_dir());
+        } else {
+            mv_.deserialize_doc_sets(movi_options.get_index_dir());
+        }
         query(mv_, movi_options);
+        
         end = std::chrono::system_clock::now();
         elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
         std::fprintf(stderr, "Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);
