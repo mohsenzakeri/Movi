@@ -80,7 +80,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
         ("n,no-prefetch", "Disable prefetching for query")
-        ("s,strands", "Number of strands for query", cxxopts::value<int>());
+        ("s,strands", "Number of strands for query", cxxopts::value<int>())
+        ("out_file", "Output file if computing PMLs for classification", cxxopts::value<std::string>());
 
     // ./movi-default color --index [index_dir] --full
     auto colorOptions = options.add_options("color")
@@ -151,6 +152,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         movi_options.set_pml(true); 
                         if (result.count("full")) {
                             movi_options.set_full_color(true);
+                        }
+                        if (result.count("out_file")) {
+                            movi_options.set_out_file(result["out_file"].as<std::string>());
                         }
                     }
                     if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
@@ -301,13 +305,8 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         }
         
         if (movi_options.is_pml()) {
-
-            // Create out file to store results from genotype query. Extract read filename
-            // from read path and use that to get the corresponding document number it belongs to.
-            std::string out_filepath = "../output/full_weight_thres_10.txt";
-            
             // Write genotype query results to file.
-            std::ofstream out(out_filepath, std::ofstream::app);
+            std::ofstream out(movi_options.get_out_file(), std::ofstream::app);
             for (uint16_t i = 0; i < mv_.get_num_docs(); i++) {
                 out << mv_.genotype_cnts[i] << " ";
             }
@@ -405,7 +404,7 @@ int main(int argc, char** argv) {
             mv_.deserialize_doc_sets(movi_options.get_index_dir());
         }
         query(mv_, movi_options);
-
+        
         end = std::chrono::system_clock::now();
         elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
         std::printf("Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);

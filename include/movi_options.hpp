@@ -26,6 +26,7 @@ class MoviOptions {
         std::string get_read_file() { return read_file; }
         std::string get_pml_file() { return pml_file; }
         std::string get_index_dir() { return index_dir; }
+        std::string get_out_file() { return out_file; }
 
         void set_verbose(bool verbose_) { verbose = verbose_; }
         void set_logs(bool logs_) { logs = logs_; }
@@ -43,6 +44,7 @@ class MoviOptions {
             return true;
         }
         void set_full_color(bool val) { full_color = val; }
+        void set_out_file(std::string out_file_) { out_file = out_file_; }
 
         void set_ref_file(std::string file_address) { ref_file = file_address; }
         void set_bwt_file(std::string file_address) { bwt_file = file_address; }
@@ -74,6 +76,7 @@ class MoviOptions {
         std::string pml_file;
         std::string index_dir;
         std::string LF_type;
+        std::string out_file;
         bool split = false;
         bool pml_query = false;
         bool count_query = false;

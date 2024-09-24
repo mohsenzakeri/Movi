@@ -53,8 +53,6 @@ class MoveStructure {
         uint32_t compute_index(char row_char, char lookup_char);
         void compute_nexts();
 
-        // Find SA entry given index of RLBWT row and offset within it.
-        uint64_t find_SA(uint64_t offset, uint64_t index);
         // Finds SA entries of all rows in BWT.
         void find_all_SA();
         // Find which document a given SA entry belongs to.
@@ -99,16 +97,12 @@ class MoveStructure {
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
         void set_onebit();
-        void read_SA_entries(std::string filename, bool head);
-    
+        
         // Counts of genotype queries outputting each document.
         std::vector<uint32_t> genotype_cnts;
     
         friend class ReadProcessor;
     private:
-        // Number of bytes used to store each SA entry.
-        const uint8_t SSABYTES = 5;
-    
         // Sorted vector of the start offsets of each document.  
         std::vector<uint64_t> doc_offsets;
         int num_docs;
@@ -122,6 +116,9 @@ class MoveStructure {
         // Document sets.
         std::vector<sdsl::bit_vector> unique_doc_sets;
         std::vector<uint32_t> doc_set_inds;
+
+        // Mask for most frequent document sets.
+        std::vector<bool> top_X_frequent;
 
         // Document patterns.
         std::vector<uint8_t> doc_pats;

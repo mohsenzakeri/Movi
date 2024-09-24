@@ -246,21 +246,6 @@ uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
     return ff_count;
 }
 
-// Find SA entry of given row in BWT.
-uint64_t MoveStructure::find_SA(uint64_t offset, uint64_t index) {
-    uint64_t cnt = 0;
-    // Perform LF's until we reach a run head or tail, which we know the SA value of.
-    while (offset != 0 && offset != rlbwt[index].get_n() - 1) {
-        LF_move(offset, index);
-        cnt++;
-    }
-    if (offset == 0) {
-        return rlbwt[index].get_ssa() + cnt;
-    } else {
-        return rlbwt[index].get_esa() + cnt;
-    }
-}
-
 // Finds all SA entries in O(n).
 void MoveStructure::find_all_SA() {
     uint64_t tot_len = 0;
@@ -273,12 +258,12 @@ void MoveStructure::find_all_SA() {
     
     uint64_t offset = 0;
     uint64_t index = 0;
-    uint64_t SA_val = rlbwt[0].get_ssa();
+    uint64_t SA_val = tot_len;
     for (uint64_t i = 0; i < tot_len; i++) {
+        SA_val--;
         uint64_t row_ind = run_offsets[index] + offset;
         SA_entries[row_ind] = SA_val;
         LF_move(offset, index);
-        SA_val = (SA_val - 1 + tot_len) % tot_len;
     }
 }
 
@@ -303,13 +288,14 @@ uint16_t MoveStructure::find_document(uint64_t SA) {
 // Prints all SA entries
 void MoveStructure::print_SA() {
     std::cout << "=======PRINTING SA ENTRIES RUN BY RUN========" << std::endl;
+    uint64_t ind = 0;
     for (uint64_t i = 0; i < r; i++) {
         auto &row = rlbwt[i];
         uint64_t n = row.get_n();
         for (uint64_t j = 0; j < n; j++) {
-            uint64_t SA = find_SA(j, i);
-            std::cout << SA << " ";
+            std::cout << SA_entries[ind + j] << " ";
         }
+        ind += n;
         std::cout << std::endl << "==========================================" << std::endl;
     }
 }
@@ -357,30 +343,6 @@ void MoveStructure::build_doc_pats() {
             doc_pats[row_ind] = doc;
         }
     }
-}
-
-// Read SA samples from file.
-void MoveStructure::read_SA_entries(std::string filename, bool head) {
-    FILE *fd;
-
-    if ((fd = fopen(filename.c_str(), "r")) == nullptr) {
-        std::cerr << "open() file " << filename << " failed" << std::endl;
-        return;
-    }
-
-    // Read SA entries into rlbwt.
-    uint64_t left = 0;
-    uint64_t right = 0;
-    uint64_t ind = 0;
-    while (fread((char *)&left, SSABYTES, 1, fd) && fread((char *)&right, SSABYTES, 1, fd)) {
-        if (head) {
-            rlbwt[ind].set_ssa(right);
-        } else {
-            rlbwt[ind].set_esa(right);
-        }
-        ind++;
-    }
-    fclose(fd);
 }
 
 std::string MoveStructure::reconstruct_lf() {
@@ -833,10 +795,6 @@ void MoveStructure::build(std::ifstream &bwt_file) {
         }
     }
 
-    // Reading in suffix array entries.
-    read_SA_entries(input_file + ".ssa", true);
-    read_SA_entries(input_file + ".esa", false);
-    
     std::cerr << "All the move rows are built.\n";
     std::cerr << "Max run length: " << max_len << "\n";
 
@@ -1383,16 +1341,22 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     std::vector<double> doc_cnts(doc_offsets.size());
     const int thres = 0;
     for (unsigned i = 0; i < indices.size(); i++) {
-        // if (pml_lens[i] >= thres && (i == indices.size() - 1 || pml_lens[i] > pml_lens[i + 1])) {
+        //if (pml_lens[i] >= thres && (i == indices.size() - 1 || pml_lens[i] > pml_lens[i + 1])) {
         if (pml_lens[i] >= thres) {
             /*uint64_t full_ind = run_offsets[indices[i]] + offsets[i];
             uint16_t cur_doc = doc_pats[full_ind];
-            doc_cnts[cur_doc] += (double) max_size / doc_sizes[cur_doc];*/
+            doc_cnts[cur_doc]++;*/
+
+            // Simulate only keeping most frequent doc sets.
+            /*if (!top_X_frequent[doc_set_inds[indices[i]]]) {
+                continue;
+            }*/
 
             sdsl::bit_vector &cur_set = unique_doc_sets[doc_set_inds[indices[i]]];
             for (unsigned j = 0; j < doc_offsets.size(); j++) {
                 if (cur_set[j]) {
-                    doc_cnts[j] += (double) max_size / doc_sizes[j] * pml_lens[i];
+                    doc_cnts[j] += (double) pml_lens[i] / log(doc_sizes[j]);
+                    // doc_cnts[j] += pml_lens[i];
                 }
             }
         }
@@ -1670,6 +1634,23 @@ void MoveStructure::deserialize_doc_sets(std::string index_dir) {
     }
     doc_set_inds.resize(r);
     fin.read(reinterpret_cast<char*>(&doc_set_inds[0]), r * sizeof(doc_set_inds[0]));
+
+    // Get frequency counts of each document set so we only use most frequent.
+    /*std::vector<std::pair<uint64_t, uint64_t>> freqs(unique_doc_sets.size());
+    for (size_t i = 0; i < unique_doc_sets.size(); i++) {
+        freqs[i].second = i;
+    }
+    for (int doc_set_ind : doc_set_inds) {
+        freqs[doc_set_ind].first++;
+    }
+    sort(freqs.begin(), freqs.end());
+
+    // Top X most frequent document sets.
+    top_X_frequent.resize(unique_doc_sets.size());
+    for (int i = 0; i < 8; i++) {
+        top_X_frequent[freqs[freqs.size() - i - 1].second] = true;
+        // std::cout << unique_doc_sets[freqs[freqs.size() - i - 1].second] << std::endl;
+    }*/
 
     fin.close();
 }
