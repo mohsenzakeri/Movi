@@ -12,7 +12,7 @@
 KSEQ_INIT(gzFile, gzread)
 
 // Reads fasta file. Returns the total length in number of base pairs.
-uint64_t read_fasta(const char* file_name,std::ofstream& clean_fasta) {
+uint64_t read_fasta(const char* file_name, std::ofstream& clean_fasta, bool rc, bool kmer_mode) {
     gzFile fp;
     kseq_t *seq;
     int l;
@@ -38,16 +38,27 @@ uint64_t read_fasta(const char* file_name,std::ofstream& clean_fasta) {
             }
             // if (c != 65 && c != 67 && c != 71 && c != 84) seq->seq.s[i] = 'A';
             if (c != 'A' && c != 'C' && c != 'G' && c != 'T') seq->seq.s[i] = 'A';
-            switch (seq->seq.s[i]) {
-                case 'A': seq_rc[seq->seq.l - 1 - i] = 'T'; break;
-                case 'C': seq_rc[seq->seq.l - 1 - i] = 'G'; break;
-                case 'G': seq_rc[seq->seq.l - 1 - i] = 'C'; break;
-                case 'T': seq_rc[seq->seq.l - 1 - i] = 'A'; break;
-                default: std::cerr << "The alphabet still includes non-ACTG after cleaning!\n"; exit(0);
+            if (rc) {
+                switch (seq->seq.s[i]) {
+                    case 'A': seq_rc[seq->seq.l - 1 - i] = 'T'; break;
+                    case 'C': seq_rc[seq->seq.l - 1 - i] = 'G'; break;
+                    case 'G': seq_rc[seq->seq.l - 1 - i] = 'C'; break;
+                    case 'T': seq_rc[seq->seq.l - 1 - i] = 'A'; break;
+                    default: std::cerr << "The alphabet still includes non-ACTG after cleaning!\n"; exit(0);
+                }
             }
         }
-        clean_fasta << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
-        clean_fasta << '>' << seq->name.s << "_rev_comp" << '\n' << seq_rc << '\n';
+        if (kmer_mode) {
+            // Adding the separators (#) for the kmer mode
+            clean_fasta << '>' << seq->name.s << '\n' << seq->seq.s << '#' << '\n';
+            if (rc)
+                clean_fasta << '>' << seq->name.s << "_rev_comp" << '\n' << seq_rc << '#' << '\n';
+
+        } else {
+            clean_fasta << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
+            if (rc)
+                clean_fasta << '>' << seq->name.s << "_rev_comp" << '\n' << seq_rc << '\n';
+        }
     }
 
     kseq_destroy(seq);
@@ -58,6 +69,9 @@ uint64_t read_fasta(const char* file_name,std::ofstream& clean_fasta) {
 int main(int argc, char* argv[]) {
     // Fasta/q reader from http://lh3lh3.users.sourceforge.net/parsefastq.shtml
     bool input_type = (argc > 3 and std::string(argv[3]) == "list");
+    bool kmer_mode = (argc > 3 and std::string(argv[3]) == "kmer");
+    bool rc = (argc > 4 and std::string(argv[4]) == "fw") ? false : true;
+    std::cerr << rc << "\n";
     std::ofstream clean_fasta(static_cast<std::string>(argv[2]));
     // Length of each document
     std::vector<uint64_t> doc_lengths;
@@ -66,13 +80,13 @@ int main(int argc, char* argv[]) {
         std::string fasta_file = "";
         while (std::getline(list_file, fasta_file)) {
             std::cerr << fasta_file << "\n";
-            uint64_t length = read_fasta(fasta_file.data(), clean_fasta);
+            uint64_t length = read_fasta(fasta_file.data(), clean_fasta, rc, kmer_mode);
             doc_lengths.push_back(length);
         }
     } else {
         std::cerr << argv[1] << "\n";
         std::cerr << argv[2] << "\n";
-        uint64_t length = read_fasta(argv[1], clean_fasta);
+        uint64_t length = read_fasta(argv[1], clean_fasta, rc, kmer_mode);
         doc_lengths.push_back(length);
     }
     clean_fasta.close();

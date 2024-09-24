@@ -58,6 +58,9 @@ add_executable(movi-constant src/movi.cpp src/move_structure.cpp src/move_row.cp
 target_link_libraries(movi-constant sdsl ZLIB::ZLIB)
 target_compile_options(movi-constant PUBLIC -O2 -DMODE=1)
 
+add_executable(movi-compact src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp)
+target_link_libraries(movi-compact sdsl ZLIB::ZLIB)
+target_compile_options(movi-compact PUBLIC -O2 -DMODE=3)
 
 add_executable(prepare_ref src/prepare_ref.cpp)
 target_link_libraries(prepare_ref ZLIB::ZLIB)
