@@ -1057,19 +1057,39 @@ void MoveStructure::compute_run_lcs() {
     }
 }
 
-uint64_t kmer_to_number(size_t k, std::string kmer, std::vector<uint64_t>& alphamap) {
-    if (kmer.length() != k) {
+char complement(char c) {
+    // # is the separator, complement(#) = #
+    char c_comp = c == '#' ? '#' : (c == 'A' ? 'T' : ( c == 'C' ? 'G' : (c == 'G' ? 'C' : 'A')));
+    return c_comp;
+}
+
+std::string reverse_complement(std::string& fw) {
+    std::string rc = "";
+    rc.resize(fw.size());
+    for (int i = fw.size() - 1;  i >= 0; i--) {
+        rc[fw.size() - i - 1] = complement(fw[i]);
+    }
+    return rc;
+}
+
+uint64_t kmer_to_number(size_t k, std::string& r, int32_t pos, std::vector<uint64_t>& alphamap, bool rc = false) {
+    if (r.length() < k) {
         std::cerr << "The k does not match the kmer length!\n";
         exit(0);
     }
 
     uint64_t res = 0;
     for (size_t i = 0; i < k; i++) {
-        if (alphamap[static_cast<uint64_t>(kmer[i])] == alphamap.size()) {
+        if (alphamap[static_cast<uint64_t>(r[pos + i])] == alphamap.size()) {
             return std::numeric_limits<uint64_t>::max();
         }
-        uint64_t char_code = alphamap[kmer[i]] - alphamap['A'];
-        res = (char_code << ((k-i-1)*2)) | res;
+        if (rc) {
+            uint64_t char_code = alphamap[complement(r[pos + i])] - alphamap['A'];
+            res = (char_code << ((i)*2)) | res;
+        } else {
+            uint64_t char_code = alphamap[r[pos + i]] - alphamap['A'];
+            res = (char_code << ((k-i-1)*2)) | res;
+        }
     }
     return res;
 }
@@ -1094,7 +1114,7 @@ void MoveStructure::compute_ftab() {
     std::cerr << "Number of ftab entries (ftab-k=" << ftab_k << "): " << ftab_size << "\n";
     for (uint64_t i = 0; i < ftab_size; i++) {
         std::string kmer = number_to_kmer(i, 2*(ftab_k), alphabet, alphamap);
-        uint64_t kmer_code = kmer_to_number(ftab_k, kmer, alphamap);
+        uint64_t kmer_code = kmer_to_number(ftab_k, kmer, 0, alphamap);
         if (kmer_code != i) {
             std::cerr << kmer << " " << i << " " << kmer_code << "\n";
         }
@@ -1382,10 +1402,11 @@ MoveInterval MoveStructure::backward_search(std::string& R, int32_t& pos_on_r, M
     }
 }
 
-MoveInterval MoveStructure::try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k) {
+MoveInterval MoveStructure::try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k, bool rc) {
     auto& query_seq = mq.query();
     if (ftab_k > 1 and pos_on_r >= ftab_k - 1) {
-        uint64_t kmer_code = kmer_to_number(ftab_k, query_seq.substr(pos_on_r - ftab_k + 1, ftab_k), alphamap);
+        // uint64_t kmer_code = kmer_to_number(ftab_k, query_seq.substr(pos_on_r - ftab_k + 1, ftab_k), alphamap);
+        uint64_t kmer_code = kmer_to_number(ftab_k, query_seq, pos_on_r - ftab_k + 1, alphamap, rc);
         if (kmer_code != std::numeric_limits<uint64_t>::max()) {
             auto& current_ftab = movi_options->is_multi_ftab() ? ftabs[ftab_k - 1] : ftab;
             if (!current_ftab[kmer_code].is_empty()) {
@@ -1409,20 +1430,46 @@ MoveInterval MoveStructure::try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t&
     return empty_interval;
 }
 
-MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len) {
+std::string reverse_complement_from_pos(MoveQuery& mq_fw, int32_t pos_on_r, uint64_t match_len) {
+    std::string rc = "";
+    rc.resize(match_len);
+    for (int i = pos_on_r + match_len - 1;  i >= pos_on_r; i--) {
+        rc[pos_on_r + match_len - 1 - i] = complement(mq_fw.query()[i]);
+    }
+    return rc;
+}
+
+MoveBiInterval MoveStructure::initialize_bidirectional_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len) {
+    MoveBiInterval bi_interval;
+    int32_t pos_on_r_before = pos_on_r;
+    bi_interval.fw_interval = initialize_backward_search(mq, pos_on_r, match_len);
+    // uint64_t match_len_ = match_len + 1;
+    // This is needed because of the way match_len is off by one
+    match_len += 1;
+    // std::string fw_matched = mq.query().substr(pos_on_r, match_len);
+    // MoveQuery mq_rc(reverse_complement_from_pos(mq, pos_on_r, match_len_));
+    bi_interval.match_len = match_len;
+    int32_t pos_on_r_rc = pos_on_r_before;
+    uint64_t match_len_rc = 0;
+    // bi_interval.rc_interval = initialize_backward_search(mq_rc, pos_on_r_rc, match_len_rc);
+    bi_interval.rc_interval = initialize_backward_search(mq, pos_on_r_rc, match_len_rc, true);
+    return bi_interval;
+}
+
+MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, bool rc) {
     all_initializations += 1;
     // Initialize assuming that the character at pos_on_r exists in the alphabet
     size_t ftab_k = movi_options->get_ftab_k();
     if (movi_options->is_multi_ftab()) {
         while (ftab_k > 1 and pos_on_r >= ftab_k - 1) {
             //std::cerr << ftab_k << "\n";
-            MoveInterval ftab_res = try_ftab(mq, pos_on_r, match_len, ftab_k);
+            MoveInterval ftab_res = try_ftab(mq, pos_on_r, match_len, ftab_k, rc);
             if (!ftab_res.is_empty())
                 return ftab_res;
             ftab_k -= 2;
         }
     } else if (ftab_k > 1) {
-        MoveInterval ftab_res = try_ftab(mq, pos_on_r, match_len, ftab_k);
+        MoveInterval ftab_res = try_ftab(mq, pos_on_r, match_len, ftab_k, rc);
         if (!ftab_res.is_empty())
             return ftab_res;
     }
@@ -1434,11 +1481,12 @@ MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq, int32_t& p
         no_ftab += 1;
     }
     auto& query_seq = mq.query();
+    auto first_char_index = alphamap[rc ? complement(query_seq[pos_on_r]): query_seq[pos_on_r]] + 1;
     MoveInterval interval(
-        first_runs[alphamap[query_seq[pos_on_r]] + 1],
-        first_offsets[alphamap[query_seq[pos_on_r]] + 1],
-        last_runs[alphamap[query_seq[pos_on_r]] + 1],
-        last_offsets[alphamap[query_seq[pos_on_r]] + 1]
+        first_runs[first_char_index],
+        first_offsets[first_char_index],
+        last_runs[first_char_index],
+        last_offsets[first_char_index]
     );
     return interval;
 }
@@ -1534,7 +1582,7 @@ bool MoveStructure::look_ahead_ftab(MoveQuery& mq, uint32_t pos_on_r, int32_t& s
     // int32_t pos_on_r_ahead = pos_on_r - static_cast<int32_t>(k/2);
     for (step = 0; step <= 19 ; step += 1) {
         int32_t pos_on_r_ahead = pos_on_r - k + ftab_k + step;
-        uint64_t kmer_code = kmer_to_number(ftab_k, query_seq.substr(pos_on_r_ahead - ftab_k + 1, ftab_k), alphamap);
+        uint64_t kmer_code = kmer_to_number(ftab_k, query_seq, pos_on_r_ahead - ftab_k, alphamap);
         if (kmer_code != std::numeric_limits<uint64_t>::max() and !ftab[kmer_code].is_empty()) {
             // return true;
         } else {

@@ -135,8 +135,8 @@ class MoveStructure {
         uint64_t backward_search(std::string& R, int32_t& pos_on_r);
         uint64_t backward_search_step(std::string& R, int32_t& pos_on_r, MoveInterval& interval);
         MoveInterval backward_search(std::string& R, int32_t& pos_on_r, MoveInterval interval, int32_t max_length);
-        MoveInterval initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len);
-        MoveInterval try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k);
+        MoveInterval initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, bool rc = false);
+        MoveInterval try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k, bool rc = false);
         void update_interval(MoveInterval& interval, char next_char);
 
         void sequential_lf();
