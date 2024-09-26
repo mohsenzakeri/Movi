@@ -1368,6 +1368,99 @@ void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
 #endif
 }
 
+bool MoveStructure::extend_bidirectional(char c_, MoveInterval& fw_interval, MoveInterval& rc_interval) {
+    MoveInterval fw_interval_before_extension = fw_interval;
+    char c_comp = complement(c_);
+
+    bool res = backward_search_step(c_, fw_interval);
+    if (res) {
+        // The alphabet is already checked to be legal (ACGT)
+        uint64_t skip = 0;
+        uint64_t current_run = fw_interval_before_extension.run_start;
+        uint64_t current_offset = fw_interval_before_extension.offset_start;
+        while (current_run <= fw_interval_before_extension.run_end ) {
+            if (current_run != end_bwt_idx) {
+                if (complement(get_char(current_run)) < c_comp) {
+                    uint64_t char_count = current_run != fw_interval_before_extension.run_end ?
+                                        get_n(current_run) - current_offset : fw_interval_before_extension.offset_end - current_offset + 1;
+                    skip += char_count;
+                }
+            } else {
+                skip += 1;
+            }
+            current_run += 1;
+            current_offset = 0;
+        }
+
+        while (skip != 0) {
+            int rows_after = get_n(rc_interval.run_start) - 1 - rc_interval.offset_start;
+            if (rows_after >= skip) {
+                rc_interval.offset_start += skip;
+                skip = 0;
+            } else {
+                rc_interval.run_start += 1;
+                rc_interval.offset_start = 0;
+                skip -= rows_after + 1;
+            }
+        }
+        // Compute the run end for the rc interval
+        skip = fw_interval.count(rlbwt) - 1;
+        rc_interval.run_end = rc_interval.run_start;
+        rc_interval.offset_end = rc_interval.offset_start;
+        while (skip != 0) {
+            int rows_after = get_n(rc_interval.run_end) - 1 - rc_interval.offset_end;
+            if (rows_after >= skip) {
+                rc_interval.offset_end += skip;
+                skip = 0;
+            } else {
+                rc_interval.run_end += 1;
+                rc_interval.offset_end = 0;
+                skip -= rows_after + 1;
+            }
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool MoveStructure::extend_left(char c, MoveBiInterval& bi_interval) {
+    char c_ = c;
+    return extend_bidirectional(c_, bi_interval.fw_interval, bi_interval.rc_interval);
+}
+
+bool MoveStructure::extend_right(char c, MoveBiInterval& bi_interval) {
+    char c_ = complement(c);
+    return extend_bidirectional(c_, bi_interval.rc_interval, bi_interval.fw_interval);
+}
+
+MoveBiInterval MoveStructure::backward_search_bidirectional(std::string& R, int32_t& pos_on_r, MoveBiInterval interval, int32_t max_length) {
+    // If the pattern is found, the pos_on_r will be equal to 0 and the interval will be non-empty
+    // Otherwise the interval corresponding to match from the end until and including the updated pos_on_r will be returned
+    // The input interval is non-empty and corresponds to the interval that matches the read (R) at pos_on_r
+    MoveBiInterval prev_interval = interval;
+    int32_t pos_on_r_saved = pos_on_r;
+    while (pos_on_r > 0 and !interval.fw_interval.is_empty()) {
+        /*if (!check_alphabet(R[pos_on_r - 1])) {
+            return interval;
+        }*/
+        prev_interval = interval;
+        bool res = extend_left(R[pos_on_r - 1], interval);
+        if (!interval.fw_interval.is_empty()) {
+            pos_on_r -= 1;
+        }
+
+        // The following is only for the backward_search is called for "look ahead" for kmer skipping
+        if (pos_on_r_saved - pos_on_r > max_length)
+            break;
+    }
+    if (interval.fw_interval.is_empty()) {
+        return prev_interval;
+    } else {
+        return interval;
+    }
+}
+
 MoveInterval MoveStructure::backward_search(std::string& R, int32_t& pos_on_r, MoveInterval interval, int32_t max_length) {
     // If the pattern is found, the pos_on_r will be equal to 0 and the interval will be non-empty
     // Otherwise the interval corresponding to match from the end until and including the updated pos_on_r will be returned
@@ -1489,6 +1582,25 @@ MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq, int32_t& p
         last_offsets[first_char_index]
     );
     return interval;
+}
+
+bool MoveStructure::backward_search_step(char c, MoveInterval& interval) {
+    uint64_t ff_count = 0;
+    if (!check_alphabet(c)) {
+        interval.make_empty();
+        return ff_count;
+    }
+
+    update_interval(interval, c);
+    if (!interval.is_empty()) {
+        ff_count += LF_move(interval.offset_start, interval.run_start);
+        ff_count += LF_move(interval.offset_end, interval.run_end);
+        return true;
+    } else {
+        return false;
+    }
+
+    return ff_count;
 }
 
 uint64_t MoveStructure::backward_search_step(std::string& R, int32_t& pos_on_r, MoveInterval& interval) {
