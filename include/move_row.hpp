@@ -9,7 +9,7 @@
 // #define MODE -1// 0: regular, 1: constant, 2: one-bit
 // #endif
 
-#if MODE == 0 or MODE == 1
+#if MODE == 0 or MODE == 1 or MODE == 4
 const uint8_t mask_thresholds1 = static_cast<uint8_t>(~(((1U << 2) - 1) << 0)); // 00000011
 const uint8_t mask_thresholds2 = static_cast<uint8_t>(~(((1U << 2) - 1) << 2)); // 00001100
 const uint8_t mask_thresholds3 = static_cast<uint8_t>(~(((1U << 2) - 1) << 4)); // 00110000
@@ -33,7 +33,7 @@ const uint16_t mask_c = static_cast<uint16_t>(~(((1U << 4) - 1) << 12));        
 
 class MoveRow{
     public:
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
         MoveRow () {n = 0; id = 0; overflow_bits = 0;}
 #endif
 #if MODE == 3
@@ -59,7 +59,7 @@ class MoveRow{
         bool is_overflow_n() const;
         bool is_overflow_offset() const;
 
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
         uint8_t get_threshold_status(uint16_t i) const;
         void set_threshold_status(uint16_t i, uint8_t status);
         bool is_overflow_thresholds() const;
@@ -74,7 +74,7 @@ class MoveRow{
         void set_next_down(uint32_t i, uint16_t t) { next_down[i] = t; }
 #endif
         uint64_t row_size() {
-#if MODE == 0
+#if MODE == 0 or MODE == 4
             return 12;
 #endif
 #if MODE == 1
@@ -92,11 +92,11 @@ class MoveRow{
         uint16_t n; // length of the run
         uint16_t offset; // offset of the bwt row head of the current run in the new run after the LF-jump
 
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
         uint16_t threshold;
         uint8_t overflow_bits;
 #endif
-#if MODE == 0 or MODE == 1
+#if MODE == 0 or MODE == 1 or MODE == 4
         uint8_t thresholds_status; // Whether each threshold is at the boundary or it's a non-trivial value
 #endif
 #if MODE == 1
@@ -106,7 +106,7 @@ class MoveRow{
 #endif
 };
 
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
 inline uint8_t extract_value(uint8_t source, uint8_t mask, uint16_t shift) {
     uint8_t res = (source & (~mask)) >> shift;
     return res;
@@ -120,7 +120,7 @@ inline uint16_t extract_value(uint16_t source, uint16_t mask, uint16_t shift) {
 #endif
 
 inline uint16_t MoveRow::get_n() const{
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
     return n;
 #endif
 #if MODE == 3
@@ -130,7 +130,7 @@ inline uint16_t MoveRow::get_n() const{
 }
 
 inline uint16_t MoveRow::get_offset() const{
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
     return offset;
 #endif
 #if MODE == 3
@@ -140,7 +140,7 @@ inline uint16_t MoveRow::get_offset() const{
 }
 
 inline uint64_t MoveRow::get_id() const{
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
     if (overflow_bits != 0) {
         uint64_t res = static_cast<uint64_t>(extract_value(overflow_bits, mask_id, 0));
 #endif
@@ -158,7 +158,7 @@ inline uint64_t MoveRow::get_id() const{
 }
 
 inline char MoveRow::get_c() const{
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
     return static_cast<char>(extract_value(thresholds_status, mask_c, 6));
 #endif
 #if MODE == 3
@@ -167,7 +167,7 @@ inline char MoveRow::get_c() const{
 }
 
 inline bool MoveRow::is_overflow_n() const{
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
     uint8_t res = extract_value(overflow_bits, mask_overflow_n, 4);
 #endif
 #if MODE == 3
@@ -178,7 +178,7 @@ inline bool MoveRow::is_overflow_n() const{
 }
 
 inline bool MoveRow::is_overflow_offset() const{
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
     uint8_t res = extract_value(overflow_bits, mask_overflow_offset, 5);
 #endif
 #if MODE == 3
@@ -188,7 +188,7 @@ inline bool MoveRow::is_overflow_offset() const{
     return !static_cast<bool>(res);
 }
 
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
 inline uint8_t MoveRow::get_threshold_status(uint16_t i) const {
     const uint8_t mask_thresholds = static_cast<uint8_t>(~(((1U << 2) - 1) << i*2));
     uint8_t status = static_cast<uint8_t>((thresholds_status & (~mask_thresholds)) >> i*2);
