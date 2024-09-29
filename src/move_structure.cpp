@@ -2025,7 +2025,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     doc_sizes[doc_sizes.size() - 1] = length - doc_offsets[doc_offsets.size() - 1];
     max_size = std::max(max_size, doc_sizes[doc_sizes.size() - 1]);
 
-    std::vector<uint16_t> &pml_lens = mq.get_pml_lens();
+    std::vector<uint16_t> &pml_lens = mq.get_matching_lengths();
     std::vector<double> doc_cnts(doc_offsets.size());
     const int thres = 0;
     for (unsigned i = 0; i < indices.size(); i++) {
@@ -2286,16 +2286,16 @@ bool MoveStructure::check_alphabet(char& c) {
     return alphamap[static_cast<uint64_t>(c)] != alphamap.size();
 }
 
-void MoveStructure::serialize_doc_pats(std::string output_dir) {
-    std::string fname = output_dir + "/doc_pats.bin";
+void MoveStructure::serialize_doc_pats() {
+    std::string fname = movi_options->get_index_dir() + "/doc_pats.bin";
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
     
     fout.write(reinterpret_cast<char*>(&doc_pats[0]), length * sizeof(doc_pats[0]));
     fout.close();
 }
 
-void MoveStructure::deserialize_doc_pats(std::string index_dir) {
-    std::string fname = index_dir + "/doc_pats.bin";
+void MoveStructure::deserialize_doc_pats() {
+    std::string fname = movi_options->get_index_dir() + "/doc_pats.bin";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
     
     doc_pats.resize(length);
@@ -2303,8 +2303,8 @@ void MoveStructure::deserialize_doc_pats(std::string index_dir) {
     fin.close();
 }
 
-void MoveStructure::serialize_doc_sets(std::string output_dir) {
-    std::string fname = output_dir + "/doc_sets.bin";
+void MoveStructure::serialize_doc_sets() {
+    std::string fname = movi_options->get_index_dir() + "/doc_sets.bin";
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
     
     size_t unique_cnt = unique_doc_sets.size();
@@ -2317,8 +2317,8 @@ void MoveStructure::serialize_doc_sets(std::string output_dir) {
     fout.close();
 }
 
-void MoveStructure::deserialize_doc_sets(std::string index_dir) {
-    std::string fname = index_dir + "/doc_sets.bin";
+void MoveStructure::deserialize_doc_sets() {
+    std::string fname = movi_options->get_index_dir() + "/doc_sets.bin";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
     
     size_t unique_cnt = 0;
@@ -2497,7 +2497,7 @@ void MoveStructure::deserialize() {
     fin.close();
 
     // Read in document offsets.
-    std::ifstream doc_offsets_file(index_dir + "/ref.fa.doc_offsets");
+    std::ifstream doc_offsets_file(movi_options->get_index_dir() + "/ref.fa.doc_offsets");
     uint64_t doc_offset;
     while ((doc_offsets_file >> doc_offset)) {
         doc_offsets.push_back(doc_offset);

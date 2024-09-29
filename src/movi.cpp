@@ -96,7 +96,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
         ("n,no-prefetch", "Disable prefetching for query")
-        ("out_file", "Output file if computing PMLs for classification", cxxopts::value<std::string>());
+        ("out_file", "Output file if computing PMLs for classification", cxxopts::value<std::string>())
         ("k,k-length", "The length of the kmer", cxxopts::value<uint32_t>())
         ("ftab-k", "The length of the ftba kmer", cxxopts::value<uint32_t>())
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
@@ -182,7 +182,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
                     movi_options.set_read_file(result["read"].as<std::string>());
                     if (result.count("pml") >= 1) { 
-                        movi_options.set_pml(true); 
+                        movi_options.set_pml();
                         if (result.count("full")) {
                             movi_options.set_full_color(true);
                         }
@@ -327,14 +327,15 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         std::ofstream mls_file;
         std::ofstream count_file;
         if (!movi_options.is_stdout()) {
-            if (movi_options.is_pml())
+            if (movi_options.is_pml()) {
                 // genotype_cnts tracks which documents the genotype queries think each read is from.
                 mv_.genotype_cnts.resize(mv_.get_num_docs()); 
                 mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".pml.bin", std::ios::out | std::ios::binary);
-            else if (movi_options.is_zml())
+	    } else if (movi_options.is_zml()) {
                 mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".zml.bin", std::ios::out | std::ios::binary);
-            else if (movi_options.is_count())
+	    } else if (movi_options.is_count()) {
                 count_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".matches");
+	    }
         }
 
         uint64_t read_processed = 0;
@@ -483,10 +484,10 @@ int main(int argc, char** argv) {
         build_ftab(mv_, movi_options);
         std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
     } else if (command == "color") {
-        MoveStructure mv_(movi_options.is_verbose(), movi_options.is_logs());
+        MoveStructure mv_(&movi_options);
         auto begin = std::chrono::system_clock::now();
 
-        mv_.deserialize(movi_options.get_index_dir());
+        mv_.deserialize();
         auto end = std::chrono::system_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
         std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
@@ -495,10 +496,10 @@ int main(int argc, char** argv) {
         mv_.find_all_SA();
         if (movi_options.is_full_color()) {
             mv_.build_doc_pats();
-            mv_.serialize_doc_pats(movi_options.get_index_dir());
+            mv_.serialize_doc_pats();
         } else {
             mv_.build_doc_sets();
-            mv_.serialize_doc_sets(movi_options.get_index_dir());
+            mv_.serialize_doc_sets();
         }
 
         end = std::chrono::system_clock::now();
@@ -515,9 +516,9 @@ int main(int argc, char** argv) {
 
         mv_.set_use_doc_pats(movi_options.is_full_color());
         if (movi_options.is_full_color()) {
-            mv_.deserialize_doc_pats(movi_options.get_index_dir());
+            mv_.deserialize_doc_pats();
         } else {
-            mv_.deserialize_doc_sets(movi_options.get_index_dir());
+            mv_.deserialize_doc_sets();
         }
         query(mv_, movi_options);
         

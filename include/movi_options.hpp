@@ -128,3 +128,5 @@ class MoviOptions {
         bool logs = false;
         bool full_color = false;
 };
+
+#endif

@@ -181,20 +181,17 @@ class MoveStructure {
 #endif
         bool jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_count);
         
-        void serialize_doc_pats(std::string output_dir);
-        void deserialize_doc_pats(std::string index_dir);
-        void serialize_doc_sets(std::string output_dir);
-        void deserialize_doc_sets(std::string index_dir);
-        void serialize(std::string output_dir);
-        void deserialize(std::string index_dir);
+        void serialize_doc_pats();
+        void deserialize_doc_pats();
+        void serialize_doc_sets();
+        void deserialize_doc_sets();
+        void serialize();
+        void deserialize();
         
         void verify_lfs();
         void print_stats();
         void analyze_rows();
         bool check_alphabet(char& c);
-
-        void serialize();
-        void deserialize();
 
         void set_use_doc_pats(bool val) { use_doc_pats = val; }
         int get_num_docs() { return num_docs; }
@@ -205,9 +202,11 @@ class MoveStructure {
         uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
-        // Counts of genotype queries outputting each document.
+#endif
+	// Counts of genotype queries outputting each document.
         std::vector<uint32_t> genotype_cnts;
     
+        KmerStatistics kmer_stats;
         friend class ReadProcessor;
     private:
         // Sorted vector of the start offsets of each document.  
@@ -233,16 +232,8 @@ class MoveStructure {
         // Flag to determine which document method to use
         bool use_doc_pats;
     
-        std::vector<uint64_t> first_runs;
-        std::vector<uint64_t> first_offsets;
-        std::vector<uint64_t> last_runs;
-        std::vector<uint64_t> last_offsets;
-        bool onebit;
-        KmerStatistics kmer_stats;
-        friend class ReadProcessor;
-    private:
         MoviOptions* movi_options;
-  	    bool onebit;
+        bool onebit;
         bool constant;
         uint16_t splitting;
 
@@ -333,3 +324,5 @@ struct std::hash<DocSet> {
         return hash;
     }
 };
+
+#endif
