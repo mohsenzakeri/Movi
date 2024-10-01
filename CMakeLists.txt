@@ -68,3 +68,9 @@ target_compile_options(movi-split PUBLIC -O2 -DMODE=4)
 
 add_executable(prepare_ref src/prepare_ref.cpp)
 target_link_libraries(prepare_ref ZLIB::ZLIB)
+
+if (BUILD_TEST STREQUAL "1")
+  add_executable(test_bidirectional src/test_bidirectional.cpp src/move_structure.cpp src/move_row.cpp)
+  target_link_libraries(test_bidirectional sdsl ZLIB::ZLIB)
+  target_compile_options(test_bidirectional PUBLIC -O2 -DMODE=3)
+endif ()
