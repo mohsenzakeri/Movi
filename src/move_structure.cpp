@@ -1549,16 +1549,26 @@ MoveBiInterval MoveStructure::initialize_bidirectional_search(MoveQuery& mq, int
     MoveBiInterval bi_interval;
     int32_t pos_on_r_before = pos_on_r;
     bi_interval.fw_interval = initialize_backward_search(mq, pos_on_r, match_len);
-    // uint64_t match_len_ = match_len + 1;
+    // If the initialization was unsuccessfull, match_len of the bidirectional interval should be set to 0
+    // Without the following condition, the match_len will be increamented in the following line
+    if (match_len == 0) {
+        bi_interval.match_len = match_len;
+        return bi_interval;
+    }
     // This is needed because of the way match_len is off by one
     match_len += 1;
-    // std::string fw_matched = mq.query().substr(pos_on_r, match_len);
-    // MoveQuery mq_rc(reverse_complement_from_pos(mq, pos_on_r, match_len_));
     bi_interval.match_len = match_len;
+
     int32_t pos_on_r_rc = pos_on_r_before;
     uint64_t match_len_rc = 0;
-    // bi_interval.rc_interval = initialize_backward_search(mq_rc, pos_on_r_rc, match_len_rc);
     bi_interval.rc_interval = initialize_backward_search(mq, pos_on_r_rc, match_len_rc, true);
+
+    // match_len_rc will be equal to match_len if both fw and rc are present int he reference
+    if (match_len - 1 != match_len_rc) {
+        std::cerr << "The reverse complement might not be present in the reference.\n";
+        exit(0);
+    }
+
     return bi_interval;
 }
 
@@ -1598,22 +1608,19 @@ MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq, int32_t& p
 }
 
 bool MoveStructure::backward_search_step(char c, MoveInterval& interval) {
-    uint64_t ff_count = 0;
     if (!check_alphabet(c)) {
         interval.make_empty();
-        return ff_count;
+        return false;
     }
 
     update_interval(interval, c);
     if (!interval.is_empty()) {
-        ff_count += LF_move(interval.offset_start, interval.run_start);
-        ff_count += LF_move(interval.offset_end, interval.run_end);
+        LF_move(interval.offset_start, interval.run_start);
+        LF_move(interval.offset_end, interval.run_end);
         return true;
     } else {
         return false;
     }
-
-    return ff_count;
 }
 
 uint64_t MoveStructure::backward_search_step(std::string& R, int32_t& pos_on_r, MoveInterval& interval) {
