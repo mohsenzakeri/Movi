@@ -1340,12 +1340,14 @@ void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
     }
 #endif
 #if MODE == 1
-    std::cerr << alphabet[rlbwt[interval.run_start].get_c()] << " " << alphabet[rlbwt[interval.run_end].get_c()] << " " << next_char << "\n";
+    if (movi_options->is_debug())
+        dbg << alphabet[rlbwt[interval.run_start].get_c()] << " " << alphabet[rlbwt[interval.run_end].get_c()] << " " << next_char << "\n";
     uint64_t read_alphabet_index = alphamap[static_cast<uint64_t>(next_char)];
     if ((interval.run_start <= interval.run_end) and (alphabet[rlbwt[interval.run_start].get_c()] != next_char)) {
         if (interval.run_start == 0) {
             // To check if this case ever happens. If not, we should get rid of this condition.
-            std::cerr << "run_start is 0 before updating the interval!\n";
+            if (movi_options->is_debug())
+                dbg << "run_start is 0 before updating the interval!\n";
             while ((interval.run_start <= interval.run_end) and (alphabet[rlbwt[interval.run_start].get_c()] != next_char)) {
                 interval.run_start += 1;
                 interval.offset_start = 0;
