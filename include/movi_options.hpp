@@ -18,6 +18,7 @@ class MoviOptions {
         bool is_stdout() { return write_stdout; }
         bool is_verbose() { return verbose; }
         bool is_logs() { return logs; }
+        bool is_debug() { return debug; }
         bool if_verify() { return verify; }
         bool is_pml() { return pml_query; }
         bool is_zml() { return zml_query; }
@@ -42,6 +43,7 @@ class MoviOptions {
         void set_stdout(bool write_stdout_) { write_stdout = write_stdout_; }
         void set_verbose(bool verbose_) { verbose = verbose_; }
         void set_logs(bool logs_) { logs = logs_; }
+        void set_debug(bool debug_) { debug = debug_; }
         void set_verify(bool verify_) { verify = verify_; }
         void set_pml()   { pml_query = true; count_query = false; kmer_query = false; zml_query = false; }
         void set_zml()   { zml_query = true; pml_query = false; count_query = false; kmer_query = false; }
@@ -93,6 +95,7 @@ class MoviOptions {
             std::cerr << "strands:\t" << strands << "\n";
             std::cerr << "verify:\t" << verify << "\n";
             std::cerr << "stdout:\t" << write_stdout << "\n";
+            std::cerr << "debug:\t" << debug << "\n";
             std::cerr << "verbose:\t" << verbose << "\n";
             std::cerr << "logs:\t" << logs << "\n";
         }
@@ -119,6 +122,7 @@ class MoviOptions {
         bool multi_ftab = false;
         bool verify = false;
         bool write_stdout = false;
+        bool debug = false;
         bool verbose = false;
         bool logs = false;
 };

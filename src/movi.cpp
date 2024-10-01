@@ -62,6 +62,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     options.add_options()
         ("command", "Command to execute", cxxopts::value<std::string>())
         ("h,help", "Print help")
+        ("d,dbg", "Enable debug mode")
         ("v,verbose", "Enable verbose mode")
         ("l,logs", "Enable logs");
 
@@ -125,6 +126,11 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         if (result.count("logs")) {
             // Set global logs flag
             movi_options.set_logs(true);
+        }
+
+        if (result.count("dbg")) {
+            // Set global debug flag
+            movi_options.set_debug(true);
         }
 
         if (result.count("command")) {

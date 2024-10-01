@@ -6,6 +6,7 @@ uint32_t alphamap_3[4][4] = {{3, 0, 1, 2},
                              {0, 3, 1, 2},
                              {0, 1, 3, 2},
                              {0, 1, 2, 3}};
+std::ostringstream dbg;
 
 void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
     int log_n = 100;
