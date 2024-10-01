@@ -1740,6 +1740,176 @@ bool MoveStructure::look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r,
     }
 }
 
+// pos_on_r points to the furthest base of the kmer to be searched
+// The search is from the right end of the kmer
+// All kmers on the right side of the kmer_middle might be found in this call if they exist
+uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& pos_on_r) {
+    uint64_t kmers_found = 0;
+    int32_t last_kmer_looked_at = pos_on_r;
+
+    size_t ftab_k = movi_options->get_ftab_k();
+    size_t k = movi_options->get_k();
+    auto& query_seq = mq.query();
+
+    // The middle point of the kmer
+    int32_t kmer_middle = pos_on_r - k/2;
+    // To remember the kmer which initiated the search
+    int32_t pos_on_r_saved = pos_on_r;
+    // The number of bases matched so far
+    uint64_t match_len = 0;
+    // The position of the left side of the kmer on the read
+    int32_t kmer_left = pos_on_r - k + 1;
+    // The position on the right side of the match to be found by ftab
+    int32_t ftab_right = kmer_left + ftab_k - 1;
+
+    // At the time, the initialization works if ftab with ftab_k exists only
+    // And the multi-ftab strategy must be turned off
+    movi_options->set_multi_ftab(false);
+
+    MoveBiInterval bi_interval;
+    int32_t ftab_right_initialize = ftab_right;
+
+    bi_interval = initialize_bidirectional_search(mq, ftab_right_initialize, match_len);
+
+    if (match_len == 0 and ftab_k > 1) {
+        // If the ftab-k-mer at the end of the read is not found,
+        // we can skip all the kmers until ftab_right - 1
+        kmer_stats.initialize_skipped += 1;
+        pos_on_r = ftab_right - 1;
+        return 0;
+    }
+
+    // pos_on_r and pos_on_r_saved point to the beginning of the kmer for which the bidirectional initialization was performed above
+    // Extend to right until the kmer is found and save the observed intervals beyond k/2
+    std::vector<MoveBiInterval> partial_matches;
+    partial_matches.resize(k);
+    // kmer_right is the last position matched so far
+    uint64_t kmer_right = ftab_right;
+    int here = 0;
+    while (kmer_right < pos_on_r_saved) {
+        // The next k-mer we are looking at, ends at next_pos
+        int next_pos = kmer_right + 1;
+
+        if (movi_options->is_debug() and next_pos >= k)
+            dbg << "\nkmer at " << next_pos << ": " << query_seq.substr(next_pos - k + 1, k) << " ";
+
+        bool extend_right_res = extend_right(query_seq[next_pos], bi_interval);
+        if (!extend_right_res) {
+            here = 1;
+            // The kmer was not found, we can skip kmers until ftab_right
+            pos_on_r = kmer_right;
+            last_kmer_looked_at = next_pos;
+
+            // Printing all the kmers being skipped, because the extension to the right was not possible
+            if (movi_options->is_debug()) {
+                int j = next_pos + 1;
+                while (j < pos_on_r_saved) {
+                    if (j > k)
+                        dbg << "\nkmer at " << j << ": " << query_seq.substr(j - k + 1, k) << "-";
+                    j += 1;
+                }
+            }
+
+            // It's important to break here, to avoid false extensions in the following iterations
+            break;
+        } else {
+            match_len += 1;
+            kmer_right = next_pos;
+            bi_interval.match_len = match_len;
+            // store the intervals for matches beyond half point of the kmer
+            if (kmer_right > kmer_middle and kmer_right != pos_on_r) {
+                bi_interval.match_len = match_len;
+                // "kmer_right - kmer_left" is the index of the kmer from the left end
+                partial_matches[kmer_right - kmer_left] = bi_interval;
+            }
+        }
+    }
+
+    if (kmer_right == pos_on_r_saved) {
+        // The kmer at pos_on_r was found by k bidirectional backward search
+        kmers_found += 1;
+        kmer_stats.backward_search_empty += 1;
+        // std::cerr << "The first kmer at " << pos_on_r << " was found.\n";
+        pos_on_r = pos_on_r_saved - 1;
+        // To avoid searching this kmer again in the next step
+        kmer_right -= 1;
+
+        if (movi_options->is_debug()) {
+            if (pos_on_r_saved > k)
+                dbg << "\nkmer at " << pos_on_r_saved << ": " << query_seq.substr(pos_on_r_saved - k + 1, k) << "\n";
+            dbg << "1";
+        }
+
+    } else {
+        if (movi_options->is_debug()) {
+            if (pos_on_r_saved > k)
+                dbg << "\nkmer at " << pos_on_r_saved << ": " << query_seq.substr(pos_on_r_saved - k + 1, k) << "-\n";
+            dbg << "0";
+        }
+    }
+
+
+    // Use partial matches for finding other overlapping kmers (until half point)
+    if (kmer_right > kmer_middle) {
+        if (movi_options->is_debug()) {
+            for (int i = kmer_right + 1; i < pos_on_r_saved; i++) {
+                dbg << "0";
+            }
+        }
+        for (uint i = kmer_right; i > kmer_middle; i--) {
+            // Set kmer_left_ext to be the last match position on the left end
+            int32_t kmer_left_ext = kmer_left;
+            auto& partial_match_interval = partial_matches[i - kmer_left];
+            last_kmer_looked_at = i;
+            while (partial_match_interval.match_len < k and kmer_left_ext > 0) {
+                // We don't need to do bidirectional left extension here, simple backward search is enough
+                bool res = backward_search_step(query_seq[kmer_left_ext - 1], partial_match_interval.fw_interval);
+                // bool res = extend_left(query_seq[kmer_left_ext - 1], partial_match_interval);
+                if (!res) {
+                    // The current kmer is not present, move to the next partial match by breaking from the inner loop
+                    break;
+                } else {
+                    kmer_left_ext -= 1;
+                    partial_match_interval.match_len += 1;
+                }
+            }
+            if (partial_match_interval.match_len >= k) {
+                // The kmer was found by extending the partial match to left
+                kmers_found += 1;
+                kmer_stats.positive_skipped += 1;
+                if (movi_options->is_debug()) {
+                    std::cerr << "kmer at " << kmer_left_ext + k - 1 << " was found.\n";
+                    dbg << "1";
+                }
+            } else {
+                if (movi_options->is_debug()) {
+                    dbg << "0";
+                }
+            }
+
+            pos_on_r -= 1;
+        }
+        // At this point we have checked the presence of all the kmer beyond kmer_middle
+    } else {
+        // If we got here, we had to start the first while by breaking because of an unsuccessfull attempt to extend to the right
+        if (here != 1)
+            std::cerr << here << "\t" << last_kmer_looked_at << "\t" << pos_on_r << "\n";
+        if (kmer_right != pos_on_r)
+            std::cerr << "This should not happen: " << kmer_right << "\t" << pos_on_r << "\n";
+        // pos_on_r should have already been assigned to be the last kmer_right
+        // So we should never get here to do the assignment in practice
+        pos_on_r = kmer_right;
+
+        if (movi_options->is_debug()) {
+            for (int i = kmer_middle + 1; i <= pos_on_r_saved - 1; i++) {
+                dbg << "0";
+            }
+        }
+
+    }
+    return kmers_found;
+}
+
 uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool single) {
     size_t ftab_k = movi_options->get_ftab_k();
     size_t k = movi_options->get_k();
