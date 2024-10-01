@@ -1992,12 +1992,14 @@ void MoveStructure::query_all_kmers(MoveQuery& mq) {
         pos_on_r -= 1; // Find the first position where the character is legal
     }
 
+
+    int32_t step = k/3;
+    // k - step has to be always greater than ftab-k
+    if (k - step < ftab_k) {
+        step = k - ftab_k - 1;
+    }
+
     while (pos_on_r >= k - 1) {
-        // int32_t step = 0;
-        int32_t step = 5;
-        // if (ftab_k > 1 and !look_ahead(mq, pos_on_r, step)) {
-        //    kmer_stats.look_ahead_skipped += k - ftab_k - step;
-        //    pos_on_r = pos_on_r - k + ftab_k + step - 1;
         if (pos_on_r >= k -1 + step and !look_ahead_backward_search(mq, pos_on_r, step)) {
             kmer_stats.look_ahead_skipped += step + 1;
             pos_on_r = pos_on_r - step - 1;
