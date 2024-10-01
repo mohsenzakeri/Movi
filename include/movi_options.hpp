@@ -24,6 +24,7 @@ class MoviOptions {
         bool is_zml() { return zml_query; }
         bool is_count() { return count_query; }
         bool is_kmer() { return kmer_query; }
+        bool is_kmer_count() { return kmer_count; }
         bool is_reverse() { return reverse; }
         bool is_multi_ftab() { return multi_ftab; }
         int ignore_illegal_chars_status() { return ilc; }
@@ -49,6 +50,7 @@ class MoviOptions {
         void set_zml()   { zml_query = true; pml_query = false; count_query = false; kmer_query = false; }
         void set_count() { count_query = true; pml_query = false; kmer_query = false; zml_query = false; }
         void set_kmer()  { kmer_query = true; pml_query = false; count_query = false; zml_query = false; }
+        void set_kmer_count(bool kmer_count_) { kmer_count = kmer_count_; }
         void set_k(uint32_t k_) { k = k_; }
         void set_ftab_k(uint32_t ftab_k_) { ftab_k = ftab_k_; }
         void set_multi_ftab(bool multi_ftab_) { multi_ftab = multi_ftab_; }
@@ -114,6 +116,7 @@ class MoviOptions {
         bool zml_query = false;
         bool count_query = false;
         bool kmer_query = false;
+        bool kmer_count = false;
         bool reverse = false;
         bool prefetch = true;
         size_t strands = 16;

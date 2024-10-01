@@ -1971,7 +1971,7 @@ uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool 
     }
 }
 
-void MoveStructure::query_all_kmers(MoveQuery& mq) {
+void MoveStructure::query_all_kmers(MoveQuery& mq, bool kmer_counts) {
     size_t ftab_k = movi_options->get_ftab_k();
     size_t k = movi_options->get_k();
     auto& query_seq = mq.query();
@@ -2004,7 +2004,51 @@ void MoveStructure::query_all_kmers(MoveQuery& mq) {
             kmer_stats.look_ahead_skipped += step + 1;
             pos_on_r = pos_on_r - step - 1;
         } else {
-            kmer_stats.positive_kmers += query_kmers_from(mq, pos_on_r);
+            if (kmer_counts) {
+                if (pos_on_r == k - 1) {
+                    kmer_stats.positive_kmers += query_kmers_from(mq, pos_on_r);
+                } else {
+                    kmer_stats.positive_kmers += query_kmers_from_bidirectional(mq, pos_on_r);
+
+                    if (movi_options->is_debug()) {
+                        dbg.str("");
+                        dbg.clear();
+                        int pos_on_r_before = pos_on_r;
+                        int found_regular = 0;
+                        dbg << "regular backward search:\n";
+                        int k_m = pos_on_r - k/2;
+                        dbg << pos_on_r << "\t" << k_m << "\n";
+                        dbg << k/2 << "\n";
+                        for (int j = pos_on_r; j > k_m; j--) {
+                            dbg << " " << j << " ";
+                            if (j >= k)
+                                dbg << "\nkmer at " << j << ": " << query_seq.substr(j - k + 1, k) << " ";
+
+                            int pos = j;
+                            dbg << " pos:" << pos << " ";
+                            int z = query_kmers_from(mq, pos, true);
+                            if (z == 1 and pos == j - 1) {
+                                dbg << "1";
+                                found_regular += 1;
+                            } else
+                                dbg << "0";
+                        }
+                        dbg << "\n";
+                        dbg << "bidirectional search:\n";
+                        int pos = pos_on_r_before;
+                        int found_bidirectional = query_kmers_from_bidirectional(mq, pos);
+                        dbg << "\n";
+                        kmer_stats.positive_kmers += found_bidirectional;
+                        if (found_regular != found_bidirectional) {
+                            std::cerr << "pos_on_r_before:" << pos_on_r_before << " pos_on_r:" << pos_on_r
+                                    << " found_regular:" << found_regular << " found_bidirectional" << found_bidirectional << "\n";
+                            std::cerr << dbg.str() << std::endl;
+                        }
+                    }
+                }
+            } else {
+                kmer_stats.positive_kmers += query_kmers_from(mq, pos_on_r);
+            }
         }
 
         while (!check_alphabet(query_seq[pos_on_r])) {

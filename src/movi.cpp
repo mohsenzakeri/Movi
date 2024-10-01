@@ -79,6 +79,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("zml", "Compute the Ziv-Merhav cross parsing length (ZMLs)")
         ("count", "Compute the count queries")
         ("kmer", "Search all the kmers")
+        ("kmer-count", "Find the count of every kmer")
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
@@ -161,6 +162,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
                     if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
                     if (result.count("kmer") >= 1) { movi_options.set_kmer(); }
+                    if (result.count("kmer-count") >= 1) { movi_options.set_kmer(); movi_options.set_kmer_count(true); }
                     if (result.count("count") >= 1) { movi_options.set_count(); }
                     if (result.count("zml") >= 1) { movi_options.set_zml(); }
                     if (result.count("pml") >= 1) { movi_options.set_pml(); }
@@ -352,7 +354,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 }
             } else if (movi_options.is_kmer()) {
                 mq = MoveQuery(query_seq);
-                mv_.query_all_kmers(mq);
+                mv_.query_all_kmers(mq, movi_options.is_kmer_count());
             }
 
             if (movi_options.is_logs()) {
