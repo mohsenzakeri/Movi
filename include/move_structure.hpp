@@ -145,7 +145,7 @@ class MoveStructure {
         uint64_t query_backward_search(MoveQuery& mq, int32_t& pos_on_r);
         uint64_t query_zml(MoveQuery& mq);
         void query_all_kmers(MoveQuery& mq);
-        uint64_t query_kmers_from(MoveQuery& mq, int32_t& pos_on_r);
+        uint64_t query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool single = false);
         bool look_ahead_ftab(MoveQuery& mq, uint32_t pos_on_r, int32_t& step);
         bool look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r, int32_t step);
         bool extend_bidirectional(char c_, MoveInterval& fw_interval, MoveInterval& rc_interval);

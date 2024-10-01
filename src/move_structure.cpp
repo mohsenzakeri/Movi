@@ -1740,18 +1740,20 @@ bool MoveStructure::look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r,
     }
 }
 
-uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r) {
+uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool single) {
     size_t ftab_k = movi_options->get_ftab_k();
     size_t k = movi_options->get_k();
     auto& query_seq = mq.query();
     int32_t pos_on_r_saved = pos_on_r;
-    // look ahead for possible skipping
+
+    // An alternative strategy to look ahead for possible skipping
     // int32_t step = 0;
     // if (ftab_k > 1 and !look_ahead_ftab(mq, pos_on_r, step)) {
     //     kmer_stats.look_ahead_skipped += k - ftab_k - step;
     //     pos_on_r = pos_on_r - k + ftab_k + step - 1;
     //     pos_on_r_saved = pos_on_r;
     // }
+
     uint64_t match_len = 0;
     MoveInterval initial_interval;
     do {
@@ -1762,11 +1764,10 @@ uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r) {
             pos_on_r_saved = pos_on_r;
         }
     } while (match_len == 0 and pos_on_r >= k - 1 and ftab_k > 1);
-    /* if (pos_on_r < k - 1) {
-        return 0;
-    } */
 
-    auto backward_search_result = backward_search(query_seq, pos_on_r, initial_interval, std::numeric_limits<int32_t>::max());
+    // I want to check how much slower it gets if turn off the positive skip:
+    auto backward_search_result = backward_search(query_seq, pos_on_r, initial_interval, single ? k - match_len - 2 : std::numeric_limits<int32_t>::max());
+
     if (backward_search_result.is_empty()) {
         // We get here when there is an illegal character at pos_on_r, just skip the current position
         pos_on_r = pos_on_r_saved - 1;
@@ -1777,6 +1778,18 @@ uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r) {
             // At leat one kmer was found, update the postion and return the count
             uint64_t kmers_found = pos_on_r_saved - pos_on_r - k + 2;
             kmer_stats.positive_skipped += kmers_found - 1;
+
+            if (movi_options->is_debug()) {
+                int32_t pos_on_r_ = pos_on_r_saved;
+                auto backward_search_result_one_extra_base = backward_search(query_seq, pos_on_r_, initial_interval, k - match_len - 1);
+                dbg << backward_search_result.count(rlbwt) << "----" <<  backward_search_result_one_extra_base.count(rlbwt) << "\n";
+                dbg << backward_search_result << "\n";
+                if (backward_search_result.count(rlbwt) == backward_search_result_one_extra_base.count(rlbwt)) {
+                    // TODO: Use a counter to count the number of such incidents
+                } else {
+                }
+            }
+
             pos_on_r = pos_on_r + k - 2;
 	        return kmers_found;
         } else {
