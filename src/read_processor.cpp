@@ -119,7 +119,7 @@ void ReadProcessor::process_char(Strand& process) {
 #if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
         bool up = mv.jump_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #endif
-#if MODE == 3
+#if MODE == 3 or MODE == 5
         bool up = mv.jump_randomly(process.idx, R[process.pos_on_r], process.scan_count);
 #endif
         process.match_len = 0;

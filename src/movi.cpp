@@ -31,6 +31,9 @@ std::string program() {
 #if MODE == 4
     return "split";
 #endif
+#if MODE == 5
+    return "tally";
+#endif
 }
 
 kseq_t* open_kseq(gzFile& fp, std::string file_address) {

@@ -4,10 +4,24 @@
 
 #include "move_row.hpp"
 
+#if MODE == 0 or MODE == 1 or MODE == 2 or MDOE == 3 or MODE == 4
 MoveRow::MoveRow(uint16_t n_, uint16_t offset_, uint64_t id_) {
     this->init(n_, offset_, id_);
 }
+#endif
+#if MODE == 5
+MoveRow::MoveRow(uint16_t n_, uint16_t offset_) {
+    this->init(n_, offset_);
+}
+#endif
+
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 3 or MODE == 4
 void MoveRow::init(uint16_t n_, uint16_t offset_, uint64_t id_) {
+    this->set_id(id_);
+#endif
+#if MODE == 5
+void MoveRow::init(uint16_t n_, uint16_t offset_) {
+#endif
 #if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
     overflow_bits = std::numeric_limits<uint8_t>::max();
 #endif
@@ -23,12 +37,16 @@ void MoveRow::init(uint16_t n_, uint16_t offset_, uint64_t id_) {
         std::cerr << offset_ << " " << this->get_offset() << "\n";
         exit(0);
     }
-    this->set_id(id_);
 }
 
 std::ostream& operator<<(std::ostream& os, const MoveRow& mr)
 {
+#if MODE == 0 or MODE == 1 or MODE == 2 or MDOE == 3 or MODE == 4
     os << "n:" << mr.get_n() <<  " offset: " << mr.get_offset() << " id:" << mr.get_id();
+#endif
+#if MODE == 5
+    os << "n:" << mr.get_n() <<  " offset: " << mr.get_offset();
+#endif
     return os;
 }
 
@@ -51,9 +69,22 @@ void MoveRow::set_n(uint16_t n_) {
 #endif
 #if MODE == 3
     n = n & mask_n;
-    if (n_ < 2^12)
+    if (n_ < MAX_RUN_LENGTH)
         n = n | n_;
     else {
+        std::cerr << "The length is greater than 2^12: " << n_ << "\n";
+        exit(0);
+    }
+#endif
+#if MODE == 5
+    n = static_cast<uint8_t>(n_);
+    if (n_ <= MAX_RUN_LENGTH) {
+        c = c & mask_n;
+        if (n_ >= 256) {
+            uint8_t n_8 = n_ >> 8;
+            c = c | (n_8 << 2);
+        }
+    } else {
         std::cerr << "The length is greater than 2^12: " << n_ << "\n";
         exit(0);
     }
@@ -77,8 +108,22 @@ void MoveRow::set_offset(uint16_t offset_) {
 #endif
 #if MODE == 3
     offset = offset & mask_offset;
-    if (offset_ < 2^12)
+    if (offset_ < MAX_RUN_LENGTH)
         offset = offset | offset_;
+    else {
+        std::cerr << "The offset is greater than 2^12: " << offset_ << "\n";
+        exit(0);
+    }
+#endif
+#if MODE == 5
+    offset = static_cast<uint8_t>(offset_);
+    if (offset_ <= MAX_RUN_LENGTH) {
+        uint8_t offset_8 = offset_ >> 8;
+        if (offset_ >= 256) {
+            c = c & mask_offset;
+            c = c | offset_8;
+        }
+    }
     else {
         std::cerr << "The offset is greater than 2^12: " << offset_ << "\n";
         exit(0);
@@ -97,6 +142,8 @@ void MoveRow::set_overflow_offset() {
 #endif
 }
 
+
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 3 or MODE == 4
 void MoveRow::set_id(uint64_t id_) {
     id = id_; // Store the least significant bits in the didicated id variable
 #if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
@@ -108,6 +155,7 @@ void MoveRow::set_id(uint64_t id_) {
     offset = offset | (id_ >> 32);
 #endif
 }
+#endif
 
 void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
 #if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
@@ -119,5 +167,10 @@ void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
     uint16_t c_16 = static_cast<uint16_t>(alphamap[c_]);
     n = n & mask_c;
     n = n | (c_16 << 12);
+#endif
+#if MODE == 5
+    uint8_t c_8 = static_cast<uint8_t>(alphamap[c_]);
+    c = c & mask_c;
+    c = c | (c_8 << 4);
 #endif
 }

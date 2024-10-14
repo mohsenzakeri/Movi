@@ -23,6 +23,7 @@
 
 #define END_CHARACTER 0
 #define THRBYTES 5 
+#define TALLY_CHECKPOINTS 20
 
 struct MoveInterval {
     MoveInterval() {}
@@ -242,6 +243,9 @@ class MoveStructure {
 
         // The move structure rows
         std::vector<MoveRow> rlbwt;
+#if MODE == 5
+        std::vector<std::vector<MoveTally>> tally_ids;
+#endif
 
         // auxilary datastructures for the length, offset and thresholds overflow
         std::vector<uint64_t> n_overflow;

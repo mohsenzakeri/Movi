@@ -111,6 +111,9 @@ std::string MoveStructure::index_type() {
     // Like the default constant mode, but without the pointers to the neighbors with the other characters
     return "split";
 #endif
+#if MODE == 5
+    return "tally";
+#endif
     /*if (!onebit and !constant and splitting == 0) {
         return "default";
     } else if (constant and splitting != 0 and !onebit) {
@@ -366,8 +369,132 @@ void MoveStructure::random_lf() {
     std::cerr << "Total fast forward: " << ff_count_tot << "\n";
 }
 
+#define my_prefetch_rr(address) __builtin_prefetch((void *)address, 0, 1)
+
 uint64_t MoveStructure::get_id(uint64_t idx) {
-    return rlbwt[idx].get_id();
+    uint64_t id = 0;
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 3 or MODE == 4
+    id = rlbwt[idx].get_id();
+#endif
+#if MODE == 5
+    // The $ always goes to row/run 0
+    if (idx == end_bwt_idx) {
+        return 0;
+    }
+
+    uint8_t char_index = rlbwt[idx].get_c();
+
+    uint64_t tally_a = idx / TALLY_CHECKPOINTS;
+
+    // The id of the last run is always stored at the last tally_id row
+    if (idx == r - 1) {
+        uint64_t tally_ids_len = tally_ids[char_index].size();
+        return tally_ids[char_index][tally_ids_len - 1].get();
+    }
+
+
+    // If we are at a checkpoint, simply returnt the stored id
+    if (idx % TALLY_CHECKPOINTS == 0) {
+        id = tally_ids[char_index][tally_a].get();
+        return tally_ids[char_index][tally_a].get();
+    }
+
+    // find the closest check point
+    uint64_t tally_b = tally_a + 1;
+
+    // Sanity Check to see if we fall off the tally vector
+    // if (tally_b >= tally_ids[char_index].size()) {
+    //     dbg << "ta: " << tally_a << " tb: " << tally_b <<
+    //            " tsize: " << tally_ids[char_index].size() << "\n";
+    // }
+
+    uint64_t next_check_point = tally_b * TALLY_CHECKPOINTS;
+    // If we are at the end, just look at the last run
+    if (tally_b * TALLY_CHECKPOINTS >= r) {
+        next_check_point = r - 1;
+    }
+
+    // TODO: At the time, we always look for the next proceeding checkpoint,
+    // Find the closest checkpoint which is either before or after the current row
+    // if (tally_b - idx <= idx - tally_a) {
+
+        uint64_t rows_until_tally = 0;
+
+        // The id for the run at the next_check_point
+        id = tally_ids[char_index][tally_b].get();
+
+        uint64_t last_count = 0;
+        uint64_t last_id = r;
+
+        // TODO: Could prefetching help with performance?
+        // Prelimninary results were not hopeful
+        // for (uint64_t i = 0; i < TALLY_CHECKPOINTS; i++) {
+        //     my_prefetch_rr((void*)(&(rlbwt[0]) + idx + i));
+        //     my_prefetch_rr((void*)(&(rlbwt[0]) + id - i));
+        // }
+
+
+        // Look for the rows between idx and the next_check_point
+        // Count how many rows with the same character exists between
+        // the current run head and the next run head for which we know the id
+        // dbg << "from: " << idx << " to: " << next_check_point << "\n";
+        for (uint64_t i = idx; i < next_check_point; i++) {
+            // Only count the rows with the same character
+            if (rlbwt[i].get_c() == rlbwt[idx].get_c()) {
+                rows_until_tally += get_n(i);
+                last_id = i;
+            }
+        }
+
+        // The id stored at the checkpoint is actually the id for the current run
+        // because there was no run with the same character between the current run and the next_check_point
+        if (last_id == idx and rlbwt[idx].get_c() != rlbwt[next_check_point].get_c()) {
+            return id;
+        }
+        if (last_id == r) {
+            std::cerr << "last_id should never be equal to r.\n";
+            exit(0);
+        }
+
+        // We should know what will be the offset of the run head in the destination run (id)
+        uint16_t offset = get_offset(next_check_point);
+
+        // At the checkpoint, on id is stored for each character
+        // For the character of the checkpoint, the id of the checkpoint is stored
+        // For other characters, the id of the last run before the checkpoint with that character is stored
+        // So, we have to decrease the number of rows of the last run as they are not between the current run
+        // and the run for which we know the id
+        // Also, for other characters, offset should be stored based on that run (not the checkpoint run)
+        if (rlbwt[idx].get_c() != rlbwt[next_check_point].get_c()) {
+            rows_until_tally -= get_n(last_id);
+            offset = get_offset(last_id);
+        }
+
+        // Sanity check, the offset in the destination run should be always smaller than the length of that run
+        if (offset >= get_n(id)) {
+            std::cout << "offset: " << offset << " n: " << get_n(id) << "\n" << dbg.str() << "\n";
+            exit(0);
+        }
+        if (offset >= rows_until_tally) {
+            return id;
+        } else {
+            rows_until_tally -= (offset + 1);
+            id -= 1;
+        }
+
+        while (rows_until_tally != 0) {
+            if (rows_until_tally >= get_n(id)) {
+                rows_until_tally -= get_n(id);
+                id -= 1;
+                my_prefetch_rr((void*)(&(rlbwt[0]) + id));
+            } else {
+                rows_until_tally = 0;
+            }
+        }
+    // }
+#endif
+
+    return id;
 }
 
 char MoveStructure::get_char(uint64_t idx) {
@@ -378,7 +505,7 @@ char MoveStructure::get_char(uint64_t idx) {
 }
 
 uint64_t MoveStructure::get_n(uint64_t idx) {
-#if MODE == 3
+#if MODE == 3 or MODE == 5
     return rlbwt[idx].get_n();
 #endif
     if (rlbwt[idx].is_overflow_n()) {
@@ -389,7 +516,7 @@ uint64_t MoveStructure::get_n(uint64_t idx) {
 }
 
 uint64_t MoveStructure::get_offset(uint64_t idx) {
-#if MODE == 3
+#if MODE == 3 or MODE == 5
     return rlbwt[idx].get_offset();
 #endif
     if (rlbwt[idx].is_overflow_offset()) {
@@ -601,7 +728,7 @@ void MoveStructure::build() {
                 std::cerr << "original_r: " << i << "\r";
             size_t len = 0;
             len_file.read(reinterpret_cast<char*>(&len), 5);
-#if MODE == 3
+#if MODE == 3 or MODE == 5
             size_t remaining_length = len;
             while (remaining_length > MAX_RUN_LENGTH) {
                 lens.push_back(MAX_RUN_LENGTH);
@@ -677,7 +804,7 @@ void MoveStructure::build() {
                 std::cerr << "original_r: " << original_r << "\t";
                 std::cerr << "bwt_curr_length: " << bwt_curr_length << "\r";
             }
-#if MODE == 3
+#if MODE == 3 or MODE == 5
             if (run_length == MAX_RUN_LENGTH) {
                 r += 1;
                 run_length = 0;
@@ -800,6 +927,17 @@ void MoveStructure::build() {
         std::cerr << "bits.size(): " << bits.size() << "\n";
         std::cerr << "rank_support_v<>(&bits)(bits.size()): " << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
     }
+
+# if MODE == 5
+    tally_ids.resize(alphabet.size());
+    uint64_t tally_ids_rows_count = r / TALLY_CHECKPOINTS + 2;
+    std::vector<uint64_t> current_tally_ids;
+    for (uint32_t alphabet_ind = 0; alphabet_ind < alphabet.size(); alphabet_ind++) {
+        current_tally_ids.push_back(r);
+        tally_ids[alphabet_ind].resize(tally_ids_rows_count);
+    }
+#endif
+
     //if (splitting)
     //    sbits = sdsl::select_support_mcl<>(&bits);
     for (uint64_t r_idx = 0; r_idx < r; r_idx++) {
@@ -845,8 +983,34 @@ void MoveStructure::build() {
                         << " sbits(pp_id - 1): " << all_p[pp_id - 2]*/
                         << "\n";
 
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 3 or MODE == 4
         // rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
         rlbwt[r_idx].init(len, offset, pp_id);
+#endif
+#if MODE == 5
+        rlbwt[r_idx].init(len, offset);
+
+        // Only update the tally corresponding to the current run's character
+        uint16_t char_index = alphamap[bwt_string[all_p[r_idx]]];
+
+        // The first tally id might have been set to the wrong value since no run with that character was observed
+        // So, we fix the values once we the first run with that character
+        if (current_tally_ids[char_index] == r) {
+            uint64_t tally_ids_index = r_idx / TALLY_CHECKPOINTS;
+            for (int tid = 0; tid <= tally_ids_index; tid++) {
+                tally_ids[char_index][tid].set_value(pp_id);
+            }
+        }
+        current_tally_ids[char_index] = pp_id;
+
+        if (r_idx % TALLY_CHECKPOINTS == 0) {
+            uint64_t tally_ids_index = r_idx / TALLY_CHECKPOINTS;
+            // We reached a check_point, store the tally ids for all the characters
+            for (uint32_t alphabet_ind = 0; alphabet_ind < alphabet.size(); alphabet_ind++) {
+                tally_ids[alphabet_ind][tally_ids_index].set_value(current_tally_ids[alphabet_ind]);
+            }
+        }
+#endif
         // To take care of cases where length of the run
         // does not fit in uint16_t
         if (len > MAX_RUN_LENGTH) {
@@ -881,6 +1045,14 @@ void MoveStructure::build() {
         rlbwt[r_idx].set_c(bwt_string[all_p[r_idx]], alphamap);
         // bit1_after_eof = alphamap[bwt_string[i+1]];
     }
+#if MODE == 5
+    // Set the last tally_id using the current_tally_ids
+    std::cout << "\n";
+    for (uint32_t alphabet_ind = 0; alphabet_ind < alphabet.size(); alphabet_ind++) {
+        tally_ids[alphabet_ind][tally_ids[alphabet_ind].size()-1].set_value(current_tally_ids[alphabet_ind]);
+    }
+#endif
+
     std::cerr << "All the move rows are built.\n";
     std::cerr << "Max run length: " << max_len << "\n";
 
@@ -1323,7 +1495,7 @@ void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
         std::cerr << "This should not happen! The character should have been checked before.\n";
         exit(0);
     }
-#if MODE == 0 or MODE == 3 or MODE == 4
+#if MODE == 0 or MODE == 3 or MODE == 4 or MODE == 5
     while (interval.run_start <= interval.run_end and get_char(interval.run_start) != next_char) { //  >= or >
         interval.run_start += 1;
         interval.offset_start = 0;
@@ -2099,7 +2271,7 @@ uint64_t MoveStructure::backward_search(std::string& R, int32_t& pos_on_r) {
             std::cerr << ">>> " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
             std::cerr << ">>> " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
         }
-#if MODE == 0 or MODE == 3 or MODE == 4
+#if MODE == 0 or MODE == 3 or MODE == 4 or MODE == 5
         while ((run_start < run_end) and (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r])) {
             run_start += 1;
             offset_start = 0;
@@ -2267,7 +2439,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
             bool up = random ? jump_randomly(idx, R[pos_on_r], scan_count) : 
                                jump_thresholds(idx, offset, R[pos_on_r], scan_count);
 #endif
-#if MODE == 3
+#if MODE == 3 or MODE == 5
             bool up = jump_randomly(idx, R[pos_on_r], scan_count);
 #endif
             match_len = 0;
@@ -2577,6 +2749,14 @@ void MoveStructure::serialize() {
     fout.write(reinterpret_cast<char*>(&onebit), sizeof(onebit));
     fout.write(reinterpret_cast<char*>(&rlbwt[0]), rlbwt.size()*sizeof(rlbwt[0]));
 
+#if MODE == 5
+    uint64_t tally_ids_len = tally_ids[0].size();
+    fout.write(reinterpret_cast<char*>(&tally_ids_len), sizeof(tally_ids_len)); 
+    for (uint32_t i = 0; i < alphabet.size(); i++) {
+        fout.write(reinterpret_cast<char*>(&tally_ids[i][0]), tally_ids[i].size()*sizeof(tally_ids[i][0]));
+    }
+#endif
+
     uint64_t n_overflow_size = n_overflow.size();
     fout.write(reinterpret_cast<char*>(&n_overflow_size), sizeof(n_overflow_size));
     fout.write(reinterpret_cast<char*>(&n_overflow[0]), n_overflow.size()*sizeof(uint64_t));
@@ -2652,6 +2832,17 @@ void MoveStructure::deserialize() {
 
     rlbwt.resize(r);
     fin.read(reinterpret_cast<char*>(&rlbwt[0]), r*sizeof(MoveRow));
+
+#if MODE == 5
+    uint64_t tally_ids_len = 0;
+    fin.read(reinterpret_cast<char*>(&tally_ids_len), sizeof(tally_ids_len));
+    tally_ids.resize(alphabet.size());
+    for (uint32_t i = 0; i < alphabet.size(); i++) {
+        tally_ids[i].resize(tally_ids_len);
+        fin.read(reinterpret_cast<char*>(&tally_ids[i][0]), tally_ids_len*sizeof(MoveTally));
+    }
+#endif
+
     uint64_t n_overflow_size;
     fin.read(reinterpret_cast<char*>(&n_overflow_size), sizeof(n_overflow_size));
     n_overflow.resize(n_overflow_size);
@@ -2818,4 +3009,8 @@ void MoveStructure::print_stats() {
         std::cerr << "original_r: " << original_r << "\n";
         std::cerr << "n/original_r: " << length/original_r << "\n";
     }
+    std::cerr << "Size of the rlbwt table: " << sizeof(rlbwt[0]) * rlbwt.size() * (0.000000001) << "\n";
+#if MODE == 5
+    std::cerr << "Size of the tally table: " << sizeof(tally_ids[0][0]) * tally_ids[0].size() * tally_ids.size() * (0.000000001) << "\n";
+#endif
 }
