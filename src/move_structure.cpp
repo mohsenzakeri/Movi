@@ -70,10 +70,10 @@ MoveStructure::MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t 
     std::string bwt_filename = movi_options->get_ref_file() + std::string(".bwt");
     // std::ifstream bwt_file(bwt_filename);
 
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+// #if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
     std::string thr_filename = movi_options->get_ref_file() + std::string(".thr_pos");
     read_thresholds(thr_filename, thresholds);
-#endif
+// #endif
     build();
 }
 
@@ -665,6 +665,7 @@ void MoveStructure::build() {
         }
         if (!splitting) r = original_r;
     } else {
+        fill_bits_by_thresholds();
         // Reading the BWT from the file
         uint64_t current_char = bwt_file.get();
         uint16_t run_length = 0;
@@ -678,7 +679,16 @@ void MoveStructure::build() {
                 std::cerr << "bwt_curr_length: " << bwt_curr_length << "\r";
             }
 #if MODE == 3
-            if (run_length == MAX_RUN_LENGTH) {
+            // The first row is already set and accounted for, so we skip
+            if (bwt_curr_length > 0 and bits[bwt_curr_length] == 1) {
+                // The bit was already set by one of the threshold values
+                // So, we have found a new run, and reest the run length
+                r += 1;
+                run_length = 0;
+                if (current_char != bwt_string[bwt_curr_length - 1]) {
+                    original_r += 1;
+                }
+            } else if (run_length == MAX_RUN_LENGTH) {
                 r += 1;
                 run_length = 0;
                 bits[bwt_curr_length] = 1;
@@ -754,7 +764,7 @@ void MoveStructure::build() {
         }
         std::cerr << "\nAll the Occ bit vectors are built.\n";
     }
-
+    std::cerr << "length: " << length << "\n";
     std::cerr << "\n\nr: " << r << "\n";
     std::cerr << "original_r: " << original_r << "\n";
     rlbwt.resize(r);
@@ -802,8 +812,9 @@ void MoveStructure::build() {
     }
     //if (splitting)
     //    sbits = sdsl::select_support_mcl<>(&bits);
+    std::cerr << r << "\t" << rlbwt.size() << "\t" << all_p.size() << "\n";
     for (uint64_t r_idx = 0; r_idx < r; r_idx++) {
-        if (r_idx % 10000 == 0)
+        // if (r_idx % 10000 == 0)
             std::cerr << r_idx << "\r";
         uint64_t lf  = 0;
         if (r_idx != end_bwt_idx)
@@ -891,8 +902,10 @@ void MoveStructure::build() {
     uint64_t thr_i = original_r - 1;
     uint64_t run_p = 0;
     if (movi_options->is_verbose()) {
-        std::cerr << "thresholds.size():" << thresholds.size() << " length: " << length << " r: " << r <<  " original_r: " << original_r << "\n";
-        std::cerr << "thresholds[r]: " << thresholds[original_r-1] << " r-1: " << thresholds[original_r - 2] << " r-2: " << thresholds[original_r - 3] << "\n";
+        std::cerr << "thresholds.size():" << thresholds.size() << " length: "
+                  << length << " r: " << r <<  " original_r: " << original_r << "\n";
+        std::cerr << "thresholds[r]: " << thresholds[original_r-1] << " r-1: "
+                  << thresholds[original_r - 2] << " r-2: " << thresholds[original_r - 3] << "\n";
     }
     for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
         if (i % 10000 == 0)
@@ -1039,6 +1052,13 @@ void MoveStructure::build() {
     }
 #endif
     std::cerr << "The move structure building is done.\n";
+}
+
+void MoveStructure::fill_bits_by_thresholds() {
+    for (int i = 0; i < thresholds.size(); i++) {
+        bits[thresholds[i]] = 1;
+    }
+    std::cerr << "The bits vector is updated by thresholds.\n";
 }
 
 void MoveStructure::compute_run_lcs() {
@@ -2749,9 +2769,13 @@ void MoveStructure::analyze_rows() {
     std::vector<uint64_t> counts_threshold1(16,0);
     std::vector<uint64_t> counts_threshold2(16,0);
     uint64_t counter = 0;
+    uint64_t split_thresholds = 0;
+    uint64_t end_row = 0;
     for (uint64_t i = 0; i < r; i++) {
-	 counter += 1;
-        if (i%100000 == 0) std::cerr << i << "\r";
+        end_row += get_n(i);
+        std::cout << end_row << "\t" << get_char(i) << "\n";
+        counter += 1;
+        if (i%100000 == 0) std::cerr << i << "\t" << split_thresholds << "\r";
         for (int j = 0; j < 16; j ++) {
             if (get_n(i) >= std::pow(2,j + 1)) {
                 counts_length[j] += 1;
@@ -2771,6 +2795,22 @@ void MoveStructure::analyze_rows() {
             }
 #endif
         }
+
+// #if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+        // uint64_t t0 = get_thresholds(i, 0);
+        // uint64_t t1 = get_thresholds(i, 1);
+        // uint64_t t2 = get_thresholds(i, 2);
+        // uint64_t nn = get_n(i);
+        // if (t0 != 0 and t0 != nn) {
+        //   split_thresholds += 1;
+        // }
+        // if (t1 != t0 and t1 != 0 and t1 != nn) {
+        //   split_thresholds +=1;
+        // }
+        //     if (t2 != t1 and t2 != t0 and t2 != 0 and t2 != nn) {
+        //   split_thresholds +=1;
+        // }
+// #endif
         // if (((get_thresholds(i, 0) != 0 and get_thresholds(i, 0) != get_n(i)) and
         //      (get_thresholds(i, 1) != 0 and get_thresholds(i, 1) != get_n(i)) and
         //      (get_thresholds(i, 2) != 0 and get_thresholds(i, 2) != get_n(i)) and
@@ -2787,6 +2827,7 @@ void MoveStructure::analyze_rows() {
         //     }
         // }
     }
+    std::cerr << "split_thresholds: " << split_thresholds << "\n";
     std::cerr << "counter: " << counter << "\n";
     std::cerr << "\ncounts_length:\n";
     for (int j=0; j < 16; j++) {
