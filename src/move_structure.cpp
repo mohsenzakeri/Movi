@@ -70,10 +70,10 @@ MoveStructure::MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t 
     std::string bwt_filename = movi_options->get_ref_file() + std::string(".bwt");
     // std::ifstream bwt_file(bwt_filename);
 
-// #if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
-    std::string thr_filename = movi_options->get_ref_file() + std::string(".thr_pos");
-    read_thresholds(thr_filename, thresholds);
-// #endif
+    if (movi_options->is_thresholds()) {
+        std::string thr_filename = movi_options->get_ref_file() + std::string(".thr_pos");
+        read_thresholds(thr_filename, thresholds);
+    }
     build();
 }
 
@@ -665,7 +665,8 @@ void MoveStructure::build() {
         }
         if (!splitting) r = original_r;
     } else {
-        fill_bits_by_thresholds();
+        if (movi_options->is_thresholds() and MODE == 3)
+            fill_bits_by_thresholds();
         // Reading the BWT from the file
         uint64_t current_char = bwt_file.get();
         uint16_t run_length = 0;
@@ -680,7 +681,7 @@ void MoveStructure::build() {
             }
 #if MODE == 3
             // The first row is already set and accounted for, so we skip
-            if (bwt_curr_length > 0 and bits[bwt_curr_length] == 1) {
+            if (movi_options->is_thresholds() and bwt_curr_length > 0 and bits[bwt_curr_length] == 1) {
                 // The bit was already set by one of the threshold values
                 // So, we have found a new run, and reest the run length
                 r += 1;
