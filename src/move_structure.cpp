@@ -6,6 +6,7 @@ uint32_t alphamap_3[4][4] = {{3, 0, 1, 2},
                              {0, 3, 1, 2},
                              {0, 1, 3, 2},
                              {0, 1, 2, 3}};
+std::ostringstream dbg;
 
 void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
     int log_n = 100;
@@ -69,10 +70,10 @@ MoveStructure::MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t 
     std::string bwt_filename = movi_options->get_ref_file() + std::string(".bwt");
     // std::ifstream bwt_file(bwt_filename);
 
-#if MODE == 0 or MODE == 1 or MODE == 2
-    std::string thr_filename = movi_options->get_ref_file() + std::string(".thr_pos");
-    read_thresholds(thr_filename, thresholds);
-#endif
+    if (movi_options->is_thresholds()) {
+        std::string thr_filename = movi_options->get_ref_file() + std::string(".thr_pos");
+        read_thresholds(thr_filename, thresholds);
+    }
     build();
 }
 
@@ -105,6 +106,10 @@ std::string MoveStructure::index_type() {
 #endif
 #if MODE == 3
     return "compact";
+#endif
+#if MODE == 4
+    // Like the default constant mode, but without the pointers to the neighbors with the other characters
+    return "split";
 #endif
     /*if (!onebit and !constant and splitting == 0) {
         return "default";
@@ -140,10 +145,15 @@ bool MoveStructure::check_mode() {
         return false;
     }
 #endif
-
 #if MODE == 2
     if (!onebit) {
         std::cerr << "MODE is set to be 2: one-bit!\n";
+        return false;
+    }
+#endif
+#if MODE == 4
+    if (onebit || constant || !splitting) {
+        std::cerr << "MODE is set to be 4: split!\n";
         return false;
     }
 #endif
@@ -397,7 +407,8 @@ uint64_t MoveStructure::get_offset(uint64_t idx) {
     }
 }
 
-#if MODE == 0 or MODE == 1 or MODE == 2  // for all the threshold related functions
+// for all the threshold related functions
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
 uint64_t MoveStructure::get_thresholds(uint64_t idx, uint32_t alphabet_index) {
     if (rlbwt[idx].is_overflow_thresholds()) {
         return thresholds_overflow[get_rlbwt_thresholds(idx, alphabet_index)][alphabet_index];
@@ -412,7 +423,7 @@ uint16_t MoveStructure::get_rlbwt_thresholds(uint64_t idx, uint16_t i) {
         exit(0);
     }
 
-#if MODE == 0 || MODE == 1
+#if MODE == 0 || MODE == 1 || MODE == 4
     // if (!onebit) {
     //     return rlbwt[idx].get_thresholds(i);
     // }
@@ -440,7 +451,7 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
         exit(0);
     }
 
-#if MODE == 0 || MODE == 1
+#if MODE == 0 || MODE == 1 || MODE == 4
     uint8_t status = 0;
     if (value == 0) {
         status = 0;
@@ -568,7 +579,7 @@ void MoveStructure::build() {
     original_r = 1;
     // TODO Use a size based on the input size
 
-    // The constant mode (and any other mode with splitting) does not work with the preprocessed build
+    // A any mode with splitting (modes 1 and 4) does not work with the preprocessed build
     if (movi_options->is_preprocessed()) {
         length = static_cast<uint64_t>(end_pos);
         // We know only 4 characters (A, C, G, T) exists in the alphabet:
@@ -662,6 +673,8 @@ void MoveStructure::build() {
         }
         if (!splitting) r = original_r;
     } else {
+        if (movi_options->is_thresholds() and MODE == 3)
+            fill_bits_by_thresholds();
         // Reading the BWT from the file
         uint64_t current_char = bwt_file.get();
         uint16_t run_length = 0;
@@ -675,7 +688,16 @@ void MoveStructure::build() {
                 std::cerr << "bwt_curr_length: " << bwt_curr_length << "\r";
             }
 #if MODE == 3
-            if (run_length == MAX_RUN_LENGTH) {
+            // The first row is already set and accounted for, so we skip
+            if (movi_options->is_thresholds() and bwt_curr_length > 0 and bits[bwt_curr_length] == 1) {
+                // The bit was already set by one of the threshold values
+                // So, we have found a new run, and reest the run length
+                r += 1;
+                run_length = 0;
+                if (current_char != bwt_string[bwt_curr_length - 1]) {
+                    original_r += 1;
+                }
+            } else if (run_length == MAX_RUN_LENGTH) {
                 r += 1;
                 run_length = 0;
                 bits[bwt_curr_length] = 1;
@@ -689,7 +711,7 @@ void MoveStructure::build() {
                 bits[bwt_curr_length] = 1;
             }
 #endif
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
             if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
                 original_r += 1;
                 if (!splitting) bits[bwt_curr_length] = 1;
@@ -704,7 +726,7 @@ void MoveStructure::build() {
 
             current_char = bwt_file.get();
         }
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
         if (!splitting) r = original_r;
 #endif
         length = bwt_curr_length; // bwt_string.length();
@@ -751,7 +773,7 @@ void MoveStructure::build() {
         }
         std::cerr << "\nAll the Occ bit vectors are built.\n";
     }
-
+    std::cerr << "length: " << length << "\n";
     std::cerr << "\n\nr: " << r << "\n";
     std::cerr << "original_r: " << original_r << "\n";
     rlbwt.resize(r);
@@ -801,8 +823,9 @@ void MoveStructure::build() {
     //    sbits = sdsl::select_support_mcl<>(&bits);
     std::vector<uint64_t> raw_ids;
     raw_ids.resize(r);
+    std::cerr << r << "\t" << rlbwt.size() << "\t" << all_p.size() << "\n";
     for (uint64_t r_idx = 0; r_idx < r; r_idx++) {
-        if (r_idx % 10000 == 0)
+        // if (r_idx % 10000 == 0)
             std::cerr << r_idx << "\r";
         uint64_t lf  = 0;
         if (r_idx != end_bwt_idx)
@@ -886,13 +909,15 @@ void MoveStructure::build() {
 
     // compute the thresholds
     // initialize the start threshold at the last row
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
     std::vector<uint64_t> alphabet_thresholds(alphabet.size(), length);
     uint64_t thr_i = original_r - 1;
     uint64_t run_p = 0;
     if (movi_options->is_verbose()) {
-        std::cerr << "thresholds.size():" << thresholds.size() << " length: " << length << " r: " << r <<  " original_r: " << original_r << "\n";
-        std::cerr << "thresholds[r]: " << thresholds[original_r-1] << " r-1: " << thresholds[original_r - 2] << " r-2: " << thresholds[original_r - 3] << "\n";
+        std::cerr << "thresholds.size():" << thresholds.size() << " length: "
+                  << length << " r: " << r <<  " original_r: " << original_r << "\n";
+        std::cerr << "thresholds[r]: " << thresholds[original_r-1] << " r-1: "
+                  << thresholds[original_r - 2] << " r-2: " << thresholds[original_r - 3] << "\n";
     }
     for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
         if (i % 10000 == 0)
@@ -1109,6 +1134,13 @@ void MoveStructure::build() {
     std::cerr << "The move structure building is done.\n";
 }
 
+void MoveStructure::fill_bits_by_thresholds() {
+    for (int i = 0; i < thresholds.size(); i++) {
+        bits[thresholds[i]] = 1;
+    }
+    std::cerr << "The bits vector is updated by thresholds.\n";
+}
+
 void MoveStructure::compute_run_lcs() {
     std::cout << "run,length,lcs\n";
     for (int i = 0; i < r; i++) {
@@ -1136,19 +1168,39 @@ void MoveStructure::compute_run_lcs() {
     }
 }
 
-uint64_t kmer_to_number(size_t k, std::string kmer, std::vector<uint64_t>& alphamap) {
-    if (kmer.length() != k) {
+char complement(char c) {
+    // # is the separator, complement(#) = #
+    char c_comp = c == '#' ? '#' : (c == 'A' ? 'T' : ( c == 'C' ? 'G' : (c == 'G' ? 'C' : 'A')));
+    return c_comp;
+}
+
+std::string reverse_complement(std::string& fw) {
+    std::string rc = "";
+    rc.resize(fw.size());
+    for (int i = fw.size() - 1;  i >= 0; i--) {
+        rc[fw.size() - i - 1] = complement(fw[i]);
+    }
+    return rc;
+}
+
+uint64_t kmer_to_number(size_t k, std::string& r, int32_t pos, std::vector<uint64_t>& alphamap, bool rc = false) {
+    if (r.length() < k) {
         std::cerr << "The k does not match the kmer length!\n";
         exit(0);
     }
 
     uint64_t res = 0;
     for (size_t i = 0; i < k; i++) {
-        if (alphamap[static_cast<uint64_t>(kmer[i])] == alphamap.size()) {
+        if (alphamap[static_cast<uint64_t>(r[pos + i])] == alphamap.size()) {
             return std::numeric_limits<uint64_t>::max();
         }
-        uint64_t char_code = alphamap[kmer[i]] - alphamap['A'];
-        res = (char_code << ((k-i-1)*2)) | res;
+        if (rc) {
+            uint64_t char_code = alphamap[complement(r[pos + i])] - alphamap['A'];
+            res = (char_code << ((i)*2)) | res;
+        } else {
+            uint64_t char_code = alphamap[r[pos + i]] - alphamap['A'];
+            res = (char_code << ((k-i-1)*2)) | res;
+        }
     }
     return res;
 }
@@ -1173,7 +1225,7 @@ void MoveStructure::compute_ftab() {
     std::cerr << "Number of ftab entries (ftab-k=" << ftab_k << "): " << ftab_size << "\n";
     for (uint64_t i = 0; i < ftab_size; i++) {
         std::string kmer = number_to_kmer(i, 2*(ftab_k), alphabet, alphamap);
-        uint64_t kmer_code = kmer_to_number(ftab_k, kmer, alphamap);
+        uint64_t kmer_code = kmer_to_number(ftab_k, kmer, 0, alphamap);
         if (kmer_code != i) {
             std::cerr << kmer << " " << i << " " << kmer_code << "\n";
         }
@@ -1371,7 +1423,7 @@ void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
         std::cerr << "This should not happen! The character should have been checked before.\n";
         exit(0);
     }
-#if MODE == 0 or MODE == 3
+#if MODE == 0 or MODE == 3 or MODE == 4
     while (interval.run_start <= interval.run_end and get_char(interval.run_start) != next_char) { //  >= or >
         interval.run_start += 1;
         interval.offset_start = 0;
@@ -1388,12 +1440,14 @@ void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
     }
 #endif
 #if MODE == 1
-    std::cerr << alphabet[rlbwt[interval.run_start].get_c()] << " " << alphabet[rlbwt[interval.run_end].get_c()] << " " << next_char << "\n";
+    if (movi_options->is_debug())
+        dbg << alphabet[rlbwt[interval.run_start].get_c()] << " " << alphabet[rlbwt[interval.run_end].get_c()] << " " << next_char << "\n";
     uint64_t read_alphabet_index = alphamap[static_cast<uint64_t>(next_char)];
     if ((interval.run_start <= interval.run_end) and (alphabet[rlbwt[interval.run_start].get_c()] != next_char)) {
         if (interval.run_start == 0) {
             // To check if this case ever happens. If not, we should get rid of this condition.
-            std::cerr << "run_start is 0 before updating the interval!\n";
+            if (movi_options->is_debug())
+                dbg << "run_start is 0 before updating the interval!\n";
             while ((interval.run_start <= interval.run_end) and (alphabet[rlbwt[interval.run_start].get_c()] != next_char)) {
                 interval.run_start += 1;
                 interval.offset_start = 0;
@@ -1425,6 +1479,99 @@ void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
         }
     }
 #endif
+}
+
+bool MoveStructure::extend_bidirectional(char c_, MoveInterval& fw_interval, MoveInterval& rc_interval) {
+    MoveInterval fw_interval_before_extension = fw_interval;
+    char c_comp = complement(c_);
+
+    bool res = backward_search_step(c_, fw_interval);
+    if (res) {
+        // The alphabet is already checked to be legal (ACGT)
+        uint64_t skip = 0;
+        uint64_t current_run = fw_interval_before_extension.run_start;
+        uint64_t current_offset = fw_interval_before_extension.offset_start;
+        while (current_run <= fw_interval_before_extension.run_end ) {
+            if (current_run != end_bwt_idx) {
+                if (complement(get_char(current_run)) < c_comp) {
+                    uint64_t char_count = current_run != fw_interval_before_extension.run_end ?
+                                        get_n(current_run) - current_offset : fw_interval_before_extension.offset_end - current_offset + 1;
+                    skip += char_count;
+                }
+            } else {
+                skip += 1;
+            }
+            current_run += 1;
+            current_offset = 0;
+        }
+
+        while (skip != 0) {
+            int rows_after = get_n(rc_interval.run_start) - 1 - rc_interval.offset_start;
+            if (rows_after >= skip) {
+                rc_interval.offset_start += skip;
+                skip = 0;
+            } else {
+                rc_interval.run_start += 1;
+                rc_interval.offset_start = 0;
+                skip -= rows_after + 1;
+            }
+        }
+        // Compute the run end for the rc interval
+        skip = fw_interval.count(rlbwt) - 1;
+        rc_interval.run_end = rc_interval.run_start;
+        rc_interval.offset_end = rc_interval.offset_start;
+        while (skip != 0) {
+            int rows_after = get_n(rc_interval.run_end) - 1 - rc_interval.offset_end;
+            if (rows_after >= skip) {
+                rc_interval.offset_end += skip;
+                skip = 0;
+            } else {
+                rc_interval.run_end += 1;
+                rc_interval.offset_end = 0;
+                skip -= rows_after + 1;
+            }
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool MoveStructure::extend_left(char c, MoveBiInterval& bi_interval) {
+    char c_ = c;
+    return extend_bidirectional(c_, bi_interval.fw_interval, bi_interval.rc_interval);
+}
+
+bool MoveStructure::extend_right(char c, MoveBiInterval& bi_interval) {
+    char c_ = complement(c);
+    return extend_bidirectional(c_, bi_interval.rc_interval, bi_interval.fw_interval);
+}
+
+MoveBiInterval MoveStructure::backward_search_bidirectional(std::string& R, int32_t& pos_on_r, MoveBiInterval interval, int32_t max_length) {
+    // If the pattern is found, the pos_on_r will be equal to 0 and the interval will be non-empty
+    // Otherwise the interval corresponding to match from the end until and including the updated pos_on_r will be returned
+    // The input interval is non-empty and corresponds to the interval that matches the read (R) at pos_on_r
+    MoveBiInterval prev_interval = interval;
+    int32_t pos_on_r_saved = pos_on_r;
+    while (pos_on_r > 0 and !interval.fw_interval.is_empty()) {
+        /*if (!check_alphabet(R[pos_on_r - 1])) {
+            return interval;
+        }*/
+        prev_interval = interval;
+        bool res = extend_left(R[pos_on_r - 1], interval);
+        if (!interval.fw_interval.is_empty()) {
+            pos_on_r -= 1;
+        }
+
+        // The following is only for the backward_search is called for "look ahead" for kmer skipping
+        if (pos_on_r_saved - pos_on_r > max_length)
+            break;
+    }
+    if (interval.fw_interval.is_empty()) {
+        return prev_interval;
+    } else {
+        return interval;
+    }
 }
 
 MoveInterval MoveStructure::backward_search(std::string& R, int32_t& pos_on_r, MoveInterval interval, int32_t max_length) {
@@ -1461,10 +1608,11 @@ MoveInterval MoveStructure::backward_search(std::string& R, int32_t& pos_on_r, M
     }
 }
 
-MoveInterval MoveStructure::try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k) {
+MoveInterval MoveStructure::try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k, bool rc) {
     auto& query_seq = mq.query();
     if (ftab_k > 1 and pos_on_r >= ftab_k - 1) {
-        uint64_t kmer_code = kmer_to_number(ftab_k, query_seq.substr(pos_on_r - ftab_k + 1, ftab_k), alphamap);
+        // uint64_t kmer_code = kmer_to_number(ftab_k, query_seq.substr(pos_on_r - ftab_k + 1, ftab_k), alphamap);
+        uint64_t kmer_code = kmer_to_number(ftab_k, query_seq, pos_on_r - ftab_k + 1, alphamap, rc);
         if (kmer_code != std::numeric_limits<uint64_t>::max()) {
             auto& current_ftab = movi_options->is_multi_ftab() ? ftabs[ftab_k - 1] : ftab;
             if (!current_ftab[kmer_code].is_empty()) {
@@ -1488,20 +1636,56 @@ MoveInterval MoveStructure::try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t&
     return empty_interval;
 }
 
-MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len) {
+std::string reverse_complement_from_pos(MoveQuery& mq_fw, int32_t pos_on_r, uint64_t match_len) {
+    std::string rc = "";
+    rc.resize(match_len);
+    for (int i = pos_on_r + match_len - 1;  i >= pos_on_r; i--) {
+        rc[pos_on_r + match_len - 1 - i] = complement(mq_fw.query()[i]);
+    }
+    return rc;
+}
+
+MoveBiInterval MoveStructure::initialize_bidirectional_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len) {
+    MoveBiInterval bi_interval;
+    int32_t pos_on_r_before = pos_on_r;
+    bi_interval.fw_interval = initialize_backward_search(mq, pos_on_r, match_len);
+    // If the initialization was unsuccessfull, match_len of the bidirectional interval should be set to 0
+    // Without the following condition, the match_len will be increamented in the following line
+    if (match_len == 0) {
+        bi_interval.match_len = match_len;
+        return bi_interval;
+    }
+    // This is needed because of the way match_len is off by one
+    match_len += 1;
+    bi_interval.match_len = match_len;
+
+    int32_t pos_on_r_rc = pos_on_r_before;
+    uint64_t match_len_rc = 0;
+    bi_interval.rc_interval = initialize_backward_search(mq, pos_on_r_rc, match_len_rc, true);
+
+    // match_len_rc will be equal to match_len if both fw and rc are present int he reference
+    if (match_len - 1 != match_len_rc) {
+        std::cerr << "The reverse complement might not be present in the reference.\n";
+        exit(0);
+    }
+
+    return bi_interval;
+}
+
+MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, bool rc) {
     all_initializations += 1;
     // Initialize assuming that the character at pos_on_r exists in the alphabet
     size_t ftab_k = movi_options->get_ftab_k();
     if (movi_options->is_multi_ftab()) {
         while (ftab_k > 1 and pos_on_r >= ftab_k - 1) {
             //std::cerr << ftab_k << "\n";
-            MoveInterval ftab_res = try_ftab(mq, pos_on_r, match_len, ftab_k);
+            MoveInterval ftab_res = try_ftab(mq, pos_on_r, match_len, ftab_k, rc);
             if (!ftab_res.is_empty())
                 return ftab_res;
             ftab_k -= 2;
         }
     } else if (ftab_k > 1) {
-        MoveInterval ftab_res = try_ftab(mq, pos_on_r, match_len, ftab_k);
+        MoveInterval ftab_res = try_ftab(mq, pos_on_r, match_len, ftab_k, rc);
         if (!ftab_res.is_empty())
             return ftab_res;
     }
@@ -1513,13 +1697,30 @@ MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq, int32_t& p
         no_ftab += 1;
     }
     auto& query_seq = mq.query();
+    auto first_char_index = alphamap[rc ? complement(query_seq[pos_on_r]): query_seq[pos_on_r]] + 1;
     MoveInterval interval(
-        first_runs[alphamap[query_seq[pos_on_r]] + 1],
-        first_offsets[alphamap[query_seq[pos_on_r]] + 1],
-        last_runs[alphamap[query_seq[pos_on_r]] + 1],
-        last_offsets[alphamap[query_seq[pos_on_r]] + 1]
+        first_runs[first_char_index],
+        first_offsets[first_char_index],
+        last_runs[first_char_index],
+        last_offsets[first_char_index]
     );
     return interval;
+}
+
+bool MoveStructure::backward_search_step(char c, MoveInterval& interval) {
+    if (!check_alphabet(c)) {
+        interval.make_empty();
+        return false;
+    }
+
+    update_interval(interval, c);
+    if (!interval.is_empty()) {
+        LF_move(interval.offset_start, interval.run_start);
+        LF_move(interval.offset_end, interval.run_end);
+        return true;
+    } else {
+        return false;
+    }
 }
 
 uint64_t MoveStructure::backward_search_step(std::string& R, int32_t& pos_on_r, MoveInterval& interval) {
@@ -1613,7 +1814,7 @@ bool MoveStructure::look_ahead_ftab(MoveQuery& mq, uint32_t pos_on_r, int32_t& s
     // int32_t pos_on_r_ahead = pos_on_r - static_cast<int32_t>(k/2);
     for (step = 0; step <= 19 ; step += 1) {
         int32_t pos_on_r_ahead = pos_on_r - k + ftab_k + step;
-        uint64_t kmer_code = kmer_to_number(ftab_k, query_seq.substr(pos_on_r_ahead - ftab_k + 1, ftab_k), alphamap);
+        uint64_t kmer_code = kmer_to_number(ftab_k, query_seq, pos_on_r_ahead - ftab_k, alphamap);
         if (kmer_code != std::numeric_limits<uint64_t>::max() and !ftab[kmer_code].is_empty()) {
             // return true;
         } else {
@@ -1639,18 +1840,190 @@ bool MoveStructure::look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r,
     }
 }
 
-uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r) {
+// pos_on_r points to the furthest base of the kmer to be searched
+// The search is from the right end of the kmer
+// All kmers on the right side of the kmer_middle might be found in this call if they exist
+uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& pos_on_r) {
+    uint64_t kmers_found = 0;
+    int32_t last_kmer_looked_at = pos_on_r;
+
+    size_t ftab_k = movi_options->get_ftab_k();
+    size_t k = movi_options->get_k();
+    auto& query_seq = mq.query();
+
+    // The middle point of the kmer
+    int32_t kmer_middle = pos_on_r - k/2;
+    // To remember the kmer which initiated the search
+    int32_t pos_on_r_saved = pos_on_r;
+    // The number of bases matched so far
+    uint64_t match_len = 0;
+    // The position of the left side of the kmer on the read
+    int32_t kmer_left = pos_on_r - k + 1;
+    // The position on the right side of the match to be found by ftab
+    int32_t ftab_right = kmer_left + ftab_k - 1;
+
+    // At the time, the initialization works if ftab with ftab_k exists only
+    // And the multi-ftab strategy must be turned off
+    movi_options->set_multi_ftab(false);
+
+    MoveBiInterval bi_interval;
+    int32_t ftab_right_initialize = ftab_right;
+
+    bi_interval = initialize_bidirectional_search(mq, ftab_right_initialize, match_len);
+
+    if (match_len == 0 and ftab_k > 1) {
+        // If the ftab-k-mer at the end of the read is not found,
+        // we can skip all the kmers until ftab_right - 1
+        kmer_stats.initialize_skipped += 1;
+        pos_on_r = ftab_right - 1;
+        return 0;
+    }
+
+    // pos_on_r and pos_on_r_saved point to the beginning of the kmer for which the bidirectional initialization was performed above
+    // Extend to right until the kmer is found and save the observed intervals beyond k/2
+    std::vector<MoveBiInterval> partial_matches;
+    partial_matches.resize(k);
+    // kmer_right is the last position matched so far
+    uint64_t kmer_right = ftab_right;
+    int here = 0;
+    while (kmer_right < pos_on_r_saved) {
+        // The next k-mer we are looking at, ends at next_pos
+        int next_pos = kmer_right + 1;
+
+        if (movi_options->is_debug() and next_pos >= k)
+            dbg << "\nkmer at " << next_pos << ": " << query_seq.substr(next_pos - k + 1, k) << " ";
+
+        bool extend_right_res = extend_right(query_seq[next_pos], bi_interval);
+        if (!extend_right_res) {
+            here = 1;
+            // The kmer was not found, we can skip kmers until ftab_right
+            pos_on_r = kmer_right;
+            last_kmer_looked_at = next_pos;
+
+            // Printing all the kmers being skipped, because the extension to the right was not possible
+            if (movi_options->is_debug()) {
+                int j = next_pos + 1;
+                while (j < pos_on_r_saved) {
+                    if (j > k)
+                        dbg << "\nkmer at " << j << ": " << query_seq.substr(j - k + 1, k) << "-";
+                    j += 1;
+                }
+            }
+
+            // It's important to break here, to avoid false extensions in the following iterations
+            break;
+        } else {
+            match_len += 1;
+            kmer_right = next_pos;
+            bi_interval.match_len = match_len;
+            // store the intervals for matches beyond half point of the kmer
+            if (kmer_right > kmer_middle and kmer_right != pos_on_r) {
+                bi_interval.match_len = match_len;
+                // "kmer_right - kmer_left" is the index of the kmer from the left end
+                partial_matches[kmer_right - kmer_left] = bi_interval;
+            }
+        }
+    }
+
+    if (kmer_right == pos_on_r_saved) {
+        // The kmer at pos_on_r was found by k bidirectional backward search
+        kmers_found += 1;
+        kmer_stats.backward_search_empty += 1;
+        // std::cerr << "The first kmer at " << pos_on_r << " was found.\n";
+        pos_on_r = pos_on_r_saved - 1;
+        // To avoid searching this kmer again in the next step
+        kmer_right -= 1;
+
+        if (movi_options->is_debug()) {
+            if (pos_on_r_saved > k)
+                dbg << "\nkmer at " << pos_on_r_saved << ": " << query_seq.substr(pos_on_r_saved - k + 1, k) << "\n";
+            dbg << "1";
+        }
+
+    } else {
+        if (movi_options->is_debug()) {
+            if (pos_on_r_saved > k)
+                dbg << "\nkmer at " << pos_on_r_saved << ": " << query_seq.substr(pos_on_r_saved - k + 1, k) << "-\n";
+            dbg << "0";
+        }
+    }
+
+
+    // Use partial matches for finding other overlapping kmers (until half point)
+    if (kmer_right > kmer_middle) {
+        if (movi_options->is_debug()) {
+            for (int i = kmer_right + 1; i < pos_on_r_saved; i++) {
+                dbg << "0";
+            }
+        }
+        for (uint i = kmer_right; i > kmer_middle; i--) {
+            // Set kmer_left_ext to be the last match position on the left end
+            int32_t kmer_left_ext = kmer_left;
+            auto& partial_match_interval = partial_matches[i - kmer_left];
+            last_kmer_looked_at = i;
+            while (partial_match_interval.match_len < k and kmer_left_ext > 0) {
+                // We don't need to do bidirectional left extension here, simple backward search is enough
+                bool res = backward_search_step(query_seq[kmer_left_ext - 1], partial_match_interval.fw_interval);
+                // bool res = extend_left(query_seq[kmer_left_ext - 1], partial_match_interval);
+                if (!res) {
+                    // The current kmer is not present, move to the next partial match by breaking from the inner loop
+                    break;
+                } else {
+                    kmer_left_ext -= 1;
+                    partial_match_interval.match_len += 1;
+                }
+            }
+            if (partial_match_interval.match_len >= k) {
+                // The kmer was found by extending the partial match to left
+                kmers_found += 1;
+                kmer_stats.positive_skipped += 1;
+                if (movi_options->is_debug()) {
+                    std::cerr << "kmer at " << kmer_left_ext + k - 1 << " was found.\n";
+                    dbg << "1";
+                }
+            } else {
+                if (movi_options->is_debug()) {
+                    dbg << "0";
+                }
+            }
+
+            pos_on_r -= 1;
+        }
+        // At this point we have checked the presence of all the kmer beyond kmer_middle
+    } else {
+        // If we got here, we had to start the first while by breaking because of an unsuccessfull attempt to extend to the right
+        if (here != 1)
+            std::cerr << here << "\t" << last_kmer_looked_at << "\t" << pos_on_r << "\n";
+        if (kmer_right != pos_on_r)
+            std::cerr << "This should not happen: " << kmer_right << "\t" << pos_on_r << "\n";
+        // pos_on_r should have already been assigned to be the last kmer_right
+        // So we should never get here to do the assignment in practice
+        pos_on_r = kmer_right;
+
+        if (movi_options->is_debug()) {
+            for (int i = kmer_middle + 1; i <= pos_on_r_saved - 1; i++) {
+                dbg << "0";
+            }
+        }
+
+    }
+    return kmers_found;
+}
+
+uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool single) {
     size_t ftab_k = movi_options->get_ftab_k();
     size_t k = movi_options->get_k();
     auto& query_seq = mq.query();
     int32_t pos_on_r_saved = pos_on_r;
-    // look ahead for possible skipping
+
+    // An alternative strategy to look ahead for possible skipping
     // int32_t step = 0;
     // if (ftab_k > 1 and !look_ahead_ftab(mq, pos_on_r, step)) {
     //     kmer_stats.look_ahead_skipped += k - ftab_k - step;
     //     pos_on_r = pos_on_r - k + ftab_k + step - 1;
     //     pos_on_r_saved = pos_on_r;
     // }
+
     uint64_t match_len = 0;
     MoveInterval initial_interval;
     do {
@@ -1661,11 +2034,10 @@ uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r) {
             pos_on_r_saved = pos_on_r;
         }
     } while (match_len == 0 and pos_on_r >= k - 1 and ftab_k > 1);
-    /* if (pos_on_r < k - 1) {
-        return 0;
-    } */
 
-    auto backward_search_result = backward_search(query_seq, pos_on_r, initial_interval, std::numeric_limits<int32_t>::max());
+    // I want to check how much slower it gets if turn off the positive skip:
+    auto backward_search_result = backward_search(query_seq, pos_on_r, initial_interval, single ? k - match_len - 2 : std::numeric_limits<int32_t>::max());
+
     if (backward_search_result.is_empty()) {
         // We get here when there is an illegal character at pos_on_r, just skip the current position
         pos_on_r = pos_on_r_saved - 1;
@@ -1676,6 +2048,18 @@ uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r) {
             // At leat one kmer was found, update the postion and return the count
             uint64_t kmers_found = pos_on_r_saved - pos_on_r - k + 2;
             kmer_stats.positive_skipped += kmers_found - 1;
+
+            if (movi_options->is_debug()) {
+                int32_t pos_on_r_ = pos_on_r_saved;
+                auto backward_search_result_one_extra_base = backward_search(query_seq, pos_on_r_, initial_interval, k - match_len - 1);
+                dbg << backward_search_result.count(rlbwt) << "----" <<  backward_search_result_one_extra_base.count(rlbwt) << "\n";
+                dbg << backward_search_result << "\n";
+                if (backward_search_result.count(rlbwt) == backward_search_result_one_extra_base.count(rlbwt)) {
+                    // TODO: Use a counter to count the number of such incidents
+                } else {
+                }
+            }
+
             pos_on_r = pos_on_r + k - 2;
 	        return kmers_found;
         } else {
@@ -1687,12 +2071,13 @@ uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r) {
     }
 }
 
-void MoveStructure::query_all_kmers(MoveQuery& mq) {
+void MoveStructure::query_all_kmers(MoveQuery& mq, bool kmer_counts) {
     size_t ftab_k = movi_options->get_ftab_k();
     size_t k = movi_options->get_k();
     auto& query_seq = mq.query();
     int32_t pos_on_r = query_seq.length() - 1;
 
+    // To handle a special case for k equal to 1
     if (k == 1) {
         uint64_t kmers_found = 0;
         while (pos_on_r >= 0) {
@@ -1707,17 +2092,63 @@ void MoveStructure::query_all_kmers(MoveQuery& mq) {
         pos_on_r -= 1; // Find the first position where the character is legal
     }
 
+
+    int32_t step = k/3;
+    // k - step has to be always greater than ftab-k
+    if (k - step < ftab_k) {
+        step = k - ftab_k - 1;
+    }
+
     while (pos_on_r >= k - 1) {
-        // int32_t step = 0;
-        int32_t step = 5;
-        // if (ftab_k > 1 and !look_ahead(mq, pos_on_r, step)) {
-        //    kmer_stats.look_ahead_skipped += k - ftab_k - step;
-        //    pos_on_r = pos_on_r - k + ftab_k + step - 1;
         if (pos_on_r >= k -1 + step and !look_ahead_backward_search(mq, pos_on_r, step)) {
             kmer_stats.look_ahead_skipped += step + 1;
             pos_on_r = pos_on_r - step - 1;
         } else {
-            kmer_stats.positive_kmers += query_kmers_from(mq, pos_on_r);
+            if (kmer_counts) {
+                if (pos_on_r == k - 1) {
+                    kmer_stats.positive_kmers += query_kmers_from(mq, pos_on_r);
+                } else {
+                    kmer_stats.positive_kmers += query_kmers_from_bidirectional(mq, pos_on_r);
+
+                    if (movi_options->is_debug()) {
+                        dbg.str("");
+                        dbg.clear();
+                        int pos_on_r_before = pos_on_r;
+                        int found_regular = 0;
+                        dbg << "regular backward search:\n";
+                        int k_m = pos_on_r - k/2;
+                        dbg << pos_on_r << "\t" << k_m << "\n";
+                        dbg << k/2 << "\n";
+                        for (int j = pos_on_r; j > k_m; j--) {
+                            dbg << " " << j << " ";
+                            if (j >= k)
+                                dbg << "\nkmer at " << j << ": " << query_seq.substr(j - k + 1, k) << " ";
+
+                            int pos = j;
+                            dbg << " pos:" << pos << " ";
+                            int z = query_kmers_from(mq, pos, true);
+                            if (z == 1 and pos == j - 1) {
+                                dbg << "1";
+                                found_regular += 1;
+                            } else
+                                dbg << "0";
+                        }
+                        dbg << "\n";
+                        dbg << "bidirectional search:\n";
+                        int pos = pos_on_r_before;
+                        int found_bidirectional = query_kmers_from_bidirectional(mq, pos);
+                        dbg << "\n";
+                        kmer_stats.positive_kmers += found_bidirectional;
+                        if (found_regular != found_bidirectional) {
+                            std::cerr << "pos_on_r_before:" << pos_on_r_before << " pos_on_r:" << pos_on_r
+                                    << " found_regular:" << found_regular << " found_bidirectional" << found_bidirectional << "\n";
+                            std::cerr << dbg.str() << std::endl;
+                        }
+                    }
+                }
+            } else {
+                kmer_stats.positive_kmers += query_kmers_from(mq, pos_on_r);
+            }
         }
 
         while (!check_alphabet(query_seq[pos_on_r])) {
@@ -1768,7 +2199,7 @@ uint64_t MoveStructure::backward_search(std::string& R, int32_t& pos_on_r) {
             std::cerr << ">>> " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
             std::cerr << ">>> " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
         }
-#if MODE == 0 or MODE == 3
+#if MODE == 0 or MODE == 3 or MODE == 4
         while ((run_start < run_end) and (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r])) {
             run_start += 1;
             offset_start = 0;
@@ -1932,7 +2363,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                 std::cerr << "\t Case2: Not a match, looking for a match either up or down...\n";
 
             uint64_t idx_before_jump = idx;
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
             bool up = random ? jump_randomly(idx, R[pos_on_r], scan_count) : 
                                jump_thresholds(idx, offset, R[pos_on_r], scan_count);
 #endif
@@ -1969,7 +2400,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                 auto saved_idx = idx;
 
                 movi_options->set_verbose(true);
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
                 jump_thresholds(saved_idx, offset, R[pos_on_r], scan_count);
 #endif
                 exit(0);
@@ -1995,7 +2426,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     return ff_count_tot;
 }
 
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
 bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count) {
     uint64_t saved_idx = idx;
     uint64_t alphabet_index = alphamap[static_cast<uint64_t>(r_char)];
@@ -2028,7 +2459,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
             }
 #endif
 
-#if MODE == 0 || MODE == 2
+#if MODE == 0 || MODE == 2 || MODE == 4
             idx = jump_down(saved_idx, r_char, scan_count);
 #endif
             if (r_char != alphabet[rlbwt[idx].get_c()])
@@ -2047,7 +2478,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
             }
 #endif
 
-#if MODE == 0 || MODE == 2
+#if MODE == 0 || MODE == 2 || MODE == 4
             idx = jump_up(saved_idx, r_char, scan_count);
 #endif
             if (r_char != alphabet[rlbwt[idx].get_c()])
@@ -2081,7 +2512,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
         }
 #endif
         auto tmp = idx;
-#if MODE == 0 || MODE == 2
+#if MODE == 0 || MODE == 2 || MODE == 4
         idx = jump_down(saved_idx, r_char, scan_count);
 #endif
         if (r_char != alphabet[rlbwt[idx].get_c()]) {
@@ -2104,7 +2535,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
         }
 #endif
 
-#if MODE == 0 || MODE == 2
+#if MODE == 0 || MODE == 2 || MODE == 4
         idx = jump_up(saved_idx, r_char, scan_count);
 #endif
         if (r_char != alphabet[rlbwt[idx].get_c()]) {
@@ -2445,9 +2876,13 @@ void MoveStructure::analyze_rows() {
     std::vector<uint64_t> counts_threshold1(16,0);
     std::vector<uint64_t> counts_threshold2(16,0);
     uint64_t counter = 0;
+    uint64_t split_thresholds = 0;
+    uint64_t end_row = 0;
     for (uint64_t i = 0; i < r; i++) {
-	 counter += 1;
-        if (i%100000 == 0) std::cerr << i << "\r";
+        end_row += get_n(i);
+        std::cout << end_row << "\t" << get_char(i) << "\n";
+        counter += 1;
+        if (i%100000 == 0) std::cerr << i << "\t" << split_thresholds << "\r";
         for (int j = 0; j < 16; j ++) {
             if (get_n(i) >= std::pow(2,j + 1)) {
                 counts_length[j] += 1;
@@ -2455,7 +2890,7 @@ void MoveStructure::analyze_rows() {
             if (get_offset(i) >= std::pow(2,j + 1)) {
                 counts_offset[j] += 1;
             }
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
             if (get_thresholds(i, 0) >= std::pow(2,j + 1)) {
                 counts_threshold0[j] += 1;
             }
@@ -2467,6 +2902,22 @@ void MoveStructure::analyze_rows() {
             }
 #endif
         }
+
+// #if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+        // uint64_t t0 = get_thresholds(i, 0);
+        // uint64_t t1 = get_thresholds(i, 1);
+        // uint64_t t2 = get_thresholds(i, 2);
+        // uint64_t nn = get_n(i);
+        // if (t0 != 0 and t0 != nn) {
+        //   split_thresholds += 1;
+        // }
+        // if (t1 != t0 and t1 != 0 and t1 != nn) {
+        //   split_thresholds +=1;
+        // }
+        //     if (t2 != t1 and t2 != t0 and t2 != 0 and t2 != nn) {
+        //   split_thresholds +=1;
+        // }
+// #endif
         // if (((get_thresholds(i, 0) != 0 and get_thresholds(i, 0) != get_n(i)) and
         //      (get_thresholds(i, 1) != 0 and get_thresholds(i, 1) != get_n(i)) and
         //      (get_thresholds(i, 2) != 0 and get_thresholds(i, 2) != get_n(i)) and
@@ -2483,6 +2934,7 @@ void MoveStructure::analyze_rows() {
         //     }
         // }
     }
+    std::cerr << "split_thresholds: " << split_thresholds << "\n";
     std::cerr << "counter: " << counter << "\n";
     std::cerr << "\ncounts_length:\n";
     for (int j=0; j < 16; j++) {

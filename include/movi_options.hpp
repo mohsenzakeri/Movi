@@ -14,15 +14,18 @@ class MoviOptions {
         }
         bool is_preprocessed() { return preprocessed; }
         bool is_split() { return split; }
+        bool is_thresholds() { return thresholds; }
         bool no_prefetch() { return !prefetch; }
         bool is_stdout() { return write_stdout; }
         bool is_verbose() { return verbose; }
         bool is_logs() { return logs; }
+        bool is_debug() { return debug; }
         bool if_verify() { return verify; }
         bool is_pml() { return pml_query; }
         bool is_zml() { return zml_query; }
         bool is_count() { return count_query; }
         bool is_kmer() { return kmer_query; }
+        bool is_kmer_count() { return kmer_count; }
         bool is_reverse() { return reverse; }
         bool is_multi_ftab() { return multi_ftab; }
         int ignore_illegal_chars_status() { return ilc; }
@@ -39,14 +42,17 @@ class MoviOptions {
         std::string get_index_dir() { return index_dir; }
 
         void set_preprocessed(bool preprocessed_) { preprocessed = preprocessed_; }
+        void set_thresholds(bool thresholds_) { thresholds = thresholds_; }
         void set_stdout(bool write_stdout_) { write_stdout = write_stdout_; }
         void set_verbose(bool verbose_) { verbose = verbose_; }
         void set_logs(bool logs_) { logs = logs_; }
+        void set_debug(bool debug_) { debug = debug_; }
         void set_verify(bool verify_) { verify = verify_; }
         void set_pml()   { pml_query = true; count_query = false; kmer_query = false; zml_query = false; }
         void set_zml()   { zml_query = true; pml_query = false; count_query = false; kmer_query = false; }
         void set_count() { count_query = true; pml_query = false; kmer_query = false; zml_query = false; }
         void set_kmer()  { kmer_query = true; pml_query = false; count_query = false; zml_query = false; }
+        void set_kmer_count(bool kmer_count_) { kmer_count = kmer_count_; }
         void set_k(uint32_t k_) { k = k_; }
         void set_ftab_k(uint32_t ftab_k_) { ftab_k = ftab_k_; }
         void set_multi_ftab(bool multi_ftab_) { multi_ftab = multi_ftab_; }
@@ -78,6 +84,7 @@ class MoviOptions {
 
         void print_options() {
             std::cerr << "split:\t" << split << "\n";
+            std::cerr << "thresholds:\t" << thresholds << "\n";
             std::cerr << "ref_file:\t" << ref_file << "\n";
             std::cerr << "bwt_file:\t" << bwt_file << "\n";
             std::cerr << "read_file:\t" << read_file << "\n";
@@ -93,6 +100,7 @@ class MoviOptions {
             std::cerr << "strands:\t" << strands << "\n";
             std::cerr << "verify:\t" << verify << "\n";
             std::cerr << "stdout:\t" << write_stdout << "\n";
+            std::cerr << "debug:\t" << debug << "\n";
             std::cerr << "verbose:\t" << verbose << "\n";
             std::cerr << "logs:\t" << logs << "\n";
         }
@@ -107,10 +115,12 @@ class MoviOptions {
         bool preprocessed = false;
         int ilc = 0;
         bool split = false;
+        bool thresholds = false;
         bool pml_query = false;
         bool zml_query = false;
         bool count_query = false;
         bool kmer_query = false;
+        bool kmer_count = false;
         bool reverse = false;
         bool prefetch = true;
         size_t strands = 16;
@@ -119,6 +129,7 @@ class MoviOptions {
         bool multi_ftab = false;
         bool verify = false;
         bool write_stdout = false;
+        bool debug = false;
         bool verbose = false;
         bool logs = false;
 };

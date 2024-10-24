@@ -28,6 +28,9 @@ std::string program() {
 #if MODE == 3
     return "compact";
 #endif
+#if MODE == 4
+    return "split";
+#endif
 }
 
 kseq_t* open_kseq(gzFile& fp, std::string file_address) {
@@ -59,12 +62,14 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     options.add_options()
         ("command", "Command to execute", cxxopts::value<std::string>())
         ("h,help", "Print help")
+        ("d,dbg", "Enable debug mode")
         ("v,verbose", "Enable verbose mode")
         ("l,logs", "Enable logs");
 
     auto buildOptions = options.add_options("build")
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("f,fasta", "Reference file", cxxopts::value<std::string>())
+        ("thresholds", "Store the threshold values in the compact mode by splitting the runs at threshold boundaries")
         ("preprocessed", "The BWT is preprocessed into heads and lens files")
         ("verify", "Verify if all the LF_move operations are correct")
         ("ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>())
@@ -75,6 +80,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("zml", "Compute the Ziv-Merhav cross parsing length (ZMLs)")
         ("count", "Compute the count queries")
         ("kmer", "Search all the kmers")
+        ("kmer-count", "Find the count of every kmer")
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
@@ -124,6 +130,11 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
             movi_options.set_logs(true);
         }
 
+        if (result.count("dbg")) {
+            // Set global debug flag
+            movi_options.set_debug(true);
+        }
+
         if (result.count("command")) {
             std::string command = result["command"].as<std::string>();
             movi_options.set_command(command);
@@ -140,6 +151,13 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("preprocessed")) {
                         movi_options.set_preprocessed(true);
                     }
+                    if (result.count("thresholds")) {
+                        movi_options.set_thresholds(true);
+                    }
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+                    // In these modes, thresholds are always stored
+                    movi_options.set_thresholds(true);
+#endif
                 } else {
                     const std::string message = "Please include one index directory and one fasta file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
@@ -152,6 +170,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
                     if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
                     if (result.count("kmer") >= 1) { movi_options.set_kmer(); }
+                    if (result.count("kmer-count") >= 1) { movi_options.set_kmer(); movi_options.set_kmer_count(true); }
                     if (result.count("count") >= 1) { movi_options.set_count(); }
                     if (result.count("zml") >= 1) { movi_options.set_zml(); }
                     if (result.count("pml") >= 1) { movi_options.set_pml(); }
@@ -343,7 +362,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 }
             } else if (movi_options.is_kmer()) {
                 mq = MoveQuery(query_seq);
-                mv_.query_all_kmers(mq);
+                mv_.query_all_kmers(mq, movi_options.is_kmer_count());
             }
 
             if (movi_options.is_logs()) {
@@ -422,7 +441,7 @@ int main(int argc, char** argv) {
     }
     std::string command = movi_options.get_command();
     if (command == "build") {
-        MoveStructure mv_(&movi_options, false, MODE == 1, MODE == 1);
+        MoveStructure mv_(&movi_options, false, MODE == 1 or MODE == 4, MODE == 1);
         if (movi_options.if_verify()) {
             std::cerr << "Verifying the LF_move results...\n";
             mv_.verify_lfs();

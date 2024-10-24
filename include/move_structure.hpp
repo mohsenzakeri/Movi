@@ -75,7 +75,6 @@ struct MoveInterval {
     }
 
     friend std::ostream& operator<<(std::ostream& output, const MoveInterval& mi) {
-        // output << "The matching statistics are:\n";
         output << mi.run_start << ":" << mi.offset_start << " --- " << mi.run_end << ":" << mi.offset_end;
         return output;
     }
@@ -85,6 +84,23 @@ struct MoveInterval {
             run_end == m.run_end and offset_end == m.offset_end)
             return true;
         return false;
+    }
+};
+
+struct MoveBiInterval {
+    MoveInterval fw_interval;
+    MoveInterval rc_interval;
+    uint64_t match_len;
+
+    MoveBiInterval() {
+        fw_interval = MoveInterval(1, 0, 0, 0);
+        rc_interval = MoveInterval(1, 0, 0, 0);
+        match_len = 0;
+    }
+
+    friend std::ostream& operator<<(std::ostream& output, const MoveBiInterval& mi_bi) {
+        output << mi_bi.match_len << ": " << mi_bi.fw_interval << "\t" << mi_bi.rc_interval;
+        return output;
     }
 };
 
@@ -124,19 +140,27 @@ class MoveStructure {
         std::string index_type();
         void set_onebit();
         void build();
+        void fill_bits_by_thresholds();
         void build_rlbwt();
         uint64_t query_pml(MoveQuery& mq, bool random);
         uint64_t query_backward_search(MoveQuery& mq, int32_t& pos_on_r);
         uint64_t query_zml(MoveQuery& mq);
-        void query_all_kmers(MoveQuery& mq);
-        uint64_t query_kmers_from(MoveQuery& mq, int32_t& pos_on_r);
+        void query_all_kmers(MoveQuery& mq, bool kmer_counts = false);
+        uint64_t query_kmers_from_bidirectional(MoveQuery& mq, int32_t& pos_on_r);
+        uint64_t query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool single = false);
         bool look_ahead_ftab(MoveQuery& mq, uint32_t pos_on_r, int32_t& step);
         bool look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r, int32_t step);
+        bool extend_bidirectional(char c_, MoveInterval& fw_interval, MoveInterval& rc_interval);
+        bool extend_left(char c, MoveBiInterval& bi_interval);
+        bool extend_right(char c, MoveBiInterval& bi_interval);
+        MoveBiInterval backward_search_bidirectional(std::string& R, int32_t& pos_on_r, MoveBiInterval interval, int32_t max_length);
+        MoveBiInterval initialize_bidirectional_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len);
         uint64_t backward_search(std::string& R, int32_t& pos_on_r);
+        bool backward_search_step(char c, MoveInterval& interval);
         uint64_t backward_search_step(std::string& R, int32_t& pos_on_r, MoveInterval& interval);
         MoveInterval backward_search(std::string& R, int32_t& pos_on_r, MoveInterval interval, int32_t max_length);
-        MoveInterval initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len);
-        MoveInterval try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k);
+        MoveInterval initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, bool rc = false);
+        MoveInterval try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k, bool rc = false);
         void update_interval(MoveInterval& interval, char next_char);
 
         void sequential_lf();
@@ -149,7 +173,9 @@ class MoveStructure {
 
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
         uint32_t compute_index(char row_char, char lookup_char);
+#if MODE == 1
         void compute_nexts();
+#endif
         void compute_ftab();
         void write_ftab();
         void compute_run_lcs();
@@ -164,7 +190,7 @@ class MoveStructure {
 
         uint64_t jump_up(uint64_t idx, char c, uint64_t& scan_count);
         uint64_t jump_down(uint64_t idx, char c, uint64_t& scan_count);
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
         bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
 #endif
         bool jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_count);
@@ -181,7 +207,7 @@ class MoveStructure {
         uint64_t get_n(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
         uint64_t get_id(uint64_t idx);
-#if MODE == 0 or MODE == 1 or MODE == 2
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
         uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
