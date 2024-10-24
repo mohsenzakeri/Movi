@@ -155,7 +155,7 @@ inline uint16_t extract_value(uint16_t source, uint16_t mask, uint16_t shift) {
 }
 
 inline uint64_t MoveRow::get_id() const {
-    if (offset >= 2^12) {
+    if (offset >= (1<<12)) {
         uint64_t res = static_cast<uint64_t>(extract_value(offset, mask_id, 12));
         res = res << 32;
         uint64_t c = static_cast<uint64_t>(id);

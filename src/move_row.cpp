@@ -78,7 +78,7 @@ void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
 #if MODE == 3
 void MoveRow::set_n(uint16_t n_) {
     n = n & mask_n;
-    if (n_ < 2^12)
+    if (n_ < (1<<12))
         n = n | n_;
     else {
         std::cerr << "The length is greater than 2^12: " << n_ << "\n";
@@ -88,7 +88,7 @@ void MoveRow::set_n(uint16_t n_) {
 
 void MoveRow::set_offset(uint16_t offset_) {
     offset = offset & mask_offset;
-    if (offset_ < 2^12)
+    if (offset_ < (1<<12))
         offset = offset | offset_;
     else {
         std::cerr << "The offset is greater than 2^12: " << offset_ << "\n";
