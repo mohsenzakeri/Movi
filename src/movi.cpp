@@ -154,7 +154,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("thresholds")) {
                         movi_options.set_thresholds(true);
                     }
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 4
                     // In these modes, thresholds are always stored
                     movi_options.set_thresholds(true);
 #endif
