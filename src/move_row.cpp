@@ -99,7 +99,7 @@ void MoveRow::set_offset(uint16_t offset_) {
 void MoveRow::set_id(uint64_t id_) {
     id = id_; // Store the least significant bits in the didicated id variable
     offset = offset & mask_id;
-    offset = offset | (id_ >> 32);
+    offset = offset | ((id_ >> 32) << 12);
 }
 
 void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
