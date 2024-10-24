@@ -69,6 +69,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     auto buildOptions = options.add_options("build")
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("f,fasta", "Reference file", cxxopts::value<std::string>())
+        ("thresholds", "Store the threshold values in the compact mode by splitting the runs at threshold boundaries")
         ("preprocessed", "The BWT is preprocessed into heads and lens files")
         ("verify", "Verify if all the LF_move operations are correct")
         ("ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>())
@@ -150,6 +151,13 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("preprocessed")) {
                         movi_options.set_preprocessed(true);
                     }
+                    if (result.count("thresholds")) {
+                        movi_options.set_thresholds(true);
+                    }
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+                    // In these modes, thresholds are always stored
+                    movi_options.set_thresholds(true);
+#endif
                 } else {
                     const std::string message = "Please include one index directory and one fasta file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);

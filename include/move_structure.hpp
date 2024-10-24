@@ -139,6 +139,7 @@ class MoveStructure {
         bool check_mode();
         std::string index_type();
         void build();
+        void fill_bits_by_thresholds();
         void build_rlbwt();
         uint64_t query_pml(MoveQuery& mq, bool random);
         uint64_t query_backward_search(MoveQuery& mq, int32_t& pos_on_r);
