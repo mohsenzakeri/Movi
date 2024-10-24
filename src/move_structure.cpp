@@ -49,9 +49,9 @@ MoveStructure::MoveStructure(MoviOptions* movi_options_) {
     all_initializations = 0;
 }
 
-MoveStructure::MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t splitting_, bool constant_) {
+MoveStructure::MoveStructure(MoviOptions* movi_options_, uint16_t splitting_, bool constant_) {
     movi_options = movi_options_;
-    onebit = onebit_;
+    onebit = false;
     splitting = splitting_;
     constant = constant_;
     no_ftab = 0;
@@ -59,7 +59,6 @@ MoveStructure::MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t 
 
     if (!check_mode()) {
         std::cerr << "Your settings: \n"
-                    << "onebit: " << onebit << "\n"
                     << "constant: " << constant << "\n"
                     << "splitting " << splitting << "\n";
         exit(0);
@@ -108,42 +107,25 @@ std::string MoveStructure::index_type() {
     // Like the default constant mode, but without the pointers to the neighbors with the other characters
     return "split";
 #endif
-    /*if (!onebit and !constant and splitting == 0) {
-        return "default";
-    } else if (constant and splitting != 0 and !onebit) {
-        return "constant";
-    }else if (splitting != 0 and !onebit) {
-        return "splitting";
-    } else if (onebit and splitting == 0) {
-        return "onebit_nosplitting";
-    } else if (onebit and splitting != 0) {
-        return "onebit";
-    } else {
-        std::cerr << "Mode is not defined! \n";
-        std::cerr << "onebit: " << onebit
-                  << "\nconstant:" << constant
-                  << "\nsplitting:" << splitting
-                  << "\n";
-    }*/
+    return "The mode is not defined.";
     exit(0);
 }
 
 bool MoveStructure::check_mode() {
 #if MODE == 0
-    if (onebit || constant) {
+    if (constant) {
         std::cerr << "MODE is set to be 0: regular!\n";
         return false;
     }
 #endif
-
 #if MODE == 1
-    if (onebit || !constant || !splitting) {
+    if (!constant || !splitting) {
         std::cerr << "MODE is set to be 1: constant!\n";
         return false;
     }
 #endif
 #if MODE == 4
-    if (onebit || constant || !splitting) {
+    if (constant || !splitting) {
         std::cerr << "MODE is set to be 4: split!\n";
         return false;
     }
@@ -368,10 +350,18 @@ char MoveStructure::get_char(uint64_t idx) {
         return alphabet[rlbwt[idx].get_c()];
 }
 
-uint64_t MoveStructure::get_n(uint64_t idx) {
 #if MODE == 3
+uint64_t MoveStructure::get_n(uint64_t idx) {
     return rlbwt[idx].get_n();
+}
+
+uint64_t MoveStructure::get_offset(uint64_t idx) {
+    return rlbwt[idx].get_offset();
+}
 #endif
+
+#if MODE == 0 or MODE == 1 or MODE == 4
+uint64_t MoveStructure::get_n(uint64_t idx) {
     if (rlbwt[idx].is_overflow_n()) {
         return n_overflow[rlbwt[idx].get_n()];
     } else {
@@ -380,9 +370,6 @@ uint64_t MoveStructure::get_n(uint64_t idx) {
 }
 
 uint64_t MoveStructure::get_offset(uint64_t idx) {
-#if MODE == 3
-    return rlbwt[idx].get_offset();
-#endif
     if (rlbwt[idx].is_overflow_offset()) {
         return offset_overflow[rlbwt[idx].get_offset()];
     } else {
@@ -391,7 +378,6 @@ uint64_t MoveStructure::get_offset(uint64_t idx) {
 }
 
 // for all the threshold related functions
-#if MODE == 0 or MODE == 1 or MODE == 4
 uint64_t MoveStructure::get_thresholds(uint64_t idx, uint32_t alphabet_index) {
     if (rlbwt[idx].is_overflow_thresholds()) {
         return thresholds_overflow[get_rlbwt_thresholds(idx, alphabet_index)][alphabet_index];
@@ -406,10 +392,6 @@ uint16_t MoveStructure::get_rlbwt_thresholds(uint64_t idx, uint16_t i) {
         exit(0);
     }
 
-#if MODE == 0 || MODE == 1 || MODE == 4
-    // if (!onebit) {
-    //     return rlbwt[idx].get_thresholds(i);
-    // }
     uint8_t status = rlbwt[idx].get_threshold_status(i);
     switch (status) {
         case 0: return 0; break;
@@ -419,7 +401,6 @@ uint16_t MoveStructure::get_rlbwt_thresholds(uint64_t idx, uint16_t i) {
             std::cerr << "Undefined status for thresholds status: " << status << "\n";
             exit(0);
     }
-#endif
 
     std::cerr << "Undefined behavior!\n";
     exit(0);
@@ -455,10 +436,6 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
     rlbwt[idx].set_threshold_status(i, status);
 }
 #endif // for all the threshold related functions
-
-void MoveStructure::set_onebit() {
-    onebit = true;
-}
 
 void MoveStructure::build_rlbwt() {
     std::ifstream bwt_file(movi_options->get_bwt_file());
@@ -739,25 +716,12 @@ void MoveStructure::build() {
     std::cerr << "\n\nr: " << r << "\n";
     std::cerr << "original_r: " << original_r << "\n";
     rlbwt.resize(r);
-    /*if (!onebit)
-        rlbwt_thresholds.resize(r);
-    else
-        rlbwt_1bit_thresholds.resize(r);*/
-    //    rlbwt_chars.resize(r);
+
     if (movi_options->is_verbose() and bits.size() < 1000)
         std::cerr << "bits: " << bits << "\n";
     if (!splitting) // The rank vector is already built if it was the splitting mode
         rbits = sdsl::rank_support_v<>(&bits);
 
-    if (alphabet.size() == 2) {
-        std::cerr << "one bit alphabet version detected.\n";
-        onebit = true;
-        // bit1_begin = alphamap[bwt_string[0]];
-    }
-    if (onebit && alphabet.size() != 2) {
-        std::cerr << "The fasta file has more than 2 characters in the alphabet!\n";
-        exit(0);
-    }
     if (alphabet.size() > 4) {
         std::cerr << "Warning: There are more than 4 characters, the index expexts only A, C, T and G in the reference.\n";
     }
@@ -830,8 +794,16 @@ void MoveStructure::build() {
         rlbwt[r_idx].init(len, offset, pp_id);
         // To take care of cases where length of the run
         // does not fit in uint16_t
-        if (len > MAX_RUN_LENGTH) {
+#if MODE == 3
+        if (offset > MAX_RUN_LENGTH or len > MAX_RUN_LENGTH) {
             // Should not get here in the compact mode: MODE = 3
+            std::cerr << "The length or the offset are too large.\n";
+            std::cerr << "offset: " << offset << "\tlength: " << length << "\n";
+            exit(0);
+        }
+#endif
+#if MODE == 0 or MODE == 1 or MODE == 4
+        if (len > MAX_RUN_LENGTH) {
             n_overflow.push_back(len);
             if (n_overflow.size() - 1 >= MAX_RUN_LENGTH) {
                 std::cerr << "Warning: the number of runs with overflow n is beyond " << MAX_RUN_LENGTH<< "! " << n_overflow.size() - 1 << "\n";
@@ -841,7 +813,6 @@ void MoveStructure::build() {
             rlbwt[r_idx].set_overflow_n();
         }
         if (offset > MAX_RUN_LENGTH) {
-            // Should not get here in the compact mode: MODE = 3
             offset_overflow.push_back(offset);
             if (offset_overflow.size() - 1 >= MAX_RUN_LENGTH) {
                 std::cerr << "Warning: the number of runs with overflow offset is beyond " << MAX_RUN_LENGTH<< "! " << offset_overflow.size() - 1 << "\n";
@@ -850,6 +821,7 @@ void MoveStructure::build() {
             rlbwt[r_idx].set_offset(offset_overflow.size() - 1);
             rlbwt[r_idx].set_overflow_offset();
         }
+#endif
 
         if (len > max_len)
             max_len = len;
@@ -901,11 +873,6 @@ void MoveStructure::build() {
                 }
                 alphabet_thresholds[j] = thresholds[thr_i];
             } else {
-                if (onebit and alphamap_3[alphamap[rlbwt_c]][j] != 0) {
-                    std::cerr << "the alphamap_3 is not working for the one-bit alphabet:\n"
-                                << "alphamap_3[alphamap[rlbwt_c]][j] = " << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
-                    exit(0); // TODO: add error handling
-                }
                 if (alphamap_3[alphamap[rlbwt_c]][j] >= alphabet.size() - 1) {
                     std::cerr << "alphamap_3 is not working in general:\n"
                                 << "alphabet.size() - 1 = " << alphabet.size() - 1 << "\n"
@@ -2271,7 +2238,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
             } else {
                 std::cerr << "\t \t This should not happen!\n";
                 std::cerr << "\t \t pos: " << pos_on_r << " r[pos]:" <<  R[pos_on_r] << " t[pointer]:" << c << "\n";
-                std::cerr << "\t \t " << up << ", " << onebit << ", " << R[pos_on_r] << ", " << pos_on_r << "\n";
+                std::cerr << "\t \t " << up << ", " << R[pos_on_r] << ", " << pos_on_r << "\n";
                 std::cerr << "\t \t ";
                 for (int k = 10; k > 0; --k)
                     std::cerr << alphabet[rlbwt[idx - k].get_c()] << "-";
@@ -2373,9 +2340,6 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
                             << "\n\t \t \t idx:" << idx << "\n";
 
     alphabet_index = alphamap_3[alphamap[rlbwt_char]][alphabet_index];
-    if (onebit and alphabet_index != 0)
-        std::cerr << "error: the alphamap_3 is not working for the one-bit alphabet - " 
-                    << alphabet_index << "!\n";
     if (alphabet_index == 3)
         std::cerr << "error: alphamap_3 is not working in general - " 
                     << alphabet_index << "!\n";
@@ -2625,7 +2589,6 @@ void MoveStructure::deserialize() {
 
     if (!check_mode()) {
         std::cerr << "Your settings: \n"
-                    << "onebit: " << onebit << "\n"
                     << "constant: " << constant << "\n"
                     << "splitting " << splitting << "\n";
         exit(0);
