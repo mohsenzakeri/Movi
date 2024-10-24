@@ -825,7 +825,7 @@ void MoveStructure::build() {
     raw_ids.resize(r);
     std::cerr << r << "\t" << rlbwt.size() << "\t" << all_p.size() << "\n";
     for (uint64_t r_idx = 0; r_idx < r; r_idx++) {
-        // if (r_idx % 10000 == 0)
+        if (r_idx % 10000 == 0)
             std::cerr << r_idx << "\r";
         uint64_t lf  = 0;
         if (r_idx != end_bwt_idx)
