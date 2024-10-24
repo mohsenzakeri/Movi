@@ -70,7 +70,7 @@ MoveStructure::MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t 
     std::string bwt_filename = movi_options->get_ref_file() + std::string(".bwt");
     // std::ifstream bwt_file(bwt_filename);
 
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 4
     std::string thr_filename = movi_options->get_ref_file() + std::string(".thr_pos");
     read_thresholds(thr_filename, thresholds);
 #endif
@@ -100,9 +100,6 @@ std::string MoveStructure::index_type() {
 #endif
 #if MODE == 1
     return "constant";
-#endif
-#if MODE == 2
-    return "onebit";
 #endif
 #if MODE == 3
     return "compact";
@@ -142,12 +139,6 @@ bool MoveStructure::check_mode() {
 #if MODE == 1
     if (onebit || !constant || !splitting) {
         std::cerr << "MODE is set to be 1: constant!\n";
-        return false;
-    }
-#endif
-#if MODE == 2
-    if (!onebit) {
-        std::cerr << "MODE is set to be 2: one-bit!\n";
         return false;
     }
 #endif
@@ -400,7 +391,7 @@ uint64_t MoveStructure::get_offset(uint64_t idx) {
 }
 
 // for all the threshold related functions
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 4
 uint64_t MoveStructure::get_thresholds(uint64_t idx, uint32_t alphabet_index) {
     if (rlbwt[idx].is_overflow_thresholds()) {
         return thresholds_overflow[get_rlbwt_thresholds(idx, alphabet_index)][alphabet_index];
@@ -430,9 +421,6 @@ uint16_t MoveStructure::get_rlbwt_thresholds(uint64_t idx, uint16_t i) {
     }
 #endif
 
-#if MODE == 2
-    return rlbwt[idx].get_threshold();
-#endif
     std::cerr << "Undefined behavior!\n";
     exit(0);
 }
@@ -443,7 +431,6 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
         exit(0);
     }
 
-#if MODE == 0 || MODE == 1 || MODE == 4
     uint8_t status = 0;
     if (value == 0) {
         status = 0;
@@ -466,12 +453,6 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
         rlbwt[idx].set_threshold(value);
     }
     rlbwt[idx].set_threshold_status(i, status);
-#endif
-
-#if MODE == 2
-    // rlbwt_1bit_thresholds[idx] = value;
-    rlbwt[idx].set_threshold(value);
-#endif
 }
 #endif // for all the threshold related functions
 
@@ -611,7 +592,7 @@ void MoveStructure::build() {
             lens.push_back(remaining_length);
             heads.push_back(heads_[i]);
 #endif
-#if MODE == 0 or MODE == 2
+#if MODE == 0
             lens.push_back(len);
             heads.push_back(heads_[i]);
 #endif
@@ -692,7 +673,7 @@ void MoveStructure::build() {
                 bits[bwt_curr_length] = 1;
             }
 #endif
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 4
             if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
                 original_r += 1;
                 if (!splitting) bits[bwt_curr_length] = 1;
@@ -707,7 +688,7 @@ void MoveStructure::build() {
 
             current_char = bwt_file.get();
         }
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 4
         if (!splitting) r = original_r;
 #endif
         length = bwt_curr_length; // bwt_string.length();
@@ -886,7 +867,7 @@ void MoveStructure::build() {
 
     // compute the thresholds
     // initialize the start threshold at the last row
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 4
     std::vector<uint64_t> alphabet_thresholds(alphabet.size(), length);
     uint64_t thr_i = original_r - 1;
     uint64_t run_p = 0;
@@ -2263,7 +2244,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                 std::cerr << "\t Case2: Not a match, looking for a match either up or down...\n";
 
             uint64_t idx_before_jump = idx;
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 4
             bool up = random ? jump_randomly(idx, R[pos_on_r], scan_count) : 
                                jump_thresholds(idx, offset, R[pos_on_r], scan_count);
 #endif
@@ -2300,7 +2281,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                 auto saved_idx = idx;
 
                 movi_options->set_verbose(true);
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 4
                 jump_thresholds(saved_idx, offset, R[pos_on_r], scan_count);
 #endif
                 exit(0);
@@ -2326,7 +2307,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     return ff_count_tot;
 }
 
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 4
 bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count) {
     uint64_t saved_idx = idx;
     uint64_t alphabet_index = alphamap[static_cast<uint64_t>(r_char)];
@@ -2359,7 +2340,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
             }
 #endif
 
-#if MODE == 0 || MODE == 2 || MODE == 4
+#if MODE == 0 || MODE == 4
             idx = jump_down(saved_idx, r_char, scan_count);
 #endif
             if (r_char != alphabet[rlbwt[idx].get_c()])
@@ -2378,7 +2359,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
             }
 #endif
 
-#if MODE == 0 || MODE == 2 || MODE == 4
+#if MODE == 0 || MODE == 4
             idx = jump_up(saved_idx, r_char, scan_count);
 #endif
             if (r_char != alphabet[rlbwt[idx].get_c()])
@@ -2412,7 +2393,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
         }
 #endif
         auto tmp = idx;
-#if MODE == 0 || MODE == 2 || MODE == 4
+#if MODE == 0 || MODE == 4
         idx = jump_down(saved_idx, r_char, scan_count);
 #endif
         if (r_char != alphabet[rlbwt[idx].get_c()]) {
@@ -2435,7 +2416,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
         }
 #endif
 
-#if MODE == 0 || MODE == 2 || MODE == 4
+#if MODE == 0 || MODE == 4
         idx = jump_up(saved_idx, r_char, scan_count);
 #endif
         if (r_char != alphabet[rlbwt[idx].get_c()]) {
@@ -2759,7 +2740,7 @@ void MoveStructure::analyze_rows() {
             if (get_offset(i) >= std::pow(2,j + 1)) {
                 counts_offset[j] += 1;
             }
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 4
             if (get_thresholds(i, 0) >= std::pow(2,j + 1)) {
                 counts_threshold0[j] += 1;
             }
