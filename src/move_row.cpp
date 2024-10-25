@@ -43,13 +43,40 @@ void MoveRow::set_overflow_thresholds() {
     overflow_bits = overflow_bits & mask_overflow_thresholds;
     overflow_bits = overflow_bits | (1 >> 6);
 }
-#endif
 
 void MoveRow::set_n(uint16_t n_) {
-#if MODE == 0 or MODE == 1 or MODE == 4
     n = n_;
+}
+
+void MoveRow::set_overflow_n() {
+    overflow_bits = overflow_bits & mask_overflow_n;
+    overflow_bits = overflow_bits | (1 >> 4);
+}
+
+void MoveRow::set_offset(uint16_t offset_) {
+    offset = offset_;
+}
+
+void MoveRow::set_overflow_offset() {
+    overflow_bits = overflow_bits & mask_overflow_offset;
+    overflow_bits = overflow_bits | (1 >> 5);
+}
+
+void MoveRow::set_id(uint64_t id_) {
+    id = id_; // Store the least significant bits in the didicated id variable
+    overflow_bits = overflow_bits & mask_id;
+    overflow_bits = overflow_bits | (id_ >> 32);
+}
+
+void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
+    uint64_t c_64 = static_cast<uint64_t>(alphamap[c_]);
+    thresholds_status = thresholds_status & mask_c;
+    thresholds_status = thresholds_status | (c_64 << 6);
+}
 #endif
+
 #if MODE == 3
+void MoveRow::set_n(uint16_t n_) {
     if (n_ <= MAX_RUN_LENGTH) {
         n = n & mask_n;
         n = n | (n_ << shift_n);
@@ -57,25 +84,9 @@ void MoveRow::set_n(uint16_t n_) {
         std::cerr << "The length is greater than 2^12: " << n_ << "\n";
         exit(0);
     }
-#endif
-}
-
-void MoveRow::set_overflow_n() {
-#if MODE == 0 or MODE == 1 or MODE == 4
-    overflow_bits = overflow_bits & mask_overflow_n;
-    overflow_bits = overflow_bits | (1 >> 4);
-#endif
-#if MODE == 3
-    std::cerr << "The length overflow should not occur in the compressed mode.\n";
-    exit(0);
-#endif
 }
 
 void MoveRow::set_offset(uint16_t offset_) {
-#if MODE == 0 or MODE == 1 or MODE == 4
-    offset = offset_;
-#endif
-#if MODE == 3
     if (offset_ <= MAX_RUN_LENGTH) {
         offset = offset & mask_offset;
         offset = offset | (offset_ << shift_offset);
@@ -83,43 +94,19 @@ void MoveRow::set_offset(uint16_t offset_) {
         std::cerr << "The offset is greater than 2^12: " << offset_ << "\n";
         exit(0);
     }
-#endif
-}
-
-void MoveRow::set_overflow_offset() {
-#if MODE == 0 or MODE == 1 or MODE == 4
-    overflow_bits = overflow_bits & mask_overflow_offset;
-    overflow_bits = overflow_bits | (1 >> 5);
-#endif
-#if MODE == 3
-    std::cerr << "The offset overflow should not occur in the compressed mode.\n";
-    exit(0);
-#endif
 }
 
 void MoveRow::set_id(uint64_t id_) {
     id = id_; // Store the least significant bits in the didicated id variable
-#if MODE == 0 or MODE == 1 or MODE == 4
-    overflow_bits = overflow_bits & mask_id;
-    overflow_bits = overflow_bits | (id_ >> 32);
-#endif
-#if MODE == 3
     n = n & mask_id1;
     n = n | ((id_ >> 16) << shift_id1);
     offset = offset & mask_id2;
     offset = offset | ((id_ >> 21) << shift_id2);
-#endif
 }
 
 void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
-#if MODE == 0 or MODE == 1 or MODE == 4
-    uint64_t c_64 = static_cast<uint64_t>(alphamap[c_]);
-    thresholds_status = thresholds_status & mask_c;
-    thresholds_status = thresholds_status | (c_64 << 6);
-#endif
-#if MODE == 3
     uint16_t c_16 = static_cast<uint16_t>(alphamap[c_]);
     offset = offset & mask_c;
     offset = offset | (c_16 << shift_c);
-#endif
 }
+#endif
