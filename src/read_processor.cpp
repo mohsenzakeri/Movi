@@ -20,9 +20,19 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
     std::string index_type = mv_.index_type();
     if (!mv_.movi_options->is_stdout()) {
         if (mv_.movi_options->is_pml()) {
+            #if MODE == 4
+            std::string mls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.pml" :
+                                                reads_file_name + "." + index_type + ".pml.bin";
+            mls_file = std::ofstream(mls_file_name, std::ios::out);
+            std::string col_ids_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.cid" :
+                                                      reads_file_name + "." + index_type + ".cid.bin";
+            col_ids_file = std::ofstream(col_ids_file_name, std::ios::out);
+            #else
             std::string mls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.pml.bin" :
                                                 reads_file_name + "." + index_type + ".pml.bin";
             mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
+            #endif
+
         } else if (mv_.movi_options->is_zml()) {
             std::string mls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.zml.bin" :
                                                 reads_file_name + "." + index_type + ".zml.bin";
@@ -60,6 +70,9 @@ bool ReadProcessor::next_read(Strand& process) {
             std::reverse(process.read.begin(), process.read.end());
         }
         process.match_len = 0;
+        #if MODE == 4
+        process.col_id = 0;
+        #endif
         process.ff_count = 0;
         process.scan_count = 0;
         process.mq = MoveQuery(process.read);
@@ -105,6 +118,9 @@ void ReadProcessor::process_char(Strand& process) {
     auto& row = mv.rlbwt[process.idx];
     uint64_t row_idx = process.idx;
     char row_c = mv.alphabet[row.get_c()];
+    #if MODE == 4
+    process.col_id = row.get_col();
+    #endif
     std::string& R = process.mq.query();
     process.scan_count = 0;
     if (mv.alphamap[static_cast<uint64_t>(R[process.pos_on_r])] == mv.alphamap.size()) {
@@ -138,6 +154,9 @@ void ReadProcessor::process_char(Strand& process) {
         }
     }
     process.mq.add_ml(process.match_len);
+    #if MODE == 4
+    process.mq.add_col_id(process.col_id);
+    #endif
     process.pos_on_r -= 1;
     // if (mv.logs)
     //     process.t2 = std::chrono::high_resolution_clock::now();
@@ -165,12 +184,28 @@ void ReadProcessor::write_mls(Strand& process) {
         }
         std::cout << "\n";
     } else {
+        #if MODE == 4
         mls_file.write(reinterpret_cast<char*>(&process.st_length), sizeof(process.st_length));
         mls_file.write(reinterpret_cast<char*>(&process.read_name[0]), process.st_length);
         auto& ml_lens = process.mq.get_matching_lengths();
         uint64_t mq_lens_size = ml_lens.size();
         mls_file.write(reinterpret_cast<char*>(&mq_lens_size), sizeof(mq_lens_size));
         mls_file.write(reinterpret_cast<char*>(&ml_lens[0]), mq_lens_size * sizeof(ml_lens[0]));
+
+        col_ids_file.write(reinterpret_cast<char*>(&process.st_length), sizeof(process.st_length));
+        col_ids_file.write(reinterpret_cast<char*>(&process.read_name[0]), process.st_length);
+        auto& col_ids = process.mq.get_col_ids();
+        uint64_t col_ids_size = col_ids.size();
+        col_ids_file.write(reinterpret_cast<char*>(&col_ids_size), sizeof(col_ids_size));
+        col_ids_file.write(reinterpret_cast<char*>(&col_ids[0]), col_ids_size * sizeof(col_ids[0]));
+        #else
+        mls_file.write(reinterpret_cast<char*>(&process.st_length), sizeof(process.st_length));
+        mls_file.write(reinterpret_cast<char*>(&process.read_name[0]), process.st_length);
+        auto& ml_lens = process.mq.get_matching_lengths();
+        uint64_t mq_lens_size = ml_lens.size();
+        mls_file.write(reinterpret_cast<char*>(&mq_lens_size), sizeof(mq_lens_size));
+        mls_file.write(reinterpret_cast<char*>(&ml_lens[0]), mq_lens_size * sizeof(ml_lens[0]));
+        #endif
     }
 
     if (logs) {
@@ -292,6 +327,9 @@ void ReadProcessor::process_latency_hiding() {
     if (!mv.movi_options->is_stdout()) {
         if (is_pml or is_zml) {
             mls_file.close();
+            #if MODE == 4
+            col_ids_file.close();
+            #endif
             std::cerr << "Matching lengths file is closed!\n";
         } else if (is_count) {
             matches_file.close();

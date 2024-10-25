@@ -23,6 +23,7 @@
 
 #define END_CHARACTER 0
 #define THRBYTES 5 
+#define COLBYTES 1
 
 struct MoveInterval {
     MoveInterval() {}
@@ -134,7 +135,7 @@ struct KmerStatistics {
 class MoveStructure {
     public:
         MoveStructure(MoviOptions* movi_options_);
-        MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t splitting = 0, bool constant = false);
+        MoveStructure(MoviOptions* movi_options_, bool onebit_, bool splitting = false, bool constant = false);
 
         bool check_mode();
         std::string index_type();
@@ -211,13 +212,16 @@ class MoveStructure {
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
 #endif
+#if MODE == 4
+        uint64_t get_col(uint64_t idx);
+#endif
         KmerStatistics kmer_stats;
         friend class ReadProcessor;
     private:
         MoviOptions* movi_options;
 	    bool onebit;
         bool constant;
-        uint16_t splitting;
+        bool splitting;
 
         std::string bwt_string;
         uint64_t length;
@@ -268,6 +272,7 @@ class MoveStructure {
 
         // The following are only used for construction, not stored in the index
         sdsl::int_vector<> thresholds;
+        sdsl::int_vector<> cols;
         std::vector<uint64_t> all_p;
         std::vector<std::unique_ptr<sdsl::bit_vector> > occs;
         std::vector<std::unique_ptr<sdsl::rank_support_v<> > > occs_rank;

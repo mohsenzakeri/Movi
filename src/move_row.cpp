@@ -121,3 +121,9 @@ void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
     n = n | (c_16 << 12);
 #endif
 }
+
+#if MODE == 4
+void MoveRow::set_col(uint8_t col_) {
+    col = col_;
+}
+#endif

@@ -66,6 +66,10 @@ class MoveRow{
         uint16_t get_threshold() { return threshold; }
         void set_threshold(uint16_t t) { threshold = t; }
 #endif
+#if MODE == 4
+        void set_col(uint8_t col_);
+        uint8_t get_col() const;
+#endif
 
 #if MODE == 1
         uint16_t get_next_up(uint32_t i) { return next_up[i]; }
@@ -74,7 +78,7 @@ class MoveRow{
         void set_next_down(uint32_t i, uint16_t t) { next_down[i] = t; }
 #endif
         uint64_t row_size() {
-#if MODE == 0 or MODE == 4
+#if MODE == 0
             return 12;
 #endif
 #if MODE == 1
@@ -85,6 +89,9 @@ class MoveRow{
 #endif
 #if MODE == 3
             return 8;
+#endif
+#if MODE == 4
+            return 13;
 #endif
         }
     private:
@@ -103,6 +110,9 @@ class MoveRow{
         // to store pointers for avoiding scanning
         uint16_t next_up[3];
         uint16_t next_down[3];
+#endif
+#if MODE == 4
+        uint8_t col;
 #endif
 };
 
@@ -198,6 +208,12 @@ inline uint8_t MoveRow::get_threshold_status(uint16_t i) const {
 inline bool MoveRow::is_overflow_thresholds() const{
     uint8_t res = extract_value(overflow_bits, mask_overflow_thresholds, 6);
     return !static_cast<bool>(res);
+}
+#endif
+
+#if MODE == 4
+inline uint8_t MoveRow::get_col() const {
+    return col;
 }
 #endif
 

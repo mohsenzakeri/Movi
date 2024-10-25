@@ -187,6 +187,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("stdout")) {
                         // Set global verbose flag
                         movi_options.set_stdout(true);
+                        #if MODE == 4
+                        std::cerr << "stdout is not supported for split mode for Col IDs.\n";
+                        #endif
                     }
                 } else {
                     const std::string message = "Please include one index directory and one read file.";
@@ -202,7 +205,13 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
             } else if (command == "view") {
                 if (result.count("mls-file") == 1) {
                     movi_options.set_mls_file(result["mls-file"].as<std::string>());
-                } else {
+                } 
+                #if MODE == 4
+                else if (result.count("col-ids-file") == 1) {
+                    movi_options.set_col_ids_file(result["col-ids-file"].as<std::string>());
+                }
+                #endif
+                else {
                     const std::string message = "Please specify one pml file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
@@ -295,10 +304,19 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         uint64_t total_ff_count = 0;
 
         std::ofstream mls_file;
+        #if MODE == 4
+        std::ofstream col_ids_file;
+        #endif
         std::ofstream count_file;
         if (!movi_options.is_stdout()) {
-            if (movi_options.is_pml())
+            if (movi_options.is_pml()) {
+                #if MODE == 4
+                mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".pml.bin", std::ios::out);
+                col_ids_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".cid.bin", std::ios::out);
+                #else
                 mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".pml.bin", std::ios::out | std::ios::binary);
+                #endif
+            }
             else if (movi_options.is_zml())
                 mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".zml.bin", std::ios::out | std::ios::binary);
             else if (movi_options.is_count())
@@ -331,6 +349,18 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     }
                     std::cout << "\n";
                 } else {
+                    #if MODE == 4
+                    // auto& pml_lens = mq.get_matching_lengths();
+                    // std::ostream_iterator<size_t> pml_iter(mls_file, " ");
+                    // mls_file << '>' << seq->name.s << " \n";
+                    // std::reverse_copy(pml_lens.begin(), pml_lens.end(), pml_iter);
+                    // mls_file << "\n";
+
+                    // auto& cids = mq.get_col_ids();
+                    // std::ostream_iterator<size_t> cid_iter(col_ids_file, " ");
+                    // col_ids_file << '>' << seq->name.s << " \n";
+                    // std::reverse_copy(cids.begin(), cids.end(), cid_iter);
+                    // col_ids_file << "\n";
                     uint16_t st_length = seq->name.m;
                     mls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
                     mls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
@@ -338,6 +368,21 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     uint64_t mq_pml_lens_size = pml_lens.size();
                     mls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
                     mls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+
+                    uint64_t mq_col_ids_size = mq.get_col_ids().size();
+                    col_ids_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
+                    col_ids_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
+                    col_ids_file.write(reinterpret_cast<char*>(&mq_col_ids_size), sizeof(mq_col_ids_size));
+                    col_ids_file.write(reinterpret_cast<char*>(&mq.get_col_ids()[0]), mq_col_ids_size * sizeof(mq.get_col_ids()[0]));
+                    #else
+                    uint16_t st_length = seq->name.m;
+                    mls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
+                    mls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
+                    auto& pml_lens = mq.get_matching_lengths();
+                    uint64_t mq_pml_lens_size = pml_lens.size();
+                    mls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
+                    mls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+                    #endif
                 }
             } else if (movi_options.is_count()) {
                 int32_t pos_on_r = query_seq.length() - 1;
@@ -380,6 +425,9 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             std::cerr << "all fast forward counts: " << total_ff_count << "\n";
             if (!movi_options.is_stdout()) {
                 mls_file.close();
+                #if MODE == 4
+                col_ids_file.close();
+                #endif
             }
             std::cerr << "The output file for the matching lengths closed.\n";
         } else if (movi_options.is_count()) {

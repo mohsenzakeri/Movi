@@ -8,6 +8,9 @@ class MoviOptions {
             ref_file = "";
             read_file = "";
             mls_file = "";
+            #if MODE == 4
+            col_ids_file = "";
+            #endif
             index_dir = "";
             LF_type = "reconstruct";
             pml_query = true;
@@ -38,6 +41,9 @@ class MoviOptions {
         std::string get_bwt_file() { return bwt_file; }
         std::string get_read_file() { return read_file; }
         std::string get_mls_file() { return mls_file; }
+        #if MODE == 4
+        std::string get_col_ids_file() { return col_ids_file; }
+        #endif
         std::string get_index_dir() { return index_dir; }
 
         void set_preprocessed(bool preprocessed_) { preprocessed = preprocessed_; }
@@ -78,6 +84,9 @@ class MoviOptions {
         void set_bwt_file(std::string file_address) { bwt_file = file_address; }
         void set_read_file(std::string file_address) { read_file = file_address; }
         void set_mls_file(std::string file_address) { mls_file = file_address; }
+        #if MODE == 4
+        void set_col_ids_file(std::string file_address) { col_ids_file = file_address; }
+        #endif
         void set_index_dir(std::string dir) { index_dir = dir; }
 
         void print_options() {
@@ -86,6 +95,9 @@ class MoviOptions {
             std::cerr << "bwt_file:\t" << bwt_file << "\n";
             std::cerr << "read_file:\t" << read_file << "\n";
             std::cerr << "mls_file:\t" << mls_file << "\n";
+            #if MODE == 4
+            std::cerr << "col_ids_file:\t" << col_ids_file << "\n";
+            #endif
             std::cerr << "index_dir:\t" << index_dir << "\n";
             std::cerr << "LF_type:\t" << LF_type << "\n";
             std::cerr << "pml_query:\t" << pml_query << "\n";
@@ -107,6 +119,9 @@ class MoviOptions {
         std::string bwt_file;
         std::string read_file;
         std::string mls_file;
+        #if MODE == 4
+        std::string col_ids_file;
+        #endif
         std::string index_dir;
         std::string LF_type;
         bool preprocessed = false;

@@ -42,6 +42,41 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
     std::cerr << "Finished reading " << i << " thresholds.\n";
 }
 
+void read_cols(std::string tmp_filename, sdsl::int_vector<>& cols) {
+    struct stat filestat;
+    FILE *fd;
+
+    if ((fd = fopen(tmp_filename.c_str(), "r")) == nullptr)
+        std::cerr <<("open() file " + tmp_filename + " failed");
+
+    int fn = fileno(fd);
+    if (fstat(fn, &filestat) < 0)
+        std::cerr <<("stat() file " + tmp_filename + " failed");
+
+    if (filestat.st_size % COLBYTES != 0)
+        std::cerr <<("invilid file " + tmp_filename);
+
+    size_t length_col = filestat.st_size / COLBYTES;
+    size_t col = 0;
+
+    cols = sdsl::int_vector<>(length_col, 0, 8);
+
+    size_t i = 0;
+    for (i = 0; i < length_col; ++i) {
+        if (i % 100000 == 0) {
+            std::cerr << "read cols:\t" << i << "\r";
+        }
+        size_t col = 0;
+        if ((fread(&col, COLBYTES, 1, fd)) != 1)
+            std::cerr <<("fread() file " + tmp_filename + " failed");
+        if (col >= std::numeric_limits<uint8_t>::max()) {
+            col = (col % (std::numeric_limits<uint8_t>::max() - 1)) + 1;
+        }
+        cols[i] = col;
+    }
+    std::cerr << "Finished reading " << i << " cols.\n";
+}
+
 MoveStructure::MoveStructure(MoviOptions* movi_options_) {
     movi_options = movi_options_;
     onebit = false;
@@ -49,7 +84,7 @@ MoveStructure::MoveStructure(MoviOptions* movi_options_) {
     all_initializations = 0;
 }
 
-MoveStructure::MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t splitting_, bool constant_) {
+MoveStructure::MoveStructure(MoviOptions* movi_options_, bool onebit_, bool splitting_, bool constant_) {
     movi_options = movi_options_;
     onebit = onebit_;
     splitting = splitting_;
@@ -73,6 +108,10 @@ MoveStructure::MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t 
 #if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
     std::string thr_filename = movi_options->get_ref_file() + std::string(".thr_pos");
     read_thresholds(thr_filename, thresholds);
+#endif
+#if MODE == 4
+    std::string col_filename = movi_options->get_ref_file() + std::string(".movi_col_ids");
+    read_cols(col_filename, cols);
 #endif
     build();
 }
@@ -108,7 +147,7 @@ std::string MoveStructure::index_type() {
     return "compact";
 #endif
 #if MODE == 4
-    // Like the default constant mode, but without the pointers to the neighbors with the other characters
+    // col_bwt
     return "split";
 #endif
     /*if (!onebit and !constant and splitting == 0) {
@@ -547,13 +586,30 @@ void MoveStructure::build() {
     }
     std::cerr << "building.. \n";
     if (splitting) {
+        #if MODE == 1
         std::string splitting_filename = movi_options->get_ref_file() + std::string(".d_col");
         std::ifstream splitting_file(splitting_filename);
 
         bits.load(splitting_file);
-        std::cerr << "bits.size after loading the d_col file: " << bits.size() << "\n";
         rbits = sdsl::rank_support_v<>(&bits);
+
+        std::cerr << "bits.size after loading the d_col file: " << bits.size() << "\n";
         std::cerr << "The main bit vector (bits) is loaded from the d_col file.\n";
+        #elif MODE == 4
+        std::string splitting_filename = movi_options->get_ref_file() + std::string(".movi_col_runs");
+        std::ifstream splitting_file(splitting_filename);
+
+        bits.load(splitting_file);
+        rbits = sdsl::rank_support_v<>(&bits);
+
+        std::cerr << "bits.size after loading the col_runs file: " << bits.size() << "\n";
+        std::cerr << "The main bit vector (bits) is loaded from the col_runs file.\n";
+
+        std::cerr << "The vector has " << bits.size() << " bits and " << rbits(bits.size()) << " set bits.\n";
+        #else
+        std::cerr << "The splitting mode is not defined for the current mode.\n";
+        exit(0);
+        #endif
     } else {
         bits = sdsl::bit_vector(static_cast<uint64_t>(end_pos) + 1, 0); // 5137858051
         bits[0] = 1;
@@ -611,7 +667,7 @@ void MoveStructure::build() {
             lens.push_back(remaining_length);
             heads.push_back(heads_[i]);
 #endif
-#if MODE == 0 or MODE == 2
+#if MODE == 0 or MODE == 2 or MODE == 4
             lens.push_back(len);
             heads.push_back(heads_[i]);
 #endif
@@ -667,8 +723,16 @@ void MoveStructure::build() {
     } else {
         // Reading the BWT from the file
         uint64_t current_char = bwt_file.get();
+        if (current_char == 'N') {
+            std::cerr << "The BWT file includes 'N' character.\n";
+            current_char = 'A';
+        }
         uint16_t run_length = 0;
         while (current_char != EOF) { // && current_char != 10
+            if (current_char == 'N') {
+                std::cerr << "The BWT file includes 'N' character.\n";
+                current_char = 'A';
+            }
             uint64_t current_char_ = static_cast<uint64_t>(current_char); // Is this line important?!
             run_length += 1;
             // if (current_char != 'A' and current_char != 'C' and current_char != 'G' and current_char != 'T')
@@ -880,6 +944,10 @@ void MoveStructure::build() {
         }
         rlbwt[r_idx].set_c(bwt_string[all_p[r_idx]], alphamap);
         // bit1_after_eof = alphamap[bwt_string[i+1]];
+
+        #if MODE == 4
+        rlbwt[r_idx].set_col(cols[r_idx]);
+        #endif
     }
     std::cerr << "All the move rows are built.\n";
     std::cerr << "Max run length: " << max_len << "\n";
@@ -2213,6 +2281,9 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     uint64_t offset = get_n(idx) - 1;
 
     uint16_t match_len = 0;
+    #if MODE == 4
+    uint8_t col_id = 0;
+    #endif
     uint16_t ff_count = 0;
     uint64_t ff_count_tot = 0;
     uint64_t scan_count = 0;
@@ -2236,11 +2307,17 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
         auto& row = rlbwt[idx];
         uint64_t row_idx = idx;
         char row_c = alphabet[row.get_c()];
+        #if MODE == 4
+        col_id = row.get_col();
+        #endif
 
         if (!check_alphabet(R[pos_on_r])) {
             // The character from the read does not exist in the reference
             match_len = 0;
             scan_count = 0;
+            #if MODE == 4
+            col_id = 0;
+            #endif
 
             if (movi_options->is_verbose())
                 std::cerr << "\t The character " << R[pos_on_r] << " does not exist.\n";
@@ -2308,6 +2385,10 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
         }
 
         mq.add_ml(match_len);
+        #if MODE == 4
+        mq.add_col_id(col_id);
+        #endif
+
         pos_on_r -= 1;
 
         // LF step

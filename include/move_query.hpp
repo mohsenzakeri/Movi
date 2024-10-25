@@ -9,10 +9,16 @@ class MoveQuery {
         std::string& query() { return query_string; }
         uint64_t length() { return query_string.length(); }
         void add_ml(uint16_t len) { matching_lens.push_back(len); }
+        #if MODE == 4
+        void add_col_id(uint8_t id) { col_ids.push_back(id); }
+        #endif
         void add_cost(std::chrono::nanoseconds cost) { costs.push_back(cost); }
         void add_scan(uint64_t scan) { scans.push_back(scan); }
         void add_fastforward(uint64_t fastforward) { fastforwards.push_back(fastforward); }
         std::vector<uint16_t>& get_matching_lengths() { return matching_lens; }
+        #if MODE == 4
+        std::vector<uint8_t>& get_col_ids() { return col_ids; }
+        #endif
         std::vector<uint16_t>& get_scans() { return scans; }
         std::vector<uint16_t>& get_fastforwards() { return fastforwards; }
         std::vector<std::chrono::nanoseconds>& get_costs() { return costs; }
@@ -28,6 +34,9 @@ class MoveQuery {
     private:
         std::string query_string;
         std::vector<uint16_t> matching_lens;
+        #if MODE == 4
+        std::vector<uint8_t> col_ids;
+        #endif
         std::vector<uint16_t> scans;
         std::vector<uint16_t> fastforwards;
         std::vector<std::chrono::nanoseconds> costs;

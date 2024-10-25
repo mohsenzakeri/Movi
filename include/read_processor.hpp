@@ -28,6 +28,9 @@ struct Strand {
     uint64_t idx;
     uint64_t offset;
     uint64_t match_len;
+    #if MODE == 4
+    uint8_t col_id;
+    #endif
     uint64_t match_count;
 
     uint64_t ff_count;
@@ -48,6 +51,9 @@ class ReadProcessor {
         void kmer_search_latency_hiding(uint32_t k);
         bool next_read(Strand& process);
         void write_mls(Strand& process);
+        #if MODE == 4
+        void write_col_ids(Strand& process);
+        #endif
         void compute_match_count(Strand& process);
         void write_count(Strand& process);
         void process_char(Strand& process);
@@ -64,6 +70,9 @@ class ReadProcessor {
         kseq_t *seq;
         int l;
         std::ofstream mls_file;
+        #if MODE == 4
+        std::ofstream col_ids_file;
+        #endif
         std::ofstream matches_file;
         int strands;
         uint32_t k;
