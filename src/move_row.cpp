@@ -41,7 +41,7 @@ void MoveRow::set_threshold_status(uint16_t i, uint8_t status) {
 
 void MoveRow::set_overflow_thresholds() {
     overflow_bits = overflow_bits & mask_overflow_thresholds;
-    overflow_bits = overflow_bits | (1 >> 6);
+    overflow_bits = overflow_bits | (1U >> 6);
 }
 
 void MoveRow::set_n(uint16_t n_) {
@@ -50,7 +50,7 @@ void MoveRow::set_n(uint16_t n_) {
 
 void MoveRow::set_overflow_n() {
     overflow_bits = overflow_bits & mask_overflow_n;
-    overflow_bits = overflow_bits | (1 >> 4);
+    overflow_bits = overflow_bits | (1U >> 4);
 }
 
 void MoveRow::set_offset(uint16_t offset_) {
@@ -59,7 +59,7 @@ void MoveRow::set_offset(uint16_t offset_) {
 
 void MoveRow::set_overflow_offset() {
     overflow_bits = overflow_bits & mask_overflow_offset;
-    overflow_bits = overflow_bits | (1 >> 5);
+    overflow_bits = overflow_bits | (1U >> 5);
 }
 
 void MoveRow::set_id(uint64_t id_) {
@@ -75,36 +75,62 @@ void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
 }
 #endif
 
-#if MODE == 3
+#if MODE == 3 or MODE == 6
+void MoveRow::set_id(uint64_t id_) {
+    id = id_; // Store the least significant bits in the didicated id variable
+    offset = offset & mask_id;
+    offset = offset | ((id_ >> 32) << SHIFT_ID);
+}
+
 void MoveRow::set_n(uint16_t n_) {
     n = n & mask_n;
-    if (n_ < (1<<12))
+    if (n_ < (1U << LENGTH_BITS)) {
         n = n | n_;
-    else {
-        std::cerr << "The length is greater than 2^12: " << n_ << "\n";
+    } else {
+        std::cerr << "The length is greater than 2^" << LENGTH_BITS  << ": " << n_ << "\n";
         exit(0);
     }
 }
 
 void MoveRow::set_offset(uint16_t offset_) {
     offset = offset & mask_offset;
-    if (offset_ < (1<<12))
+    if (offset_ < (1U << LENGTH_BITS)) {
         offset = offset | offset_;
-    else {
-        std::cerr << "The offset is greater than 2^12: " << offset_ << "\n";
+    } else {
+        std::cerr << "The offset is greater than 2^" << LENGTH_BITS  << ": " << offset_ << "\n";
         exit(0);
     }
-}
-
-void MoveRow::set_id(uint64_t id_) {
-    id = id_; // Store the least significant bits in the didicated id variable
-    offset = offset & mask_id;
-    offset = offset | ((id_ >> 32) << 12);
 }
 
 void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
     uint16_t c_16 = static_cast<uint16_t>(alphamap[c_]);
     n = n & mask_c;
-    n = n | (c_16 << 12);
+    n = n | (c_16 << SHIFT_C);
+}
+#endif
+
+#if MODE == 6
+void MoveRow::set_threshold(uint16_t i, uint16_t value) {
+    if (value > 1) {
+        std::cerr << "The theshold may be either 0 or 1: " << i << "\n";
+        exit(0);
+    }
+    switch (i) {
+        case 0:
+            offset = offset & mask_thresholds1;
+            offset = offset | (value << 11);
+            break;
+        case 1:
+            n = n & mask_thresholds2;
+            n = n | (value << 11);
+            break;
+        case 2:
+            n = n & mask_thresholds3;
+            n = n | (value << 12);
+            break;
+        default:
+            std::cerr << "Only three thresholds may be stored: " << i << "\n";
+            exit(0);
+    }
 }
 #endif

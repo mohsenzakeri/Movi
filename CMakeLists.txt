@@ -66,6 +66,10 @@ add_executable(movi-split src/movi.cpp src/move_structure.cpp src/move_row.cpp s
 target_link_libraries(movi-split sdsl ZLIB::ZLIB)
 target_compile_options(movi-split PUBLIC -O2 -DMODE=4)
 
+add_executable(movi-compact-thresholds src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp)
+target_link_libraries(movi-compact-thresholds sdsl ZLIB::ZLIB)
+target_compile_options(movi-compact-thresholds PUBLIC -O2 -DMODE=6) 
+
 add_executable(prepare_ref src/prepare_ref.cpp)
 target_link_libraries(prepare_ref ZLIB::ZLIB)
 
