@@ -185,19 +185,19 @@ void ReadProcessor::write_mls(Strand& process) {
         std::cout << "\n";
     } else {
         #if MODE == 4
-        mls_file.write(reinterpret_cast<char*>(&process.st_length), sizeof(process.st_length));
-        mls_file.write(reinterpret_cast<char*>(&process.read_name[0]), process.st_length);
-        auto& ml_lens = process.mq.get_matching_lengths();
-        uint64_t mq_lens_size = ml_lens.size();
-        mls_file.write(reinterpret_cast<char*>(&mq_lens_size), sizeof(mq_lens_size));
-        mls_file.write(reinterpret_cast<char*>(&ml_lens[0]), mq_lens_size * sizeof(ml_lens[0]));
+        std::ostream_iterator<size_t> pml_iter(mls_file, " ");
+        auto& matching_lens = process.mq.get_matching_lengths();
+        std::reverse(matching_lens.begin(), matching_lens.end());
+        mls_file << ">" << process.read_name << " \n";
+        std::copy(matching_lens.begin(), matching_lens.end(), pml_iter);
+        mls_file << "\n";
 
-        col_ids_file.write(reinterpret_cast<char*>(&process.st_length), sizeof(process.st_length));
-        col_ids_file.write(reinterpret_cast<char*>(&process.read_name[0]), process.st_length);
+        std::ostream_iterator<size_t> cid_iter(col_ids_file, " ");
         auto& col_ids = process.mq.get_col_ids();
-        uint64_t col_ids_size = col_ids.size();
-        col_ids_file.write(reinterpret_cast<char*>(&col_ids_size), sizeof(col_ids_size));
-        col_ids_file.write(reinterpret_cast<char*>(&col_ids[0]), col_ids_size * sizeof(col_ids[0]));
+        std::reverse(col_ids.begin(), col_ids.end());
+        col_ids_file << ">" << process.read_name << " \n";
+        std::copy(col_ids.begin(), col_ids.end(), cid_iter);
+        col_ids_file << "\n"; 
         #else
         mls_file.write(reinterpret_cast<char*>(&process.st_length), sizeof(process.st_length));
         mls_file.write(reinterpret_cast<char*>(&process.read_name[0]), process.st_length);
