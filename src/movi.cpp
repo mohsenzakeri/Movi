@@ -31,6 +31,9 @@ std::string program() {
 #if MODE == 4
     return "split";
 #endif
+#if MODE == 6
+    return "compact-thresholds";
+#endif
 }
 
 kseq_t* open_kseq(gzFile& fp, std::string file_address) {
@@ -154,7 +157,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("thresholds")) {
                         movi_options.set_thresholds(true);
                     }
-#if MODE == 0 or MODE == 1 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6
                     // In these modes, thresholds are always stored
                     movi_options.set_thresholds(true);
 #endif
