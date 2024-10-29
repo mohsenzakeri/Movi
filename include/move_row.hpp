@@ -18,11 +18,43 @@ const uint8_t mask_overflow_thresholds = static_cast<uint8_t>(~(((1U << 1) - 1) 
 #endif
 
 #if MODE == 3
-const uint16_t mask_id =  static_cast<uint16_t>(~(((1U << 4) - 1) << 12));                  // 11110000 00000000
-const uint16_t mask_offset =  static_cast<uint16_t>(~(((1U << 12) - 1) << 0));              // 00001111 11111111
-const uint16_t mask_n =  static_cast<uint16_t>(~(((1U << 12) - 1) << 0));                   // 00001111 11111111
-const uint16_t mask_c = static_cast<uint16_t>(~(((1U << 4) - 1) << 12));                    // 11110000 00000000
-#define MAX_RUN_LENGTH 4095 // 2^12-1
+#define SHIFT_ID1 11
+#define SHIFT_ID2 14
+#define SHIFT_N 0
+#define SHIFT_OFFSET 0
+#define SHIFT_C 11
+#define ID_SIG_BITS1 5
+#define ID_SIG_BITS2 2
+#define LENGTH_BITS 11
+#define C_BITS 3
+const uint16_t mask_id1 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS1) - 1) << SHIFT_ID1));        // 11111000 00000000
+const uint16_t mask_id2 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS2) - 1) << SHIFT_ID2));        // 11000000 00000000
+const uint16_t mask_offset =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_OFFSET));  // 00000111 11111111
+const uint16_t mask_n =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_N));            // 00000111 11111111
+const uint16_t mask_c =  static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C));                 // 00111000 00000000
+#define MAX_RUN_LENGTH  2047    // 2^11 - 1
+#define BLOCK_SIZE      4194304 // 2^22
+#define MAX_BLOCKED_ID  8388607 // 2^23 - 1
+#endif
+
+#if MODE == 6
+#define SHIFT_ID1 10
+#define SHIFT_N 0
+#define SHIFT_OFFSET 0
+#define SHIFT_C 10
+#define ID_SIG_BITS1 6
+#define LENGTH_BITS 10
+#define C_BITS 3
+const uint16_t mask_id1 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS1) - 1) << SHIFT_ID1));        // 11111100 00000000
+const uint16_t mask_offset =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_OFFSET));  // 00000011 11111111
+const uint16_t mask_n =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_N));            // 00000011 11111111
+const uint16_t mask_c =  static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C));                 // 00011100 00000000
+const uint16_t mask_thresholds1 =  static_cast<uint16_t>(~(((1U << 1) - 1) << 13));                 // 00100000 00000000
+const uint16_t mask_thresholds2 =  static_cast<uint16_t>(~(((1U << 1) - 1) << 14));                 // 01000000 00000000
+const uint16_t mask_thresholds3 = static_cast<uint16_t>(~(((1U << 1) - 1) << 15));                  // 10000000 00000000
+#define MAX_RUN_LENGTH  1023    // 2^10 - 1
+#define BLOCK_SIZE      2097152 // 2^21
+#define MAX_BLOCKED_ID  4194303 // 2^22 - 1
 #endif
 
 #if MODE == 5
@@ -30,10 +62,7 @@ const uint8_t mask_offset =  static_cast<uint8_t>(~(((1U << 2) - 1) << 0));     
 const uint8_t mask_n =  static_cast<uint8_t>(~(((1U << 2) - 1) << 2));                   // 00001100
 const uint8_t mask_c = static_cast<uint8_t>(~(((1U << 4) - 1) << 4));                    // 11110000
 #define MAX_RUN_LENGTH 1023 // 2^10-1
-#endif
 
-
-#if MODE == 5
 struct __attribute__((packed)) MoveTally {
     uint32_t right;
     uint8_t left;
@@ -67,13 +96,13 @@ struct __attribute__((packed)) MoveTally {
 
 class __attribute__((packed)) MoveRow {
     public:
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 4
         MoveRow () {n = 0; id = 0; overflow_bits = 0;}
 #endif
-#if MODE == 3
+#if MODE == 3 or MODE == 6
         MoveRow () {n = 0; id = 0; offset = 0;}
 #endif
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 3 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 3 or MODE == 4 or MODE == 6
         MoveRow(uint16_t n_, uint16_t offset_, uint64_t id_);
         void init(uint16_t n_, uint16_t offset_, uint64_t id_);
 #endif
@@ -92,22 +121,23 @@ class __attribute__((packed)) MoveRow {
         uint16_t get_offset() const;
         char get_c() const;
 
-        void set_overflow_n();
-        void set_overflow_offset();
-        void set_overflow_thresholds();
-        bool is_overflow_n() const;
-        bool is_overflow_offset() const;
-
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 3 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 3 or MODE == 4 or MODE == 6
         void set_id(uint64_t id_);
         uint64_t get_id() const;
 #endif
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+
+#if MODE == 0 or MODE == 1 or MODE == 4
         uint8_t get_threshold_status(uint16_t i) const;
         void set_threshold_status(uint16_t i, uint8_t status);
         bool is_overflow_thresholds() const;
         uint16_t get_threshold() { return threshold; }
         void set_threshold(uint16_t t) { threshold = t; }
+
+        void set_overflow_n();
+        void set_overflow_offset();
+        void set_overflow_thresholds();
+        bool is_overflow_n() const;
+        bool is_overflow_offset() const;
 #endif
 
 #if MODE == 1
@@ -116,6 +146,11 @@ class __attribute__((packed)) MoveRow {
         void set_next_up(uint32_t i, uint16_t t) { next_up[i] = t; }
         void set_next_down(uint32_t i, uint16_t t) { next_down[i] = t; }
 #endif
+
+#if MODE == 6
+        uint16_t get_threshold(uint16_t i) const;
+        void set_threshold(uint16_t i, uint16_t value);
+#endif
         uint64_t row_size() {
 #if MODE == 0 or MODE == 4
             return 12;
@@ -123,34 +158,33 @@ class __attribute__((packed)) MoveRow {
 #if MODE == 1
             return 24;
 #endif
-#if MODE == 2
-            return 12;
-#endif
-#if MODE == 3
-            return 8;
+#if MODE == 3 or MODE == 6
+            return 6;
 #endif
 #if MODE == 5
             return 3;
 #endif
         }
     private:
-
 #if MODE == 5
         uint8_t n; // length of the run
         uint8_t offset; // offset of the bwt row head of the current run in the new run after the LF-jump
         uint8_t c;
 #endif
 
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 3 or MODE == 4
-        uint32_t id; // bwt run after the LF-jump
-        uint16_t n; // length of the run
-        uint16_t offset; // offset of the bwt row head of the current run in the new run after the LF-jump
+#if MODE == 0 or MODE == 1 or MODE == 3 or MODE == 4 or MODE == 6
+#if MODE == 3 or MODE == 6
+        uint16_t id;        // The least significant bits of the bwt run after the LF-jump (distance from the block check point)
+#else
+        uint32_t id;        // The least significant bits of the bwt run after the LF-jump
 #endif
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+        uint16_t n;         // length of the run
+        uint16_t offset;    // offset of the bwt row head of the current run in the new run after the LF-jump
+#endif
+  
+#if MODE == 0 or MODE == 1 or MODE == 4
         uint16_t threshold;
         uint8_t overflow_bits;
-#endif
-#if MODE == 0 or MODE == 1 or MODE == 4
         uint8_t thresholds_status; // Whether each threshold is at the boundary or it's a non-trivial value
 #endif
 #if MODE == 1
@@ -160,57 +194,15 @@ class __attribute__((packed)) MoveRow {
 #endif
 };
 
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 4
 inline uint8_t extract_value(uint8_t source, uint8_t mask, uint16_t shift) {
     uint8_t res = (source & (~mask)) >> shift;
     return res;
 }
-#endif
-#if MODE == 3
-inline uint16_t extract_value(uint16_t source, uint16_t mask, uint16_t shift) {
-    uint16_t res = (source & (~mask)) >> shift;
-    return res;
-}
-#endif
 
-inline uint16_t MoveRow::get_n() const{
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
-    return n;
-#endif
-#if MODE == 3
-    uint16_t res = static_cast<uint16_t>(extract_value(n, mask_n, 0));
-    return res;
-#endif
-#if MODE == 5
-    uint16_t res = n;
-    return res | (static_cast<uint16_t>((c & (~mask_n)) >> 2) << 8);
-#endif
-}
-
-inline uint16_t MoveRow::get_offset() const{
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
-    return offset;
-#endif
-#if MODE == 3
-    uint16_t res = static_cast<uint16_t>(extract_value(offset, mask_offset, 0));
-    return res;
-#endif
-#if MODE == 5
-    uint16_t res = offset;
-    return res | (static_cast<uint16_t>((c & (~mask_offset)) >> 0) << 8);
-#endif
-}
-
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 3 or MODE == 4
 inline uint64_t MoveRow::get_id() const{
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
     if (overflow_bits != 0) {
         uint64_t res = static_cast<uint64_t>(extract_value(overflow_bits, mask_id, 0));
-#endif
-#if MODE == 3
-    if (offset > MAX_RUN_LENGTH) {
-        uint64_t res = static_cast<uint64_t>(extract_value(offset, mask_id, 12));
-#endif
         res = res << 32;
         uint64_t c = static_cast<uint64_t>(id);
         c = c | res;
@@ -219,45 +211,29 @@ inline uint64_t MoveRow::get_id() const{
         return static_cast<uint64_t>(id);
     }
 }
-#endif
 
-inline char MoveRow::get_c() const{
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
-    return static_cast<char>(extract_value(thresholds_status, mask_c, 6));
-#endif
-#if MODE == 3
-    return static_cast<char>(extract_value(n, mask_c, 12));
-#endif
-#if MODE == 5
-    return static_cast<char>((c & (~mask_c)) >> 4);
-#endif
+inline uint16_t MoveRow::get_n() const{
+    return n;
 }
 
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 3 or MODE == 4
-inline bool MoveRow::is_overflow_n() const{
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+inline uint16_t MoveRow::get_offset() const{
+    return offset;
+}
+
+inline char MoveRow::get_c() const{
+    return static_cast<char>(extract_value(thresholds_status, mask_c, 6));
+}
+
+inline bool MoveRow::is_overflow_n() const {
     uint8_t res = extract_value(overflow_bits, mask_overflow_n, 4);
-#endif
-#if MODE == 3
-    std::cerr << "The length overflow should not occur in the compressed mode.\n";
-    uint16_t res = 1;
-#endif
     return !static_cast<bool>(res);
 }
 
 inline bool MoveRow::is_overflow_offset() const{
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
     uint8_t res = extract_value(overflow_bits, mask_overflow_offset, 5);
-#endif
-#if MODE == 3
-    std::cerr << "The offset overflow should not occur in the compressed mode.\n";
-    uint16_t res = 1;
-#endif
     return !static_cast<bool>(res);
 }
-#endif
 
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
 inline uint8_t MoveRow::get_threshold_status(uint16_t i) const {
     const uint8_t mask_thresholds = static_cast<uint8_t>(~(((1U << 2) - 1) << i*2));
     uint8_t status = static_cast<uint8_t>((thresholds_status & (~mask_thresholds)) >> i*2);
@@ -270,4 +246,76 @@ inline bool MoveRow::is_overflow_thresholds() const{
 }
 #endif
 
+#if MODE == 5
+inline uint16_t MoveRow::get_n() const{
+    uint16_t res = n;
+    return res | (static_cast<uint16_t>((c & (~mask_n)) >> 2) << 8);
+}
+
+inline uint16_t MoveRow::get_offset() const{
+    uint16_t res = offset;
+    return res | (static_cast<uint16_t>((c & (~mask_offset)) >> 0) << 8);
+}
+
+inline char MoveRow::get_c() const{
+    return static_cast<char>((c & (~mask_c)) >> 4);
+}
 #endif
+
+#if MODE == 3 or MODE == 6
+inline uint16_t extract_value(uint16_t source, uint16_t mask, uint16_t shift) {
+    uint16_t res = (source & (~mask)) >> shift;
+    return res;
+}
+
+inline uint64_t MoveRow::get_id() const{
+    if (n >= (1U << SHIFT_ID1) ) {
+        uint64_t res = static_cast<uint64_t>(extract_value(n, mask_id1, SHIFT_ID1));
+        res = res << 16;
+#if MODE == 3
+        if (offset >= (1U << SHIFT_ID2) ) {
+            uint64_t res2 = static_cast<uint64_t>(extract_value(offset, mask_id2, SHIFT_ID2));
+            res2 = res2 << 21;
+            res = res | res2;
+        }
+#endif
+        uint64_t c = static_cast<uint64_t>(id);
+        c = c | res;
+        return c;
+    } else {
+        return static_cast<uint64_t>(id);
+    }
+}
+
+inline uint16_t MoveRow::get_n() const{
+    uint16_t res = static_cast<uint16_t>(extract_value(n, mask_n, SHIFT_N));
+    return res;
+}
+
+inline uint16_t MoveRow::get_offset() const{
+    uint16_t res = static_cast<uint16_t>(extract_value(offset, mask_offset, SHIFT_OFFSET));
+    return res;
+}
+
+inline char MoveRow::get_c() const{
+    return static_cast<char>(extract_value(offset, mask_c, SHIFT_C));
+}
+#endif
+
+#if MODE == 6
+inline uint16_t MoveRow::get_threshold(uint16_t i) const {
+    switch (i) {
+        case 0:
+            return static_cast<uint16_t>((offset & (~mask_thresholds1)) >> 13);
+        case 1:
+            return static_cast<uint16_t>((offset & (~mask_thresholds2)) >> 14);
+        case 2:
+            return static_cast<uint16_t>((offset & (~mask_thresholds3)) >> 15);
+        default:
+            std::cerr << "Only three thresholds exist per run: " << i << "\n";
+            exit(0);
+    }
+}
+#endif
+
+#endif //end of file

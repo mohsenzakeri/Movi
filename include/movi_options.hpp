@@ -14,6 +14,7 @@ class MoviOptions {
         }
         bool is_preprocessed() { return preprocessed; }
         bool is_split() { return split; }
+        bool is_thresholds() { return thresholds; }
         bool no_prefetch() { return !prefetch; }
         bool is_stdout() { return write_stdout; }
         bool is_verbose() { return verbose; }
@@ -41,6 +42,7 @@ class MoviOptions {
         std::string get_index_dir() { return index_dir; }
 
         void set_preprocessed(bool preprocessed_) { preprocessed = preprocessed_; }
+        void set_thresholds(bool thresholds_) { thresholds = thresholds_; }
         void set_stdout(bool write_stdout_) { write_stdout = write_stdout_; }
         void set_verbose(bool verbose_) { verbose = verbose_; }
         void set_logs(bool logs_) { logs = logs_; }
@@ -82,6 +84,7 @@ class MoviOptions {
 
         void print_options() {
             std::cerr << "split:\t" << split << "\n";
+            std::cerr << "thresholds:\t" << thresholds << "\n";
             std::cerr << "ref_file:\t" << ref_file << "\n";
             std::cerr << "bwt_file:\t" << bwt_file << "\n";
             std::cerr << "read_file:\t" << read_file << "\n";
@@ -112,6 +115,7 @@ class MoviOptions {
         bool preprocessed = false;
         int ilc = 0;
         bool split = false;
+        bool thresholds = false;
         bool pml_query = false;
         bool zml_query = false;
         bool count_query = false;

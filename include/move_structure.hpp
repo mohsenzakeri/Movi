@@ -135,12 +135,12 @@ struct KmerStatistics {
 class MoveStructure {
     public:
         MoveStructure(MoviOptions* movi_options_);
-        MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t splitting = 0, bool constant = false);
+        MoveStructure(MoviOptions* movi_options_, uint16_t splitting, bool constant);
 
         bool check_mode();
         std::string index_type();
-        void set_onebit();
         void build();
+        void fill_bits_by_thresholds();
         void build_rlbwt();
         uint64_t query_pml(MoveQuery& mq, bool random);
         uint64_t query_backward_search(MoveQuery& mq, int32_t& pos_on_r);
@@ -190,9 +190,6 @@ class MoveStructure {
 
         uint64_t jump_up(uint64_t idx, char c, uint64_t& scan_count);
         uint64_t jump_down(uint64_t idx, char c, uint64_t& scan_count);
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
-        bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
-#endif
         bool jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_count);
 
         void verify_lfs();
@@ -207,8 +204,12 @@ class MoveStructure {
         uint64_t get_n(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
         uint64_t get_id(uint64_t idx);
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6
+        void compute_thresholds();
+        bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
         uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
+#endif
+#if MODE == 0 or MODE == 1 or MODE == 4
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
 #endif
@@ -246,6 +247,7 @@ class MoveStructure {
 #if MODE == 5
         std::vector<std::vector<MoveTally>> tally_ids;
 #endif
+        std::vector<std::vector<uint64_t>> id_blocks;
 
         // auxilary datastructures for the length, offset and thresholds overflow
         std::vector<uint64_t> n_overflow;
