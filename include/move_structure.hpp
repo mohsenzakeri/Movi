@@ -204,7 +204,7 @@ class MoveStructure {
         uint64_t get_n(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
         uint64_t get_id(uint64_t idx);
-#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6 or MODE == 7
         void compute_thresholds();
         bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
         uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
@@ -244,7 +244,7 @@ class MoveStructure {
 
         // The move structure rows
         std::vector<MoveRow> rlbwt;
-#if MODE == 5
+#if MODE == 5 or MODE == 7
         std::vector<std::vector<MoveTally>> tally_ids;
 #endif
         std::vector<std::vector<uint64_t>> id_blocks;
