@@ -1398,8 +1398,9 @@ void MoveStructure::compute_thresholds() {
                 }
                 if (alphabet_thresholds[j] >= all_p[i] + get_n(i)) {
                     // rlbwt[i].thresholds[j] = get_n(i);
-                    if (rlbwt_c == END_CHARACTER) {
+                    if (i == end_bwt_idx) {
                         end_bwt_idx_thresholds[j] = get_n(i);
+                        std::cerr << "condition 1: end_bwt_idx_thresholds[" << j << "]:" << end_bwt_idx_thresholds[j] << "\n";
                         continue;
                     }
 #if MODE == 0 or MODE == 1 or MODE == 4
@@ -1414,8 +1415,9 @@ void MoveStructure::compute_thresholds() {
 #endif
                     current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = get_n(i);
                 } else if (alphabet_thresholds[j] <= all_p[i]) {
-                    if (rlbwt_c == END_CHARACTER) {
+                    if (i == end_bwt_idx) {
                         end_bwt_idx_thresholds[j] = 0;
+                        std::cerr << "condition 2: end_bwt_idx_thresholds[" << j << "]:" << end_bwt_idx_thresholds[j] << "\n";
                         continue;
                     }
 #if MODE == 0 or MODE == 1 or MODE == 4
@@ -1426,8 +1428,9 @@ void MoveStructure::compute_thresholds() {
 #endif
                     current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = 0;
                 } else {
-                    if (rlbwt_c == END_CHARACTER) {
+                    if (i == end_bwt_idx) {
                         end_bwt_idx_thresholds[j] = alphabet_thresholds[j] - all_p[i];
+                        std::cerr << "condition 3: end_bwt_idx_thresholds[" << j << "]:" << end_bwt_idx_thresholds[j] << "\n";
                         continue;
                     }
 #if MODE == 0 or MODE == 1 or MODE == 4
@@ -2509,7 +2512,6 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
         auto& row = rlbwt[idx];
         uint64_t row_idx = idx;
         char row_c = alphabet[row.get_c()];
-
         if (!check_alphabet(R[pos_on_r])) {
             // The character from the read does not exist in the reference
             match_len = 0;
@@ -2620,7 +2622,8 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
 
     if (idx == end_bwt_idx) {
         if (movi_options->is_verbose()) std::cerr << "\t \t \t idx == end_bwt_idx"
-                                << "\n\t \t \t idx: " << idx << " end_bwt_idx: " << end_bwt_idx << "\n";
+                                << "\n\t \t \t idx: " << idx << " end_bwt_idx: " << end_bwt_idx << " alphabet_index: " << alphabet_index << "\n"
+                                << "\t \t \t end_bwt_idx_thresholds[alphabet_index]: " << end_bwt_idx_thresholds[alphabet_index] << "\n";
         if (offset >= end_bwt_idx_thresholds[alphabet_index]) {
             if (movi_options->is_verbose())
                 std::cerr << "\t \t \t Jumping down with thresholds:\n";
