@@ -387,7 +387,7 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
     }
 
 
-    // If we are at a checkpoint, simply returnt the stored id
+    // If we are at a checkpoint, simply return the stored id
     if (idx % TALLY_CHECKPOINTS == 0) {
         id = tally_ids[char_index][tally_a].get();
         return tally_ids[char_index][tally_a].get();
@@ -434,7 +434,7 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
         // dbg << "from: " << idx << " to: " << next_check_point << "\n";
         for (uint64_t i = idx; i < next_check_point; i++) {
             // Only count the rows with the same character
-            if (rlbwt[i].get_c() == rlbwt[idx].get_c()) {
+            if (get_char(i) == get_char(idx)) {
                 rows_until_tally += get_n(i);
                 last_id = i;
             }
@@ -442,7 +442,7 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
 
         // The id stored at the checkpoint is actually the id for the current run
         // because there was no run with the same character between the current run and the next_check_point
-        if (last_id == idx and rlbwt[idx].get_c() != rlbwt[next_check_point].get_c()) {
+        if (last_id == idx and get_char(idx) != get_char(next_check_point)) {
             return id;
         }
         if (last_id == r) {
@@ -459,7 +459,7 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
         // So, we have to decrease the number of rows of the last run as they are not between the current run
         // and the run for which we know the id
         // Also, for other characters, offset should be stored based on that run (not the checkpoint run)
-        if (rlbwt[idx].get_c() != rlbwt[next_check_point].get_c()) {
+        if (get_char(idx) != get_char(next_check_point)) {
             rows_until_tally -= get_n(last_id);
             offset = get_offset(last_id);
         }
@@ -486,6 +486,7 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
             }
         }
     // }
+
     return id;
 #endif
 }
