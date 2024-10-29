@@ -977,18 +977,19 @@ void MoveStructure::build() {
 #if MODE == 5 or MODE == 7
         rlbwt[r_idx].init(len, offset);
 
-        // Only update the tally corresponding to the current run's character
-        uint16_t char_index = alphamap[bwt_string[all_p[r_idx]]];
-
-        // The first tally id might have been set to the wrong value since no run with that character was observed
-        // So, we fix the values once we the first run with that character
-        if (current_tally_ids[char_index] == r) {
-            uint64_t tally_ids_index = r_idx / TALLY_CHECKPOINTS;
-            for (int tid = 0; tid <= tally_ids_index; tid++) {
-                tally_ids[char_index][tid].set_value(pp_id);
+        if (r_idx != end_bwt_idx) {
+            // Only update the tally corresponding to the current run's character
+            uint16_t char_index = alphamap[bwt_string[all_p[r_idx]]];
+            // The first tally id might have been set to the wrong value since no run with that character was observed
+            // So, we fix the values once we the first run with that character
+            if (current_tally_ids[char_index] == r) {
+                uint64_t tally_ids_index = r_idx / TALLY_CHECKPOINTS;
+                for (int tid = 0; tid <= tally_ids_index; tid++) {
+                    tally_ids[char_index][tid].set_value(pp_id);
+                }
             }
+            current_tally_ids[char_index] = pp_id;
         }
-        current_tally_ids[char_index] = pp_id;
 
         if (r_idx % TALLY_CHECKPOINTS == 0) {
             uint64_t tally_ids_index = r_idx / TALLY_CHECKPOINTS;
