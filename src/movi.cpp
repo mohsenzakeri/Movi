@@ -33,6 +33,7 @@ std::string program() {
 #endif
 #if MODE == 5
     return "tally";
+#endif
 #if MODE == 6
     return "compact-thresholds";
 #endif

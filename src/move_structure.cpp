@@ -789,7 +789,7 @@ void MoveStructure::build() {
                 std::cerr << "original_r: " << original_r << "\t";
                 std::cerr << "bwt_curr_length: " << bwt_curr_length << "\r";
             }
-#if MODE == 3 or or MODE == 5 MODE == 6
+#if MODE == 3 or MODE == 5 or MODE == 6
             // The first row is already set and accounted for, so we skip
             if (movi_options->is_thresholds() and bwt_curr_length > 0 and bits[bwt_curr_length] == 1) {
                 // The bit was already set by one of the threshold values
