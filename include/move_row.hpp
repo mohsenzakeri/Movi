@@ -6,14 +6,14 @@
 #include <bitset>
 
 #if MODE == 0 or MODE == 1 or MODE == 4
-const uint8_t mask_thresholds1 = static_cast<uint8_t>(~(((1U << 2) - 1) << 0)); // 00000011
-const uint8_t mask_thresholds2 = static_cast<uint8_t>(~(((1U << 2) - 1) << 2)); // 00001100
-const uint8_t mask_thresholds3 = static_cast<uint8_t>(~(((1U << 2) - 1) << 4)); // 00110000
-const uint8_t mask_c = static_cast<uint8_t>(~(((1U << 2) - 1) << 6));           // 11000000
-const uint8_t mask_id =  static_cast<uint8_t>(~(((1U << 4) - 1) << 0));                  // 00001111
-const uint8_t mask_overflow_n = static_cast<uint8_t>(~(((1U << 1) - 1) << 4));           // 00010000
-const uint8_t mask_overflow_offset = static_cast<uint8_t>(~(((1U << 1) - 1) << 5));      // 00100000
-const uint8_t mask_overflow_thresholds = static_cast<uint8_t>(~(((1U << 1) - 1) << 6));  // 01000000
+const uint8_t mask_thresholds1 = static_cast<uint8_t>(~(((1U << 2) - 1) << 0));         // 00000011
+const uint8_t mask_thresholds2 = static_cast<uint8_t>(~(((1U << 2) - 1) << 2));         // 00001100
+const uint8_t mask_thresholds3 = static_cast<uint8_t>(~(((1U << 2) - 1) << 4));         // 00110000
+const uint8_t mask_c = static_cast<uint8_t>(~(((1U << 2) - 1) << 6));                   // 11000000
+const uint8_t mask_id =  static_cast<uint8_t>(~(((1U << 4) - 1) << 0));                 // 00001111
+const uint8_t mask_overflow_n = static_cast<uint8_t>(~(((1U << 1) - 1) << 4));          // 00010000
+const uint8_t mask_overflow_offset = static_cast<uint8_t>(~(((1U << 1) - 1) << 5));     // 00100000
+const uint8_t mask_overflow_thresholds = static_cast<uint8_t>(~(((1U << 1) - 1) << 6)); // 01000000
 #define MAX_RUN_LENGTH 65535 // 2^16 - 1
 #endif
 #if MODE == 3
