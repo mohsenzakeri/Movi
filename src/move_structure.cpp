@@ -407,10 +407,13 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
         next_check_point = r - 1;
     }
 
-    // TODO: At the time, we always look for the next proceeding checkpoint,
-    // Find the closest checkpoint which is either before or after the current row
-    // if (tally_b - idx <= idx - tally_a) {
+    int64_t prev_check_point = tally_a * tally_checkpoints;
 
+    // Find the closest checkpoint which is either before or after the current row
+    // For the first run at 0, the previous tallies are not stored, so we have to look below
+    // Since the above direction never helps, for now always set forward_direction to true
+    bool forward_direciton = true;
+    if (forward_direciton or (tally_a == 0 or tally_b - idx <= idx - tally_a)) {
         uint64_t rows_until_tally = 0;
 
         // The id for the run at the next_check_point
@@ -452,7 +455,7 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
         // We should know what will be the offset of the run head in the destination run (id)
         uint16_t offset = get_offset(next_check_point);
 
-        // At the checkpoint, on id is stored for each character
+        // At the checkpoint, one id is stored for each character
         // For the character of the checkpoint, the id of the checkpoint is stored
         // For other characters, the id of the last run before the checkpoint with that character is stored
         // So, we have to decrease the number of rows of the last run as they are not between the current run
@@ -484,7 +487,69 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
                 rows_until_tally = 0;
             }
         }
-    // }
+    } else {
+        uint64_t rows_until_tally = 0;
+
+        // The id for the run at the previous_check_point
+        id = tally_ids[char_index][tally_a].get();
+
+        uint64_t last_count = 0;
+        uint64_t last_id = r;
+
+        // Look for the rows between idx and the prev_check_point
+        // Count how many rows with the same character exists between
+        // the current run head and the prev run head for which we know the id
+        // dbg << "from: " << idx << " to: " << prev_check_point << "\n";
+        for (int64_t i = idx - 1; i >= prev_check_point; i--) {
+            // Only count the rows with the same character
+            if (get_char(i) == get_char(idx)) {
+                rows_until_tally += get_n(i);
+                last_id = i;
+            }
+        }
+
+        // The last checkpoint is storing an id for a run above, so we have to count the
+        // number of rows in that run too
+        // We have to first find that run with the same character
+        if (get_char(idx) != get_char(prev_check_point)) {
+            last_id = prev_check_point;
+            while (get_char(idx) != get_char(last_id)) {
+                last_id -= 1;
+            }
+            rows_until_tally += get_n(last_id);
+        }
+
+        if (last_id == r) {
+            std::cerr << idx << " " << tally_a << "\n";
+            std::cerr << "last_id should never be equal to r.\n";
+            exit(0);
+        }
+
+        uint16_t offset = get_offset(last_id);
+
+        // Sanity check, the offset in the destination run should be always smaller than the length of that run
+        if (offset >= get_n(id)) {
+            std::cout << "idx: " << idx << " last_id: " << last_id << " id: " << id << " prev_check_point: " << prev_check_point << "\n";
+            std::cout << "offset: " << offset << " n: " << get_n(id) << "\n" << dbg.str() << "\n";
+            exit(0);
+        }
+        if ((get_n(id) - offset - 1) >= rows_until_tally) {
+            return id;
+        } else {
+            rows_until_tally -= (get_n(id) - offset);
+            id += 1;
+        }
+
+        while (rows_until_tally != 0) {
+            if (rows_until_tally >= get_n(id)) {
+                rows_until_tally -= get_n(id);
+                id += 1;
+                my_prefetch_rr((void*)(&(rlbwt[0]) + id));
+            } else {
+                rows_until_tally = 0;
+            }
+        }
+    }
 
     return id;
 #endif
