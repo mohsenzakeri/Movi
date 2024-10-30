@@ -32,6 +32,7 @@ class MoviOptions {
         size_t get_strands() { return strands; }
         uint32_t get_k () { return k; }
         uint32_t get_ftab_k () { return ftab_k; }
+        uint32_t get_tally_checkpoints () { return tally_checkpoints; }
         std::string get_command() { return command; }
         std::string get_LF_type() { return LF_type; }
 
@@ -55,6 +56,7 @@ class MoviOptions {
         void set_kmer_count(bool kmer_count_) { kmer_count = kmer_count_; }
         void set_k(uint32_t k_) { k = k_; }
         void set_ftab_k(uint32_t ftab_k_) { ftab_k = ftab_k_; }
+        void set_tally_checkpoints(uint32_t tally_checkpoints_) { tally_checkpoints = tally_checkpoints_; }
         void set_multi_ftab(bool multi_ftab_) { multi_ftab = multi_ftab_; }
         void set_reverse(bool reverse_) { reverse = reverse_; }
         bool set_ignore_illegal_chars(int ilc_) {
@@ -95,6 +97,7 @@ class MoviOptions {
             std::cerr << "zml_query:\t" << zml_query << "\n";
             std::cerr << "count_query:\t" << count_query << "\n";
             std::cerr << "ftab_k:\t" << ftab_k << "\n";
+            std::cerr << "tally_checkpoints:\t" << tally_checkpoints << "\n";
             std::cerr << "reverse:\t" << reverse << "\n";
             std::cerr << "prefetch:\t" << prefetch << "\n";
             std::cerr << "strands:\t" << strands << "\n";
@@ -126,6 +129,7 @@ class MoviOptions {
         size_t strands = 16;
         uint32_t k = 31;
         uint32_t ftab_k = 0;
+        uint32_t tally_checkpoints = 20;
         bool multi_ftab = false;
         bool verify = false;
         bool write_stdout = false;

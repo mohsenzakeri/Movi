@@ -23,7 +23,6 @@
 
 #define END_CHARACTER 0
 #define THRBYTES 5 
-#define TALLY_CHECKPOINTS 20
 
 struct MoveInterval {
     MoveInterval() {}
@@ -245,6 +244,7 @@ class MoveStructure {
         // The move structure rows
         std::vector<MoveRow> rlbwt;
 #if MODE == 5 or MODE == 7
+        uint32_t tally_checkpoints;
         std::vector<std::vector<MoveTally>> tally_ids;
 #endif
         std::vector<std::vector<uint64_t>> id_blocks;

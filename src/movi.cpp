@@ -82,6 +82,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("preprocessed", "The BWT is preprocessed into heads and lens files")
         ("verify", "Verify if all the LF_move operations are correct")
         ("ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>())
+        ("tally", "Sample id at every tally runs", cxxopts::value<uint32_t>())
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails");
 
     auto queryOptions = options.add_options("query")
@@ -163,6 +164,11 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("thresholds")) {
                         movi_options.set_thresholds(true);
                     }
+#if MODE == 5 or MODE == 7
+                    if (result.count("tally") >= 1) {
+                        movi_options.set_tally_checkpoints(static_cast<uint32_t>(result["tally"].as<uint32_t>()));
+                    }
+#endif
 #if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6 or MODE == 7
                     // In these modes, thresholds are always stored
                     movi_options.set_thresholds(true);

@@ -377,8 +377,7 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
     }
 
     uint8_t char_index = rlbwt[idx].get_c();
-
-    uint64_t tally_a = idx / TALLY_CHECKPOINTS;
+    uint64_t tally_a = idx / tally_checkpoints;
 
     // The id of the last run is always stored at the last tally_id row
     if (idx == r - 1) {
@@ -388,7 +387,7 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
 
 
     // If we are at a checkpoint, simply return the stored id
-    if (idx % TALLY_CHECKPOINTS == 0) {
+    if (idx % tally_checkpoints == 0) {
         id = tally_ids[char_index][tally_a].get();
         return tally_ids[char_index][tally_a].get();
     }
@@ -402,9 +401,9 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
     //            " tsize: " << tally_ids[char_index].size() << "\n";
     // }
 
-    uint64_t next_check_point = tally_b * TALLY_CHECKPOINTS;
+    uint64_t next_check_point = tally_b * tally_checkpoints;
     // If we are at the end, just look at the last run
-    if (tally_b * TALLY_CHECKPOINTS >= r) {
+    if (tally_b * tally_checkpoints >= r) {
         next_check_point = r - 1;
     }
 
@@ -422,7 +421,7 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
 
         // TODO: Could prefetching help with performance?
         // Prelimninary results were not hopeful
-        // for (uint64_t i = 0; i < TALLY_CHECKPOINTS; i++) {
+        // for (uint64_t i = 0; i < tally_checkpoints; i++) {
         //     my_prefetch_rr((void*)(&(rlbwt[0]) + idx + i));
         //     my_prefetch_rr((void*)(&(rlbwt[0]) + id - i));
         // }
@@ -634,6 +633,9 @@ void MoveStructure::build_rlbwt() {
 }
 
 void MoveStructure::build() {
+#if MODE == 5 or MODE == 7
+    tally_checkpoints = movi_options->get_tally_checkpoints();
+#endif
     std::string bwt_filename = movi_options->get_ref_file() + std::string(".bwt");
     std::ifstream bwt_file(bwt_filename);
     uint64_t end_pos = 0;
@@ -915,7 +917,7 @@ void MoveStructure::build() {
 
 # if MODE == 5 or MODE == 7
     tally_ids.resize(alphabet.size());
-    uint64_t tally_ids_rows_count = r / TALLY_CHECKPOINTS + 2;
+    uint64_t tally_ids_rows_count = r / tally_checkpoints + 2;
     std::vector<uint64_t> current_tally_ids;
     for (uint32_t alphabet_ind = 0; alphabet_ind < alphabet.size(); alphabet_ind++) {
         current_tally_ids.push_back(r);
@@ -984,7 +986,7 @@ void MoveStructure::build() {
             // The first tally id might have been set to the wrong value since no run with that character was observed
             // So, we fix the values once we the first run with that character
             if (current_tally_ids[char_index] == r) {
-                uint64_t tally_ids_index = r_idx / TALLY_CHECKPOINTS;
+                uint64_t tally_ids_index = r_idx / tally_checkpoints;
                 for (int tid = 0; tid <= tally_ids_index; tid++) {
                     tally_ids[char_index][tid].set_value(pp_id);
                 }
@@ -992,8 +994,8 @@ void MoveStructure::build() {
             current_tally_ids[char_index] = pp_id;
         }
 
-        if (r_idx % TALLY_CHECKPOINTS == 0) {
-            uint64_t tally_ids_index = r_idx / TALLY_CHECKPOINTS;
+        if (r_idx % tally_checkpoints == 0) {
+            uint64_t tally_ids_index = r_idx / tally_checkpoints;
             // We reached a check_point, store the tally ids for all the characters
             for (uint32_t alphabet_ind = 0; alphabet_ind < alphabet.size(); alphabet_ind++) {
                 tally_ids[alphabet_ind][tally_ids_index].set_value(current_tally_ids[alphabet_ind]);
@@ -2852,13 +2854,13 @@ void MoveStructure::serialize() {
     fout.write(reinterpret_cast<char*>(&rlbwt[0]), rlbwt.size()*sizeof(rlbwt[0]));
 
 #if MODE == 5 or MODE == 7
+    fout.write(reinterpret_cast<char*>(&tally_checkpoints), sizeof(tally_checkpoints));
     uint64_t tally_ids_len = tally_ids[0].size();
     fout.write(reinterpret_cast<char*>(&tally_ids_len), sizeof(tally_ids_len)); 
     for (uint32_t i = 0; i < alphabet.size(); i++) {
         fout.write(reinterpret_cast<char*>(&tally_ids[i][0]), tally_ids[i].size()*sizeof(tally_ids[i][0]));
     }
 #endif
-
     uint64_t n_overflow_size = n_overflow.size();
     fout.write(reinterpret_cast<char*>(&n_overflow_size), sizeof(n_overflow_size));
     fout.write(reinterpret_cast<char*>(&n_overflow[0]), n_overflow.size()*sizeof(uint64_t));
@@ -2941,11 +2943,12 @@ void MoveStructure::deserialize() {
                     << "splitting " << splitting << "\n";
         exit(0);
     }
-
     rlbwt.resize(r);
     fin.read(reinterpret_cast<char*>(&rlbwt[0]), r*sizeof(MoveRow));
 
 #if MODE == 5 or MODE == 7
+    fin.read(reinterpret_cast<char*>(&tally_checkpoints), sizeof(tally_checkpoints));
+    std::cerr << "Tally mode with tally_checkpoints = " << tally_checkpoints << "\n";
     uint64_t tally_ids_len = 0;
     fin.read(reinterpret_cast<char*>(&tally_ids_len), sizeof(tally_ids_len));
     tally_ids.resize(alphabet.size());
