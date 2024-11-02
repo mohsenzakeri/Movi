@@ -648,6 +648,7 @@ void MoveStructure::build() {
             // if (current_char != 'A' and current_char != 'C' and current_char != 'G' and current_char != 'T')
             //    std::cerr << "\ncurrent_char:" << current_char << "---" << static_cast<uint64_t>(current_char) << "---\n";
             if (original_r % 100000 == 0) {
+                std::cerr << "r: " << r << "\t";
                 std::cerr << "original_r: " << original_r << "\t";
                 std::cerr << "bwt_curr_length: " << bwt_curr_length << "\r";
             }
@@ -680,10 +681,17 @@ void MoveStructure::build() {
 #if MODE == 0 or MODE == 1 or MODE == 4
             if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
                 original_r += 1;
-                if (!splitting) bits[bwt_curr_length] = 1;
-            }
-            if (splitting && bwt_curr_length > 0 && bits[bwt_curr_length]) {
                 r += 1;
+                run_length = 0;
+                bits[bwt_curr_length] = 1;
+            } else if (splitting && bwt_curr_length > 0 && bits[bwt_curr_length]) {
+                r += 1;
+                run_length = 0;
+            } else if (run_length == MAX_RUN_LENGTH) {
+                split_by_max_run += 1;
+                r += 1;
+                run_length = 0;
+                bits[bwt_curr_length] = 1;
             }
 #endif
             bwt_string[bwt_curr_length] = current_char;
@@ -692,10 +700,13 @@ void MoveStructure::build() {
 
             current_char = bwt_file.get();
         }
-#if MODE == 0 or MODE == 1 or MODE == 4
-        if (!splitting) r = original_r;
-#endif
+// #if MODE == 0 or MODE == 1 or MODE == 4
+// r is laready set to r' which might be larger than r because of the length splitting
+// so, we don't have to set it back to original_r anymore (the next line is commented)
+//         if (!splitting) r = original_r;
+// #endif
         length = bwt_curr_length; // bwt_string.length();
+        std::cerr << "\nsplit_by_max_run: " << split_by_max_run << "\n";
         std::cerr << "length: " << length << "\n";
 
         // Building the auxilary structures
@@ -739,7 +750,6 @@ void MoveStructure::build() {
         }
         std::cerr << "\nAll the Occ bit vectors are built.\n";
     }
-    std::cerr << "split_by_max_run: " << split_by_max_run << "\n";
 
     std::cerr << "length: " << length << "\n";
     std::cerr << "\n\nr: " << r << "\n";
@@ -834,6 +844,8 @@ void MoveStructure::build() {
 #endif
 #if MODE == 0 or MODE == 1 or MODE == 4
         if (len > MAX_RUN_LENGTH) {
+            std::cerr << "This shouldn't happen anymore, because the run splitting should be applied in every mode now.\n";
+            exit(0);
             n_overflow.push_back(len);
             if (n_overflow.size() - 1 >= MAX_RUN_LENGTH) {
                 std::cerr << "Warning: the number of runs with overflow n is beyond " << MAX_RUN_LENGTH<< "! " << n_overflow.size() - 1 << "\n";
@@ -843,6 +855,8 @@ void MoveStructure::build() {
             rlbwt[r_idx].set_overflow_n();
         }
         if (offset > MAX_RUN_LENGTH) {
+            std::cerr << "This shouldn't happen anymore, because the run splitting should be applied in every mode now.\n";
+            exit(0);
             offset_overflow.push_back(offset);
             if (offset_overflow.size() - 1 >= MAX_RUN_LENGTH) {
                 std::cerr << "Warning: the number of runs with overflow offset is beyond " << MAX_RUN_LENGTH<< "! " << offset_overflow.size() - 1 << "\n";
