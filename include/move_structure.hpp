@@ -20,6 +20,7 @@
 #include "movi_options.hpp"
 #include "move_row.hpp"
 #include "move_query.hpp"
+#include "sequitur.hpp"
 
 #define END_CHARACTER 0
 #define THRBYTES 5 
@@ -102,33 +103,6 @@ struct MoveBiInterval {
         output << mi_bi.match_len << ": " << mi_bi.fw_interval << "\t" << mi_bi.rc_interval;
         return output;
     }
-};
-
-struct KmerStatistics {
-    uint64_t total_kmers() {
-        return positive_kmers + look_ahead_skipped + initialize_skipped + backward_search_failed + backward_search_empty;
-    }
-    void print() {
-        std::cout << "\n- - - - - - - - - - - - - -- - - - - - - - - - - - - - - - - -\n";
-        std::cout << "total_kmers:\t\t" <<  total_kmers() << "\n";
-        std::cout << "positive_skipped:\t" << positive_skipped << "\t"
-                    << std::setprecision(4) << 100 * static_cast<double>(positive_skipped) / static_cast<double>(total_kmers()) << "%\n";
-        std::cout << "backward_search_failed:\t" << backward_search_failed << "\t"
-                    << std::setprecision(4) << 100 * static_cast<double>(backward_search_failed) / static_cast<double>(total_kmers()) << "%\n";
-        std::cout << "look_ahead_skipped:\t" << look_ahead_skipped << "\t"
-                    << std::setprecision(4) << 100 * static_cast<double>(look_ahead_skipped) / static_cast<double>(total_kmers()) << "%\n";
-        std::cout << "initialize_skipped:\t" << initialize_skipped << "\t"
-                    << std::setprecision(2) << 100 * static_cast<double>(initialize_skipped) / static_cast<double>(total_kmers()) << "%\n";
-        std::cout << "backward_search_empty:\t" << backward_search_empty << "\t"
-                    << std::setprecision(2) << 100 * static_cast<double>(backward_search_empty) / static_cast<double>(total_kmers()) << "%\n";
-        std::cout << "- - - - - - - - - - - - - -- - - - - - - - - - - - - - - - - -\n\n";
-    }
-    uint64_t positive_kmers = 0;
-    uint64_t positive_skipped = 0;
-    uint64_t look_ahead_skipped = 0;
-    uint64_t initialize_skipped = 0;
-    uint64_t backward_search_failed = 0;
-    uint64_t backward_search_empty = 0;
 };
 
 class MoveStructure {
