@@ -540,6 +540,8 @@ void MoveStructure::build() {
     original_r = 1;
     // TODO Use a size based on the input size
 
+    uint64_t split_by_max_run = 0;
+
     // A any mode with splitting (modes 1 and 4) does not work with the preprocessed build
     if (movi_options->is_preprocessed()) {
         length = static_cast<uint64_t>(end_pos);
@@ -573,6 +575,7 @@ void MoveStructure::build() {
 #if MODE == 3 or MODE == 6
             size_t remaining_length = len;
             while (remaining_length > MAX_RUN_LENGTH) {
+                split_by_max_run += 1;
                 lens.push_back(MAX_RUN_LENGTH);
                 heads.push_back(heads_[i]);
                 remaining_length -= MAX_RUN_LENGTH;
@@ -659,6 +662,8 @@ void MoveStructure::build() {
                     original_r += 1;
                 }
             } else if (run_length == MAX_RUN_LENGTH) {
+                if (!(bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]))
+                    split_by_max_run += 1;
                 r += 1;
                 run_length = 0;
                 bits[bwt_curr_length] = 1;
@@ -734,6 +739,8 @@ void MoveStructure::build() {
         }
         std::cerr << "\nAll the Occ bit vectors are built.\n";
     }
+    std::cerr << "split_by_max_run: " << split_by_max_run << "\n";
+
     std::cerr << "length: " << length << "\n";
     std::cerr << "\n\nr: " << r << "\n";
     std::cerr << "original_r: " << original_r << "\n";
