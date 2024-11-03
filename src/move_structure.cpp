@@ -756,7 +756,6 @@ void MoveStructure::build() {
         std::cerr << "\nAll the Occ bit vectors are built.\n";
     }
 
-
     std::cerr << "\nsplit_by_max_run: " << split_by_max_run << "\n";
     std::cerr << "split_by_thresholds: " << split_by_thresholds << "\n";
     std::cerr << "length: " << length << "\n";
