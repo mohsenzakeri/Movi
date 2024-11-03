@@ -541,6 +541,7 @@ void MoveStructure::build() {
     // TODO Use a size based on the input size
 
     uint64_t split_by_max_run = 0;
+    uint64_t split_by_thresholds = 0;
 
     // A any mode with splitting (modes 1 and 4) does not work with the preprocessed build
     if (movi_options->is_preprocessed()) {
@@ -654,40 +655,45 @@ void MoveStructure::build() {
             }
 #if MODE == 3 or MODE == 6
             // The first row is already set and accounted for, so we skip
-            if (movi_options->is_thresholds() and bwt_curr_length > 0 and bits[bwt_curr_length] == 1) {
-                // The bit was already set by one of the threshold values
-                // So, we have found a new run, and reest the run length
-                r += 1;
-                run_length = 0;
-                if (current_char != bwt_string[bwt_curr_length - 1]) {
-                    original_r += 1;
-                }
-            } else if (run_length == MAX_RUN_LENGTH) {
-                if (!(bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]))
-                    split_by_max_run += 1;
-                r += 1;
-                run_length = 0;
-                bits[bwt_curr_length] = 1;
-                if (current_char != bwt_string[bwt_curr_length - 1]) {
-                    original_r += 1;
-                }
-            } else if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
+            if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
+                // 1) A new run is detected if the next character is different
                 original_r += 1;
                 r += 1;
                 run_length = 0;
+                bits[bwt_curr_length] = 1;
+            } else if (movi_options->is_thresholds() and bwt_curr_length > 0 and bits[bwt_curr_length] == 1) {
+                // 2) A new run is detected if there is a non-trivial threshold at the next offset
+                // The bit was already set by one of the threshold values
+                // So, we have found a new run, and reset the run length
+                r += 1;
+                run_length = 0;
+                split_by_thresholds += 1;
+            } else if (run_length == MAX_RUN_LENGTH) {
+                // 3) A new run is detected if the length of the run is greater than MAX_RUN_LENGTH
+                r += 1;
+                run_length = 0;
+                split_by_max_run += 1;
                 bits[bwt_curr_length] = 1;
             }
 #endif
 #if MODE == 0 or MODE == 1 or MODE == 4
             if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
+                // 1) A new run is detected if the next character is different
                 original_r += 1;
                 r += 1;
                 run_length = 0;
+                if (splitting and !bits[bwt_curr_length]) {
+                    std::cerr << "There is something wrong with the splitting vector.\n";
+                    std::cerr << "The run boundaries should have been set to 1 since a new character was detected.\n";
+                    exit(0);
+                }
                 bits[bwt_curr_length] = 1;
             } else if (splitting && bwt_curr_length > 0 && bits[bwt_curr_length]) {
+                // 2) A new run is detected based on Nishimoto-Tabei splitting
                 r += 1;
                 run_length = 0;
             } else if (run_length == MAX_RUN_LENGTH) {
+                // 3) A new run is detected if the length of the run is greater than MAX_RUN_LENGTH
                 split_by_max_run += 1;
                 r += 1;
                 run_length = 0;
@@ -706,8 +712,7 @@ void MoveStructure::build() {
 //         if (!splitting) r = original_r;
 // #endif
         length = bwt_curr_length; // bwt_string.length();
-        std::cerr << "\nsplit_by_max_run: " << split_by_max_run << "\n";
-        std::cerr << "length: " << length << "\n";
+        std::cerr << "\n";
 
         // Building the auxilary structures
         uint64_t alphabet_index = 0;
@@ -751,8 +756,11 @@ void MoveStructure::build() {
         std::cerr << "\nAll the Occ bit vectors are built.\n";
     }
 
+
+    std::cerr << "\nsplit_by_max_run: " << split_by_max_run << "\n";
+    std::cerr << "split_by_thresholds: " << split_by_thresholds << "\n";
     std::cerr << "length: " << length << "\n";
-    std::cerr << "\n\nr: " << r << "\n";
+    std::cerr << "r: " << r << "\n";
     std::cerr << "original_r: " << original_r << "\n";
     rlbwt.resize(r);
 
