@@ -156,15 +156,15 @@ void MoveRow::set_offset(uint16_t offset_) {
 // 00000000 00000000 00000000 11000011 11000011 11000011 00000000 00000000
 // >> 16
 // 00000000 00000000 00000000 00000000 00000000 11000000 11000011 11000011
-// << 11
-// 00000000 00000000 00000000 00000110 00000110 00011110 00011000 00000000
-//                                                       11111000 00000000
+// << 10
+// 00000000 00000000 00000000 00000110 00000011 00001111 00001100 00000000
+//                                                       11111100 00000000
 
 // 00000000 00000000 00000000 11000011 11000011 11000011 00000000 00000000
-// >> 21
-// 00000000 00000000 00000000 00000000 00000000 00000110 00011110 00011110
+// >> 22
+// 00000000 00000000 00000000 00000000 00000000 00000011 00001111 00001111
 // << 14
-// 00000000 00000000 00000000 00000001 10000111 10000111 10000000 00000000
+// 00000000 00000000 00000000 00000000 11000011 11000011 110000000 0000000
 //                                                       11000000 00000000
 void MoveRow::set_id(uint64_t id_) {
     id = id_; // Store the least significant bits in the didicated id variable
@@ -177,10 +177,9 @@ void MoveRow::set_id(uint64_t id_) {
 
     n = n & mask_id1;
     n = n | ((id_ >> 16) << SHIFT_ID1);
-#if MODE == 3
     offset = offset & mask_id2;
+    //Note: SHIFT_ID1_RES = 16 + ID_SIG_BITS1
     offset = offset | ((id_ >> (16 + ID_SIG_BITS1)) << SHIFT_ID2);
-#endif
 }
 
 void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
@@ -199,15 +198,15 @@ void MoveRow::set_threshold(uint16_t i, uint16_t value) {
     switch (i) {
         case 0:
             offset = offset & mask_thresholds1;
-            offset = offset | (value << 13);
+            offset = offset | (value << 12);
             break;
         case 1:
             offset = offset & mask_thresholds2;
-            offset = offset | (value << 14);
+            offset = offset | (value << 13);
             break;
         case 2:
             offset = offset & mask_thresholds3;
-            offset = offset | (value << 15);
+            offset = offset | (value << 14);
             break;
         default:
             std::cerr << "Only three thresholds may be stored: " << i << "\n";

@@ -18,43 +18,48 @@ const uint8_t mask_overflow_thresholds = static_cast<uint8_t>(~(((1U << 1) - 1) 
 #endif
 
 #if MODE == 3
-#define SHIFT_ID1 11
-#define SHIFT_ID2 14
-#define SHIFT_N 0
-#define SHIFT_OFFSET 0
-#define SHIFT_C 11
-#define ID_SIG_BITS1 5
-#define ID_SIG_BITS2 2
-#define LENGTH_BITS 11
-#define C_BITS 3
-const uint16_t mask_id1 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS1) - 1) << SHIFT_ID1));        // 11111000 00000000
-const uint16_t mask_id2 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS2) - 1) << SHIFT_ID2));        // 11000000 00000000
-const uint16_t mask_offset =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_OFFSET));  // 00000111 11111111
-const uint16_t mask_n =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_N));            // 00000111 11111111
-const uint16_t mask_c =  static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C));                 // 00111000 00000000
-#define MAX_RUN_LENGTH  2047    // 2^11 - 1
-#define BLOCK_SIZE      4194304 // 2^22
-#define MAX_BLOCKED_ID  8388607 // 2^23 - 1
-#endif
-
-#if MODE == 6
 #define SHIFT_ID1 10
+#define SHIFT_ID2 14
+#define SHIFT_ID1_RES 22
 #define SHIFT_N 0
 #define SHIFT_OFFSET 0
 #define SHIFT_C 10
 #define ID_SIG_BITS1 6
+#define ID_SIG_BITS2 2
 #define LENGTH_BITS 10
 #define C_BITS 3
 const uint16_t mask_id1 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS1) - 1) << SHIFT_ID1));        // 11111100 00000000
+const uint16_t mask_id2 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS2) - 1) << SHIFT_ID2));        // 11000000 00000000
 const uint16_t mask_offset =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_OFFSET));  // 00000011 11111111
 const uint16_t mask_n =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_N));            // 00000011 11111111
 const uint16_t mask_c =  static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C));                 // 00011100 00000000
-const uint16_t mask_thresholds1 =  static_cast<uint16_t>(~(((1U << 1) - 1) << 13));                 // 00100000 00000000
-const uint16_t mask_thresholds2 =  static_cast<uint16_t>(~(((1U << 1) - 1) << 14));                 // 01000000 00000000
-const uint16_t mask_thresholds3 = static_cast<uint16_t>(~(((1U << 1) - 1) << 15));                  // 10000000 00000000
-#define MAX_RUN_LENGTH  1023    // 2^10 - 1
-#define BLOCK_SIZE      2097152 // 2^21
-#define MAX_BLOCKED_ID  4194303 // 2^22 - 1
+#define MAX_RUN_LENGTH  1023     // 2^10 - 1
+#define BLOCK_SIZE      4194304  // 2^22
+#define MAX_BLOCKED_ID  16777215 // 2^24 - 1
+#endif
+
+#if MODE == 6
+#define SHIFT_ID1 9
+#define SHIFT_ID2 15
+#define SHIFT_ID1_RES 23
+#define SHIFT_OFFSET 0
+#define SHIFT_N 0
+#define SHIFT_C 9
+#define ID_SIG_BITS1 7
+#define ID_SIG_BITS2 1
+#define LENGTH_BITS 9
+#define C_BITS 3
+const uint16_t mask_id1 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS1) - 1) << SHIFT_ID1));        // 11111110 00000000
+const uint16_t mask_id2 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS2) - 1) << SHIFT_ID2));        // 10000000 00000000
+const uint16_t mask_offset =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_OFFSET));  // 00000001 11111111
+const uint16_t mask_n =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_N));            // 00000001 11111111
+const uint16_t mask_c =  static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C));                 // 00001110 00000000
+const uint16_t mask_thresholds1 =  static_cast<uint16_t>(~(((1U << 1) - 1) << 12));                 // 00010000 00000000
+const uint16_t mask_thresholds2 =  static_cast<uint16_t>(~(((1U << 1) - 1) << 13));                 // 00100000 00000000
+const uint16_t mask_thresholds3 = static_cast<uint16_t>(~(((1U << 1) - 1) << 14));                  // 01000000 00000000
+#define MAX_RUN_LENGTH  511      // 2^9 - 1
+#define BLOCK_SIZE      4194304  // 2^22
+#define MAX_BLOCKED_ID  16777215 // 2^24 - 1
 #endif
 
 #if MODE == 5
@@ -294,13 +299,11 @@ inline uint64_t MoveRow::get_id() const{
     if (n >= (1U << SHIFT_ID1) ) {
         uint64_t res = static_cast<uint64_t>(extract_value(n, mask_id1, SHIFT_ID1));
         res = res << 16;
-#if MODE == 3
         if (offset >= (1U << SHIFT_ID2) ) {
             uint64_t res2 = static_cast<uint64_t>(extract_value(offset, mask_id2, SHIFT_ID2));
-            res2 = res2 << 21;
+            res2 = res2 << SHIFT_ID1_RES;
             res = res | res2;
         }
-#endif
         uint64_t c = static_cast<uint64_t>(id);
         c = c | res;
         return c;
@@ -328,11 +331,11 @@ inline char MoveRow::get_c() const{
 inline uint16_t MoveRow::get_threshold(uint16_t i) const {
     switch (i) {
         case 0:
-            return static_cast<uint16_t>((offset & (~mask_thresholds1)) >> 13);
+            return static_cast<uint16_t>((offset & (~mask_thresholds1)) >> 12);
         case 1:
-            return static_cast<uint16_t>((offset & (~mask_thresholds2)) >> 14);
+            return static_cast<uint16_t>((offset & (~mask_thresholds2)) >> 13);
         case 2:
-            return static_cast<uint16_t>((offset & (~mask_thresholds3)) >> 15);
+            return static_cast<uint16_t>((offset & (~mask_thresholds3)) >> 14);
         default:
             std::cerr << "Only three thresholds exist per run: " << i << "\n";
             exit(0);
