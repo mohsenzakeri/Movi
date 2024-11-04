@@ -364,7 +364,7 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
 #if MODE == 3 or MODE == 6
     if (idx != end_bwt_idx) {
         uint64_t block_number = idx / BLOCK_SIZE;
-        return rlbwt[idx].get_id() + id_blocks[rlbwt[idx].get_c()][block_number] + first_runs[rlbwt[idx].get_c() + 1];
+        return rlbwt[idx].get_id() + static_cast<uint64_t>(id_blocks[rlbwt[idx].get_c()][block_number]) + first_runs[rlbwt[idx].get_c() + 1];
     }
     else
         return rlbwt[idx].get_id();
@@ -1193,11 +1193,11 @@ void MoveStructure::build() {
 #if MODE == 3 or MODE == 6
     uint64_t max_raw_id = 0;
     uint64_t max_blocked_id = 0;
-    std::vector<uint64_t> block_start_id;
+    std::vector<uint32_t> block_start_id;
     block_start_id.resize(alphabet.size(), 0);
     uint64_t block_count = 0;
     id_blocks.resize(alphabet.size());
-    uint64_t max_diff = 0;
+    uint32_t max_diff = 0;
     for (uint64_t i = 0; i < rlbwt.size(); i++) {
         if (i % 10000 == 0)
             std::cerr << "i: " << i << "\r";
@@ -1230,7 +1230,7 @@ void MoveStructure::build() {
             // The first entry of the first _runs stores the ids for the global end run, so +1 is required
             uint64_t adjusted_id = id - first_runs[rlbwt[i].get_c() + 1];
             // Calcuated the distance of the ajustedt_id from the check point of that character
-            uint64_t blocked_id = adjusted_id - id_blocks[rlbwt[i].get_c()][block_number];
+            uint64_t blocked_id = adjusted_id - static_cast<uint64_t>(id_blocks[rlbwt[i].get_c()][block_number]);
             if (blocked_id > MAX_BLOCKED_ID) {
                 std::cerr << "The number of bits in the runs are not enough for storing the blocked_id.\n";
                 std::cerr << "adjusted_id: " << adjusted_id << " id: " << id << " first_runs[rlbwt[i].get_c() + 1]: " << first_runs[rlbwt[i].get_c() + 1] << "\n";
@@ -1250,7 +1250,12 @@ void MoveStructure::build() {
             max_blocked_id = std::max(blocked_id, max_blocked_id);
 
             // always holds the last id seen for each character
-            block_start_id[rlbwt[i].get_c()] = id - first_runs[rlbwt[i].get_c() + 1];
+            block_start_id[rlbwt[i].get_c()] = static_cast<uint32_t>(id - first_runs[rlbwt[i].get_c() + 1]);
+            if (id - first_runs[rlbwt[i].get_c() + 1] > std::numeric_limits<uint32_t>::max()) {
+                std::cerr << "id - first_runs[rlbwt[i].get_c() + 1]: " << id - first_runs[rlbwt[i].get_c() + 1] << "\n";
+                std::cerr << "The block_start_id does not fit in uint32_t\n";
+                exit(0);
+            }
         }
     }
     std::cerr << "max raw id: " << max_raw_id << "\t max blocked id: " << max_blocked_id << "\n";
@@ -2728,7 +2733,7 @@ void MoveStructure::deserialize() {
         id_blocks.resize(alphabet.size());
         for (uint64_t i = 0; i < alphabet.size(); i++) {
             id_blocks[i].resize(id_blocks_size);
-            fin.read(reinterpret_cast<char*>(&id_blocks[i][0]), id_blocks_size*sizeof(uint64_t));
+            fin.read(reinterpret_cast<char*>(&id_blocks[i][0]), id_blocks_size*sizeof(uint32_t));
         }
     }
 #endif

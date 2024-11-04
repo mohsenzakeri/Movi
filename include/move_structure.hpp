@@ -221,7 +221,7 @@ class MoveStructure {
         uint32_t tally_checkpoints;
         std::vector<std::vector<MoveTally>> tally_ids;
 #endif
-        std::vector<std::vector<uint64_t>> id_blocks;
+        std::vector<std::vector<uint32_t>> id_blocks;
 
         // auxilary datastructures for the length, offset and thresholds overflow
         std::vector<uint64_t> n_overflow;
