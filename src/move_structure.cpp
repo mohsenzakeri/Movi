@@ -2880,6 +2880,9 @@ void MoveStructure::print_stats() {
         std::cerr << "n/original_r: " << length/original_r << "\n";
     }
     std::cerr << "Size of the rlbwt table: " << sizeof(rlbwt[0]) * rlbwt.size() * (0.000000001) << "\n";
+#if MODE == 3 or MODE == 6
+    std::cerr << "Size of the block table: " << sizeof(id_blocks[0][0]) * id_blocks[0].size() * id_blocks.size() * (0.000000001) << "\n";
+#endif
 #if MODE == 5 or MODE == 7
     std::cerr << "Size of the tally table: " << sizeof(tally_ids[0][0]) * tally_ids[0].size() * tally_ids.size() * (0.000000001) << "\n";
 #endif
