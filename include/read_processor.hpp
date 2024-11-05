@@ -18,6 +18,18 @@ struct Strand {
     MoveInterval range;
     MoveInterval range_prev;
 
+#if MODE == 5 or MODE == 7
+    bool tally_state = false;
+    uint64_t tally_b;
+    uint64_t rows_until_tally;
+    uint64_t next_check_point;
+    uint64_t last_id;
+    uint64_t run_id;
+    bool id_found;
+    uint8_t char_index;
+    uint16_t tally_offset;
+#endif
+
     bool kmer_extension;
     bool finished;
     int32_t pos_on_r;
@@ -58,8 +70,18 @@ class ReadProcessor {
         void next_kmer_search(Strand& process);
         void next_kmer_search_negative_skip_all_heuristic(Strand& process);
         bool verify_kmer(Strand& process, uint64_t k);
+
+#if MODE == 5 or MODE == 7
+    void process_char_tally(Strand& process);
+    void find_next_id(Strand& process);
+    void count_rows_untill_tally(Strand& process);
+    void find_tally_b(Strand& process);
+    void process_latency_hiding_tally();
+#endif
     private:
         MoveStructure& mv;
+        int cache_line_size;
+        int prefetch_step;
         gzFile fp;
         kseq_t *seq;
         int l;

@@ -141,7 +141,8 @@ class MoveStructure {
         std::string reconstruct_lf();
 
         uint64_t LF(uint64_t row_number);
-        uint16_t LF_move(uint64_t& pointer, uint64_t& i);
+        // The 3rd argument of LF_move is used in the latency_hiding_tally mode
+        uint16_t LF_move(uint64_t& pointer, uint64_t& i, uint64_t id = std::numeric_limits<uint64_t>::max());
         uint64_t fast_forward(uint64_t& offset, uint64_t index, uint64_t x);
 
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);

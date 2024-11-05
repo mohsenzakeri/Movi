@@ -298,7 +298,12 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
     if (!movi_options.no_prefetch()) {
         ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
         if (movi_options.is_pml() or movi_options.is_zml() or movi_options.is_count()) {
+#if MODE == 5 or MODE == 7
+            rp.process_latency_hiding_tally();
+#endif
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 3 or MODE == 6
             rp.process_latency_hiding();
+#endif
         } else if (movi_options.is_kmer()) {
             rp.kmer_search_latency_hiding(movi_options.get_k());
         }

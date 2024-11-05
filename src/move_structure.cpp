@@ -208,13 +208,13 @@ uint32_t MoveStructure::compute_index(char row_char, char lookup_char) {
         return alpha_index+1;*/
 }
 
-uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
+uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i, uint64_t id) {
     /* if (movi_options->is_verbose()) {
         std::cerr << "\t in LF:\n";
         std::cerr << "\t \t i: " << i << " offset: " << offset << "\n";
     } */
     auto& row = rlbwt[i];
-    auto idx = get_id(i);
+    auto idx = (id == std::numeric_limits<uint64_t>::max()) ? get_id(i) : id;
     if (idx >= r) {
         std::cerr << "This should not happen.\n";
         std::cerr << "idx:::" << idx << " i:" << i << "\n";
