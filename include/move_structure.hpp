@@ -167,6 +167,7 @@ class MoveStructure {
 
         void verify_lfs();
         void print_stats();
+        void print_ids();
         void analyze_rows();
         bool check_alphabet(char& c);
 
