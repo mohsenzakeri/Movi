@@ -2940,7 +2940,7 @@ void MoveStructure::print_ids() {
             uint64_t adjusted_id = id - first_runs[rlbwt[i].get_c() + 1];
 
             int char_index = static_cast<int>(rlbwt[i].get_c());
-            *id_files[char_index] << adjusted_id << "\n";
+            *id_files[char_index] << adjusted_id << "\t" << i << "\n";
 
             ids_all << adjusted_id << "\n";
         }
