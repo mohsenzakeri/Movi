@@ -2877,12 +2877,20 @@ void MoveStructure::analyze_rows() {
 }
 
 void MoveStructure::print_stats() {
-    std::cerr << "n: " << length << "\n";
-    std::cerr << "r: " << r << "\n";
-    std::cerr << "n/r: " << length/r << "\n";
+
+    std::cerr << "n:\t" << length << "\n";
+    std::cerr << "r:\t" << r << "\n";
+    std::cerr << "n/r:\t" << static_cast<double>(length)/r << "\n";
+    std::cerr << "original_r:\t" << original_r << "\n";
+    std::cerr << "end_bwt_idx:\t" << end_bwt_idx << "\n";
+
+    for (int i = 0; i < first_runs.size(); i++) {
+        std::cerr << alphabet[i] << "\t" << i << "\t" << first_runs[i] << "\t" << last_runs[i] << "\n";
+    }
+
     if (original_r != 0) {
         std::cerr << "original_r: " << original_r << "\n";
-        std::cerr << "n/original_r: " << length/original_r << "\n";
+        std::cerr << "n/original_r: " << static_cast<double>(length)/original_r << "\n";
     }
     std::cerr << "Size of the rlbwt table: " << sizeof(rlbwt[0]) * rlbwt.size() * (0.000000001) << "\n";
 #if MODE == 3 or MODE == 6
@@ -2891,4 +2899,37 @@ void MoveStructure::print_stats() {
 #if MODE == 5 or MODE == 7
     std::cerr << "Size of the tally table: " << sizeof(tally_ids[0][0]) * tally_ids[0].size() * tally_ids.size() * (0.000000001) << "\n";
 #endif
+
+    if (movi_options->is_output_ids()) {
+        print_ids();
+    }
+}
+
+void MoveStructure::print_ids() {
+
+    std::cerr << "\nThe ids are being written out..\n";
+
+    std::string base_name = movi_options->get_index_dir() + "/ids";
+    std::vector<std::unique_ptr<std::ofstream>> id_files;
+
+    for (int i = 0; i < alphabet.size(); i++) {
+        std::string ext(1, alphabet[i]);
+        id_files.push_back(std::make_unique<std::ofstream>(base_name + "." + ext));
+    }
+
+    for (uint64_t i = 0; i < r; i++) {
+
+        if (i%100000 == 0) std::cerr << i << "\r";
+
+        if (i != end_bwt_idx) {
+
+            uint64_t id = get_id(i);
+            uint64_t adjusted_id = id - first_runs[rlbwt[i].get_c() + 1];
+
+            int char_index = static_cast<int>(rlbwt[i].get_c());
+            *id_files[char_index] << adjusted_id << "\n";
+        }
+    }
+
+    std::cerr << "\nDone.\n";
 }
