@@ -2923,6 +2923,8 @@ void MoveStructure::print_ids() {
     std::string base_name = movi_options->get_index_dir() + "/ids";
     std::vector<std::unique_ptr<std::ofstream>> id_files;
 
+    std::ofstream ids_all(base_name + ".all");
+
     for (int i = 0; i < alphabet.size(); i++) {
         std::string ext(1, alphabet[i]);
         id_files.push_back(std::make_unique<std::ofstream>(base_name + "." + ext));
@@ -2939,7 +2941,14 @@ void MoveStructure::print_ids() {
 
             int char_index = static_cast<int>(rlbwt[i].get_c());
             *id_files[char_index] << adjusted_id << "\n";
+
+            ids_all << adjusted_id << "\n";
         }
+    }
+
+    ids_all.close();
+    for (auto& id_file : id_files) {
+        id_file->close();
     }
 
     std::cerr << "\nDone.\n";
