@@ -2282,6 +2282,8 @@ void MoveStructure::serialize() {
     fout.write(reinterpret_cast<char*>(&first_runs[0]), first_runs.size()*sizeof(first_runs[0]));
     fout.write(reinterpret_cast<char*>(&first_offsets[0]), first_offsets.size()*sizeof(first_offsets[0]));
 
+    fout.write(reinterpret_cast<char*>(&original_r), sizeof(original_r));
+
     fout.close();
 }
 
@@ -2368,6 +2370,14 @@ void MoveStructure::deserialize() {
     fin.read(reinterpret_cast<char*>(&first_runs[0]), last_runs_size*sizeof(uint64_t));
     first_offsets.resize(last_runs_size);
     fin.read(reinterpret_cast<char*>(&first_offsets[0]), last_runs_size*sizeof(uint64_t));
+
+    // To be able to load the indexes that haven't stored original_r
+    if (fin.eof()) {
+        std::cerr << "original_r was not stored in the index!\n";
+    } else {
+        fin.read(reinterpret_cast<char*>(&original_r), sizeof(original_r));
+    }
+
     fin.close();
 }
 
@@ -2410,6 +2420,7 @@ void MoveStructure::verify_lfs() {
     if (not_matched == 0) {
         std::cerr << "All the LF_move operations are correct.\n";
     } else {
+        original_r = 0;
         std::cerr << "There are " << not_matched << " LF_move operations that failed to match the true lf results.\n";
     }
 }
