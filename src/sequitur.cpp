@@ -335,7 +335,7 @@ void MoveStructure::query_all_kmers(MoveQuery& mq, bool kmer_counts) {
         } else {
             if (kmer_counts) {
                 if (pos_on_r <= 2*k) {
-                    kmer_stats.positive_kmers += query_kmers_from(mq, pos_on_r);
+                    kmer_stats.positive_kmers += query_kmers_from(mq, pos_on_r, true);
                     // kmer_stats.positive_kmers += query_kmers_from_bidirectional(mq, pos_on_r);
                 } else {
                     kmer_stats.positive_kmers += query_kmers_from_bidirectional(mq, pos_on_r);
