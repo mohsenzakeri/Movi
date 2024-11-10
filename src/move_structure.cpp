@@ -1769,12 +1769,22 @@ bool MoveStructure::extend_bidirectional(char c_, MoveInterval& fw_interval, Mov
 
 bool MoveStructure::extend_left(char c, MoveBiInterval& bi_interval) {
     char c_ = c;
-    return extend_bidirectional(c_, bi_interval.fw_interval, bi_interval.rc_interval);
+    if (extend_bidirectional(c_, bi_interval.fw_interval, bi_interval.rc_interval)) {
+        bi_interval.match_len += 1;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool MoveStructure::extend_right(char c, MoveBiInterval& bi_interval) {
     char c_ = complement(c);
-    return extend_bidirectional(c_, bi_interval.rc_interval, bi_interval.fw_interval);
+    if (extend_bidirectional(c_, bi_interval.rc_interval, bi_interval.fw_interval)) {
+        bi_interval.match_len += 1;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 MoveBiInterval MoveStructure::backward_search_bidirectional(std::string& R, int32_t& pos_on_r, MoveBiInterval interval, int32_t max_length) {
