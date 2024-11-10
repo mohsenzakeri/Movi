@@ -21,4 +21,6 @@ std::string number_to_kmer(size_t j, size_t m, std::vector<unsigned char>& alpha
 
 uint64_t kmer_to_number(size_t k, std::string& r, int32_t pos, std::vector<uint64_t>& alphamap, bool rc = false) ;
 
+uint8_t F_char(std::vector<uint64_t>& first_runs, uint64_t run);
+
 #endif
