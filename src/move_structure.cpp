@@ -2625,7 +2625,6 @@ void MoveStructure::serialize() {
     fout.write(reinterpret_cast<char*>(&first_runs[0]), first_runs.size()*sizeof(first_runs[0]));
     fout.write(reinterpret_cast<char*>(&first_offsets[0]), first_offsets.size()*sizeof(first_offsets[0]));
 
-<<<<<<< HEAD
 #if MODE == 3 or MODE == 6
     if (id_blocks.size() > 0) {
         uint64_t id_blocks_size = id_blocks[0].size();
@@ -2638,9 +2637,7 @@ void MoveStructure::serialize() {
         fout.write(reinterpret_cast<char*>(&id_blocks_size), sizeof(id_blocks_size));
     }
 #endif
-=======
     fout.write(reinterpret_cast<char*>(&original_r), sizeof(original_r));
->>>>>>> 12bfa00... write the original_r value into the index
 
     fout.close();
 }
