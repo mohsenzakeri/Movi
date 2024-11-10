@@ -55,3 +55,13 @@ uint64_t kmer_to_number(size_t k, std::string& r, int32_t pos, std::vector<uint6
     }
     return res;
 }
+
+uint8_t F_char(std::vector<uint64_t>& first_runs, uint64_t run) {
+    for (uint8_t i = first_runs.size() - 1; i > 0; i--) {
+        if (run >= first_runs[i]) {
+            return i - 1;
+        }
+    }
+    std::cerr << "Undefined behaviour.\n";
+    exit(0);
+}
