@@ -128,6 +128,7 @@ class __attribute__((packed)) MoveRow {
 #endif
 #if MODE == 3 or MODE == 6
         MoveRow () {n = 0; id = 0; offset = 0;}
+        void print_all();
 #endif
 #if MODE == 0 or MODE == 1 or MODE == 3 or MODE == 4 or MODE == 6
         MoveRow(uint16_t n_, uint16_t offset_, uint64_t id_);
@@ -290,6 +291,12 @@ inline char MoveRow::get_c() const{
 #endif
 
 #if MODE == 3 or MODE == 6
+inline void MoveRow::print_all() {
+    std::cerr << "id:\t" << std::bitset<16>(id) <<
+                 "\nn:\t" << std::bitset<16>(n) <<
+                 "\noffset:\t" << std::bitset<16>(offset) << "\n";
+}
+
 inline uint16_t extract_value(uint16_t source, uint16_t mask, uint16_t shift) {
     uint16_t res = (source & (~mask)) >> shift;
     return res;
