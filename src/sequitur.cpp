@@ -135,7 +135,7 @@ uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& p
     if (kmer_right == pos_on_r_saved) {
         // The kmer at pos_on_r was found by k bidirectional backward search
         kmers_found += 1; // a += 1;
-
+        kmer_stats.total_counts += bi_interval.fw_interval.count(rlbwt);
         if (pos_on_r != pos_on_r_saved) {
             // pos_on_r should be equal to pos_on_r_saved at this point
             std::cerr << "pos_on_r: " << pos_on_r << "\tpos_on_r_saved" << pos_on_r_saved << "\n";
@@ -198,6 +198,7 @@ uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& p
             if (partial_match_interval.match_len == k) {
                 // The kmer was found by extending the partial match to left
                 kmers_found += 1;
+                kmer_stats.total_counts += partial_match_interval.fw_interval.count(rlbwt);
                 partial_found += 1;
 
                 kmer_stats.positive_skipped += 1; // c += 1;

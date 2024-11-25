@@ -403,8 +403,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             }
             std::cerr << "The count file is closed.\n";
         } else if (movi_options.is_kmer()) {
-            std::cout << "\n\nNumber of kmers found in the index: " << mv_.kmer_stats.positive_kmers << "\n\n\n";
-            mv_.kmer_stats.print();
+            mv_.kmer_stats.print(movi_options.is_kmer_count());
         }
 
         if (movi_options.is_logs()) {
