@@ -28,6 +28,7 @@ struct Strand {
     bool id_found;
     uint8_t char_index;
     uint16_t tally_offset;
+    int find_next_id_attempt;
 #endif
 
     bool kmer_extension;

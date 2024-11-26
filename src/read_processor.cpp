@@ -96,6 +96,7 @@ void ReadProcessor::reset_process(Strand& process) {
         process.last_id = 0;
         process.char_index = 0;
         process.tally_offset = 0;
+        process.find_next_id_attempt = 0;
 #endif
     }
 }
@@ -177,6 +178,11 @@ void ReadProcessor::process_char_tally(Strand& process) {
             // First find the id if not found already
             if (process.id_found == false) {
                 find_next_id(process);
+                if (process.id_found == false) {
+                    return;
+                } else {
+                    process.find_next_id_attempt = 0;
+                }
             }
 
             // LF step
@@ -255,21 +261,32 @@ void ReadProcessor::find_next_id(Strand& process) {
         exit(0);
     }
 
-    if (process.tally_offset >= process.rows_until_tally) {
-        process.id_found = true;
-        return;
-    } else {
-        process.rows_until_tally -= (process.tally_offset + 1);
-        process.run_id -= 1;
+    if (process.find_next_id_attempt == 0) {
+        if (process.tally_offset >= process.rows_until_tally) {
+            process.id_found = true;
+            return;
+        } else {
+            process.rows_until_tally -= (process.tally_offset + 1);
+            process.run_id -= 1;
+            process.tally_offset = 0;
+        }
     }
 
-    while (process.rows_until_tally != 0) {
+    int rows_visited = 0;
+    while (process.rows_until_tally != 0 and rows_visited < mv.tally_checkpoints) {
         if (process.rows_until_tally >= mv.get_n(process.run_id)) {
             process.rows_until_tally -= mv.get_n(process.run_id);
             process.run_id -= 1;
+            rows_visited += 1;
         } else {
             process.rows_until_tally = 0;
         }
+    }
+    // The id is not found yet, more prefetching is needed.
+    if (process.rows_until_tally != 0) {
+        process.find_next_id_attempt += 1;
+        process.id_found = false;
+        return;
     }
 
     process.id_found = true;
@@ -571,12 +588,13 @@ void ReadProcessor::process_latency_hiding_tally() {
                         // prefetch tally
                         my_prefetch_r((void*)(&(mv.tally_ids[processes[i].char_index][0]) + processes[i].tally_b));
                         // prefetch following rows until the checkpoint
-                        for (uint64_t tally = processes[i].idx; tally <= processes[i].next_check_point; tally += prefetch_step) // Every prefetch loads 64 bytes which is about 20 move rows
+                        // Every prefetch loads 64 bytes which is about 20 move rows
+                        for (uint64_t tally = processes[i].idx; tally <= processes[i].next_check_point; tally += prefetch_step)
                             my_prefetch_r((void*)(&(mv.rlbwt[0]) + tally));
                     } else {
                         // prefetch tally.id
                         for (uint64_t tally = 0; tally <= mv.tally_checkpoints; tally += prefetch_step)
-                            my_prefetch_r((void*)(&(mv.rlbwt[0]) + processes[i].run_id + tally));
+                            my_prefetch_r((void*)(&(mv.rlbwt[0]) + processes[i].run_id - tally));
                     }
                 }
             }
