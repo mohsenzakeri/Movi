@@ -20,6 +20,7 @@
 #include "movi_options.hpp"
 #include "move_row.hpp"
 #include "move_query.hpp"
+#include "sequitur.hpp"
 
 #define END_CHARACTER 0
 #define THRBYTES 5 
@@ -104,33 +105,6 @@ struct MoveBiInterval {
     }
 };
 
-struct KmerStatistics {
-    uint64_t total_kmers() {
-        return positive_kmers + look_ahead_skipped + initialize_skipped + backward_search_failed + backward_search_empty;
-    }
-    void print() {
-        std::cout << "\n- - - - - - - - - - - - - -- - - - - - - - - - - - - - - - - -\n";
-        std::cout << "total_kmers:\t\t" <<  total_kmers() << "\n";
-        std::cout << "positive_skipped:\t" << positive_skipped << "\t"
-                    << std::setprecision(4) << 100 * static_cast<double>(positive_skipped) / static_cast<double>(total_kmers()) << "%\n";
-        std::cout << "backward_search_failed:\t" << backward_search_failed << "\t"
-                    << std::setprecision(4) << 100 * static_cast<double>(backward_search_failed) / static_cast<double>(total_kmers()) << "%\n";
-        std::cout << "look_ahead_skipped:\t" << look_ahead_skipped << "\t"
-                    << std::setprecision(4) << 100 * static_cast<double>(look_ahead_skipped) / static_cast<double>(total_kmers()) << "%\n";
-        std::cout << "initialize_skipped:\t" << initialize_skipped << "\t"
-                    << std::setprecision(2) << 100 * static_cast<double>(initialize_skipped) / static_cast<double>(total_kmers()) << "%\n";
-        std::cout << "backward_search_empty:\t" << backward_search_empty << "\t"
-                    << std::setprecision(2) << 100 * static_cast<double>(backward_search_empty) / static_cast<double>(total_kmers()) << "%\n";
-        std::cout << "- - - - - - - - - - - - - -- - - - - - - - - - - - - - - - - -\n\n";
-    }
-    uint64_t positive_kmers = 0;
-    uint64_t positive_skipped = 0;
-    uint64_t look_ahead_skipped = 0;
-    uint64_t initialize_skipped = 0;
-    uint64_t backward_search_failed = 0;
-    uint64_t backward_search_empty = 0;
-};
-
 class MoveStructure {
     public:
         MoveStructure(MoviOptions* movi_options_);
@@ -167,7 +141,8 @@ class MoveStructure {
         std::string reconstruct_lf();
 
         uint64_t LF(uint64_t row_number);
-        uint16_t LF_move(uint64_t& pointer, uint64_t& i);
+        // The 3rd argument of LF_move is used in the latency_hiding_tally mode
+        uint16_t LF_move(uint64_t& pointer, uint64_t& i, uint64_t id = std::numeric_limits<uint64_t>::max());
         uint64_t fast_forward(uint64_t& offset, uint64_t index, uint64_t x);
 
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
@@ -193,6 +168,7 @@ class MoveStructure {
 
         void verify_lfs();
         void print_stats();
+        void print_ids();
         void analyze_rows();
         bool check_alphabet(char& c);
 
@@ -203,7 +179,7 @@ class MoveStructure {
         uint64_t get_n(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
         uint64_t get_id(uint64_t idx);
-#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6 or MODE == 7
         void compute_thresholds();
         bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
         uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
@@ -243,7 +219,11 @@ class MoveStructure {
 
         // The move structure rows
         std::vector<MoveRow> rlbwt;
-        std::vector<std::vector<uint64_t>> id_blocks;
+#if MODE == 5 or MODE == 7
+        uint32_t tally_checkpoints;
+        std::vector<std::vector<MoveTally>> tally_ids;
+#endif
+        std::vector<std::vector<uint32_t>> id_blocks;
 
         // auxilary datastructures for the length, offset and thresholds overflow
         std::vector<uint64_t> n_overflow;

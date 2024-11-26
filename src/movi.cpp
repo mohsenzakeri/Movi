@@ -31,8 +31,14 @@ std::string program() {
 #if MODE == 4
     return "split";
 #endif
+#if MODE == 5
+    return "tally";
+#endif
 #if MODE == 6
     return "compact-thresholds";
+#endif
+#if MODE == 7
+    return "tally-thresholds";
 #endif
 }
 
@@ -75,7 +81,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("thresholds", "Store the threshold values in the compact mode by splitting the runs at threshold boundaries")
         ("preprocessed", "The BWT is preprocessed into heads and lens files")
         ("verify", "Verify if all the LF_move operations are correct")
+        ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
         ("ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>())
+        ("tally", "Sample id at every tally runs", cxxopts::value<uint32_t>())
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails");
 
     auto queryOptions = options.add_options("query")
@@ -106,6 +114,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("type", "type of the LF query: \"reconstruct\", \"sequential\", or \"random\"", cxxopts::value<std::string>());
 
     auto statsOptions = options.add_options("stats")
+        ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
         ("i,index", "Index directory", cxxopts::value<std::string>());
 
     auto ftabOptions = options.add_options("ftab")
@@ -148,6 +157,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     movi_options.set_ref_file(result["fasta"].as<std::string>());
                     if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
                     if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
+                    if (result.count("output-ids") >= 1) { movi_options.set_output_ids(true); }
                     if (result.count("verify")) {
                         movi_options.set_verify(true);
                     }
@@ -157,7 +167,12 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("thresholds")) {
                         movi_options.set_thresholds(true);
                     }
-#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6
+#if MODE == 5 or MODE == 7
+                    if (result.count("tally") >= 1) {
+                        movi_options.set_tally_checkpoints(static_cast<uint32_t>(result["tally"].as<uint32_t>()));
+                    }
+#endif
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6 or MODE == 7
                     // In these modes, thresholds are always stored
                     movi_options.set_thresholds(true);
 #endif
@@ -233,6 +248,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
             } else if (command == "stats") {
                 if (result.count("index")) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
+                    if (result.count("output-ids") >= 1) { movi_options.set_output_ids(true); }
                 } else {
                     const std::string message = "Please specify the index directory file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
@@ -286,7 +302,12 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
     if (!movi_options.no_prefetch()) {
         ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
         if (movi_options.is_pml() or movi_options.is_zml() or movi_options.is_count()) {
+#if MODE == 5 or MODE == 7
+            rp.process_latency_hiding_tally();
+#endif
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 3 or MODE == 6
             rp.process_latency_hiding();
+#endif
         } else if (movi_options.is_kmer()) {
             rp.kmer_search_latency_hiding(movi_options.get_k());
         }
@@ -399,8 +420,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             }
             std::cerr << "The count file is closed.\n";
         } else if (movi_options.is_kmer()) {
-            std::cout << "\n\nNumber of kmers found in the index: " << mv_.kmer_stats.positive_kmers << "\n\n\n";
-            mv_.kmer_stats.print();
+            mv_.kmer_stats.print(movi_options.is_kmer_count());
         }
 
         if (movi_options.is_logs()) {
@@ -452,6 +472,9 @@ int main(int argc, char** argv) {
         mv_.serialize();
         build_ftab(mv_, movi_options);
         std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
+        if (movi_options.is_output_ids()) {
+            mv_.print_ids();
+        }
     } else if (command == "query") {
         MoveStructure mv_(&movi_options);
         auto begin = std::chrono::system_clock::now();

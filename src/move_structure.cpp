@@ -1,12 +1,12 @@
 #include <sys/stat.h> 
 
 #include "move_structure.hpp"
+#include "utils.hpp"
 
 uint32_t alphamap_3[4][4] = {{3, 0, 1, 2},
                              {0, 3, 1, 2},
                              {0, 1, 3, 2},
                              {0, 1, 2, 3}};
-std::ostringstream dbg;
 
 void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
     int log_n = 100;
@@ -107,8 +107,14 @@ std::string MoveStructure::index_type() {
     // Like the default constant mode, but without the pointers to the neighbors with the other characters
     return "split";
 #endif
+#if MODE == 5
+    return "tally";
+#endif
 #if MODE == 6
     return "compact-thresholds";
+#endif
+#if MODE == 7
+    return "tally-thresholds";
 #endif
     std::cerr << "The mode is not defined.";
     exit(0);
@@ -202,13 +208,13 @@ uint32_t MoveStructure::compute_index(char row_char, char lookup_char) {
         return alpha_index+1;*/
 }
 
-uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i) {
+uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i, uint64_t id) {
     /* if (movi_options->is_verbose()) {
         std::cerr << "\t in LF:\n";
         std::cerr << "\t \t i: " << i << " offset: " << offset << "\n";
     } */
     auto& row = rlbwt[i];
-    auto idx = get_id(i);
+    auto idx = (id == std::numeric_limits<uint64_t>::max()) ? get_id(i) : id;
     if (idx >= r) {
         std::cerr << "This should not happen.\n";
         std::cerr << "idx:::" << idx << " i:" << i << "\n";
@@ -349,16 +355,204 @@ void MoveStructure::random_lf() {
     std::cerr << "Total fast forward: " << ff_count_tot << "\n";
 }
 
+#define my_prefetch_rr(address) __builtin_prefetch((void *)address, 0, 1)
+
 uint64_t MoveStructure::get_id(uint64_t idx) {
+#if MODE == 0 or MODE == 1 or MODE == 4
+    return rlbwt[idx].get_id();
+#endif
 #if MODE == 3 or MODE == 6
     if (idx != end_bwt_idx) {
         uint64_t block_number = idx / BLOCK_SIZE;
-        return rlbwt[idx].get_id() + id_blocks[rlbwt[idx].get_c()][block_number] + first_runs[rlbwt[idx].get_c() + 1];
+        return rlbwt[idx].get_id() + static_cast<uint64_t>(id_blocks[rlbwt[idx].get_c()][block_number]) + first_runs[rlbwt[idx].get_c() + 1];
     }
     else
         return rlbwt[idx].get_id();
 #endif
-    return rlbwt[idx].get_id();
+#if MODE == 5 or MODE == 7
+    uint64_t id = 0;
+    // The $ always goes to row/run 0
+    if (idx == end_bwt_idx) {
+        return 0;
+    }
+
+    uint8_t char_index = rlbwt[idx].get_c();
+    uint64_t tally_a = idx / tally_checkpoints;
+
+    // The id of the last run is always stored at the last tally_id row
+    if (idx == r - 1) {
+        uint64_t tally_ids_len = tally_ids[char_index].size();
+        return tally_ids[char_index][tally_ids_len - 1].get();
+    }
+
+
+    // If we are at a checkpoint, simply return the stored id
+    if (idx % tally_checkpoints == 0) {
+        id = tally_ids[char_index][tally_a].get();
+        return tally_ids[char_index][tally_a].get();
+    }
+
+    // find the closest check point
+    uint64_t tally_b = tally_a + 1;
+
+    // Sanity Check to see if we fall off the tally vector
+    // if (tally_b >= tally_ids[char_index].size()) {
+    //     dbg << "ta: " << tally_a << " tb: " << tally_b <<
+    //            " tsize: " << tally_ids[char_index].size() << "\n";
+    // }
+
+    uint64_t next_check_point = tally_b * tally_checkpoints;
+    // If we are at the end, just look at the last run
+    if (tally_b * tally_checkpoints >= r) {
+        next_check_point = r - 1;
+    }
+
+    int64_t prev_check_point = tally_a * tally_checkpoints;
+
+    // Find the closest checkpoint which is either before or after the current row
+    // For the first run at 0, the previous tallies are not stored, so we have to look below
+    // Since the above direction never helps, for now always set forward_direction to true
+    bool forward_direciton = true;
+    if (forward_direciton or (tally_a == 0 or tally_b - idx <= idx - tally_a)) {
+        uint64_t rows_until_tally = 0;
+
+        // The id for the run at the next_check_point
+        id = tally_ids[char_index][tally_b].get();
+
+        uint64_t last_count = 0;
+        uint64_t last_id = r;
+
+        // TODO: Could prefetching help with performance?
+        // Prelimninary results were not hopeful
+        // for (uint64_t i = 0; i < tally_checkpoints; i++) {
+        //     my_prefetch_rr((void*)(&(rlbwt[0]) + idx + i));
+        //     my_prefetch_rr((void*)(&(rlbwt[0]) + id - i));
+        // }
+
+
+        // Look for the rows between idx and the next_check_point
+        // Count how many rows with the same character exists between
+        // the current run head and the next run head for which we know the id
+        // dbg << "from: " << idx << " to: " << next_check_point << "\n";
+        for (uint64_t i = idx; i < next_check_point; i++) {
+            // Only count the rows with the same character
+            if (get_char(i) == get_char(idx)) {
+                rows_until_tally += get_n(i);
+                last_id = i;
+            }
+        }
+
+        // The id stored at the checkpoint is actually the id for the current run
+        // because there was no run with the same character between the current run and the next_check_point
+        if (last_id == idx and get_char(idx) != get_char(next_check_point)) {
+            return id;
+        }
+        if (last_id == r) {
+            std::cerr << "last_id should never be equal to r.\n";
+            exit(0);
+        }
+
+        // We should know what will be the offset of the run head in the destination run (id)
+        uint16_t offset = get_offset(next_check_point);
+
+        // At the checkpoint, one id is stored for each character
+        // For the character of the checkpoint, the id of the checkpoint is stored
+        // For other characters, the id of the last run before the checkpoint with that character is stored
+        // So, we have to decrease the number of rows of the last run as they are not between the current run
+        // and the run for which we know the id
+        // Also, for other characters, offset should be stored based on that run (not the checkpoint run)
+        if (get_char(idx) != get_char(next_check_point)) {
+            rows_until_tally -= get_n(last_id);
+            offset = get_offset(last_id);
+        }
+
+        // Sanity check, the offset in the destination run should be always smaller than the length of that run
+        if (offset >= get_n(id)) {
+            std::cout << "offset: " << offset << " n: " << get_n(id) << "\n"; // << dbg.str() << "\n";
+            exit(0);
+        }
+        if (offset >= rows_until_tally) {
+            return id;
+        } else {
+            rows_until_tally -= (offset + 1);
+            id -= 1;
+        }
+
+        while (rows_until_tally != 0) {
+            if (rows_until_tally >= get_n(id)) {
+                rows_until_tally -= get_n(id);
+                id -= 1;
+                my_prefetch_rr((void*)(&(rlbwt[0]) + id));
+            } else {
+                rows_until_tally = 0;
+            }
+        }
+    } else {
+        uint64_t rows_until_tally = 0;
+
+        // The id for the run at the previous_check_point
+        id = tally_ids[char_index][tally_a].get();
+
+        uint64_t last_count = 0;
+        uint64_t last_id = r;
+
+        // Look for the rows between idx and the prev_check_point
+        // Count how many rows with the same character exists between
+        // the current run head and the prev run head for which we know the id
+        // dbg << "from: " << idx << " to: " << prev_check_point << "\n";
+        for (int64_t i = idx - 1; i >= prev_check_point; i--) {
+            // Only count the rows with the same character
+            if (get_char(i) == get_char(idx)) {
+                rows_until_tally += get_n(i);
+                last_id = i;
+            }
+        }
+
+        // The last checkpoint is storing an id for a run above, so we have to count the
+        // number of rows in that run too
+        // We have to first find that run with the same character
+        if (get_char(idx) != get_char(prev_check_point)) {
+            last_id = prev_check_point;
+            while (get_char(idx) != get_char(last_id)) {
+                last_id -= 1;
+            }
+            rows_until_tally += get_n(last_id);
+        }
+
+        if (last_id == r) {
+            std::cerr << idx << " " << tally_a << "\n";
+            std::cerr << "last_id should never be equal to r.\n";
+            exit(0);
+        }
+
+        uint16_t offset = get_offset(last_id);
+
+        // Sanity check, the offset in the destination run should be always smaller than the length of that run
+        if (offset >= get_n(id)) {
+            std::cout << "idx: " << idx << " last_id: " << last_id << " id: " << id << " prev_check_point: " << prev_check_point << "\n";
+            std::cout << "offset: " << offset << " n: " << get_n(id) << "\n"; // << dbg.str() << "\n";
+            exit(0);
+        }
+        if ((get_n(id) - offset - 1) >= rows_until_tally) {
+            return id;
+        } else {
+            rows_until_tally -= (get_n(id) - offset);
+            id += 1;
+        }
+
+        while (rows_until_tally != 0) {
+            if (rows_until_tally >= get_n(id)) {
+                rows_until_tally -= get_n(id);
+                id += 1;
+                my_prefetch_rr((void*)(&(rlbwt[0]) + id));
+            } else {
+                rows_until_tally = 0;
+            }
+        }
+    }
+
+    return id;
+#endif
 }
 
 char MoveStructure::get_char(uint64_t idx) {
@@ -368,7 +562,7 @@ char MoveStructure::get_char(uint64_t idx) {
         return alphabet[rlbwt[idx].get_c()];
 }
 
-#if MODE == 3 or MODE == 6
+#if MODE == 3 or MODE == 5 or MODE == 6 or MODE == 7
 uint64_t MoveStructure::get_n(uint64_t idx) {
     return rlbwt[idx].get_n();
 }
@@ -378,7 +572,7 @@ uint64_t MoveStructure::get_offset(uint64_t idx) {
 }
 #endif
 
-#if MODE == 6
+#if MODE == 6 or MODE == 7
 uint64_t MoveStructure::get_thresholds(uint64_t idx, uint32_t alphabet_index) {
     return rlbwt[idx].get_threshold(alphabet_index) == 0 ? 0 : get_n(idx);
 }
@@ -393,7 +587,6 @@ uint64_t MoveStructure::get_n(uint64_t idx) {
     }
 }
 
-// for all the threshold related functions
 uint64_t MoveStructure::get_offset(uint64_t idx) {
     if (rlbwt[idx].is_overflow_offset()) {
         return offset_overflow[rlbwt[idx].get_offset()];
@@ -402,6 +595,7 @@ uint64_t MoveStructure::get_offset(uint64_t idx) {
     }
 }
 
+// for all the threshold related functions
 uint64_t MoveStructure::get_thresholds(uint64_t idx, uint32_t alphabet_index) {
     if (rlbwt[idx].is_overflow_thresholds()) {
         return thresholds_overflow[get_rlbwt_thresholds(idx, alphabet_index)][alphabet_index];
@@ -504,6 +698,9 @@ void MoveStructure::build_rlbwt() {
 }
 
 void MoveStructure::build() {
+#if MODE == 5 or MODE == 7
+    tally_checkpoints = movi_options->get_tally_checkpoints();
+#endif
     std::string bwt_filename = movi_options->get_ref_file() + std::string(".bwt");
     std::ifstream bwt_file(bwt_filename);
     uint64_t end_pos = 0;
@@ -555,6 +752,9 @@ void MoveStructure::build() {
     original_r = 1;
     // TODO Use a size based on the input size
 
+    uint64_t split_by_max_run = 0;
+    uint64_t split_by_thresholds = 0;
+
     // A any mode with splitting (modes 1 and 4) does not work with the preprocessed build
     if (movi_options->is_preprocessed()) {
         length = static_cast<uint64_t>(end_pos);
@@ -585,9 +785,10 @@ void MoveStructure::build() {
                 std::cerr << "original_r: " << i << "\r";
             size_t len = 0;
             len_file.read(reinterpret_cast<char*>(&len), 5);
-#if MODE == 3 or MODE == 6
+#if MODE == 3 or MODE == 5 or MODE == 6 or MODE == 7
             size_t remaining_length = len;
             while (remaining_length > MAX_RUN_LENGTH) {
+                split_by_max_run += 1;
                 lens.push_back(MAX_RUN_LENGTH);
                 heads.push_back(heads_[i]);
                 remaining_length -= MAX_RUN_LENGTH;
@@ -649,7 +850,7 @@ void MoveStructure::build() {
         }
         if (!splitting) r = original_r;
     } else {
-        if (movi_options->is_thresholds() and MODE == 6)
+        if (movi_options->is_thresholds() and (MODE == 6 or MODE == 7))
             fill_bits_by_thresholds();
         // Reading the BWT from the file
         uint64_t current_char = bwt_file.get();
@@ -660,40 +861,55 @@ void MoveStructure::build() {
             // if (current_char != 'A' and current_char != 'C' and current_char != 'G' and current_char != 'T')
             //    std::cerr << "\ncurrent_char:" << current_char << "---" << static_cast<uint64_t>(current_char) << "---\n";
             if (original_r % 100000 == 0) {
+                std::cerr << "r: " << r << "\t";
                 std::cerr << "original_r: " << original_r << "\t";
                 std::cerr << "bwt_curr_length: " << bwt_curr_length << "\r";
             }
-#if MODE == 3 or MODE == 6
+#if MODE == 3 or MODE == 5 or MODE == 6 or MODE == 7
             // The first row is already set and accounted for, so we skip
-            if (movi_options->is_thresholds() and bwt_curr_length > 0 and bits[bwt_curr_length] == 1) {
-                // The bit was already set by one of the threshold values
-                // So, we have found a new run, and reest the run length
-                r += 1;
-                run_length = 0;
-                if (current_char != bwt_string[bwt_curr_length - 1]) {
-                    original_r += 1;
-                }
-            } else if (run_length == MAX_RUN_LENGTH) {
-                r += 1;
-                run_length = 0;
-                bits[bwt_curr_length] = 1;
-                if (current_char != bwt_string[bwt_curr_length - 1]) {
-                    original_r += 1;
-                }
-            } else if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
+            if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
+                // 1) A new run is detected if the next character is different
                 original_r += 1;
                 r += 1;
                 run_length = 0;
+                bits[bwt_curr_length] = 1;
+            } else if (movi_options->is_thresholds() and bwt_curr_length > 0 and bits[bwt_curr_length] == 1) {
+                // 2) A new run is detected if there is a non-trivial threshold at the next offset
+                // The bit was already set by one of the threshold values
+                // So, we have found a new run, and reset the run length
+                r += 1;
+                run_length = 0;
+                split_by_thresholds += 1;
+            } else if (run_length == MAX_RUN_LENGTH) {
+                // 3) A new run is detected if the length of the run is greater than MAX_RUN_LENGTH
+                r += 1;
+                run_length = 0;
+                split_by_max_run += 1;
                 bits[bwt_curr_length] = 1;
             }
 #endif
 #if MODE == 0 or MODE == 1 or MODE == 4
             if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
+                // 1) A new run is detected if the next character is different
                 original_r += 1;
-                if (!splitting) bits[bwt_curr_length] = 1;
-            }
-            if (splitting && bwt_curr_length > 0 && bits[bwt_curr_length]) {
                 r += 1;
+                run_length = 0;
+                if (splitting and !bits[bwt_curr_length]) {
+                    std::cerr << "There is something wrong with the splitting vector.\n";
+                    std::cerr << "The run boundaries should have been set to 1 since a new character was detected.\n";
+                    exit(0);
+                }
+                bits[bwt_curr_length] = 1;
+            } else if (splitting && bwt_curr_length > 0 && bits[bwt_curr_length]) {
+                // 2) A new run is detected based on Nishimoto-Tabei splitting
+                r += 1;
+                run_length = 0;
+            } else if (run_length == MAX_RUN_LENGTH) {
+                // 3) A new run is detected if the length of the run is greater than MAX_RUN_LENGTH
+                split_by_max_run += 1;
+                r += 1;
+                run_length = 0;
+                bits[bwt_curr_length] = 1;
             }
 #endif
             bwt_string[bwt_curr_length] = current_char;
@@ -702,11 +918,13 @@ void MoveStructure::build() {
 
             current_char = bwt_file.get();
         }
-#if MODE == 0 or MODE == 1 or MODE == 4
-        if (!splitting) r = original_r;
-#endif
+// #if MODE == 0 or MODE == 1 or MODE == 4
+// r is laready set to r' which might be larger than r because of the length splitting
+// so, we don't have to set it back to original_r anymore (the next line is commented)
+//         if (!splitting) r = original_r;
+// #endif
         length = bwt_curr_length; // bwt_string.length();
-        std::cerr << "length: " << length << "\n";
+        std::cerr << "\n";
 
         // Building the auxilary structures
         uint64_t alphabet_index = 0;
@@ -749,8 +967,11 @@ void MoveStructure::build() {
         }
         std::cerr << "\nAll the Occ bit vectors are built.\n";
     }
+
+    std::cerr << "\nsplit_by_max_run: " << split_by_max_run << "\n";
+    std::cerr << "split_by_thresholds: " << split_by_thresholds << "\n";
     std::cerr << "length: " << length << "\n";
-    std::cerr << "\n\nr: " << r << "\n";
+    std::cerr << "r: " << r << "\n";
     std::cerr << "original_r: " << original_r << "\n";
     rlbwt.resize(r);
 
@@ -782,6 +1003,17 @@ void MoveStructure::build() {
         std::cerr << "bits.size(): " << bits.size() << "\n";
         std::cerr << "rank_support_v<>(&bits)(bits.size()): " << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
     }
+
+# if MODE == 5 or MODE == 7
+    tally_ids.resize(alphabet.size());
+    uint64_t tally_ids_rows_count = r / tally_checkpoints + 2;
+    std::vector<uint64_t> current_tally_ids;
+    for (uint32_t alphabet_ind = 0; alphabet_ind < alphabet.size(); alphabet_ind++) {
+        current_tally_ids.push_back(r);
+        tally_ids[alphabet_ind].resize(tally_ids_rows_count);
+    }
+#endif
+
     //if (splitting)
     //    sbits = sdsl::select_support_mcl<>(&bits);
     std::vector<uint64_t> raw_ids;
@@ -830,12 +1062,39 @@ void MoveStructure::build() {
                         << " sbits(pp_id - 1): " << all_p[pp_id - 2]*/
                         << "\n";
 
+#if MODE == 0 or MODE == 1 or MODE == 3 or MODE == 4 or MODE == 6
         // rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
         rlbwt[r_idx].init(len, offset, pp_id);
+#endif
+#if MODE == 5 or MODE == 7
+        rlbwt[r_idx].init(len, offset);
+
+        if (r_idx != end_bwt_idx) {
+            // Only update the tally corresponding to the current run's character
+            uint16_t char_index = alphamap[bwt_string[all_p[r_idx]]];
+            // The first tally id might have been set to the wrong value since no run with that character was observed
+            // So, we fix the values once we the first run with that character
+            if (current_tally_ids[char_index] == r) {
+                uint64_t tally_ids_index = r_idx / tally_checkpoints;
+                for (int tid = 0; tid <= tally_ids_index; tid++) {
+                    tally_ids[char_index][tid].set_value(pp_id);
+                }
+            }
+            current_tally_ids[char_index] = pp_id;
+        }
+
+        if (r_idx % tally_checkpoints == 0) {
+            uint64_t tally_ids_index = r_idx / tally_checkpoints;
+            // We reached a check_point, store the tally ids for all the characters
+            for (uint32_t alphabet_ind = 0; alphabet_ind < alphabet.size(); alphabet_ind++) {
+                tally_ids[alphabet_ind][tally_ids_index].set_value(current_tally_ids[alphabet_ind]);
+            }
+        }
+#endif
         raw_ids[r_idx] = pp_id;
         // To take care of cases where length of the run
         // does not fit in uint16_t
-#if MODE == 3 or MODE == 6
+#if MODE == 3 or MODE == 6 or MODE == 5 or MODE == 7
         if (offset > MAX_RUN_LENGTH or len > MAX_RUN_LENGTH) {
             // Should not get here in the compact mode: MODE = 3
             std::cerr << "The length or the offset are too large.\n";
@@ -845,6 +1104,8 @@ void MoveStructure::build() {
 #endif
 #if MODE == 0 or MODE == 1 or MODE == 4
         if (len > MAX_RUN_LENGTH) {
+            std::cerr << "This shouldn't happen anymore, because the run splitting should be applied in every mode now.\n";
+            exit(0);
             n_overflow.push_back(len);
             if (n_overflow.size() - 1 >= MAX_RUN_LENGTH) {
                 std::cerr << "Warning: the number of runs with overflow n is beyond " << MAX_RUN_LENGTH<< "! " << n_overflow.size() - 1 << "\n";
@@ -854,6 +1115,8 @@ void MoveStructure::build() {
             rlbwt[r_idx].set_overflow_n();
         }
         if (offset > MAX_RUN_LENGTH) {
+            std::cerr << "This shouldn't happen anymore, because the run splitting should be applied in every mode now.\n";
+            exit(0);
             offset_overflow.push_back(offset);
             if (offset_overflow.size() - 1 >= MAX_RUN_LENGTH) {
                 std::cerr << "Warning: the number of runs with overflow offset is beyond " << MAX_RUN_LENGTH<< "! " << offset_overflow.size() - 1 << "\n";
@@ -874,10 +1137,18 @@ void MoveStructure::build() {
         rlbwt[r_idx].set_c(bwt_string[all_p[r_idx]], alphamap);
         // bit1_after_eof = alphamap[bwt_string[i+1]];
     }
+#if MODE == 5 or MODE == 7
+    // Set the last tally_id using the current_tally_ids
+    std::cout << "\n";
+    for (uint32_t alphabet_ind = 0; alphabet_ind < alphabet.size(); alphabet_ind++) {
+        tally_ids[alphabet_ind][tally_ids[alphabet_ind].size()-1].set_value(current_tally_ids[alphabet_ind]);
+    }
+#endif
+
     std::cerr << "All the move rows are built.\n";
     std::cerr << "Max run length: " << max_len << "\n";
 
-#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6 or MODE == 7
     // compute the thresholds
     compute_thresholds();
 #endif
@@ -922,11 +1193,11 @@ void MoveStructure::build() {
 #if MODE == 3 or MODE == 6
     uint64_t max_raw_id = 0;
     uint64_t max_blocked_id = 0;
-    std::vector<uint64_t> block_start_id;
+    std::vector<uint32_t> block_start_id;
     block_start_id.resize(alphabet.size(), 0);
     uint64_t block_count = 0;
     id_blocks.resize(alphabet.size());
-    uint64_t max_diff = 0;
+    uint32_t max_diff = 0;
     for (uint64_t i = 0; i < rlbwt.size(); i++) {
         if (i % 10000 == 0)
             std::cerr << "i: " << i << "\r";
@@ -959,7 +1230,7 @@ void MoveStructure::build() {
             // The first entry of the first _runs stores the ids for the global end run, so +1 is required
             uint64_t adjusted_id = id - first_runs[rlbwt[i].get_c() + 1];
             // Calcuated the distance of the ajustedt_id from the check point of that character
-            uint64_t blocked_id = adjusted_id - id_blocks[rlbwt[i].get_c()][block_number];
+            uint64_t blocked_id = adjusted_id - static_cast<uint64_t>(id_blocks[rlbwt[i].get_c()][block_number]);
             if (blocked_id > MAX_BLOCKED_ID) {
                 std::cerr << "The number of bits in the runs are not enough for storing the blocked_id.\n";
                 std::cerr << "adjusted_id: " << adjusted_id << " id: " << id << " first_runs[rlbwt[i].get_c() + 1]: " << first_runs[rlbwt[i].get_c() + 1] << "\n";
@@ -979,7 +1250,12 @@ void MoveStructure::build() {
             max_blocked_id = std::max(blocked_id, max_blocked_id);
 
             // always holds the last id seen for each character
-            block_start_id[rlbwt[i].get_c()] = id - first_runs[rlbwt[i].get_c() + 1];
+            block_start_id[rlbwt[i].get_c()] = static_cast<uint32_t>(id - first_runs[rlbwt[i].get_c() + 1]);
+            if (id - first_runs[rlbwt[i].get_c() + 1] > std::numeric_limits<uint32_t>::max()) {
+                std::cerr << "id - first_runs[rlbwt[i].get_c() + 1]: " << id - first_runs[rlbwt[i].get_c() + 1] << "\n";
+                std::cerr << "The block_start_id does not fit in uint32_t\n";
+                exit(0);
+            }
         }
     }
     std::cerr << "max raw id: " << max_raw_id << "\t max blocked id: " << max_blocked_id << "\n";
@@ -1028,53 +1304,6 @@ void MoveStructure::compute_run_lcs() {
             std::cout << i << "," << 1 << "," << -1 << "\n";
         }
     }
-}
-
-char complement(char c) {
-    // # is the separator, complement(#) = #
-    char c_comp = c == '#' ? '#' : (c == 'A' ? 'T' : ( c == 'C' ? 'G' : (c == 'G' ? 'C' : 'A')));
-    return c_comp;
-}
-
-std::string reverse_complement(std::string& fw) {
-    std::string rc = "";
-    rc.resize(fw.size());
-    for (int i = fw.size() - 1;  i >= 0; i--) {
-        rc[fw.size() - i - 1] = complement(fw[i]);
-    }
-    return rc;
-}
-
-uint64_t kmer_to_number(size_t k, std::string& r, int32_t pos, std::vector<uint64_t>& alphamap, bool rc = false) {
-    if (r.length() < k) {
-        std::cerr << "The k does not match the kmer length!\n";
-        exit(0);
-    }
-
-    uint64_t res = 0;
-    for (size_t i = 0; i < k; i++) {
-        if (alphamap[static_cast<uint64_t>(r[pos + i])] == alphamap.size()) {
-            return std::numeric_limits<uint64_t>::max();
-        }
-        if (rc) {
-            uint64_t char_code = alphamap[complement(r[pos + i])] - alphamap['A'];
-            res = (char_code << ((i)*2)) | res;
-        } else {
-            uint64_t char_code = alphamap[r[pos + i]] - alphamap['A'];
-            res = (char_code << ((k-i-1)*2)) | res;
-        }
-    }
-    return res;
-}
-
-std::string number_to_kmer(size_t j, size_t m, std::vector<unsigned char>& alphabet, std::vector<uint64_t>& alphamap) {
-    std::string kmer = "";
-    for (int i = m - 2; i >= 0; i -= 2) {
-        size_t pair = (j >> i) & 0b11;
-        // std::cerr << i << " " << pair << " ";
-        kmer += alphabet[pair + alphamap['A']];
-    }
-    return kmer;
 }
 
 void MoveStructure::compute_ftab() {
@@ -1178,7 +1407,7 @@ void MoveStructure::read_ftab() {
     }
 }
 
-#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6 or MODE == 7
 void MoveStructure::compute_thresholds() {
     // initialize the start threshold at the last row
     std::vector<uint64_t> alphabet_thresholds(alphabet.size(), length);
@@ -1235,7 +1464,7 @@ void MoveStructure::compute_thresholds() {
                     // }
                     set_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j], get_n(i));
 #endif
-#if MODE == 6
+#if MODE == 6 or MODE == 7
                     rlbwt[i].set_threshold(alphamap_3[alphamap[rlbwt_c]][j], 1);
 #endif
                     current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = get_n(i);
@@ -1248,7 +1477,7 @@ void MoveStructure::compute_thresholds() {
 #if MODE == 0 or MODE == 1 or MODE == 4
                     set_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j], 0);
 #endif
-#if MODE == 6
+#if MODE == 6 or MODE == 7
                     rlbwt[i].set_threshold(alphamap_3[alphamap[rlbwt_c]][j], 0);
 #endif
                     current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = 0;
@@ -1264,7 +1493,7 @@ void MoveStructure::compute_thresholds() {
                     }
                     set_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j], alphabet_thresholds[j] - all_p[i]);
 #endif
-#if MODE == 6
+#if MODE == 6 or MODE == 7
                     std::cerr << "j: " << j << " i:" << i << " n:" << get_n(i) << " atj:"
                               << alphabet_thresholds[j] << " api:" << all_p[i] << "\n";
                     std::cerr << "This should never happen, since the runs are split at threshold boundaries.\n";
@@ -1281,7 +1510,7 @@ void MoveStructure::compute_thresholds() {
 #if MODE == 0 or MODE == 1 or MODE == 4
                         << "rlbwt[i].thresholds[j]:" << get_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j]) << "\n";
 #endif
-#if MODE == 6
+#if MODE == 6 or MODE == 7
                         << "rlbwt[i].thresholds[j]:" << get_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j]) << "\n";
 #endif
                 }
@@ -1310,7 +1539,7 @@ void MoveStructure::compute_thresholds() {
 #if MODE == 0 or MODE == 1 or MODE == 4
         set_rlbwt_thresholds(0, j, 0);
 #endif
-#if MODE == 6
+#if MODE == 6 or MODE == 7
         rlbwt[0].set_threshold(j, 0);
 #endif
     }
@@ -1424,7 +1653,7 @@ void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
         std::cerr << "This should not happen! The character should have been checked before.\n";
         exit(0);
     }
-#if MODE == 0 or MODE == 3 or MODE == 4 or MODE == 6
+#if MODE == 0 or MODE == 3 or MODE == 4 or MODE == 5 or MODE == 6 or MODE == 7
     while (interval.run_start <= interval.run_end and get_char(interval.run_start) != next_char) { //  >= or >
         interval.run_start += 1;
         interval.offset_start = 0;
@@ -1441,14 +1670,14 @@ void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
     }
 #endif
 #if MODE == 1
-    if (movi_options->is_debug())
-        dbg << alphabet[rlbwt[interval.run_start].get_c()] << " " << alphabet[rlbwt[interval.run_end].get_c()] << " " << next_char << "\n";
+    // if (movi_options->is_debug())
+    //     dbg << alphabet[rlbwt[interval.run_start].get_c()] << " " << alphabet[rlbwt[interval.run_end].get_c()] << " " << next_char << "\n";
     uint64_t read_alphabet_index = alphamap[static_cast<uint64_t>(next_char)];
     if ((interval.run_start <= interval.run_end) and (alphabet[rlbwt[interval.run_start].get_c()] != next_char)) {
         if (interval.run_start == 0) {
             // To check if this case ever happens. If not, we should get rid of this condition.
-            if (movi_options->is_debug())
-                dbg << "run_start is 0 before updating the interval!\n";
+            // if (movi_options->is_debug())
+            //     dbg << "run_start is 0 before updating the interval!\n";
             while ((interval.run_start <= interval.run_end) and (alphabet[rlbwt[interval.run_start].get_c()] != next_char)) {
                 interval.run_start += 1;
                 interval.offset_start = 0;
@@ -1540,12 +1769,22 @@ bool MoveStructure::extend_bidirectional(char c_, MoveInterval& fw_interval, Mov
 
 bool MoveStructure::extend_left(char c, MoveBiInterval& bi_interval) {
     char c_ = c;
-    return extend_bidirectional(c_, bi_interval.fw_interval, bi_interval.rc_interval);
+    if (extend_bidirectional(c_, bi_interval.fw_interval, bi_interval.rc_interval)) {
+        bi_interval.match_len += 1;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 bool MoveStructure::extend_right(char c, MoveBiInterval& bi_interval) {
     char c_ = complement(c);
-    return extend_bidirectional(c_, bi_interval.rc_interval, bi_interval.fw_interval);
+    if (extend_bidirectional(c_, bi_interval.rc_interval, bi_interval.fw_interval)) {
+        bi_interval.match_len += 1;
+        return true;
+    } else {
+        return false;
+    }
 }
 
 MoveBiInterval MoveStructure::backward_search_bidirectional(std::string& R, int32_t& pos_on_r, MoveBiInterval interval, int32_t max_length) {
@@ -1635,15 +1874,6 @@ MoveInterval MoveStructure::try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t&
     MoveInterval empty_interval;
     empty_interval.make_empty();
     return empty_interval;
-}
-
-std::string reverse_complement_from_pos(MoveQuery& mq_fw, int32_t pos_on_r, uint64_t match_len) {
-    std::string rc = "";
-    rc.resize(match_len);
-    for (int i = pos_on_r + match_len - 1;  i >= pos_on_r; i--) {
-        rc[pos_on_r + match_len - 1 - i] = complement(mq_fw.query()[i]);
-    }
-    return rc;
 }
 
 MoveBiInterval MoveStructure::initialize_bidirectional_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len) {
@@ -1841,323 +2071,6 @@ bool MoveStructure::look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r,
     }
 }
 
-// pos_on_r points to the furthest base of the kmer to be searched
-// The search is from the right end of the kmer
-// All kmers on the right side of the kmer_middle might be found in this call if they exist
-uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& pos_on_r) {
-    uint64_t kmers_found = 0;
-    int32_t last_kmer_looked_at = pos_on_r;
-
-    size_t ftab_k = movi_options->get_ftab_k();
-    size_t k = movi_options->get_k();
-    auto& query_seq = mq.query();
-
-    // The middle point of the kmer
-    int32_t kmer_middle = pos_on_r - k/2;
-    // To remember the kmer which initiated the search
-    int32_t pos_on_r_saved = pos_on_r;
-    // The number of bases matched so far
-    uint64_t match_len = 0;
-    // The position of the left side of the kmer on the read
-    int32_t kmer_left = pos_on_r - k + 1;
-    // The position on the right side of the match to be found by ftab
-    int32_t ftab_right = kmer_left + ftab_k - 1;
-
-    // At the time, the initialization works if ftab with ftab_k exists only
-    // And the multi-ftab strategy must be turned off
-    movi_options->set_multi_ftab(false);
-
-    MoveBiInterval bi_interval;
-    int32_t ftab_right_initialize = ftab_right;
-
-    bi_interval = initialize_bidirectional_search(mq, ftab_right_initialize, match_len);
-
-    if (match_len == 0 and ftab_k > 1) {
-        // If the ftab-k-mer at the end of the read is not found,
-        // we can skip all the kmers until ftab_right - 1
-        kmer_stats.initialize_skipped += 1;
-        pos_on_r = ftab_right - 1;
-        return 0;
-    }
-
-    // pos_on_r and pos_on_r_saved point to the beginning of the kmer for which the bidirectional initialization was performed above
-    // Extend to right until the kmer is found and save the observed intervals beyond k/2
-    std::vector<MoveBiInterval> partial_matches;
-    partial_matches.resize(k);
-    // kmer_right is the last position matched so far
-    uint64_t kmer_right = ftab_right;
-    int here = 0;
-    while (kmer_right < pos_on_r_saved) {
-        // The next k-mer we are looking at, ends at next_pos
-        int next_pos = kmer_right + 1;
-
-        if (movi_options->is_debug() and next_pos >= k)
-            dbg << "\nkmer at " << next_pos << ": " << query_seq.substr(next_pos - k + 1, k) << " ";
-
-        bool extend_right_res = extend_right(query_seq[next_pos], bi_interval);
-        if (!extend_right_res) {
-            here = 1;
-            // The kmer was not found, we can skip kmers until ftab_right
-            pos_on_r = kmer_right;
-            last_kmer_looked_at = next_pos;
-
-            // Printing all the kmers being skipped, because the extension to the right was not possible
-            if (movi_options->is_debug()) {
-                int j = next_pos + 1;
-                while (j < pos_on_r_saved) {
-                    if (j > k)
-                        dbg << "\nkmer at " << j << ": " << query_seq.substr(j - k + 1, k) << "-";
-                    j += 1;
-                }
-            }
-
-            // It's important to break here, to avoid false extensions in the following iterations
-            break;
-        } else {
-            match_len += 1;
-            kmer_right = next_pos;
-            bi_interval.match_len = match_len;
-            // store the intervals for matches beyond half point of the kmer
-            if (kmer_right > kmer_middle and kmer_right != pos_on_r) {
-                bi_interval.match_len = match_len;
-                // "kmer_right - kmer_left" is the index of the kmer from the left end
-                partial_matches[kmer_right - kmer_left] = bi_interval;
-            }
-        }
-    }
-
-    if (kmer_right == pos_on_r_saved) {
-        // The kmer at pos_on_r was found by k bidirectional backward search
-        kmers_found += 1;
-        kmer_stats.backward_search_empty += 1;
-        // std::cerr << "The first kmer at " << pos_on_r << " was found.\n";
-        pos_on_r = pos_on_r_saved - 1;
-        // To avoid searching this kmer again in the next step
-        kmer_right -= 1;
-
-        if (movi_options->is_debug()) {
-            if (pos_on_r_saved > k)
-                dbg << "\nkmer at " << pos_on_r_saved << ": " << query_seq.substr(pos_on_r_saved - k + 1, k) << "\n";
-            dbg << "1";
-        }
-
-    } else {
-        if (movi_options->is_debug()) {
-            if (pos_on_r_saved > k)
-                dbg << "\nkmer at " << pos_on_r_saved << ": " << query_seq.substr(pos_on_r_saved - k + 1, k) << "-\n";
-            dbg << "0";
-        }
-    }
-
-
-    // Use partial matches for finding other overlapping kmers (until half point)
-    if (kmer_right > kmer_middle) {
-        if (movi_options->is_debug()) {
-            for (int i = kmer_right + 1; i < pos_on_r_saved; i++) {
-                dbg << "0";
-            }
-        }
-        for (uint i = kmer_right; i > kmer_middle; i--) {
-            // Set kmer_left_ext to be the last match position on the left end
-            int32_t kmer_left_ext = kmer_left;
-            auto& partial_match_interval = partial_matches[i - kmer_left];
-            last_kmer_looked_at = i;
-            while (partial_match_interval.match_len < k and kmer_left_ext > 0) {
-                // We don't need to do bidirectional left extension here, simple backward search is enough
-                bool res = backward_search_step(query_seq[kmer_left_ext - 1], partial_match_interval.fw_interval);
-                // bool res = extend_left(query_seq[kmer_left_ext - 1], partial_match_interval);
-                if (!res) {
-                    // The current kmer is not present, move to the next partial match by breaking from the inner loop
-                    break;
-                } else {
-                    kmer_left_ext -= 1;
-                    partial_match_interval.match_len += 1;
-                }
-            }
-            if (partial_match_interval.match_len >= k) {
-                // The kmer was found by extending the partial match to left
-                kmers_found += 1;
-                kmer_stats.positive_skipped += 1;
-                if (movi_options->is_debug()) {
-                    std::cerr << "kmer at " << kmer_left_ext + k - 1 << " was found.\n";
-                    dbg << "1";
-                }
-            } else {
-                if (movi_options->is_debug()) {
-                    dbg << "0";
-                }
-            }
-
-            pos_on_r -= 1;
-        }
-        // At this point we have checked the presence of all the kmer beyond kmer_middle
-    } else {
-        // If we got here, we had to start the first while by breaking because of an unsuccessfull attempt to extend to the right
-        if (here != 1)
-            std::cerr << here << "\t" << last_kmer_looked_at << "\t" << pos_on_r << "\n";
-        if (kmer_right != pos_on_r)
-            std::cerr << "This should not happen: " << kmer_right << "\t" << pos_on_r << "\n";
-        // pos_on_r should have already been assigned to be the last kmer_right
-        // So we should never get here to do the assignment in practice
-        pos_on_r = kmer_right;
-
-        if (movi_options->is_debug()) {
-            for (int i = kmer_middle + 1; i <= pos_on_r_saved - 1; i++) {
-                dbg << "0";
-            }
-        }
-
-    }
-    return kmers_found;
-}
-
-uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool single) {
-    size_t ftab_k = movi_options->get_ftab_k();
-    size_t k = movi_options->get_k();
-    auto& query_seq = mq.query();
-    int32_t pos_on_r_saved = pos_on_r;
-
-    // An alternative strategy to look ahead for possible skipping
-    // int32_t step = 0;
-    // if (ftab_k > 1 and !look_ahead_ftab(mq, pos_on_r, step)) {
-    //     kmer_stats.look_ahead_skipped += k - ftab_k - step;
-    //     pos_on_r = pos_on_r - k + ftab_k + step - 1;
-    //     pos_on_r_saved = pos_on_r;
-    // }
-
-    uint64_t match_len = 0;
-    MoveInterval initial_interval;
-    do {
-        initial_interval = initialize_backward_search(mq, pos_on_r, match_len);
-        if (match_len == 0 and ftab_k > 1) {
-            kmer_stats.initialize_skipped += 1;
-            pos_on_r -= 1;
-            pos_on_r_saved = pos_on_r;
-        }
-    } while (match_len == 0 and pos_on_r >= k - 1 and ftab_k > 1);
-
-    // I want to check how much slower it gets if turn off the positive skip:
-    auto backward_search_result = backward_search(query_seq, pos_on_r, initial_interval, single ? k - match_len - 2 : std::numeric_limits<int32_t>::max());
-
-    if (backward_search_result.is_empty()) {
-        // We get here when there is an illegal character at pos_on_r, just skip the current position
-        pos_on_r = pos_on_r_saved - 1;
-        kmer_stats.backward_search_empty += 1;
-        return 0;
-    } else {
-        if (pos_on_r_saved - pos_on_r >= k - 1) {
-            // At leat one kmer was found, update the postion and return the count
-            uint64_t kmers_found = pos_on_r_saved - pos_on_r - k + 2;
-            kmer_stats.positive_skipped += kmers_found - 1;
-
-            if (movi_options->is_debug()) {
-                int32_t pos_on_r_ = pos_on_r_saved;
-                auto backward_search_result_one_extra_base = backward_search(query_seq, pos_on_r_, initial_interval, k - match_len - 1);
-                dbg << backward_search_result.count(rlbwt) << "----" <<  backward_search_result_one_extra_base.count(rlbwt) << "\n";
-                dbg << backward_search_result << "\n";
-                if (backward_search_result.count(rlbwt) == backward_search_result_one_extra_base.count(rlbwt)) {
-                    // TODO: Use a counter to count the number of such incidents
-                } else {
-                }
-            }
-
-            pos_on_r = pos_on_r + k - 2;
-	        return kmers_found;
-        } else {
-            // No kmer was found, update the postion
-            kmer_stats.backward_search_failed += 1;
-            pos_on_r = pos_on_r_saved - 1;
-            return 0;
-        }
-    }
-}
-
-void MoveStructure::query_all_kmers(MoveQuery& mq, bool kmer_counts) {
-    size_t ftab_k = movi_options->get_ftab_k();
-    size_t k = movi_options->get_k();
-    auto& query_seq = mq.query();
-    int32_t pos_on_r = query_seq.length() - 1;
-
-    // To handle a special case for k equal to 1
-    if (k == 1) {
-        uint64_t kmers_found = 0;
-        while (pos_on_r >= 0) {
-            kmers_found += check_alphabet(query_seq[pos_on_r]) ? 1 : 0;
-            pos_on_r -= 1;
-        }
-        kmer_stats.positive_kmers += kmers_found;
-        return;
-    }
-
-    while (!check_alphabet(query_seq[pos_on_r])) {
-        pos_on_r -= 1; // Find the first position where the character is legal
-    }
-
-
-    int32_t step = k/3;
-    // k - step has to be always greater than ftab-k
-    if (k - step < ftab_k) {
-        step = k - ftab_k - 1;
-    }
-
-    while (pos_on_r >= k - 1) {
-        if (pos_on_r >= k -1 + step and !look_ahead_backward_search(mq, pos_on_r, step)) {
-            kmer_stats.look_ahead_skipped += step + 1;
-            pos_on_r = pos_on_r - step - 1;
-        } else {
-            if (kmer_counts) {
-                if (pos_on_r == k - 1) {
-                    kmer_stats.positive_kmers += query_kmers_from(mq, pos_on_r);
-                } else {
-                    kmer_stats.positive_kmers += query_kmers_from_bidirectional(mq, pos_on_r);
-
-                    if (movi_options->is_debug()) {
-                        dbg.str("");
-                        dbg.clear();
-                        int pos_on_r_before = pos_on_r;
-                        int found_regular = 0;
-                        dbg << "regular backward search:\n";
-                        int k_m = pos_on_r - k/2;
-                        dbg << pos_on_r << "\t" << k_m << "\n";
-                        dbg << k/2 << "\n";
-                        for (int j = pos_on_r; j > k_m; j--) {
-                            dbg << " " << j << " ";
-                            if (j >= k)
-                                dbg << "\nkmer at " << j << ": " << query_seq.substr(j - k + 1, k) << " ";
-
-                            int pos = j;
-                            dbg << " pos:" << pos << " ";
-                            int z = query_kmers_from(mq, pos, true);
-                            if (z == 1 and pos == j - 1) {
-                                dbg << "1";
-                                found_regular += 1;
-                            } else
-                                dbg << "0";
-                        }
-                        dbg << "\n";
-                        dbg << "bidirectional search:\n";
-                        int pos = pos_on_r_before;
-                        int found_bidirectional = query_kmers_from_bidirectional(mq, pos);
-                        dbg << "\n";
-                        kmer_stats.positive_kmers += found_bidirectional;
-                        if (found_regular != found_bidirectional) {
-                            std::cerr << "pos_on_r_before:" << pos_on_r_before << " pos_on_r:" << pos_on_r
-                                    << " found_regular:" << found_regular << " found_bidirectional" << found_bidirectional << "\n";
-                            std::cerr << dbg.str() << std::endl;
-                        }
-                    }
-                }
-            } else {
-                kmer_stats.positive_kmers += query_kmers_from(mq, pos_on_r);
-            }
-        }
-
-        while (!check_alphabet(query_seq[pos_on_r])) {
-            pos_on_r -= 1; // Find the first position where the character is legal
-        }
-    }
-}
-
 // The following code is an old impelementation of the backkward search and is depricated as of Summer 2024.
 uint64_t MoveStructure::backward_search(std::string& R, int32_t& pos_on_r) {
     if (!check_alphabet(R[pos_on_r])) {
@@ -2200,7 +2113,7 @@ uint64_t MoveStructure::backward_search(std::string& R, int32_t& pos_on_r) {
             std::cerr << ">>> " << pos_on_r << ": " << run_start << "\t" << run_end << " " << offset_start << "\t" << offset_end << "\n";
             std::cerr << ">>> " << alphabet[rlbwt[run_start].get_c()] << " " << alphabet[rlbwt[run_end].get_c()] << " " << R[pos_on_r] << "\n";
         }
-#if MODE == 0 or MODE == 3 or MODE == 4 or MODE == 6
+#if MODE == 0 or MODE == 3 or MODE == 4 or MODE == 5 or MODE == 6 or MODE == 7
         while ((run_start < run_end) and (alphabet[rlbwt[run_start].get_c()] != R[pos_on_r])) {
             run_start += 1;
             offset_start = 0;
@@ -2363,11 +2276,11 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                 std::cerr << "\t Case2: Not a match, looking for a match either up or down...\n";
 
             uint64_t idx_before_jump = idx;
-#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6 or MODE == 7
             bool up = random ? jump_randomly(idx, R[pos_on_r], scan_count) : 
                                jump_thresholds(idx, offset, R[pos_on_r], scan_count);
 #endif
-#if MODE == 3
+#if MODE == 3 or MODE == 5
             bool up = idx == 0 ? false : (idx == r - 1 ? true : false);
             std::cout << idx << "\t" << up << "\n";
             // bool up = jump_randomly(idx, R[pos_on_r], scan_count);
@@ -2402,7 +2315,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
                 auto saved_idx = idx;
 
                 movi_options->set_verbose(true);
-#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6 or MODE == 7
                 jump_thresholds(saved_idx, offset, R[pos_on_r], scan_count);
 #endif
                 exit(0);
@@ -2428,7 +2341,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     return ff_count_tot;
 }
 
-#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6 or MODE == 7
 bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count) {
     uint64_t saved_idx = idx;
     uint64_t alphabet_index = alphamap[static_cast<uint64_t>(r_char)];
@@ -2462,7 +2375,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
             }
 #endif
 
-#if MODE == 0 || MODE == 4 || MODE == 6
+#if MODE == 0 || MODE == 4 || MODE == 6 || MODE == 7
             idx = jump_down(saved_idx, r_char, scan_count);
 #endif
             if (r_char != alphabet[rlbwt[idx].get_c()])
@@ -2481,7 +2394,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
             }
 #endif
 
-#if MODE == 0 || MODE == 4 || MODE == 6
+#if MODE == 0 || MODE == 4 || MODE == 6 || MODE == 7
             idx = jump_up(saved_idx, r_char, scan_count);
 #endif
             if (r_char != alphabet[rlbwt[idx].get_c()])
@@ -2512,7 +2425,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
         }
 #endif
         auto tmp = idx;
-#if MODE == 0 || MODE == 4 || MODE == 6
+#if MODE == 0 || MODE == 4 || MODE == 6 || MODE == 7
         idx = jump_down(saved_idx, r_char, scan_count);
 #endif
         if (r_char != alphabet[rlbwt[idx].get_c()]) {
@@ -2535,7 +2448,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
         }
 #endif
 
-#if MODE == 0 || MODE == 4 || MODE == 6
+#if MODE == 0 || MODE == 4 || MODE == 6 || MODE == 7
         idx = jump_up(saved_idx, r_char, scan_count);
 #endif
         if (r_char != alphabet[rlbwt[idx].get_c()]) {
@@ -2675,6 +2588,14 @@ void MoveStructure::serialize() {
     fout.write(reinterpret_cast<char*>(&onebit), sizeof(onebit));
     fout.write(reinterpret_cast<char*>(&rlbwt[0]), rlbwt.size()*sizeof(rlbwt[0]));
 
+#if MODE == 5 or MODE == 7
+    fout.write(reinterpret_cast<char*>(&tally_checkpoints), sizeof(tally_checkpoints));
+    uint64_t tally_ids_len = tally_ids[0].size();
+    fout.write(reinterpret_cast<char*>(&tally_ids_len), sizeof(tally_ids_len)); 
+    for (uint32_t i = 0; i < alphabet.size(); i++) {
+        fout.write(reinterpret_cast<char*>(&tally_ids[i][0]), tally_ids[i].size()*sizeof(tally_ids[i][0]));
+    }
+#endif
     uint64_t n_overflow_size = n_overflow.size();
     fout.write(reinterpret_cast<char*>(&n_overflow_size), sizeof(n_overflow_size));
     fout.write(reinterpret_cast<char*>(&n_overflow[0]), n_overflow.size()*sizeof(uint64_t));
@@ -2716,6 +2637,7 @@ void MoveStructure::serialize() {
         fout.write(reinterpret_cast<char*>(&id_blocks_size), sizeof(id_blocks_size));
     }
 #endif
+    fout.write(reinterpret_cast<char*>(&original_r), sizeof(original_r));
 
     fout.close();
 }
@@ -2757,9 +2679,21 @@ void MoveStructure::deserialize() {
                     << "splitting " << splitting << "\n";
         exit(0);
     }
-
     rlbwt.resize(r);
     fin.read(reinterpret_cast<char*>(&rlbwt[0]), r*sizeof(MoveRow));
+
+#if MODE == 5 or MODE == 7
+    fin.read(reinterpret_cast<char*>(&tally_checkpoints), sizeof(tally_checkpoints));
+    std::cerr << "Tally mode with tally_checkpoints = " << tally_checkpoints << "\n";
+    uint64_t tally_ids_len = 0;
+    fin.read(reinterpret_cast<char*>(&tally_ids_len), sizeof(tally_ids_len));
+    tally_ids.resize(alphabet.size());
+    for (uint32_t i = 0; i < alphabet.size(); i++) {
+        tally_ids[i].resize(tally_ids_len);
+        fin.read(reinterpret_cast<char*>(&tally_ids[i][0]), tally_ids_len*sizeof(MoveTally));
+    }
+#endif
+
     uint64_t n_overflow_size;
     fin.read(reinterpret_cast<char*>(&n_overflow_size), sizeof(n_overflow_size));
     n_overflow.resize(n_overflow_size);
@@ -2810,10 +2744,16 @@ void MoveStructure::deserialize() {
         id_blocks.resize(alphabet.size());
         for (uint64_t i = 0; i < alphabet.size(); i++) {
             id_blocks[i].resize(id_blocks_size);
-            fin.read(reinterpret_cast<char*>(&id_blocks[i][0]), id_blocks_size*sizeof(uint64_t));
+            fin.read(reinterpret_cast<char*>(&id_blocks[i][0]), id_blocks_size*sizeof(uint32_t));
         }
     }
 #endif
+    // To be able to load the indexes that haven't stored original_r
+    if (fin.eof()) {
+        std::cerr << "original_r was not stored in the index!\n";
+    } else {
+        fin.read(reinterpret_cast<char*>(&original_r), sizeof(original_r));
+    }
 
     fin.close();
 }
@@ -2857,6 +2797,7 @@ void MoveStructure::verify_lfs() {
     if (not_matched == 0) {
         std::cerr << "All the LF_move operations are correct.\n";
     } else {
+        original_r = 0;
         std::cerr << "There are " << not_matched << " LF_move operations that failed to match the true lf results.\n";
     }
 }
@@ -2954,11 +2895,68 @@ void MoveStructure::analyze_rows() {
 }
 
 void MoveStructure::print_stats() {
-    std::cerr << "n: " << length << "\n";
-    std::cerr << "r: " << r << "\n";
-    std::cerr << "n/r: " << length/r << "\n";
+
+    std::cerr << "n:\t" << length << "\n";
+    std::cerr << "r:\t" << r << "\n";
+    std::cerr << "n/r:\t" << static_cast<double>(length)/r << "\n";
+    std::cerr << "original_r:\t" << original_r << "\n";
+    std::cerr << "end_bwt_idx:\t" << end_bwt_idx << "\n";
+
+    for (int i = 0; i < first_runs.size(); i++) {
+        std::cerr << alphabet[i] << "\t" << i << "\t" << first_runs[i] << "\t" << last_runs[i] << "\n";
+    }
+
     if (original_r != 0) {
         std::cerr << "original_r: " << original_r << "\n";
-        std::cerr << "n/original_r: " << length/original_r << "\n";
+        std::cerr << "n/original_r: " << static_cast<double>(length)/original_r << "\n";
     }
+    std::cerr << "Size of the rlbwt table: " << sizeof(rlbwt[0]) * rlbwt.size() * (0.000000001) << "\n";
+#if MODE == 3 or MODE == 6
+    std::cerr << "Size of the block table: " << sizeof(id_blocks[0][0]) * id_blocks[0].size() * id_blocks.size() * (0.000000001) << "\n";
+#endif
+#if MODE == 5 or MODE == 7
+    std::cerr << "Size of the tally table: " << sizeof(tally_ids[0][0]) * tally_ids[0].size() * tally_ids.size() * (0.000000001) << "\n";
+#endif
+
+    if (movi_options->is_output_ids()) {
+        print_ids();
+    }
+}
+
+void MoveStructure::print_ids() {
+
+    std::cerr << "\nThe ids are being written out..\n";
+
+    std::string base_name = movi_options->get_index_dir() + "/ids";
+    std::vector<std::unique_ptr<std::ofstream>> id_files;
+
+    std::ofstream ids_all(base_name + ".all");
+
+    for (int i = 0; i < alphabet.size(); i++) {
+        std::string ext(1, alphabet[i]);
+        id_files.push_back(std::make_unique<std::ofstream>(base_name + "." + ext));
+    }
+
+    for (uint64_t i = 0; i < r; i++) {
+
+        if (i%100000 == 0) std::cerr << i << "\r";
+
+        if (i != end_bwt_idx) {
+
+            uint64_t id = get_id(i);
+            uint64_t adjusted_id = id - first_runs[rlbwt[i].get_c() + 1];
+
+            int char_index = static_cast<int>(rlbwt[i].get_c());
+            *id_files[char_index] << adjusted_id << "\t" << i << "\n";
+
+            ids_all << adjusted_id << "\n";
+        }
+    }
+
+    ids_all.close();
+    for (auto& id_file : id_files) {
+        id_file->close();
+    }
+
+    std::cerr << "\nDone.\n";
 }
