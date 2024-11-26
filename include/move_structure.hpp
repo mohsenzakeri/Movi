@@ -128,7 +128,6 @@ class MoveStructure {
         bool extend_right(char c, MoveBiInterval& bi_interval);
         MoveBiInterval backward_search_bidirectional(std::string& R, int32_t& pos_on_r, MoveBiInterval interval, int32_t max_length);
         MoveBiInterval initialize_bidirectional_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len);
-        uint64_t backward_search(std::string& R, int32_t& pos_on_r);
         bool backward_search_step(char c, MoveInterval& interval);
         uint64_t backward_search_step(std::string& R, int32_t& pos_on_r, MoveInterval& interval);
         MoveInterval backward_search(std::string& R, int32_t& pos_on_r, MoveInterval interval, int32_t max_length);
