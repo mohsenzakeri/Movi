@@ -31,6 +31,9 @@ std::string program() {
 #if MODE == 4
     return "split";
 #endif
+#if MODE == 6
+    return "compact-thresholds";
+#endif
 }
 
 // Extract filename from path (excluding . extension)
@@ -78,14 +81,17 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     options.add_options()
         ("command", "Command to execute", cxxopts::value<std::string>())
         ("h,help", "Print help")
+        ("d,dbg", "Enable debug mode")
         ("v,verbose", "Enable verbose mode")
         ("l,logs", "Enable logs");
 
     auto buildOptions = options.add_options("build")
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("f,fasta", "Reference file", cxxopts::value<std::string>())
+        ("thresholds", "Store the threshold values in the compact mode by splitting the runs at threshold boundaries")
         ("preprocessed", "The BWT is preprocessed into heads and lens files")
         ("verify", "Verify if all the LF_move operations are correct")
+        ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
         ("ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>())
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails");
 
@@ -95,6 +101,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("zml", "Compute the Ziv-Merhav cross parsing length (ZMLs)")
         ("count", "Compute the count queries")
         ("kmer", "Search all the kmers")
+        ("kmer-count", "Find the count of every kmer")
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
@@ -123,6 +130,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("type", "type of the LF query: \"reconstruct\", \"sequential\", or \"random\"", cxxopts::value<std::string>());
 
     auto statsOptions = options.add_options("stats")
+        ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
         ("i,index", "Index directory", cxxopts::value<std::string>());
 
     auto ftabOptions = options.add_options("ftab")
@@ -150,6 +158,11 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
             movi_options.set_logs(true);
         }
 
+        if (result.count("dbg")) {
+            // Set global debug flag
+            movi_options.set_debug(true);
+        }
+
         if (result.count("command")) {
             std::string command = result["command"].as<std::string>();
             movi_options.set_command(command);
@@ -160,12 +173,20 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     movi_options.set_ref_file(result["fasta"].as<std::string>());
                     if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
                     if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
+                    if (result.count("output-ids") >= 1) { movi_options.set_output_ids(true); }
                     if (result.count("verify")) {
                         movi_options.set_verify(true);
                     }
                     if (result.count("preprocessed")) {
                         movi_options.set_preprocessed(true);
                     }
+                    if (result.count("thresholds")) {
+                        movi_options.set_thresholds(true);
+                    }
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6
+                    // In these modes, thresholds are always stored
+                    movi_options.set_thresholds(true);
+#endif
                 } else {
                     const std::string message = "Please include one index directory and one fasta file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
@@ -197,6 +218,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
                     if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
                     if (result.count("kmer") >= 1) { movi_options.set_kmer(); }
+                    if (result.count("kmer-count") >= 1) { movi_options.set_kmer(); movi_options.set_kmer_count(true); }
                     if (result.count("count") >= 1) { movi_options.set_count(); }
                     if (result.count("zml") >= 1) { movi_options.set_zml(); }
                     if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
@@ -255,6 +277,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
             } else if (command == "stats") {
                 if (result.count("index")) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
+                    if (result.count("output-ids") >= 1) { movi_options.set_output_ids(true); }
                 } else {
                     const std::string message = "Please specify the index directory file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
@@ -390,7 +413,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 }
             } else if (movi_options.is_kmer()) {
                 mq = MoveQuery(query_seq);
-                mv_.query_all_kmers(mq);
+                mv_.query_all_kmers(mq, movi_options.is_kmer_count());
             }
 
             if (movi_options.is_logs()) {
@@ -432,8 +455,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             }
             std::cerr << "The count file is closed.\n";
         } else if (movi_options.is_kmer()) {
-            std::cout << "\n\nNumber of kmers found in the index: " << mv_.kmer_stats.positive_kmers << "\n\n\n";
-            mv_.kmer_stats.print();
+            mv_.kmer_stats.print(movi_options.is_kmer_count());
         }
 
         if (movi_options.is_logs()) {
@@ -478,7 +500,7 @@ int main(int argc, char** argv) {
     std::string command = movi_options.get_command();
 
     if (command == "build") {
-        MoveStructure mv_(&movi_options, false, MODE == 1 or MODE == 4, MODE == 1);
+        MoveStructure mv_(&movi_options, MODE == 1 or MODE == 4, MODE == 1);
         if (movi_options.if_verify()) {
             std::cerr << "Verifying the LF_move results...\n";
             mv_.verify_lfs();
@@ -486,6 +508,10 @@ int main(int argc, char** argv) {
         mv_.serialize();
         build_ftab(mv_, movi_options);
         std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
+
+        if (movi_options.is_output_ids()) {
+            mv_.print_ids();
+        }
     } else if (command == "color") {
         MoveStructure mv_(&movi_options);
         auto begin = std::chrono::system_clock::now();
