@@ -488,6 +488,11 @@ void ReadProcessor::reset_kmer_search(Strand& process) {
         process.kmer_start = process.read.length() - k + 1;
         process.kmer_end = process.read.length() - 1 + 1;
         process.pos_on_r = process.kmer_end;
+
+        // Find the first position where the character is legal
+        while (!mv.check_alphabet(process.read[process.pos_on_r])) {
+            process.pos_on_r -= 1;
+        }
     }
 }
 
