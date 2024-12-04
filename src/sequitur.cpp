@@ -318,8 +318,9 @@ void MoveStructure::query_all_kmers(MoveQuery& mq, bool kmer_counts) {
         return;
     }
 
+    // Find the first position where the character is legal
     while (!check_alphabet(query_seq[pos_on_r])) {
-        pos_on_r -= 1; // Find the first position where the character is legal
+        pos_on_r -= 1;
     }
 
 
