@@ -139,7 +139,7 @@ class MoveStructure {
         void random_lf();
         std::string reconstruct_lf();
 
-        uint64_t LF(uint64_t row_number);
+        uint64_t LF(uint64_t row_number, uint64_t alphabet_index);
         uint16_t LF_move(uint64_t& pointer, uint64_t& i);
         uint64_t fast_forward(uint64_t& offset, uint64_t index, uint64_t x);
 
@@ -288,6 +288,7 @@ class MoveStructure {
         // The following are only used for construction, not stored in the index
         sdsl::int_vector<> thresholds;
         std::vector<uint64_t> all_p;
+        std::vector<char> heads;
         std::vector<std::unique_ptr<sdsl::bit_vector> > occs;
         std::vector<std::unique_ptr<sdsl::rank_support_v<> > > occs_rank;
         sdsl::bit_vector bits;

@@ -138,9 +138,8 @@ bool MoveStructure::check_mode() {
     return true;
 }
 
-uint64_t MoveStructure::LF(uint64_t row_number) {
+uint64_t MoveStructure::LF(uint64_t row_number, uint64_t alphabet_index) {
     uint64_t lf = 0;
-    uint64_t alphabet_index = alphamap[static_cast<uint64_t>(bwt_string[row_number])];
     lf += 1;
     for (uint64_t i = 0; i < alphabet_index; i++) {
         lf += counts[i];
@@ -668,7 +667,7 @@ void MoveStructure::build() {
         std::cerr << "heads_end_pos:\t" << heads_end_pos << "\n"; */
         original_r  = heads_.size();
         std::vector<size_t> lens;
-        std::vector<char> heads;
+        // std::vector<char> heads;
         for (uint64_t i = 0; i < original_r; i++) {
             if (i>0 && i % 100000 == 0)
                 std::cerr << "original_r: " << i << "\r";
@@ -838,6 +837,8 @@ void MoveStructure::build() {
 
         all_p.resize(r + 1);
         all_p[0] = 0;
+        heads.resize(r);
+        heads[0] = bwt_string[0];
 
         uint64_t r_idx = 0;
         for (uint64_t i = 0; i < length; i++) {
@@ -845,6 +846,7 @@ void MoveStructure::build() {
                 std::cerr <<"length processed: " << i << "\r";
             if (i == length - 1 or bwt_string[i] != bwt_string[i+1] or bits[i+1]) {
                 all_p[r_idx + 1] = i + 1;
+                heads[r_idx + 1] = bwt_string[i + 1];
                 r_idx += 1;
             }
             if (static_cast<uint64_t>(bwt_string[i]) == END_CHARACTER) {
@@ -856,6 +858,9 @@ void MoveStructure::build() {
         }
         std::cerr << "\nAll the Occ bit vectors are built.\n";
     }
+    // We don't need the original BWT anymore, the run-head characters are stored in heads.
+    bwt_string.clear();
+    bwt_string.shrink_to_fit();
 
     std::cerr << "\nsplit_by_max_run: " << split_by_max_run << "\n";
     std::cerr << "split_by_thresholds: " << split_by_thresholds << "\n";
@@ -899,8 +904,10 @@ void MoveStructure::build() {
         if (r_idx % 10000 == 0)
             std::cerr << r_idx << "\r";
         uint64_t lf  = 0;
-        if (r_idx != end_bwt_idx)
-            lf = LF(all_p[r_idx]);
+        if (r_idx != end_bwt_idx) {
+            uint64_t alphabet_index = alphamap[static_cast<uint64_t>(heads[r_idx])];
+            lf = LF(all_p[r_idx], alphabet_index);
+        }
         else
             lf = 0;
         uint64_t pp_id = rbits(lf) - 1;
@@ -983,7 +990,8 @@ void MoveStructure::build() {
             else
                 run_lengths[len] = 1;
         }
-        rlbwt[r_idx].set_c(bwt_string[all_p[r_idx]], alphamap);
+        // rlbwt[r_idx].set_c(bwt_string[all_p[r_idx]], alphamap);
+        rlbwt[r_idx].set_c(heads[r_idx], alphamap);
         // bit1_after_eof = alphamap[bwt_string[i+1]];
     }
 
@@ -2468,7 +2476,8 @@ void MoveStructure::verify_lfs() {
             uint64_t idx_ = i;
             uint64_t lf = 0;
             if (i != end_bwt_idx) {
-                lf = LF(j);
+                uint64_t alphabet_index = alphamap[static_cast<uint64_t>(heads[i])];
+                lf = LF(j, alphabet_index);
             } else {
                 std::cerr << "end_run = " << i << " len: " << rlbwt[i].get_n () << "\n";
             }
