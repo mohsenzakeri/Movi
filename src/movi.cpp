@@ -502,6 +502,7 @@ int main(int argc, char** argv) {
             mv_.serialize_doc_pats();
         } else {
             mv_.build_doc_sets();
+            mv_.build_doc_set_similarities();
             mv_.serialize_doc_sets();
         }
 
@@ -517,14 +518,20 @@ int main(int argc, char** argv) {
         std::fprintf(stderr, "Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
         begin = std::chrono::system_clock::now();
 
+        // mv_.debug_out.open("../output/bacillus_genus/long_reads/non_read/full_doc_pml_50.txt", std::ofstream::app);
+        
         mv_.set_use_doc_pats(movi_options.is_full_color());
         if (movi_options.is_full_color()) {
             mv_.deserialize_doc_pats();
         } else {
             mv_.deserialize_doc_sets();
+            // mv_.write_doc_set_freqs("../output/bacillus_genus/long_reads/non_read/doc_set_freqs_sep_5.txt");
         }
         query(mv_, movi_options);
-        
+
+        // mv_.debug_out << ">\n";
+        // mv_.debug_out.close();
+
         end = std::chrono::system_clock::now();
         elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
         std::fprintf(stderr, "Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);

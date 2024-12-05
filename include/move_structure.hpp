@@ -136,6 +136,8 @@ class MoveStructure {
         MoveStructure(MoviOptions* movi_options_);
         MoveStructure(MoviOptions* movi_options_, bool onebit_, uint16_t splitting = 0, bool constant = false);
 
+        std::ofstream debug_out;
+
         bool check_mode();
         std::string index_type();
         void set_onebit();
@@ -186,6 +188,7 @@ class MoveStructure {
         void print_SA();
         // Builds document sets for each run in rlbwt.
         void build_doc_sets();
+        void build_doc_set_similarities();
         // Builds document information for all rows.
         void build_doc_pats();
         // Writes frequencies of document sets to file.
@@ -236,7 +239,8 @@ class MoveStructure {
     private:
         // Sorted vector of the start offsets of each document.  
         std::vector<uint64_t> doc_offsets;
-        int num_docs;
+        std::vector<uint64_t> doc_lens;
+        uint16_t num_docs;
 
         // Offset of run heads in the rlbwt. For experimental purposes.
         std::vector<uint64_t> run_offsets;
@@ -247,6 +251,8 @@ class MoveStructure {
         // Document sets.
         std::vector<sdsl::bit_vector> unique_doc_sets;
         std::vector<uint32_t> doc_set_inds;
+        // Count of how much each doc set appears (by ID).
+        std::vector<uint64_t> doc_set_cnts;
 
         // Mask for most frequent document sets.
         std::vector<bool> top_X_frequent;
