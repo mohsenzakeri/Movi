@@ -189,6 +189,7 @@ class MoveStructure {
         // Builds document sets for each run in rlbwt.
         void build_doc_sets();
         void build_doc_set_similarities();
+        void compress_doc_sets();
         // Builds document information for all rows.
         void build_doc_pats();
         // Writes frequencies of document sets to file.
@@ -210,8 +211,8 @@ class MoveStructure {
         
         void serialize_doc_pats();
         void deserialize_doc_pats();
-        void serialize_doc_sets();
-        void deserialize_doc_sets();
+        void serialize_doc_sets(std::string file_suf);
+        void deserialize_doc_sets(std::string file_suf);
         void serialize();
         void deserialize();
         
@@ -222,6 +223,7 @@ class MoveStructure {
 
         void set_use_doc_pats(bool val) { use_doc_pats = val; }
         int get_num_docs() { return num_docs; }
+        int get_num_species() { return num_species; }
         char get_char(uint64_t idx);
         uint64_t get_n(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
@@ -241,6 +243,7 @@ class MoveStructure {
         std::vector<uint64_t> doc_offsets;
         std::vector<uint64_t> doc_lens;
         uint16_t num_docs;
+        uint16_t num_species;
 
         // Offset of run heads in the rlbwt. For experimental purposes.
         std::vector<uint64_t> run_offsets;
@@ -253,9 +256,6 @@ class MoveStructure {
         std::vector<uint32_t> doc_set_inds;
         // Count of how much each doc set appears (by ID).
         std::vector<uint64_t> doc_set_cnts;
-
-        // Mask for most frequent document sets.
-        std::vector<bool> top_X_frequent;
 
         // Document patterns.
         std::vector<uint8_t> doc_pats;
@@ -327,10 +327,27 @@ class MoveStructure {
 
 class DocSet {
 public:
+    // Used for efficient hashing.
+    static const uint32_t ARR_SIZE = (1 << 16);
+    static const uint32_t MOD = 1000000007;
+    static uint32_t pow2[ARR_SIZE];
+
     int size;
+    uint64_t hash;
     sdsl::bit_vector bv;
 
-    DocSet(int n) : size(n) { bv.resize(n); }
+    DocSet(int n) : size(n), hash(0) { bv.resize(n); }
+
+    void set(int ind) {
+        if (!bv[ind]) {
+            bv[ind] = 1;
+            hash += pow2[ind];
+            if (hash >= MOD) {
+                hash -= MOD;
+            }
+        }
+    }
+
     bool operator==(const DocSet &o) const {
         for (int i = 0; i < size; i++) {
             if (bv[i] != o.bv[i]) {
@@ -339,20 +356,24 @@ public:
         }
         return true;
     }
+
+    static void initialize_pow2() {
+        // Fill in powers of 2 array.
+        pow2[0] = 1;
+        for (size_t i = 1; i < ARR_SIZE; i++) {
+            pow2[i] = (pow2[i - 1] << 1);
+            if (pow2[i] >= MOD) {
+                pow2[i] -= MOD;
+            }
+        }
+    }
 };
 
 template<>
 struct std::hash<DocSet> {
     const size_t MOD = 1000000007;
     std::size_t operator()(const DocSet &dc) const {
-        size_t hash = 0;
-        for (int i = 0; i < dc.size; i++) {
-            hash = hash * 2 + dc.bv[i];
-            if (hash >= MOD) {
-                hash -= MOD;
-            }
-        }
-        return hash;
+        return dc.hash;
     }
 };
 

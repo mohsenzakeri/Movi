@@ -28,6 +28,7 @@ class MoviOptions {
         int ignore_illegal_chars_status() { return ilc; }
         size_t get_strands() { return strands; }
         bool is_full_color() { return full_color; }
+        bool is_compressed() { return compress; }
         uint32_t get_k () { return k; }
         uint32_t get_ftab_k () { return ftab_k; }
         std::string get_command() { return command; }
@@ -72,6 +73,7 @@ class MoviOptions {
             return true;
         }
         void set_full_color(bool val) { full_color = val; }
+        void set_compress(bool val) { compress = val; }
         void set_out_file(std::string out_file_) { out_file = out_file_; }
 
         void set_ref_file(std::string file_address) { ref_file = file_address; }
@@ -127,6 +129,7 @@ class MoviOptions {
         bool verbose = false;
         bool logs = false;
         bool full_color = false;
+        bool compress = false;
 };
 
 #endif
