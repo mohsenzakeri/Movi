@@ -39,7 +39,7 @@ if test -f "$index_dir/ref.fa"
 then
   echo "The clean_fasta is already made, skipping.."
 else
-  cmd="$t $index_dir/build.prepare_ref.time $prepare_ref $fasta_list $clean_fasta list"
+  cmd="$t $index_dir/build.prepare_ref.time $prepare_ref $fasta_list $clean_fasta list $4"
   echo $cmd
   eval $cmd
 fi

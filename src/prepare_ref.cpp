@@ -53,7 +53,7 @@ uint64_t read_fasta(const char* file_name, std::ofstream& clean_fasta, bool rc, 
             clean_fasta << '>' << seq->name.s << '\n' << seq->seq.s << '#' << '\n';
             if (rc)
                 clean_fasta << '>' << seq->name.s << "_rev_comp" << '\n' << seq_rc << '#' << '\n';
-
+            total_length++;
         } else {
             clean_fasta << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
             if (rc)
@@ -68,8 +68,8 @@ uint64_t read_fasta(const char* file_name, std::ofstream& clean_fasta, bool rc, 
 
 int main(int argc, char* argv[]) {
     // Fasta/q reader from http://lh3lh3.users.sourceforge.net/parsefastq.shtml
-    bool input_type = (argc > 3 and std::string(argv[3]) == "list");
-    bool kmer_mode = (argc > 3 and std::string(argv[3]) == "kmer");
+    bool input_type = (argc > 3 && std::string(argv[3]) == "list") || (argc > 4 && std::string(argv[4]) == "list");
+    bool kmer_mode = (argc > 3 && std::string(argv[3]) == "kmer") || (argc > 4 && std::string(argv[4]) == "kmer");
     bool rc = (argc > 4 and std::string(argv[4]) == "fw") ? false : true;
     std::cerr << rc << "\n";
     std::ofstream clean_fasta(static_cast<std::string>(argv[2]));
@@ -91,6 +91,9 @@ int main(int argc, char* argv[]) {
     }
     clean_fasta.close();
 
+    if (kmer_mode) {
+        std::cerr << "Separators between genomes are added" << "\n";
+    }
     std::cerr << "The clean fasta with the reverse complement is stored at " << static_cast<std::string>(argv[2]) << "\n";
 
     std::ofstream doc_offsets(static_cast<std::string>(argv[2]) + ".doc_offsets");
