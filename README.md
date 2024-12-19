@@ -79,12 +79,12 @@ movi-constant query --pml --index <constant index directory> --read <reads file>
 
 `<reads file>` is the address of the fasta or fastq file containing the reads.
 
-After the query command finishes, a file with the same name as the reads file and the extension `mpml.bin` is generated in the directory that also includes the reads file.
+After the query command finishes, a file with the same name as the reads file and the extension `pml.bin` is generated in the directory that also includes the reads file.
 Since this file is in the binary format, to view the PMLs please run the following command:
 ```
-movi-default view --pml-file <mpml file> | less
+movi-default view --mls-file <pml file> | less
 ```
-`<mpml file>` is the file generated in the query step.
+`<pml file>` is the file generated in the query step.
 
 The output of the last command shows each read's name following by pseudo matching lengths computed for it. A pseudo matching length is outputed for every base of the read. This is the same as the output produced by SPUMONI.
 
