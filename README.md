@@ -2,7 +2,7 @@
 
 Movi is a full text index for pangenomes. It takes advantage of the move data structure (by Nishimoto and Tabei). Movi works with genomic file formats. The high locality of the reference and latency hiding in Movi results in low and predictabile query latencies. These properties make Movi ideal for real time applications like Nanopore Adaptive sampling.
 
->[Zakeri, Mohsen, Brown, Nathaniel K., Ahmed, Omar Y., Gagie, Travis, and Langmead, Ben. "Movi: a fast and cache-efficient full-text pangenome index". bioRxiv preprint (2023)](https://www.biorxiv.org/content/10.1101/2023.11.04.565615v2)
+>[Zakeri, Mohsen, Brown, Nathaniel K., Ahmed, Omar Y., Gagie, Travis, and Langmead, Ben. "Movi: a fast and cache-efficient full-text pangenome index". iScience (2024)](https://www.cell.com/iscience/fulltext/S2589-0042(24)02691-9)
 
 >Nishimoto, Takaaki, and Yasuo Tabei. "Optimal-time queries on BWT-runs compressed indexes." arXiv preprint arXiv:2006.05104 (2020).
 
