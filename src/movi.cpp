@@ -26,7 +26,7 @@ std::string program() {
     return "constant";
 #endif
 #if MODE == 3
-    return "compact";
+    return "blocked";
 #endif
 #if MODE == 4
     return "split";
@@ -35,7 +35,7 @@ std::string program() {
     return "tally";
 #endif
 #if MODE == 6
-    return "compact-thresholds";
+    return "blocked-thresholds";
 #endif
 #if MODE == 7
     return "tally-thresholds";

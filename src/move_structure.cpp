@@ -101,7 +101,7 @@ std::string MoveStructure::index_type() {
     return "constant";
 #endif
 #if MODE == 3
-    return "compact";
+    return "blocked";
 #endif
 #if MODE == 4
     // Like the default constant mode, but without the pointers to the neighbors with the other characters
@@ -111,7 +111,7 @@ std::string MoveStructure::index_type() {
     return "tally";
 #endif
 #if MODE == 6
-    return "compact-thresholds";
+    return "blocked-thresholds";
 #endif
 #if MODE == 7
     return "tally-thresholds";
