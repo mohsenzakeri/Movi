@@ -114,9 +114,8 @@ bool MoveStructure::check_mode() {
     return true;
 }
 
-uint64_t MoveStructure::LF(uint64_t row_number) {
+uint64_t MoveStructure::LF(uint64_t row_number, uint64_t alphabet_index) {
     uint64_t lf = 0;
-    uint64_t alphabet_index = alphamap[static_cast<uint64_t>(bwt_string[row_number])];
     lf += 1;
     for (uint64_t i = 0; i < alphabet_index; i++) {
         lf += counts[i];
@@ -136,9 +135,10 @@ uint64_t MoveStructure::LF(uint64_t row_number) {
     if (!reconstructed) {
         orig_string = "";
         orig_string += static_cast<char>(END_CHARACTER);
-        for (uint64_t bwt_row = 0; bwt_row != end_bwt_row; bwt_row = LF(bwt_row)) {
+        uint64_t alphabet_index = rlbwt[idx_].get_c();
+        for (uint64_t bwt_row = 0; bwt_row != end_bwt_row; bwt_row = LF(bwt_row, alphabet_index)) {
             orig_string = bwt_string[bwt_row] + orig_string;
-            
+            uint64_t alphabet_index = alphamap[static_cast<uint64_t>(bwt_string[bwt_row])];
         }
         reconstructed = true;
     }
@@ -164,8 +164,9 @@ uint64_t MoveStructure::LF(uint64_t row_number) {
 
 /*uint64_t MoveStructure::naive_sa(uint64_t bwt_row) {
     uint64_t sa = 0;
-    for (; bwt_row != end_bwt_row; bwt_row = LF(bwt_row)) {
+    for (; bwt_row != end_bwt_row; bwt_row = LF(bwt_row, alphabet_index)) {
         sa += 1;
+        uint64_t alphabet_index = alphamap[static_cast<uint64_t>(bwt_string[bwt_row])];
     }
     return sa;
 }*/
@@ -979,7 +980,7 @@ void MoveStructure::build() {
         std::cerr << "rank_support_v<>(&bits)(bits.size()): " << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
     }
 
-# if TALLY_MODE
+#if TALLY_MODE
     tally_ids.resize(alphabet.size());
     uint64_t tally_ids_rows_count = r / tally_checkpoints + 2;
     std::vector<uint64_t> current_tally_ids;
@@ -998,8 +999,10 @@ void MoveStructure::build() {
         if (r_idx % 10000 == 0)
             std::cerr << r_idx << "\r";
         uint64_t lf  = 0;
-        if (r_idx != end_bwt_idx)
-            lf = LF(all_p[r_idx]);
+        if (r_idx != end_bwt_idx) {
+            uint64_t alphabet_index = alphamap[static_cast<uint64_t>(heads[r_idx])];
+            lf = LF(all_p[r_idx], alphabet_index);
+        }
         else
             lf = 0;
         uint64_t pp_id = rbits(lf) - 1;
@@ -1042,7 +1045,7 @@ void MoveStructure::build() {
 
         if (r_idx != end_bwt_idx) {
             // Only update the tally corresponding to the current run's character
-            uint16_t char_index = alphamap[bwt_string[all_p[r_idx]]];
+            uint16_t char_index = alphamap[heads[r_idx]];
             // The first tally id might have been set to the wrong value since no run with that character was observed
             // So, we fix the values once we the first run with that character
             if (current_tally_ids[char_index] == r) {
@@ -2574,7 +2577,8 @@ void MoveStructure::verify_lfs() {
             uint64_t idx_ = i;
             uint64_t lf = 0;
             if (i != end_bwt_idx) {
-                lf = LF(j);
+                uint64_t alphabet_index = rlbwt[idx_].get_c();
+                lf = LF(j, alphabet_index);
             } else {
                 std::cerr << "end_run = " << i << " len: " << rlbwt[i].get_n () << "\n";
             }
