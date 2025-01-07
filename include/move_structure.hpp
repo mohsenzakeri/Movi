@@ -21,6 +21,7 @@
 #include "move_row.hpp"
 #include "move_query.hpp"
 #include "sequitur.hpp"
+#include "utils.hpp"
 
 #define END_CHARACTER 0
 #define THRBYTES 5 
@@ -111,7 +112,6 @@ class MoveStructure {
         MoveStructure(MoviOptions* movi_options_, uint16_t splitting, bool constant);
 
         bool check_mode();
-        std::string index_type();
         void build();
         void fill_bits_by_thresholds();
         void build_rlbwt();
@@ -139,13 +139,14 @@ class MoveStructure {
         void random_lf();
         std::string reconstruct_lf();
 
-        uint64_t LF(uint64_t row_number, uint64_t alphabet_index);
-        uint16_t LF_move(uint64_t& pointer, uint64_t& i);
+        uint64_t LF(uint64_t row_number);
+        // The 3rd argument of LF_move is used in the latency_hiding_tally mode
+        uint16_t LF_move(uint64_t& pointer, uint64_t& i, uint64_t id = std::numeric_limits<uint64_t>::max());
         uint64_t fast_forward(uint64_t& offset, uint64_t index, uint64_t x);
 
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
         uint32_t compute_index(char row_char, char lookup_char);
-#if MODE == 1
+#if CONSTANT_MODE
         void compute_nexts();
 #endif
         void compute_ftab();
@@ -177,12 +178,12 @@ class MoveStructure {
         uint64_t get_n(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
         uint64_t get_id(uint64_t idx);
-#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6
+#if USE_THRESHOLDS
         void compute_thresholds();
         bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
         uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
 #endif
-#if MODE == 0 or MODE == 1 or MODE == 4
+#if SPLIT_THRESHOLDS_FALSE
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
 #endif
@@ -217,6 +218,11 @@ class MoveStructure {
 
         // The move structure rows
         std::vector<MoveRow> rlbwt;
+#if TALLY_MODE
+        uint32_t tally_checkpoints;
+        std::vector<std::vector<MoveTally>> tally_ids;
+#endif
+        std::vector<std::vector<uint32_t>> id_blocks;
 
         // auxilary datastructures for the length, offset and thresholds overflow
         std::vector<uint64_t> n_overflow;

@@ -15,26 +15,10 @@
 #include "move_query.hpp"
 #include "read_processor.hpp"
 #include "movi_options.hpp"
+#include "utils.hpp"
 
 // STEP 1: declare the type of file handler and the read() function
 // KSEQ_INIT(gzFile, gzread)
-std::string program() {
-#if MODE == 0
-    return "default";
-#endif
-#if MODE == 1
-    return "constant";
-#endif
-#if MODE == 3
-    return "compact";
-#endif
-#if MODE == 4
-    return "split";
-#endif
-#if MODE == 6
-    return "compact-thresholds";
-#endif
-}
 
 kseq_t* open_kseq(gzFile& fp, std::string file_address) {
     std::cerr << "file_address: " << file_address << "\n";
@@ -77,6 +61,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("verify", "Verify if all the LF_move operations are correct")
         ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
         ("ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>())
+        ("tally", "Sample id at every tally runs", cxxopts::value<uint32_t>())
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails");
 
     auto queryOptions = options.add_options("query")
@@ -160,7 +145,12 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("thresholds")) {
                         movi_options.set_thresholds(true);
                     }
-#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6
+#if TALLY_MODE
+                    if (result.count("tally") >= 1) {
+                        movi_options.set_tally_checkpoints(static_cast<uint32_t>(result["tally"].as<uint32_t>()));
+                    }
+#endif
+#if USE_THRESHOLDS
                     // In these modes, thresholds are always stored
                     movi_options.set_thresholds(true);
 #endif
@@ -290,7 +280,11 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
     if (!movi_options.no_prefetch()) {
         ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
         if (movi_options.is_pml() or movi_options.is_zml() or movi_options.is_count()) {
+#if TALLY_MODE
+            rp.process_latency_hiding_tally();
+#else
             rp.process_latency_hiding();
+#endif
         } else if (movi_options.is_kmer()) {
             rp.kmer_search_latency_hiding(movi_options.get_k());
         }
@@ -301,7 +295,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         std::ofstream costs_file;
         std::ofstream scans_file;
         std::ofstream fastforwards_file;
-        std::string index_type = mv_.index_type();
+        std::string index_type = program();
         if (movi_options.is_logs()) {
             costs_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".costs");
             scans_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".scans");
@@ -447,7 +441,7 @@ int main(int argc, char** argv) {
     }
     std::string command = movi_options.get_command();
     if (command == "build") {
-        MoveStructure mv_(&movi_options, MODE == 1 or MODE == 4, MODE == 1);
+        MoveStructure mv_(&movi_options, SPLIT_ARRAY, CONSTANT_MODE);
         if (movi_options.if_verify()) {
             std::cerr << "Verifying the LF_move results...\n";
             mv_.verify_lfs();

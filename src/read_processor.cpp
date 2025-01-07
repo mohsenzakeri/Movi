@@ -1,4 +1,5 @@
 #include "read_processor.hpp"
+#include <cpuid.h>
 
 uint32_t alphamap_3_[4][4] = {{3, 0, 1, 2},
                              {0, 3, 1, 2},
@@ -6,6 +7,12 @@ uint32_t alphamap_3_[4][4] = {{3, 0, 1, 2},
                              {0, 1, 2, 3}};
 
 ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_ = 4, bool verbose_ = false, bool reverse_ = false) : mv(mv_) {
+
+    int cpu_info[4];
+    __cpuid(0x80000006, cpu_info[0], cpu_info[1], cpu_info[2], cpu_info[3]);
+    cache_line_size = (cpu_info[2] & 0xFF);
+    prefetch_step = cache_line_size/sizeof(MoveRow) - 1;
+
     verbose = verbose_;
     reverse = mv_.movi_options->is_reverse();
     // Solution for handling the stdin input: https://biowize.wordpress.com/2013/03/05/using-kseq-h-with-stdin/
@@ -17,7 +24,7 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
     }
 
     seq = kseq_init(fp); // STEP 3: initialize seq
-    std::string index_type = mv_.index_type();
+    std::string index_type = program();
     if (!mv_.movi_options->is_stdout()) {
         if (mv_.movi_options->is_pml()) {
             std::string mls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.pml.bin" :
@@ -76,6 +83,21 @@ void ReadProcessor::reset_process(Strand& process) {
         process.pos_on_r = process.read.length() - 1;
         process.idx = mv.r - 1;
         process.offset = mv.get_n(process.idx) - 1;
+
+#if TALLY_MODE
+        // This is necessary
+        process.tally_state = false;
+        // These shouldn't matter
+        process.id_found = true;
+        process.tally_b = 0;
+        process.rows_until_tally = 0;
+        process.next_check_point = 0;
+        process.run_id = 0;
+        process.last_id = 0;
+        process.char_index = 0;
+        process.tally_offset = 0;
+        process.find_next_id_attempt = 0;
+#endif
     }
 }
 
@@ -118,10 +140,9 @@ void ReadProcessor::process_char(Strand& process) {
         // Jumping up or down (randomly or with thresholds)
         uint64_t idx_before_jump = process.idx;
         bool up = false;
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4 or MODE == 6
+#if USE_THRESHOLDS
         up = mv.jump_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
-#endif
-#if MODE == 3
+#else
         up = mv.jump_randomly(process.idx, R[process.pos_on_r], process.scan_count);
 #endif
         process.match_len = 0;
@@ -147,6 +168,228 @@ void ReadProcessor::process_char(Strand& process) {
     // uint64_t ff_count = mv.LF_move(process.offset, process.idx);
     // process.ff_count_tot += ff_count;
 }
+
+#if TALLY_MODE
+void ReadProcessor::process_char_tally(Strand& process) {
+    if (process.tally_state == false) {
+
+        if (process.pos_on_r < process.read.length() - 1) {
+
+            // First find the id if not found already
+            if (process.id_found == false) {
+                find_next_id(process);
+                if (process.id_found == false) {
+                    return;
+                } else {
+                    process.find_next_id_attempt = 0;
+                }
+            }
+
+            // LF step
+            process.ff_count = mv.LF_move(process.offset, process.idx, process.run_id);
+        }
+
+        // After LF is performed, calculate PML based on case1/case2
+        auto& row = mv.rlbwt[process.idx];
+        uint64_t row_idx = process.idx;
+        char row_c = mv.alphabet[row.get_c()];
+        std::string& R = process.mq.query();
+        process.scan_count = 0;
+        if (mv.alphamap[static_cast<uint64_t>(R[process.pos_on_r])] == mv.alphamap.size()) {
+            process.match_len = 0;
+        } else if (row_c == R[process.pos_on_r]) {
+            // Case 1
+            process.match_len += 1;
+        } else {
+            // Case 2
+            // Jumping up or down (randomly or with thresholds)
+            uint64_t idx_before_jump = process.idx;
+            bool up = false;
+#if USE_THRESHOLDS
+            up = mv.jump_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
+#else
+            up = mv.jump_randomly(process.idx, R[process.pos_on_r], process.scan_count);
+#endif
+            process.match_len = 0;
+            char c = mv.alphabet[mv.rlbwt[process.idx].get_c()];
+            // sanity check
+            if (c == R[process.pos_on_r]) {
+                // Observing a match after the jump
+                // The right match_len should be:
+                // min(new_lcp, match_len + 1)
+                // But we cannot compute lcp here
+                process.offset = up ? mv.get_n(process.idx) - 1 : 0;
+                if (verbose)
+                    std::cerr << "\t idx: " << process.idx << " offset: " << process.offset << "\n";
+            } else {
+                std::cerr << "\t \t This should not happen!\n";
+            }
+        }
+        process.mq.add_ml(process.match_len);
+        process.pos_on_r -= 1;
+
+        // get_id is called at the beginning of the next LF
+        // Now we should find out what is the next tally_b to prefetch it
+        // Set tally_state to true, so that the other branch for id computation is called
+        process.id_found = false;
+        find_tally_b(process);
+    } else {
+        // The id for the run at the next_check_point
+        process.run_id = mv.tally_ids[process.char_index][process.tally_b].get();
+
+        count_rows_untill_tally(process);
+
+        // The id stored at the checkpoint is actually the id for the current run
+        // because there was no run with the same character between the current run and the next_check_point
+        if (process.last_id == process.idx and mv.get_char(process.idx) != mv.get_char(process.next_check_point)) {
+            // process.run_id is already set to the correct value above
+            // process.run_id = mv.tally_ids[process.char_index][process.tally_b].get();
+
+            process.id_found = true;
+        }
+
+        process.tally_state = false;
+    }
+}
+
+void ReadProcessor::find_next_id(Strand& process) {
+
+    // Sanity check, the offset in the destination run should be always smaller than the length of that run
+    if (process.tally_offset >= mv.get_n(process.run_id)) {
+        std::cout << "tally_offset: " << process.tally_offset << " n: " << mv.get_n(process.run_id) << "\n"; // << dbg.str() << "\n";
+        exit(0);
+    }
+
+    if (process.find_next_id_attempt == 0) {
+        if (process.tally_offset >= process.rows_until_tally) {
+            process.id_found = true;
+            return;
+        } else {
+            process.rows_until_tally -= (process.tally_offset + 1);
+            process.run_id -= 1;
+            process.tally_offset = 0;
+        }
+    }
+
+    int rows_visited = 0;
+    while (process.rows_until_tally != 0 and rows_visited < mv.tally_checkpoints) {
+        if (process.rows_until_tally >= mv.get_n(process.run_id)) {
+            process.rows_until_tally -= mv.get_n(process.run_id);
+            process.run_id -= 1;
+            rows_visited += 1;
+        } else {
+            process.rows_until_tally = 0;
+        }
+    }
+    // The id is not found yet, more prefetching is needed.
+    if (process.rows_until_tally != 0) {
+        process.find_next_id_attempt += 1;
+        process.id_found = false;
+        return;
+    }
+
+    process.id_found = true;
+}
+
+void ReadProcessor::count_rows_untill_tally(Strand& process) {
+
+    process.rows_until_tally = 0;
+
+    // // The id for the run at the next_check_point
+    // process.run_id = mv.tally_ids[process.char_index][process.tally_b].get();
+
+    uint64_t last_count = 0;
+    process.last_id = mv.r;
+
+    // Look for the rows between idx and the next_check_point
+    // Count how many rows with the same character exists between
+    // the current run head and the next run head for which we know the id
+    // dbg << "from: " << idx << " to: " << next_check_point << "\n";
+    for (uint64_t i = process.idx; i < process.next_check_point; i++) {
+        // Only count the rows with the same character
+        if (mv.get_char(i) == mv.get_char(process.idx)) {
+            process.rows_until_tally += mv.get_n(i);
+            process.last_id = i;
+        }
+    }
+
+    // // The id stored at the checkpoint is actually the id for the current run
+    // // because there was no run with the same character between the current run and the next_check_point
+    // if (last_id == process.idx and mv.get_char(process.idx) != mv.get_char(process.next_check_point)) {
+    //     // process.run_id is already set to the correct value above
+    //     // process.run_id = mv.tally_ids[process.char_index][process.tally_b].get();
+
+    //     process.tally_state = false;
+    //     return;
+    // }
+
+    if (process.last_id == mv.r) {
+        std::cerr << "last_id should never be equal to r.\n";
+        exit(0);
+    }
+
+    // We should know what will be the offset of the run head in the destination run (id)
+    process.tally_offset = mv.get_offset(process.next_check_point);
+
+    // At the checkpoint, one id is stored for each character
+    // For the character of the checkpoint, the id of the checkpoint is stored
+    // For other characters, the id of the last run before the checkpoint with that character is stored
+    // So, we have to decrease the number of rows of the last run as they are not between the current run
+    // and the run for which we know the id
+    // Also, for other characters, offset should be stored based on that run (not the checkpoint run)
+    if (mv.get_char(process.idx) != mv.get_char(process.next_check_point)) {
+        process.rows_until_tally -= mv.get_n(process.last_id);
+        process.tally_offset = mv.get_offset(process.last_id);
+    }
+}
+
+void ReadProcessor::find_tally_b(Strand& process) {
+    uint64_t id = 0;
+
+    // The $ always goes to row/run 0
+    if (process.idx == mv.end_bwt_idx) {
+        process.run_id = 0;
+
+        process.tally_state = false;
+        process.id_found = true;
+        return;
+    }
+
+    process.char_index = mv.rlbwt[process.idx].get_c();
+
+    // The id of the last run is always stored at the last tally_id row
+    if (process.idx == mv.r - 1) {
+        uint64_t tally_ids_len = mv.tally_ids[process.char_index].size();
+        process.run_id = mv.tally_ids[process.char_index][tally_ids_len - 1].get();
+
+        process.tally_state = false;
+        process.id_found = true;
+        return;
+    }
+
+    uint64_t tally_a = process.idx / mv.tally_checkpoints;
+
+    // If we are at a checkpoint, simply return the stored id
+    if (process.idx % mv.tally_checkpoints == 0) {
+        process.run_id = mv.tally_ids[process.char_index][tally_a].get();
+
+        process.tally_state = false;
+        process.id_found = true;
+        return;
+    }
+
+    // find the next check point
+    process.tally_b = tally_a + 1;
+
+    process.next_check_point = process.tally_b * mv.tally_checkpoints;
+    // If we are at the end, just look at the last run
+    if (process.tally_b * mv.tally_checkpoints >= mv.r) {
+        process.next_check_point = mv.r - 1;
+    }
+
+    process.tally_state = true;
+}
+#endif
 
 void ReadProcessor::write_mls(Strand& process) {
     bool write_stdout = mv.movi_options->is_stdout();
@@ -315,6 +558,121 @@ void ReadProcessor::process_latency_hiding() {
         fastforwards_file.close();
     }
 }
+
+#if TALLY_MODE
+void ReadProcessor::process_latency_hiding_tally() {
+    bool is_pml = mv.movi_options->is_pml();
+
+    std::vector<Strand> processes;
+    uint64_t finished_count = initialize_strands(processes);
+    std::cerr << strands << " processes are initiated.\n";
+
+    while (finished_count != strands) {
+        for (uint64_t i = 0; i < strands; i++) {
+            if (!processes[i].finished) {
+                if (is_pml) {
+                    process_char_tally(processes[i]);
+                }
+                // 2: if the read is done -> Write the pmls and go to next read
+                if (is_pml and processes[i].pos_on_r <= -1) {
+                    write_mls(processes[i]);
+                    reset_process(processes[i]);
+                }
+                // 3: -- check if it was the last read in the file -> finished_count++
+                if (processes[i].finished) {
+                    finished_count += 1;
+                } else {
+                    // 4: prefetching
+                    if (processes[i].tally_state) {
+                        // prefetch tally
+                        my_prefetch_r((void*)(&(mv.tally_ids[processes[i].char_index][0]) + processes[i].tally_b));
+                        // prefetch following rows until the checkpoint
+                        // Every prefetch loads 64 bytes which is about 20 move rows
+                        for (uint64_t tally = processes[i].idx; tally <= processes[i].next_check_point; tally += prefetch_step)
+                            my_prefetch_r((void*)(&(mv.rlbwt[0]) + tally));
+                    } else {
+                        // prefetch tally.id
+                        for (uint64_t tally = 0; tally <= mv.tally_checkpoints; tally += prefetch_step)
+                            my_prefetch_r((void*)(&(mv.rlbwt[0]) + processes[i].run_id - tally));
+                    }
+                }
+            }
+        }
+    }
+}
+#endif
+
+/* void ReadProcessor::ziv_merhav_latency_hiding() {
+    std::vector<Strand> processes;
+    for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
+    std::cerr << strands << " processes are created.\n";
+
+    uint64_t finished_count = 0;
+    for (uint64_t i = 0; i < strands; i++) {
+        if (finished_count == 0) {
+            // TODO:: update the reset function
+            reset_process(processes[i]);
+            reset_backward_search(processes[i]);
+            processes[i].kmer_end = processes[i].pos_on_r;
+            processes[i].match_len = 0;
+        } else {
+            processes[i].finished = true;
+        }
+        if (processes[i].finished) {
+            std::cerr << "Warning: less than strands = " << strands << " reads.\n";
+            finished_count += 1;
+        }
+    }
+    std::cerr << strands << " processes are initiated.\n";
+
+    uint64_t total_bs = 0;
+    while (finished_count != strands) {
+        for (uint64_t i = 0; i < strands; i++) {
+            if (!processes[i].finished) {
+                // 1: process next character
+                bool backward_search_finished = backward_search(processes[i], processes[i].kmer_end);
+                total_bs += 1;
+                if (verbose)
+                    std::cerr << backward_search_finished << " " << processes[i].kmer_end << " " << processes[i].pos_on_r << "\n";
+
+                if (backward_search_finished and processes[i].pos_on_r > 0) {
+                    reset_backward_search(processes[i]);
+                    processes[i].kmer_end = processes[i].pos_on_r - 1;
+                    processes[i].match_len = 0;
+                } else if (processes[i].pos_on_r <= 0) {
+                    processes[i].mq.add_ml(processes[i].match_len);
+                    write_mls(processes[i]);
+                    reset_process(processes[i]);
+                    reset_backward_search(processes[i]);
+                    processes[i].kmer_end = processes[i].pos_on_r;
+                    processes[i].match_len = 0;
+                    // 3: -- check if it was the last read in the file -> finished_count++
+                    if (processes[i].finished) {
+                        finished_count += 1;
+                    }
+                } else {
+                    // 4: big jump with prefetch
+                    if (!backward_search_finished) {
+                        processes[i].mq.add_ml(processes[i].match_len);
+                        processes[i].match_len += 1;
+                    }
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_start].get_id()));
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_end].get_id()));
+                }
+            }
+        }
+    }
+
+    std::cerr << "\n";
+    std::cerr << "total_bs for ziv_merhav: " << total_bs << "\n";
+
+    std::cerr << "The output file for the matching lengths closed.\n";
+
+    kseq_destroy(seq); // STEP 5: destroy seq
+    std::cerr << "kseq destroyed!\n";
+    gzclose(fp); // STEP 6: close the file handler
+    std::cerr << "fp file closed!\n";
+} */
 
 uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes) {
     uint64_t finished_count = 0;

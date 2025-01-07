@@ -62,13 +62,29 @@ add_executable(movi-compact src/movi.cpp src/move_structure.cpp src/move_row.cpp
 target_link_libraries(movi-compact sdsl ZLIB::ZLIB)
 target_compile_options(movi-compact PUBLIC -O2 -DMODE=3)
 
+add_executable(movi-blocked src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
+target_link_libraries(movi-blocked sdsl ZLIB::ZLIB)
+target_compile_options(movi-blocked PUBLIC -O2 -DMODE=2)
+
+add_executable(movi-tally src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
+target_link_libraries(movi-tally sdsl ZLIB::ZLIB)
+target_compile_options(movi-tally PUBLIC -O2 -DMODE=5)
+
 add_executable(movi-split src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
 target_link_libraries(movi-split sdsl ZLIB::ZLIB)
 target_compile_options(movi-split PUBLIC -O2 -DMODE=4)
 
 add_executable(movi-compact-thresholds src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
 target_link_libraries(movi-compact-thresholds sdsl ZLIB::ZLIB)
-target_compile_options(movi-compact-thresholds PUBLIC -O2 -DMODE=6) 
+target_compile_options(movi-compact-thresholds PUBLIC -O2 -DMODE=6)
+
+add_executable(movi-blocked-thresholds src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
+target_link_libraries(movi-blocked-thresholds sdsl ZLIB::ZLIB)
+target_compile_options(movi-blocked-thresholds PUBLIC -O2 -DMODE=8)
+
+add_executable(movi-tally-thresholds src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
+target_link_libraries(movi-tally-thresholds sdsl ZLIB::ZLIB)
+target_compile_options(movi-tally-thresholds PUBLIC -O2 -DMODE=7)
 
 add_executable(prepare_ref src/prepare_ref.cpp)
 target_link_libraries(prepare_ref ZLIB::ZLIB)
@@ -77,4 +93,8 @@ if (BUILD_TEST STREQUAL "1")
   add_executable(test_bidirectional src/test_bidirectional.cpp src/move_structure.cpp src/move_row.cpp src/utils.cpp src/sequitur.cpp)
   target_link_libraries(test_bidirectional sdsl ZLIB::ZLIB)
   target_compile_options(test_bidirectional PUBLIC -O2 -DMODE=3)
+
+  add_executable(test_bidirectional src/test_bidirectional.cpp src/move_structure.cpp src/move_row.cpp src/utils.cpp src/sequitur.cpp)
+  target_link_libraries(test_bidirectional sdsl ZLIB::ZLIB)
+  target_compile_options(test_bidirectional_blocked PUBLIC -O2 -DMODE=2)
 endif ()
