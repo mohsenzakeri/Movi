@@ -2377,7 +2377,18 @@ void MoveStructure::serialize() {
     mkdir(movi_options->get_index_dir().c_str(),0777);
     std::string fname = movi_options->get_index_dir() + "/movi_index.bin";
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
-    std::cerr << "length: " << length << " r: " << r << " end_bwt_idx: " << end_bwt_idx << "\n";
+    if (!fout) {
+        throw std::runtime_error("Failed to open the index file: " + fname);
+    }
+
+    if (!movi_options->is_no_header()) {
+        char index_type = static_cast<char>(MODE);
+        fout.write(reinterpret_cast<char*>(&index_type), sizeof(index_type));
+    }
+
+    if (movi_options->is_verbose()) {
+        std::cerr << "length: " << length << " r: " << r << " end_bwt_idx: " << end_bwt_idx << "\n";
+    }
     fout.write(reinterpret_cast<char*>(&length), sizeof(length));
     fout.write(reinterpret_cast<char*>(&r), sizeof(r));
     fout.write(reinterpret_cast<char*>(&end_bwt_idx), sizeof(end_bwt_idx));
@@ -2455,7 +2466,18 @@ void MoveStructure::serialize() {
 void MoveStructure::deserialize() {
     std::string fname = movi_options->get_index_dir() + "/movi_index.bin";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
+    if (!fin) {
+        throw std::runtime_error("Failed to open the index file: " + fname);
+    }
     fin.seekg(0, std::ios::beg); 
+
+    if (!movi_options->is_no_header()) {
+        char index_type = static_cast<char>(MODE);
+        fin.read(reinterpret_cast<char*>(&index_type), sizeof(index_type));
+        if (MODE != index_type) {
+            throw std::runtime_error("MODE does not match the index_type in the header.");
+        }
+    }
 
     fin.read(reinterpret_cast<char*>(&length), sizeof(length));
     fin.read(reinterpret_cast<char*>(&r), sizeof(r));

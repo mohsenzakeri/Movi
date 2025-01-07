@@ -49,6 +49,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     options.add_options()
         ("command", "Command to execute", cxxopts::value<std::string>())
         ("h,help", "Print help")
+        ("no-header", "Header information in not stored")
         ("d,dbg", "Enable debug mode")
         ("v,verbose", "Enable verbose mode")
         ("l,logs", "Enable logs");
@@ -108,6 +109,11 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         if (result.count("help")) {
             std::cerr << options.help() << std::endl;
             return 0;
+        }
+
+        if (result.count("no-header")) {
+            // Set global verbose flag
+            movi_options.set_no_header(true);
         }
 
         if (result.count("verbose")) {
@@ -435,6 +441,8 @@ void view(MoviOptions& movi_options) {
 }
 
 int main(int argc, char** argv) {
+    try {
+
     MoviOptions movi_options;
     if (!parse_command(argc, argv, movi_options)) {
         return 0;
@@ -490,5 +498,9 @@ int main(int argc, char** argv) {
         MoveStructure mv_(&movi_options);
         mv_.deserialize();
         build_ftab(mv_, movi_options);
+    }
+
+    } catch (const std::exception& e) {
+        std::cerr << e.what() << "\n";
     }
 }

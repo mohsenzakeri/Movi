@@ -12,6 +12,7 @@ class MoviOptions {
             LF_type = "reconstruct";
             pml_query = true;
         }
+        bool is_no_header() { return no_header; }
         bool is_preprocessed() { return preprocessed; }
         bool is_split() { return split; }
         bool is_thresholds() { return thresholds; }
@@ -43,6 +44,7 @@ class MoviOptions {
         std::string get_mls_file() { return mls_file; }
         std::string get_index_dir() { return index_dir; }
 
+        void set_no_header(bool no_header_) { no_header = no_header_; }
         void set_preprocessed(bool preprocessed_) { preprocessed = preprocessed_; }
         void set_thresholds(bool thresholds_) { thresholds = thresholds_; }
         void set_output_ids(bool output_ids_) { output_ids = output_ids_; }
@@ -87,6 +89,7 @@ class MoviOptions {
         void set_index_dir(std::string dir) { index_dir = dir; }
 
         void print_options() {
+            std::cerr << "no_header:\t" << no_header << "\n";
             std::cerr << "split:\t" << split << "\n";
             std::cerr << "thresholds:\t" << thresholds << "\n";
             std::cerr << "ref_file:\t" << ref_file << "\n";
@@ -118,6 +121,7 @@ class MoviOptions {
         std::string mls_file;
         std::string index_dir;
         std::string LF_type;
+        bool no_header = false;
         bool preprocessed = false;
         int ilc = 0;
         bool split = false;
