@@ -139,10 +139,10 @@ void ReadProcessor::process_char(Strand& process) {
         // Jumping up or down (randomly or with thresholds)
         uint64_t idx_before_jump = process.idx;
         bool up = false;
-#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6 or MODE == 7
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 8 or MODE == 7
         up = mv.jump_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #endif
-#if MODE == 3 or MODE == 5
+#if MODE == 2 or MODE == 5
         up = mv.jump_randomly(process.idx, R[process.pos_on_r], process.scan_count);
 #endif
         process.match_len = 0;

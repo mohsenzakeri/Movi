@@ -25,7 +25,7 @@ std::string program() {
 #if MODE == 1
     return "constant";
 #endif
-#if MODE == 3
+#if MODE == 2
     return "blocked";
 #endif
 #if MODE == 4
@@ -34,7 +34,7 @@ std::string program() {
 #if MODE == 5
     return "tally";
 #endif
-#if MODE == 6
+#if MODE == 8
     return "blocked-thresholds";
 #endif
 #if MODE == 7
@@ -172,7 +172,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         movi_options.set_tally_checkpoints(static_cast<uint32_t>(result["tally"].as<uint32_t>()));
                     }
 #endif
-#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6 or MODE == 7
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 8 or MODE == 7
                     // In these modes, thresholds are always stored
                     movi_options.set_thresholds(true);
 #endif
@@ -305,7 +305,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 #if MODE == 5 or MODE == 7
             rp.process_latency_hiding_tally();
 #endif
-#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 3 or MODE == 6
+#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 2 or MODE == 8
             rp.process_latency_hiding();
 #endif
         } else if (movi_options.is_kmer()) {

@@ -17,7 +17,7 @@ const uint8_t mask_overflow_thresholds = static_cast<uint8_t>(~(((1U << 1) - 1) 
 #define MAX_RUN_LENGTH 65535 // 2^16 - 1
 #endif
 
-#if MODE == 3
+#if MODE == 2
 #define SHIFT_ID1 10
 #define SHIFT_ID2 14
 #define SHIFT_ID1_RES 22
@@ -38,7 +38,7 @@ const uint16_t mask_c =  static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C
 #define MAX_BLOCKED_ID  16777215 // 2^24 - 1
 #endif
 
-#if MODE == 6
+#if MODE == 8
 #define SHIFT_ID1 9
 #define SHIFT_ID2 15
 #define SHIFT_ID1_RES 23
@@ -126,11 +126,11 @@ class __attribute__((packed)) MoveRow {
 #if MODE == 0 or MODE == 1 or MODE == 4
         MoveRow () {n = 0; id = 0; overflow_bits = 0;}
 #endif
-#if MODE == 3 or MODE == 6
+#if MODE == 2 or MODE == 8
         MoveRow () {n = 0; id = 0; offset = 0;}
         void print_all();
 #endif
-#if MODE == 0 or MODE == 1 or MODE == 3 or MODE == 4 or MODE == 6
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4 or MODE == 8
         MoveRow(uint16_t n_, uint16_t offset_, uint64_t id_);
         void init(uint16_t n_, uint16_t offset_, uint64_t id_);
 #endif
@@ -149,7 +149,7 @@ class __attribute__((packed)) MoveRow {
         uint16_t get_offset() const;
         char get_c() const;
 
-#if MODE == 0 or MODE == 1 or MODE == 3 or MODE == 4 or MODE == 6
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4 or MODE == 8
         void set_id(uint64_t id_);
         uint64_t get_id() const;
 #endif
@@ -175,7 +175,7 @@ class __attribute__((packed)) MoveRow {
         void set_next_down(uint32_t i, uint16_t t) { next_down[i] = t; }
 #endif
 
-#if MODE == 6 or MODE == 7
+#if MODE == 8 or MODE == 7
         uint16_t get_threshold(uint16_t i) const;
         void set_threshold(uint16_t i, uint16_t value);
 #endif
@@ -186,7 +186,7 @@ class __attribute__((packed)) MoveRow {
 #if MODE == 1
             return 24;
 #endif
-#if MODE == 3 or MODE == 6
+#if MODE == 2 or MODE == 8
             return 6;
 #endif
 #if MODE == 5 or MODE == 7
@@ -200,8 +200,8 @@ class __attribute__((packed)) MoveRow {
         uint8_t c;
 #endif
 
-#if MODE == 0 or MODE == 1 or MODE == 3 or MODE == 4 or MODE == 6
-#if MODE == 3 or MODE == 6
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4 or MODE == 8
+#if MODE == 2 or MODE == 8
         uint16_t id;        // The least significant bits of the bwt run after the LF-jump (distance from the block check point)
 #else
         uint32_t id;        // The least significant bits of the bwt run after the LF-jump
@@ -290,7 +290,7 @@ inline char MoveRow::get_c() const{
 }
 #endif
 
-#if MODE == 3 or MODE == 6
+#if MODE == 2 or MODE == 8
 inline void MoveRow::print_all() {
     std::cerr << "id:\t" << std::bitset<16>(id) <<
                  "\nn:\t" << std::bitset<16>(n) <<
@@ -337,7 +337,7 @@ inline char MoveRow::get_c() const{
 }
 #endif
 
-#if MODE == 6
+#if MODE == 8
 inline uint16_t MoveRow::get_threshold(uint16_t i) const {
     switch (i) {
         case 0:

@@ -4,7 +4,7 @@
 
 #include "move_row.hpp"
 
-#if MODE == 0 or MODE == 1 or MDOE == 3 or MODE == 4 or MODE == 6
+#if MODE == 0 or MODE == 1 or MDOE == 3 or MODE == 4 or MODE == 8
 MoveRow::MoveRow(uint16_t n_, uint16_t offset_, uint64_t id_) {
     this->init(n_, offset_, id_);
 }
@@ -15,7 +15,7 @@ MoveRow::MoveRow(uint16_t n_, uint16_t offset_) {
 }
 #endif
 
-#if MODE == 0 or MODE == 1 or MODE == 3 or MODE == 4 or MODE == 6
+#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4 or MODE == 8
 void MoveRow::init(uint16_t n_, uint16_t offset_, uint64_t id_) {
     this->set_id(id_);
 #endif
@@ -41,7 +41,7 @@ void MoveRow::init(uint16_t n_, uint16_t offset_) {
 
 std::ostream& operator<<(std::ostream& os, const MoveRow& mr)
 {
-#if MODE == 0 or MODE == 1 or MDOE == 3 or MODE == 4 or MODE == 6
+#if MODE == 0 or MODE == 1 or MDOE == 3 or MODE == 4 or MODE == 8
     os << "n:" << mr.get_n() <<  " offset: " << mr.get_offset() << " id:" << mr.get_id();
 #endif
 #if MODE == 5 or MODE == 7
@@ -131,7 +131,7 @@ void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
 }
 #endif
 
-#if MODE == 3 or MODE == 6
+#if MODE == 2 or MODE == 8
 void MoveRow::set_n(uint16_t n_) {
     if (n_ <= MAX_RUN_LENGTH) {
         n = n & mask_n;
@@ -189,7 +189,7 @@ void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {
 }
 #endif
 
-#if MODE == 6
+#if MODE == 8
 void MoveRow::set_threshold(uint16_t i, uint16_t value) {
     if (value > 1) {
         std::cerr << "The theshold may be either 0 or 1: " << i << "\n";
