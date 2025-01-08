@@ -86,6 +86,8 @@ add_executable(movi-tally-thresholds src/movi.cpp src/move_structure.cpp src/mov
 target_link_libraries(movi-tally-thresholds sdsl ZLIB::ZLIB)
 target_compile_options(movi-tally-thresholds PUBLIC -O2 -DMODE=7)
 
+add_executable(movi src/movi_launcher.cpp)
+
 add_executable(prepare_ref src/prepare_ref.cpp)
 target_link_libraries(prepare_ref ZLIB::ZLIB)
 
