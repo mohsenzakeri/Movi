@@ -102,6 +102,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails");
 
     options.parse_positional({ "command" });
+    std::vector<std::string> help_groups;
 
     try {
         auto result = options.parse(argc, argv);
@@ -134,6 +135,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         if (result.count("command")) {
             std::string command = result["command"].as<std::string>();
             movi_options.set_command(command);
+            help_groups.push_back(command);
 
             if (command == "build") {
                 if (result.count("index") == 1 and result.count("fasta") == 1) {
@@ -256,7 +258,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         }
     } catch (const cxxopts::exceptions::exception& e) {
         std::cerr << "Error parsing command line options: " << e.what() << "\n";
-        std::cerr << options.help() << "\n";
+        std::cerr << options.help(help_groups) << "\n";
         return false;
     }
     return true;
