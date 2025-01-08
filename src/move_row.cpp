@@ -18,10 +18,16 @@ MoveRow::MoveRow(uint16_t n_, uint16_t offset_, uint64_t id_) {
 void MoveRow::init(uint16_t n_, uint16_t offset_) {
 #else
 void MoveRow::init(uint16_t n_, uint16_t offset_, uint64_t id_) {
-    this->set_id(id_);
-#endif
 #if SPLIT_THRESHOLDS_FALSE
+    // This should be set before calling other setters.
     overflow_bits = std::numeric_limits<uint8_t>::max();
+#endif
+    this->set_id(id_);
+    if (id_ != this->get_id()) {
+        std::cerr << "The id setter or getter is not working properly.\n";
+        std::cerr << id_ << " " << this->get_id() << "\n";
+        exit(0);
+    }
 #endif
     this->set_n(n_);
     if (n_ != this->get_n()) {
