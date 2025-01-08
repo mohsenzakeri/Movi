@@ -946,7 +946,7 @@ void MoveStructure::build() {
 
     std::cerr << "\nsplit_by_max_run: " << split_by_max_run << "\n";
     std::cerr << "split_by_thresholds: " << split_by_thresholds << "\n";
-    std::cerr << "length: " << length << "\n";
+    std::cerr << "n: " << length << "\n";
     std::cerr << "r: " << r << "\n";
     std::cerr << "original_r: " << original_r << "\n";
     rlbwt.resize(r);
@@ -2472,11 +2472,12 @@ void MoveStructure::deserialize() {
     fin.seekg(0, std::ios::beg); 
 
     if (!movi_options->is_no_header()) {
-        char index_type = static_cast<char>(MODE);
+        char index_type;
         fin.read(reinterpret_cast<char*>(&index_type), sizeof(index_type));
         if (MODE != index_type) {
             throw std::runtime_error("MODE does not match the index_type in the header.");
         }
+        std::cerr << "The " << program() << " index is being used.\n";
     }
 
     fin.read(reinterpret_cast<char*>(&length), sizeof(length));
@@ -2486,7 +2487,7 @@ void MoveStructure::deserialize() {
     fin.read(reinterpret_cast<char*>(&end_bwt_idx_next_down[0]), 4*sizeof(end_bwt_idx_next_down[0]));
     fin.read(reinterpret_cast<char*>(&end_bwt_idx_next_up[0]), 4*sizeof(end_bwt_idx_next_up[0]));
 
-    std::cerr << "length: " << length << " r: " << r << " end_bwt_idx: " << end_bwt_idx << "\n";
+    std::cerr << "n: " << length << "\nr: " << r << "\n" << "$: " << end_bwt_idx << "\n";
 
     uint64_t alphamap_size;
     fin.read(reinterpret_cast<char*>(&alphamap_size), sizeof(alphamap_size));
