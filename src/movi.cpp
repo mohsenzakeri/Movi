@@ -136,6 +136,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         if (result.count("command")) {
             std::string command = result["command"].as<std::string>();
             movi_options.set_command(command);
+            help_groups.push_back("");
             help_groups.push_back(command);
 
             if (command == "build") {

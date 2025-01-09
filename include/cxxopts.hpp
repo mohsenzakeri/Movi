@@ -2784,7 +2784,7 @@ Options::help(const std::vector<std::string>& help_groups, bool print_usage) con
   }
   result += "\n\n";
 
-  if (!m_positional_help.empty()) {
+  if (!m_positional_help.empty() and print_usage) {
     result += " command:";
     for (auto& group: m_help) {
       result += " " + group.first;
@@ -2799,6 +2799,7 @@ Options::help(const std::vector<std::string>& help_groups, bool print_usage) con
   }
   else
   {
+    result += " General options:\n";
     generate_group_help(result, help_groups);
   }
 
