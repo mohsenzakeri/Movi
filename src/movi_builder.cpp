@@ -10,6 +10,9 @@
 #include <sys/stat.h>
 #include <regex>
 
+bool fasta_prvided = false;
+bool fasta_list_provided = false;
+
 std::string construct_command(const std::string& binary, const std::vector<std::string>& args) {
     std::ostringstream cmd;
     cmd << binary << " build";
@@ -26,6 +29,7 @@ bool parse_arguments(int argc, char* argv[],
                     std::string& fasta_file,
                     std::string& index_path,
                     std::vector<std::string>& all_args) {
+
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
         if (arg == "--index-type") {
@@ -45,6 +49,14 @@ bool parse_arguments(int argc, char* argv[],
         } else if (std::string(argv[i]) == "-f" || std::string(argv[i]) == "--fasta") {
             if (i + 1 < argc) {
                 fasta_file = argv[++i]; // Get the next argument as the fasta file
+                fasta_prvided = true;
+            } else {
+                throw std::runtime_error("Error: " + std::string(argv[i]) + " flag requires a value.\n");
+            }
+        } else if (std::string(argv[i]) == "-l" || std::string(argv[i]) == "--list") {
+            if (i + 1 < argc) {
+                fasta_file = argv[++i]; // Get the next argument as the fasta file (list of fastas)
+                fasta_list_provided = true;
             } else {
                 throw std::runtime_error("Error: " + std::string(argv[i]) + " flag requires a value.\n");
             }
@@ -57,29 +69,39 @@ bool parse_arguments(int argc, char* argv[],
         // std::cerr << "Error: --index-type flag is required.\n";
         std::cerr << "Default index is selected: default.\n";
         index_type = "default";
-        return true;
+    }
+
+    if (fasta_file.empty()) {
+        throw std::runtime_error("The fasta file or list of fasta files should be provided");
+    }
+
+
+    if (index_path.empty()) {
+        throw std::runtime_error("The index directory should be provided");
     }
 
     return true;
 }
 
 int main(int argc, char* argv[]) {
-    if (argc < 4) {
-        std::cerr << "Usage: movi-builder --index <index directory> --fasta <fasta file> --index-type <type> [other options]\n";
-        return 0;
-    }
-
-    std::string index_type;
-    std::string index_path;
-    std::string fasta_file;
-    std::vector<std::string> all_args;
-
-    std::string binary_dir = std::filesystem::path(argv[0]).parent_path().string();
-
     try {
+        if (argc <= 4) {
+            throw std::runtime_error("Too few options are provided.");
+        }
+
+        std::string index_type;
+        std::string index_path;
+        std::string fasta_file;
+        std::vector<std::string> all_args;
+
+        std::string binary_dir = std::filesystem::path(argv[0]).parent_path().string();
+
         // Parse the index type and other arguments
         if (!parse_arguments(argc, argv, index_type, fasta_file, index_path, all_args)) {
             return 0;
+        }
+        if (fasta_prvided and fasta_list_provided) {
+            throw std::runtime_error("Only a fasta file (--fasta) or a file contaning a the paths to a list (--list) of fasta files should be provided.");
         }
 
         // Map index type to binary
@@ -98,10 +120,15 @@ int main(int argc, char* argv[]) {
         if (index_type_to_binary.find(index_type) == index_type_to_binary.end()) {
             throw std::runtime_error("Error: Unrecognized index_type '" + index_type + "'");
         }
+
         std::string binary = index_type_to_binary[index_type];
 
         // Execute the prepare_ref step
         std::string preprocess_command = binary_dir + "/prepare_ref " + fasta_file + " " + index_path + "/ref.fa ";
+        if (fasta_list_provided) {
+            // A list of fasta file addresses are provided in the fasta_file
+            preprocess_command += " list";
+        }
         std::cout << "Executing: " << preprocess_command << "\n";
         mkdir(index_path.c_str(),0777);
         if (!std::system(preprocess_command.c_str())) {
@@ -166,6 +193,7 @@ int main(int argc, char* argv[]) {
             std::filesystem::remove(clean_fasta + ".bwt.len");
         }
     } catch (const std::exception& e) {
+        std::cerr << "Usage: movi-build --index <index directory> (--fasta <fasta file> OR --list <fasta list file>) --index-type <type> [other args...]\n";
         std::cerr << e.what() << "\n";
         return 0;
     }

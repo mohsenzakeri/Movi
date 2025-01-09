@@ -55,7 +55,7 @@ std::string construct_command(const std::string& binary, const std::vector<std::
 
 int main(int argc, char* argv[]) {
     if (argc < 3) {
-        std::cerr << "Usage: movi -i <index_path> [other_args...]\n";
+        std::cerr << "Usage: movi -i <index directory> [other options]\n";
         return 0;
     }
 
