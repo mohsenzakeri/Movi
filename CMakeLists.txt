@@ -4,19 +4,15 @@ cmake_minimum_required(VERSION 3.0)
 
 project(movi)
 
-#set(CMAKE_CXX_STANDARD 14)
-#set(CMAKE_CXX_STANDARD_REQUIRED On)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED On)
 #set(CMAKE_CXX_EXTENSIONS Off)
-
-include_directories("include")
 
 find_package(ZLIB)
 
-# set(move_lib_srcs src/move_structure.cpp)
-# add_library(move_structure STATIC ${move_lib_srcs})
+include_directories("include")
 
-# set(move_row_lib_srcs src/move_row.cpp)
-# add_library(move_row STATIC ${move_row_lib_srcs})
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/)
 
 #----------------------------------------
 # Add sdsl
@@ -36,12 +32,24 @@ if(NOT sdsl_POPULATED)
   add_subdirectory(${sdsl_SOURCE_DIR} ${sdsl_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
+include(ExternalProject)
+
+ExternalProject_Add(
+    pfp-thresholds
+    GIT_REPOSITORY https://github.com/mohsenzakeri/pfp-thresholds.git
+    GIT_TAG probing
+    SOURCE_DIR ${CMAKE_BINARY_DIR}/pfp-thresholds
+    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/pfp-thresholds/install
+    BUILD_ALWAYS ON
+    INSTALL_COMMAND make install
+)
+
 # SET(COMPILE_FLAGS "-O2 -DMODE=0")
 # debug:
 # SET(COMPILE_FLAGS "-g -DMODE=0")
 
 ## SET(CMAKE_CXX_FLAGS  "${CMAKE_CXX_FLAGS} ${COMPILE_FLAGS}")
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++14")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++17")
 # compile with address sanitizer
 # add_compile_options(-fsanitize=address)
 # add_link_options(-fsanitize=address)
@@ -50,53 +58,4 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++14")
 # add_compile_options(-fsanitize-recover=unsigned-integer-overflow)
 # add_link_options(-fsanitize-recover=unsigned-integer-overflow)
 
-add_executable(movi-default src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
-target_link_libraries(movi-default sdsl ZLIB::ZLIB)
-target_compile_options(movi-default PUBLIC -O2 -DMODE=0)
-
-add_executable(movi-constant src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
-target_link_libraries(movi-constant sdsl ZLIB::ZLIB)
-target_compile_options(movi-constant PUBLIC -O2 -DMODE=1)
-
-add_executable(movi-compact src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
-target_link_libraries(movi-compact sdsl ZLIB::ZLIB)
-target_compile_options(movi-compact PUBLIC -O2 -DMODE=3)
-
-add_executable(movi-blocked src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
-target_link_libraries(movi-blocked sdsl ZLIB::ZLIB)
-target_compile_options(movi-blocked PUBLIC -O2 -DMODE=2)
-
-add_executable(movi-tally src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
-target_link_libraries(movi-tally sdsl ZLIB::ZLIB)
-target_compile_options(movi-tally PUBLIC -O2 -DMODE=5)
-
-add_executable(movi-split src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
-target_link_libraries(movi-split sdsl ZLIB::ZLIB)
-target_compile_options(movi-split PUBLIC -O2 -DMODE=4)
-
-add_executable(movi-compact-thresholds src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
-target_link_libraries(movi-compact-thresholds sdsl ZLIB::ZLIB)
-target_compile_options(movi-compact-thresholds PUBLIC -O2 -DMODE=6)
-
-add_executable(movi-blocked-thresholds src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
-target_link_libraries(movi-blocked-thresholds sdsl ZLIB::ZLIB)
-target_compile_options(movi-blocked-thresholds PUBLIC -O2 -DMODE=8)
-
-add_executable(movi-tally-thresholds src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
-target_link_libraries(movi-tally-thresholds sdsl ZLIB::ZLIB)
-target_compile_options(movi-tally-thresholds PUBLIC -O2 -DMODE=7)
-
-add_executable(movi src/movi_launcher.cpp)
-
-add_executable(prepare_ref src/prepare_ref.cpp)
-target_link_libraries(prepare_ref ZLIB::ZLIB)
-
-if (BUILD_TEST STREQUAL "1")
-  add_executable(test_bidirectional src/test_bidirectional.cpp src/move_structure.cpp src/move_row.cpp src/utils.cpp src/sequitur.cpp)
-  target_link_libraries(test_bidirectional sdsl ZLIB::ZLIB)
-  target_compile_options(test_bidirectional PUBLIC -O2 -DMODE=3)
-
-  add_executable(test_bidirectional src/test_bidirectional.cpp src/move_structure.cpp src/move_row.cpp src/utils.cpp src/sequitur.cpp)
-  target_link_libraries(test_bidirectional sdsl ZLIB::ZLIB)
-  target_compile_options(test_bidirectional_blocked PUBLIC -O2 -DMODE=2)
-endif ()
+add_subdirectory(src)
