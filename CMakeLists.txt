@@ -40,7 +40,7 @@ if (NOT EXISTS ${CMAKE_BINARY_DIR}/external_repo_build_done)
 
   ExternalProject_Add(
       pfp-thresholds
-      GIT_REPOSITORY https://github.com/mohsenzakeri/pfp-thresholds.git
+      GIT_REPOSITORY https://github.com/maxrossi91/pfp-thresholds
       GIT_TAG probing
       SOURCE_DIR ${CMAKE_BINARY_DIR}/pfp-thresholds
       CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/pfp-thresholds/install
