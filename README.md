@@ -45,7 +45,7 @@ The index will be located at `<index directory>/movi_index.bin`
 
 To compute PMLs using the movi index, please run the following command on the fastq or fasta file of the reads:
 ```
-./movi-build --index <index directory> --read <reads file>
+./movi --index <index directory> --read <reads file>
 ```
 
 `<reads file>` is the address of the fasta or fastq file containing the reads.
@@ -58,6 +58,11 @@ Since this file is in the binary format, to view the PMLs please run the followi
 `<mls file>` is the file generated in the query step.
 
 The output of the last command shows each read's name following by pseudo matching lengths computed for it. A pseudo matching length is outputed for every base of the read. This is the same as the output produced by SPUMONI.
+
+Alternatively, you can directly output the PMLs to a text file using the `--stdout` flag:
+```
+./movi --index <index directory> --read <reads file> --stdout > <output file>
+```
 
 ### Movi is now published in iScience, you can read more about it here:
 > [https://www.cell.com/iscience/fulltext/S2589-0042(24)02691-9](https://www.cell.com/iscience/fulltext/S2589-0042(24)02691-9)
