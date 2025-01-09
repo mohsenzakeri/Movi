@@ -44,10 +44,11 @@ void close_kseq(kseq_t *seq, gzFile& fp) {
 bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     // movi_options.print_options();
 
-    cxxopts::Options options("movi-" + program(), "Please use the following format.");
+    cxxopts::Options options("movi-" + program(), "Please use the following format:");
 
     options.add_options()
         ("command", "Command to execute", cxxopts::value<std::string>())
+        ("index-type", "Which index type should be built or used.", cxxopts::value<std::string>())
         ("h,help", "Print help")
         ("no-header", "Header information in not stored")
         ("d,dbg", "Enable debug mode")
@@ -167,42 +168,48 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
             } else if (command == "query") {
-                if (result.count("index") == 1 and result.count("read") == 1) {
-                    movi_options.set_index_dir(result["index"].as<std::string>());
-                    movi_options.set_read_file(result["read"].as<std::string>());
-                    if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
-                    if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
-                    if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
-                    if (result.count("kmer") >= 1) { movi_options.set_kmer(); }
-                    if (result.count("kmer-count") >= 1) { movi_options.set_kmer(); movi_options.set_kmer_count(true); }
-                    if (result.count("count") >= 1) { movi_options.set_count(); }
-                    if (result.count("zml") >= 1) { movi_options.set_zml(); }
-                    if (result.count("pml") >= 1) { movi_options.set_pml(); }
-                    if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
-                    if (result.count("ignore-illegal-chars") == 1) {
-                        if (!movi_options.set_ignore_illegal_chars(result["ignore-illegal-chars"].as<int>())) {
-                            const std::string message = "ignore-illegal-chars should be either 1 (set illegal chars to \'A\') or 2 (set illegal chars to a random char).";
+                try {
+                    if (result.count("index") == 1 and result.count("read") == 1) {
+                        movi_options.set_index_dir(result["index"].as<std::string>());
+                        movi_options.set_read_file(result["read"].as<std::string>());
+                        if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
+                        if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
+                        if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
+                        if (result.count("kmer") >= 1) { movi_options.set_kmer(); }
+                        if (result.count("kmer-count") >= 1) { movi_options.set_kmer(); movi_options.set_kmer_count(true); }
+                        if (result.count("count") >= 1) { movi_options.set_count(); }
+                        if (result.count("zml") >= 1) { movi_options.set_zml(); }
+                        if (result.count("pml") >= 1) { movi_options.set_pml(); }
+                        if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
+                        if (result.count("ignore-illegal-chars") == 1) {
+                            if (!movi_options.set_ignore_illegal_chars(result["ignore-illegal-chars"].as<int>())) {
+                                const std::string message = "ignore-illegal-chars should be either 1 (set illegal chars to \'A\') or 2 (set illegal chars to a random char).";
+                                cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                            }
+                        }
+                        if (movi_options.is_pml() and movi_options.is_count()) {
+                            const std::string message = "Please only specify count or pml as the type of queries.";
                             cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                         }
-                    }
-                    if (movi_options.is_pml() and movi_options.is_count()) {
-                        const std::string message = "Please only specify count or pml as the type of queries.";
+                        if (result.count("no-prefetch") == 1) {
+                            movi_options.set_prefetch(false);
+                        }
+                        if (result.count("strands") == 1) {
+                            std::cerr << "strands: " << result["strands"].as<int>() << "\n";
+                            movi_options.set_strands(static_cast<size_t>(result["strands"].as<int>()));
+                        }
+                        if (result.count("stdout")) {
+                            // Set global verbose flag
+                            movi_options.set_stdout(true);
+                        }
+                    } else {
+                        const std::string message = "Please include one index directory and one read file.";
                         cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                     }
-                    if (result.count("no-prefetch") == 1) {
-                        movi_options.set_prefetch(false);
-                    }
-                    if (result.count("strands") == 1) {
-                        std::cerr << "strands: " << result["strands"].as<int>() << "\n";
-                        movi_options.set_strands(static_cast<size_t>(result["strands"].as<int>()));
-                    }
-                    if (result.count("stdout")) {
-                        // Set global verbose flag
-                        movi_options.set_stdout(true);
-                    }
-                } else {
-                    const std::string message = "Please include one index directory and one read file.";
-                    cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                } catch (const cxxopts::exceptions::exception& e) {
+                    std::cerr << "Error parsing command line options: " << e.what() << "\n";
+                    std::cerr << options.help(help_groups, false) << "\n";
+                    return false;
                 }
             } else if (command == "rlbwt") {
                 if (result.count("bwt-file") == 1) {
