@@ -118,6 +118,29 @@ int main(int argc, char* argv[]) {
             std::runtime_error("Exiting in the pfp_thresholds step.");
         }
 
+        // If Nishimoto-Tabei splitting is requested, we use the r-permute program implemented by Nate Brown.
+        if (index_type == "constant" or index_type == "split") {
+            // The heads and lens file are required for running r-permute
+            std::string rlbwt_command = binary_dir + "/movi-" + index_type + " rlbwt --bwt-file " + clean_fasta + ".bwt";
+            std::cout << "Executing: " << rlbwt_command << "\n";
+            if (!std::system(rlbwt_command.c_str())) {
+                std::runtime_error("Exiting in the rlbwt step.");
+            }
+
+
+            std::string bconstruct_command = binary_dir + "/r-permute-prefix/src/r-permute-build/test/src/build_constructor " + clean_fasta;
+            std::cout << "Executing: " << bconstruct_command << "\n";
+            if (!std::system(bconstruct_command.c_str())) {
+                std::runtime_error("Exiting in the r-permute:build_constructor step.");
+            }
+
+            std::string rconstruct_command = binary_dir + "/r-permute-prefix/src/r-permute-build/test/src/run_constructor " + clean_fasta + " -d 5";
+            std::cout << "Executing: " << rconstruct_command << "\n";
+            if (!std::system(rconstruct_command.c_str())) {
+                std::runtime_error("Exiting in the r-permute:run_constructor step.");
+            }
+        }
+
         // Execute the binary with the appropriate options
         std::string command = construct_command(binary_dir + "/" + binary, all_args);
         std::cout << "Executing: " << command << "\n";
@@ -136,6 +159,12 @@ int main(int argc, char* argv[]) {
         std::filesystem::remove(clean_fasta + ".dict");
         std::filesystem::remove(clean_fasta + ".esa");
         std::filesystem::remove(clean_fasta + ".ssa");
+        if (index_type == "constant" or index_type == "split") {
+            std::filesystem::remove(clean_fasta + ".d_col");
+            std::filesystem::remove(clean_fasta + ".d_construct");
+            std::filesystem::remove(clean_fasta + ".bwt.heads");
+            std::filesystem::remove(clean_fasta + ".bwt.len");
+        }
     } catch (const std::exception& e) {
         std::cerr << e.what() << "\n";
         return 0;
