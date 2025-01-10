@@ -34,32 +34,38 @@ endif()
 
 include(ExternalProject)
 
-#option(BUILD_EXTERNAL_REPO "Build the external repository" OFF)
+set(EXTERNAL_REPOS_DIR ${CMAKE_BINARY_DIR}/external_repos)
 
-if (NOT EXISTS ${CMAKE_BINARY_DIR}/external_repo_build_done)
-
+if (NOT EXISTS ${EXTERNAL_REPOS_DIR}/r-permute-build/test/src/run_constructor)
   ExternalProject_Add(
       pfp-thresholds
       GIT_REPOSITORY https://github.com/mohsenzakeri/pfp-thresholds
       GIT_TAG probing
-      SOURCE_DIR ${CMAKE_BINARY_DIR}/pfp-thresholds
-      CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/pfp-thresholds/install
+      PREFIX ${EXTERNAL_REPOS_DIR}
+      SOURCE_DIR ${EXTERNAL_REPOS_DIR}/pfp-thresholds
+      BINARY_DIR ${EXTERNAL_REPOS_DIR}/pfp-thresholds-build
+      STAMP_DIR ${EXTERNAL_REPOS_DIR}/pfp-thresholds-stamp
+      TMP_DIR ${EXTERNAL_REPOS_DIR}/pfp-thresholds-tmp
+      CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_REPOS_DIR}/pfp-thresholds/install
       BUILD_ALWAYS OFF
       INSTALL_COMMAND make install
   )
+endif()
 
+if (NOT EXISTS ${EXTERNAL_REPOS_DIR}/pfp-thresholds-build/pfp_thresholds)
   ExternalProject_Add(
       r-permute
       GIT_REPOSITORY https://github.com/drnatebrown/r-permute
       GIT_TAG main
-      SOURCE_DIR ${CMAKE_BINARY_DIR}/r-permute
-      CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/r-permute/install
+      PREFIX ${EXTERNAL_REPOS_DIR}
+      SOURCE_DIR ${EXTERNAL_REPOS_DIR}/r-permute
+      BINARY_DIR ${EXTERNAL_REPOS_DIR}/r-permute-build
+      STAMP_DIR ${EXTERNAL_REPOS_DIR}/r-permute-stamp
+      TMP_DIR ${EXTERNAL_REPOS_DIR}/r-permute-tmp
+      CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_REPOS_DIR}/r-permute/install
       BUILD_ALWAYS OFF
       INSTALL_COMMAND make install
   )
-
-  file(WRITE ${CMAKE_BINARY_DIR}/external_repo_build_done "")
-
 endif()
 
 # SET(COMPILE_FLAGS "-O2 -DMODE=0")
