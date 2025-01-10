@@ -687,7 +687,8 @@ uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes) {
                 }
             } else {
                 reset_process(processes[i]);
-                reset_backward_search(processes[i]);
+                if (!processes[i].finished)
+                    reset_backward_search(processes[i]);
                 /* if (mv.movi_options->is_zml()) {
                     processes[i].kmer_end = processes[i].pos_on_r;
                     //processes[i].match_len = 0;
