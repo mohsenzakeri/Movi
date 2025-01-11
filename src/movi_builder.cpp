@@ -141,7 +141,7 @@ int main(int argc, char* argv[]) {
         all_args.push_back(clean_fasta);
 
         // Execute the pfp_thresholds step
-        std::string pfp_command = binary_dir + "/pfp-thresholds-prefix/src/pfp-thresholds-build/pfp_thresholds -f " + clean_fasta;
+        std::string pfp_command = binary_dir + "/external_repos/pfp-thresholds-build/pfp_thresholds -f " + clean_fasta;
         std::cout << "Executing: " << pfp_command << "\n";
         if (!std::system(pfp_command.c_str())) {
             std::runtime_error("Exiting in the pfp_thresholds step.");
@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
             }
 
 
-            std::string bconstruct_command = binary_dir + "/r-permute-prefix/src/r-permute-build/test/src/build_constructor " + clean_fasta;
+            std::string bconstruct_command = binary_dir + "/external_repos/r-permute-build/test/src/build_constructor " + clean_fasta;
             std::cout << "Executing: " << bconstruct_command << "\n";
             if (!std::system(bconstruct_command.c_str())) {
                 std::runtime_error("Exiting in the r-permute:build_constructor step.");
