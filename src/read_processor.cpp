@@ -676,6 +676,7 @@ void ReadProcessor::process_latency_hiding_tally() {
 
 uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes) {
     uint64_t finished_count = 0;
+    uint64_t empty_strands = 0;
     for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
     std::cerr << strands << " processes are created.\n";
     for (uint64_t i = 0; i < strands; i++) {
@@ -698,9 +699,13 @@ uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes) {
             processes[i].finished = true;
         }
         if (processes[i].finished) {
-            std::cerr << "Warning: less than strands = " << strands << " reads.\n";
+            empty_strands += 1;
             finished_count += 1;
         }
+    }
+
+    if (empty_strands > 0) {
+        std::cerr << "Warning: there are fewer reads (" << strands - empty_strands << ") than the number of strands (" << strands << ").\n";
     }
     return finished_count;
 }
