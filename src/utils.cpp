@@ -2,31 +2,31 @@
 
 std::string program() {
 #if MODE == 0
-    return "default";
+    return "large"; // old name: "default"
 #endif
 #if MODE == 1
     return "constant";
 #endif
+#if MODE == 4 // Like the default constant mode, but without the pointers to the neighbors with the other characters
+    return "split";
+#endif
+#if MODE == 3
+    return "regular"; // old name: compact
+#endif
+#if MODE == 6
+    return "regular-thresholds"; // old name: compact-thresholds
+#endif
 #if MODE == 2
     return "blocked";
 #endif
-#if MODE == 3
-    return "compact";
-#endif
-#if MODE == 4 // Like the default constant mode, but without the pointers to the neighbors with the other characters
-    return "split";
+#if MODE == 8
+    return "blocked-thresholds"; 
 #endif
 #if MODE == 5
     return "tally";
 #endif
-#if MODE == 8
-    return "blocked-thresholds";
-#endif
 #if MODE == 7
     return "tally-thresholds";
-#endif
-#if MODE == 6
-    return "compact-thresholds";
 #endif
     std::cerr << "The mode is not defined.";
     exit(0);

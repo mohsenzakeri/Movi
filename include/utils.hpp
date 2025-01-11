@@ -20,7 +20,7 @@
 #define NO_SPLIT MODE == 0
 #define NO_EXTRA_TABLE MODE == 0 or MODE == 1 or MODE == 4 or MODE == 3 or MODE == 6
 #define CONSTANT_MODE MODE == 1
-#define COMPACT_MODE MODE == 3 or MODE == 6
+#define COMPACT_MODE MODE == 3 or MODE == 6 // to be changed to regular
 #define BLOCKED_MODE MODE == 2 or MODE == 8
 #define TALLY_MODE MODE == 5 or MODE == 7
 
