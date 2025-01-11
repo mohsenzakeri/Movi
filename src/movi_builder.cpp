@@ -70,8 +70,8 @@ bool parse_arguments(int argc, char* argv[],
 
     if (index_type.empty()) {
         // std::cerr << "Error: --flag flag is required.\n";
-        std::cerr << "Default index is selected (movi-regular).\n";
-        index_type = "regular";
+        std::cerr << "Default index is selected (movi-regular-thresholds).\n";
+        index_type = "regular-thresholds";
     }
 
     if (fasta_file.empty()) {

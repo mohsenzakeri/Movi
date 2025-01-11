@@ -20,7 +20,7 @@ std::string program() {
     return "blocked";
 #endif
 #if MODE == 8
-    return "blocked-thresholds"; 
+    return "blocked-thresholds";
 #endif
 #if MODE == 5
     return "tally";
