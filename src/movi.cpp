@@ -48,7 +48,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
     options.add_options()
         ("command", "Command to execute", cxxopts::value<std::string>())
-        ("index-type", "Which index type should be built or used.", cxxopts::value<std::string>())
+        ("type", "Which index type should be built or used.", cxxopts::value<std::string>())
         ("h,help", "Print help")
         ("no-header", "Header information in not stored")
         ("d,dbg", "Enable debug mode")
@@ -91,7 +91,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
     auto LFOptions = options.add_options("LF")
         ("i,index", "Index directory", cxxopts::value<std::string>())
-        ("type", "type of the LF query: \"reconstruct\", \"sequential\", or \"random\"", cxxopts::value<std::string>());
+        ("lf-type", "type of the LF query: \"reconstruct\", \"sequential\", or \"random\"", cxxopts::value<std::string>());
 
     auto statsOptions = options.add_options("stats")
         ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
@@ -229,8 +229,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
             } else if (command == "LF") {
                 if (result.count("index") == 1) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
-                    if (result.count("type")) {
-                        if (!movi_options.set_LF_type(result["type"].as<std::string>())) {
+                    if (result.count("lf-type")) {
+                        if (!movi_options.set_LF_type(result["lf-type"].as<std::string>())) {
                             const std::string message = "The LF type is not defined, please choose from: \"reconstruct\", \"sequential\", or \"random\"";
                             cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                         }

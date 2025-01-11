@@ -1074,7 +1074,7 @@ void MoveStructure::build() {
         // does not fit in uint16_t
 #if SPLIT_MAX_RUN
         if (offset > MAX_RUN_LENGTH or len > MAX_RUN_LENGTH) {
-            // Should not get here in the compact mode: MODE = 3
+            // Should not get here in the regular mode: MODE = 3
             std::cerr << "The length or the offset are too large.\n";
             std::cerr << "offset: " << offset << "\tlength: " << length << "\n";
             exit(0);
@@ -2375,10 +2375,10 @@ bool MoveStructure::check_alphabet(char& c) {
 
 void MoveStructure::serialize() {
     mkdir(movi_options->get_index_dir().c_str(),0777);
-    std::string fname = movi_options->get_index_dir() + "/movi_index.bin";
+    std::string fname = movi_options->get_index_dir() + "/index.movi";
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
     if (!fout) {
-        throw std::runtime_error("Failed to open the index file: " + fname);
+        throw std::runtime_error("Failed to open the index file at: " + movi_options->get_index_dir());
     }
 
     if (!movi_options->is_no_header()) {
@@ -2464,10 +2464,15 @@ void MoveStructure::serialize() {
 }
 
 void MoveStructure::deserialize() {
-    std::string fname = movi_options->get_index_dir() + "/movi_index.bin";
+    std::string fname = movi_options->get_index_dir() + "/index.movi";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
     if (!fin) {
-        throw std::runtime_error("Failed to open the index file: " + fname);
+        // Attempt to read an index file built with the old index name
+        fname = movi_options->get_index_dir() + "/movi_index.bin";
+        fin.open(fname, std::ios::in | std::ios::binary);
+        if (!fin) {
+            throw std::runtime_error("Failed to open the index file at: " + movi_options->get_index_dir());
+        }
     }
     fin.seekg(0, std::ios::beg); 
 

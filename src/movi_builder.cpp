@@ -32,11 +32,13 @@ bool parse_arguments(int argc, char* argv[],
 
     for (int i = 1; i < argc; ++i) {
         std::string arg = argv[i];
-        if (arg == "--index-type") {
+        if (arg == "--keep") {
+            remove_extra_files = false;
+        } else if (arg == "--type") {
             if (i + 1 < argc) {
                 index_type = argv[++i]; // Get the next argument as the index type
             } else {
-                throw std::runtime_error("Error: --index-type flag requires a value.\n");
+                throw std::runtime_error("Error: --type flag requires a value.\n");
             }
         } else if (std::string(argv[i]) == "-i" || std::string(argv[i]) == "--index") {
             if (i + 1 < argc) {
@@ -66,9 +68,9 @@ bool parse_arguments(int argc, char* argv[],
     }
 
     if (index_type.empty()) {
-        // std::cerr << "Error: --index-type flag is required.\n";
-        std::cerr << "Default index is selected: default.\n";
-        index_type = "default";
+        // std::cerr << "Error: --flag flag is required.\n";
+        std::cerr << "Default index is selected (movi-regular).\n";
+        index_type = "regular";
     }
 
     if (fasta_file.empty()) {
@@ -106,11 +108,11 @@ int main(int argc, char* argv[]) {
 
         // Map index type to binary
         std::unordered_map<std::string, std::string> index_type_to_binary = {
-            {"default", "movi-default"},
+            {"large", "movi-large"},
             {"constant", "movi-constant"},
             {"split", "movi-split"},
-            {"compact", "movi-compact"},
-            {"compact-thresholds", "movi-compact-thresholds"},
+            {"regular", "movi-regular"},
+            {"regular-thresholds", "movi-regular-thresholds"},
             {"blocked", "movi-blocked"},
             {"blocked-thresholds", "movi-blocked-thresholds"},
             {"movi-tally", "movi-tally"},

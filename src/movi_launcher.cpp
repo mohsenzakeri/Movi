@@ -10,10 +10,14 @@
 
 char get_index_type(const std::string& index_dir) {
     // Open the index file and read the index type
-    std::string fname = index_dir + "/movi_index.bin";
+    std::string fname = index_dir + "/index.movi";
     std::ifstream fin(fname, std::ios::binary);
     if (!fin) {
-        throw std::runtime_error("Error: Unable to open the index file " + fname);
+        fname = index_dir + "/movi_index.bin";
+        fin.open(fname, std::ios::binary);
+        if (!fin) {
+            throw std::runtime_error("Error: Unable to open the index file at: " + index_dir);
+        }
     }
     fin.seekg(0, std::ios::beg);
     char index_type;
@@ -73,11 +77,11 @@ int main(int argc, char* argv[]) {
 
         // Step 2: Map index_type to binary
         std::unordered_map<char, std::string> index_type_to_binary = {
-            {0, "movi-default"},
+            {0, "movi-large"},
             {1, "movi-constant"},
             {4, "movi-split"},
-            {3, "movi-compact"},
-            {6, "movi-compact-thresholds"},
+            {3, "movi-regular"},
+            {6, "movi-regular-thresholds"},
             {2, "movi-blocked"},
             {8, "movi-blocked-thresholds"},
             {5, "movi-tally"},
