@@ -12,6 +12,7 @@
 
 bool fasta_prvided = false;
 bool fasta_list_provided = false;
+bool remove_extra_files = true;
 
 std::string construct_command(const std::string& binary, const std::vector<std::string>& args) {
     std::ostringstream cmd;
@@ -178,21 +179,23 @@ int main(int argc, char* argv[]) {
         }
 
         // Remove extra files
-        std::filesystem::remove(clean_fasta);
-        std::filesystem::remove(clean_fasta + ".occ");
-        std::filesystem::remove(clean_fasta + ".parse");
-        std::filesystem::remove(clean_fasta + ".thr");
-        std::filesystem::remove(clean_fasta + ".thr_pos");
-        std::filesystem::remove(clean_fasta + ".thr.log");
-        std::filesystem::remove(clean_fasta + ".bwt");
-        std::filesystem::remove(clean_fasta + ".dict");
-        std::filesystem::remove(clean_fasta + ".esa");
-        std::filesystem::remove(clean_fasta + ".ssa");
-        if (index_type == "constant" or index_type == "split") {
-            std::filesystem::remove(clean_fasta + ".d_col");
-            std::filesystem::remove(clean_fasta + ".d_construct");
-            std::filesystem::remove(clean_fasta + ".bwt.heads");
-            std::filesystem::remove(clean_fasta + ".bwt.len");
+        if (remove_extra_files) {
+            std::filesystem::remove(clean_fasta);
+            std::filesystem::remove(clean_fasta + ".occ");
+            std::filesystem::remove(clean_fasta + ".parse");
+            std::filesystem::remove(clean_fasta + ".thr");
+            std::filesystem::remove(clean_fasta + ".thr_pos");
+            std::filesystem::remove(clean_fasta + ".thr.log");
+            std::filesystem::remove(clean_fasta + ".bwt");
+            std::filesystem::remove(clean_fasta + ".dict");
+            std::filesystem::remove(clean_fasta + ".esa");
+            std::filesystem::remove(clean_fasta + ".ssa");
+            if (index_type == "constant" or index_type == "split") {
+                std::filesystem::remove(clean_fasta + ".d_col");
+                std::filesystem::remove(clean_fasta + ".d_construct");
+                std::filesystem::remove(clean_fasta + ".bwt.heads");
+                std::filesystem::remove(clean_fasta + ".bwt.len");
+            }
         }
     } catch (const std::exception& e) {
         std::cerr << "Usage: movi-build --index <index directory> (--fasta <fasta file> OR --list <fasta list file>) --index-type <type> [other args...]\n";
