@@ -1820,7 +1820,7 @@ class Options
   explicit Options(std::string program_name, std::string help_string = "")
   : m_program(std::move(program_name))
   , m_help_string(toLocalString(std::move(help_string)))
-  , m_positional_help("command")
+  , m_positional_help("<action>")
   , m_custom_help("[OPTION...]")
   , m_show_positional(false)
   , m_allow_unrecognised(false)
@@ -2785,7 +2785,7 @@ Options::help(const std::vector<std::string>& help_groups, bool print_usage) con
   result += "\n\n";
 
   if (!m_positional_help.empty() and print_usage) {
-    result += " command:";
+    result += " actions:";
     for (auto& group: m_help) {
       result += " " + group.first;
     }

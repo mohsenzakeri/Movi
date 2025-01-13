@@ -257,11 +257,11 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
             } else {
-                const std::string message = "Invalid command: \"" + command + "\"";
+                const std::string message = "Invalid action: \"" + command + "\"";
                 cxxopts::throw_or_mimic<cxxopts::exceptions::no_such_option>(message);
             }
         } else {
-            const std::string message = "No command specified.";
+            const std::string message = "No action specified.";
             cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
         }
     } catch (const cxxopts::exceptions::exception& e) {
