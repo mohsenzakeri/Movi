@@ -36,8 +36,6 @@ target_compile_options(movi-tally-thresholds PUBLIC -O2 -DMODE=7)
 
 add_executable(movi movi_launcher.cpp)
 
-add_executable(movi-build movi_builder.cpp)
-
 add_executable(prepare_ref prepare_ref.cpp)
 target_link_libraries(prepare_ref ZLIB::ZLIB)
 

@@ -44,7 +44,8 @@ void close_kseq(kseq_t *seq, gzFile& fp) {
 bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     // movi_options.print_options();
 
-    cxxopts::Options options("movi-" + program(), "Please use the following format:");
+    // cxxopts::Options options("movi-" + program(), "Please use the following format:");
+    cxxopts::Options options("movi", "");
 
     options.add_options()
         ("command", "Command to execute", cxxopts::value<std::string>())
@@ -58,13 +59,19 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     auto buildOptions = options.add_options("build")
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("f,fasta", "Reference file", cxxopts::value<std::string>())
+        ("l,list", "List of fasta files, only works with 'movi' binary", cxxopts::value<std::string>())
         ("thresholds", "Store the threshold values in the compact mode by splitting the runs at threshold boundaries")
         ("preprocessed", "The BWT is preprocessed into heads and lens files")
         ("verify", "Verify if all the LF_move operations are correct")
         ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
         ("ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>())
         ("tally", "Sample id at every tally runs", cxxopts::value<uint32_t>())
-        ("multi-ftab", "Use ftabs with smaller k values if the largest one fails");
+        ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
+        ("keep", "Keep the extra files after the build step")
+        ("skip-prepare", "Skip the prepare_ref step")
+        ("skip-pfp", "Skip the pfp_thresholds step")
+        ("skip-rlbwt", "Skip the rlbwt step -- constant and split index")
+        ("skip-r-permute", "Skip the r-permute step -- constant and split index");
 
     auto queryOptions = options.add_options("query")
         ("pml", "Compute the pseudo-matching lengths (PMLs)")
@@ -93,7 +100,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("lf-type", "type of the LF query: \"reconstruct\", \"sequential\", or \"random\"", cxxopts::value<std::string>());
 
-    auto statsOptions = options.add_options("stats")
+    auto inspectOptions = options.add_options("inspect")
         ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
         ("i,index", "Index directory", cxxopts::value<std::string>());
 
@@ -107,11 +114,6 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
     try {
         auto result = options.parse(argc, argv);
-
-        if (result.count("help")) {
-            std::cerr << options.help() << std::endl;
-            return 0;
-        }
 
         if (result.count("no-header")) {
             // Set global verbose flag
@@ -209,7 +211,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     }
                 } catch (const cxxopts::exceptions::exception& e) {
                     std::cerr << "Error parsing command line options: " << e.what() << "\n";
-                    std::cerr << options.help(help_groups, false) << "\n";
+                    std::cerr << options.help(help_groups) << "\n";
                     return false;
                 }
             } else if (command == "rlbwt") {
@@ -239,7 +241,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     const std::string message = "Please specify the index directory file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
-            } else if (command == "stats") {
+            } else if (command == "inspect") {
                 if (result.count("index")) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
                     if (result.count("output-ids") >= 1) { movi_options.set_output_ids(true); }
@@ -260,6 +262,12 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                 const std::string message = "Invalid action: \"" + command + "\"";
                 cxxopts::throw_or_mimic<cxxopts::exceptions::no_such_option>(message);
             }
+
+                if (result.count("help")) {
+                    std::cerr << options.help(help_groups) << std::endl;
+                    return 0;
+                }
+
         } else {
             const std::string message = "No action specified.";
             cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
@@ -453,64 +461,70 @@ void view(MoviOptions& movi_options) {
 int main(int argc, char** argv) {
     try {
 
-    MoviOptions movi_options;
-    if (!parse_command(argc, argv, movi_options)) {
+        MoviOptions movi_options;
+        if (!parse_command(argc, argv, movi_options)) {
+            return 0;
+        }
+        std::string command = movi_options.get_command();
+        if (command == "build") {
+            MoveStructure mv_(&movi_options, SPLIT_ARRAY, CONSTANT_MODE);
+            if (movi_options.if_verify()) {
+                std::cerr << "Verifying the LF_move results...\n";
+                mv_.verify_lfs();
+            }
+            mv_.serialize();
+            build_ftab(mv_, movi_options);
+            std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
+            if (movi_options.is_output_ids()) {
+                mv_.print_ids();
+            }
+        } else if (command == "query") {
+            MoveStructure mv_(&movi_options);
+            auto begin = std::chrono::system_clock::now();
+            mv_.deserialize();
+            auto end = std::chrono::system_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+            std::fprintf(stderr, "Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+            begin = std::chrono::system_clock::now();
+            query(mv_, movi_options);
+            end = std::chrono::system_clock::now();
+            elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+            std::fprintf(stderr, "Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);
+        } else if (command == "view") {
+            view(movi_options);
+        } else if (command == "rlbwt") {
+            std::cerr << "The run and len files are being built.\n";
+            MoveStructure mv_(&movi_options);
+            mv_.build_rlbwt();
+        } else if (command == "LF") {
+            MoveStructure mv_(&movi_options);
+            mv_.deserialize();
+            std::cerr << "The move structure is read from the file successfully.\n";
+            if (movi_options.get_LF_type() == "sequential")
+                mv_.sequential_lf();
+            else if (movi_options.get_LF_type() == "random")
+                mv_.random_lf();
+            else if (movi_options.get_LF_type() == "reconstruct")
+                mv_.reconstruct_lf();
+        } else if (command == "inspect") {
+            MoveStructure mv_(&movi_options);
+            mv_.deserialize();
+            mv_.print_stats();
+            // mv_.compute_run_lcs();
+            // mv_.analyze_rows();
+        } else if (command == "ftab") {
+            MoveStructure mv_(&movi_options);
+            mv_.deserialize();
+            build_ftab(mv_, movi_options);
+        } else {
+            const std::string message = "Invalid action: \"" + command + "\"";
+            throw std::runtime_error(message);
+        }
+
         return 0;
-    }
-    std::string command = movi_options.get_command();
-    if (command == "build") {
-        MoveStructure mv_(&movi_options, SPLIT_ARRAY, CONSTANT_MODE);
-        if (movi_options.if_verify()) {
-            std::cerr << "Verifying the LF_move results...\n";
-            mv_.verify_lfs();
-        }
-        mv_.serialize();
-        build_ftab(mv_, movi_options);
-        std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
-        if (movi_options.is_output_ids()) {
-            mv_.print_ids();
-        }
-    } else if (command == "query") {
-        MoveStructure mv_(&movi_options);
-        auto begin = std::chrono::system_clock::now();
-        mv_.deserialize();
-        auto end = std::chrono::system_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-        std::fprintf(stderr, "Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
-        begin = std::chrono::system_clock::now();
-        query(mv_, movi_options);
-        end = std::chrono::system_clock::now();
-        elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-        std::fprintf(stderr, "Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);
-    } else if (command == "view") {
-        view(movi_options);
-    } else if (command == "rlbwt") {
-        std::cerr << "The run and len files are being built.\n";
-        MoveStructure mv_(&movi_options);
-        mv_.build_rlbwt();
-    } else if (command == "LF") {
-        MoveStructure mv_(&movi_options);
-        mv_.deserialize();
-        std::cerr << "The move structure is read from the file successfully.\n";
-        if (movi_options.get_LF_type() == "sequential")
-            mv_.sequential_lf();
-        else if (movi_options.get_LF_type() == "random")
-            mv_.random_lf();
-        else if (movi_options.get_LF_type() == "reconstruct")
-            mv_.reconstruct_lf();
-    } else if (command == "stats") {
-        MoveStructure mv_(&movi_options);
-        mv_.deserialize();
-        mv_.print_stats();
-        // mv_.compute_run_lcs();
-        // mv_.analyze_rows();
-    } else if (command == "ftab") {
-        MoveStructure mv_(&movi_options);
-        mv_.deserialize();
-        build_ftab(mv_, movi_options);
-    }
 
     } catch (const std::exception& e) {
         std::cerr << e.what() << "\n";
+        return 1;
     }
 }
