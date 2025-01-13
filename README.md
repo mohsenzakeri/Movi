@@ -29,11 +29,11 @@ create the splitting bit vector using the strategy introduced by Nishimoto and T
 ## Build the Movi index
 
 ```
-./movi --index-type <index type> --index <index directory> --fasta <fasta file>
+./movi --type <index type> --index <index directory> --fasta <fasta file>
 ```
 
-`<index type` determines the type of Movi index to be built. If no value is passed, the `default` index is built.
-Possible index types: `default` `constant` `split` `compact` `compact-thresholds` `blocked` `blocked-thresholds` `tally` `tally-thresholds`
+`<index type` determines the type of Movi index to be built. If no value is passed, the `regular-thresholds` index is built.
+Possible index types: `large` `constant` `split` `regular` `regular-thresholds` `blocked` `blocked-thresholds` `tally` `tally-thresholds`
 
 `<index directory>` is the directory where you want the Movi index to be located.
 
