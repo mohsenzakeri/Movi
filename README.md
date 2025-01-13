@@ -29,23 +29,24 @@ create the splitting bit vector using the strategy introduced by Nishimoto and T
 ## Build the Movi index
 
 ```
-./movi --type <index type> --index <index directory> --fasta <fasta file>
+./movi build --fasta <fasta file> --index <index directory> --type <index type>
 ```
+
+`<fasta file>` is a file including the reference genomes to be indexed.
+
+`<index directory>` is the directory where you want the Movi index to be located.
 
 `<index type` determines the type of Movi index to be built. If no value is passed, the `regular-thresholds` index is built.
 Possible index types: `large` `constant` `split` `regular` `regular-thresholds` `blocked` `blocked-thresholds` `tally` `tally-thresholds`
 
-`<index directory>` is the directory where you want the Movi index to be located.
 
-`<fasta file>` is a file including the reference genomes to be indexed.
-
-The index will be located at `<index directory>/movi_index.bin`
+The index will be located at `<index directory>/movi.index`
 
 ## Compute Pseudo Matching Lengths (PML) using Movi
 
 To compute PMLs using the movi index, please run the following command on the fastq or fasta file of the reads:
 ```
-./movi --index <index directory> --read <reads file>
+./movi query --index <index directory> --read <reads file>
 ```
 
 `<reads file>` is the address of the fasta or fastq file containing the reads.
@@ -53,7 +54,7 @@ To compute PMLs using the movi index, please run the following command on the fa
 After the query command finishes, a file with the same name as the reads file and the extension `<index type>.mls.bin` is generated in the directory that also includes the reads file.
 Since this file is in the binary format, to view the PMLs please run the following command:
 ```
-./movi-default view --mls-file <mls file> | less
+./movi view --mls-file <mls file> | less
 ```
 `<mls file>` is the file generated in the query step.
 
@@ -61,7 +62,7 @@ The output of the last command shows each read's name following by pseudo matchi
 
 Alternatively, you can directly output the PMLs to a text file using the `--stdout` flag:
 ```
-./movi --index <index directory> --read <reads file> --stdout > <output file>
+./movi query --index <index directory> --read <reads file> --stdout > <output file>
 ```
 
 ### Movi is now published in iScience, you can read more about it here:
