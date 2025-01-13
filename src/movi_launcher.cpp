@@ -134,7 +134,7 @@ void execute_command_line(const std::string& command, const std::string& error_m
     if (args.verbose) {
         std::cerr << "Executing: " << command << "\n";
     }
-    if (std::system(command.c_str()) != 0) {
+    if (std::system(command.c_str()) != 0 and args.action != "view") {
         throw std::runtime_error("Error parsing command line options: " + error_msg);
     }
 }
