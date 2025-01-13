@@ -202,7 +202,7 @@ void handle_build(const Args& args, const std::vector<std::string>& all_args) {
 }
 
 void handle(const Args& args, const std::vector<std::string>& all_args) {
-    char index_type_char = args.index_provided ? get_index_type(args.index_path) : DEFAULT_INDEX_TYPE_CODE;
+    char index_type_char = args.index_provided ? get_index_type(args.index_path) : type_to_char.at(args.index_type);
     
     if (char_to_type.find(index_type_char) == char_to_type.end()) {
         throw std::runtime_error("Errorparsing command line options: Unrecognized index_type '" + std::to_string(index_type_char) + "'");
@@ -302,17 +302,10 @@ void parse_arguments(int argc, char* argv[],
     }
 
     if (script_args.index_path.empty()) {
-        // if (script_args.action == "rlbwt" || script_args.action == "view"
-        //     || script_args.action == "-h" || script_args.action == "--help") {
-        //     // Index path is not required for rlbwt and view
-            script_args.index_provided = false;
-            if (script_args.index_type.empty()) {
-                script_args.index_type = DEFAULT_INDEX_TYPE;
-            }
-        // } else {
-        //     script_args.index_type = DEFAULT_INDEX_TYPE;
-        //     // throw std::runtime_error("Error parsing command line options: The index directory (-i or --index) is required.");
-        // }
+        script_args.index_provided = false;
+        if (script_args.index_type.empty()) {
+            script_args.index_type = DEFAULT_INDEX_TYPE;
+        }
     }
 }
 

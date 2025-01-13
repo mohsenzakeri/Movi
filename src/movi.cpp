@@ -225,7 +225,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                 if (result.count("mls-file") == 1) {
                     movi_options.set_mls_file(result["mls-file"].as<std::string>());
                 } else {
-                    const std::string message = "Please specify one pml file.";
+                    const std::string message = "Please specify one mls.bin file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
             } else if (command == "LF") {
