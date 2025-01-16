@@ -1,14 +1,11 @@
-#ifndef __READ_PROCESSOR__
-#define __READ_PROCESSOR__
+#ifndef _READ_PROCESSOR_HPP_
+#define _READ_PROCESSOR_HPP_
 
 #define my_prefetch_r(address) __builtin_prefetch((void *)address, 0, 1)
 #define my_prefetch_w(address) __builtin_prefetch((void *)address, 1, 2)
 
 #include "move_structure.hpp"
 #include "utils.hpp"
-
-// STEP 1: declare the type of file handler and the read() function
-KSEQ_INIT(gzFile, gzread)
 
 struct Strand {
     Strand() {}

@@ -1,5 +1,4 @@
 #include <cstdint>
-#include <zlib.h>
 #include <stdio.h>
 #include <cstdio>
 #include <chrono>
@@ -7,15 +6,14 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
-#include "kseq.h"
 #include <sdsl/int_vector.hpp>
 #include "cxxopts.hpp"
 
+#include "utils.hpp"
 #include "move_structure.hpp"
 #include "move_query.hpp"
 #include "read_processor.hpp"
 #include "movi_options.hpp"
-#include "utils.hpp"
 
 // STEP 1: declare the type of file handler and the read() function
 // KSEQ_INIT(gzFile, gzread)

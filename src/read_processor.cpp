@@ -1,11 +1,6 @@
 #include "read_processor.hpp"
 #include <cpuid.h>
 
-uint32_t alphamap_3_[4][4] = {{3, 0, 1, 2},
-                             {0, 3, 1, 2},
-                             {0, 1, 3, 2},
-                             {0, 1, 2, 3}};
-
 ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_ = 4, bool verbose_ = false, bool reverse_ = false) : mv(mv_) {
 
     int cpu_info[4];

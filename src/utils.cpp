@@ -1,5 +1,10 @@
 #include "utils.hpp"
 
+uint32_t alphamap_3[4][4] = {{3, 0, 1, 2},
+                             {0, 3, 1, 2},
+                             {0, 1, 3, 2},
+                             {0, 1, 2, 3}};
+
 std::string program() {
 #if MODE == 0
     return "large"; // old name: "default"

@@ -1,5 +1,5 @@
-#ifndef __MOVE_ROW__
-#define __MOVE_ROW__
+#ifndef _MOVE_ROW_HPP_
+#define _MOVE_ROW_HPP_
 
 #include <iostream>
 #include <vector>

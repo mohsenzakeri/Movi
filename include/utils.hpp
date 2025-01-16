@@ -1,5 +1,5 @@
-#ifndef __UTILS__
-#define __UTILS__
+#ifndef _UTILS_HPP_
+#define _UTILS_HPP_
 
 #include <sys/stat.h> 
 
@@ -9,7 +9,18 @@
 #include <fstream>
 #include <iostream>
 
+#include <zlib.h>
+#include "kseq.h"
+
 #include "move_query.hpp"
+
+#ifndef KSEQ_INIT_READY
+#define KSEQ_INIT_READY
+// STEP 1: declare the type of file handler and the read() function
+KSEQ_INIT(gzFile, gzread)
+#endif
+
+extern uint32_t alphamap_3[4][4];
 
 #define USE_THRESHOLDS MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6 or MODE == 7 or MODE == 8
 #define THRESHOLDS_WITHOUT_NEXTS MODE == 0 or MODE == 4 or MODE == 8 or MODE == 7 or MODE == 6

@@ -1,9 +1,8 @@
-#ifndef __MOVE_STRUCTURE__
-#define __MOVE_STRUCTURE__
+#ifndef _MOVE_STRUCTURE_HPP_
+#define _MOVE_STRUCTURE_HPP_
 
 #include <fstream>
 #include <cstdint>
-#include <zlib.h>
 #include <stdio.h>
 #include <chrono>
 #include <cstddef>
@@ -11,8 +10,6 @@
 #include <sys/stat.h>
 #include <vector>
 #include <unordered_map>
-
-#include "kseq.h"
 
 #include <sdsl/int_vector.hpp>
 #include <sdsl/bit_vectors.hpp>
