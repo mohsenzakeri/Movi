@@ -1,5 +1,5 @@
-#ifndef _MOVI_OPTIONS_HPP_
-#define _MOVI_OPTIONS_HPP_
+#ifndef MOVI_OPTIONS_HPP
+#define MOVI_OPTIONS_HPP
 
 class MoviOptions {
     public:

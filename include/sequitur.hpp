@@ -1,5 +1,5 @@
-#ifndef _SEQUITUR_HPP_
-#define _SEQUITUR_HPP_
+#ifndef SEQUITUR_HPP
+#define SEQUITUR_HPP
 
 struct KmerStatistics {
     uint64_t total_kmers() {

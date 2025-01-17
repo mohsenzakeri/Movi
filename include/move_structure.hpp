@@ -1,5 +1,5 @@
-#ifndef _MOVE_STRUCTURE_HPP_
-#define _MOVE_STRUCTURE_HPP_
+#ifndef MOVE_STRUCTURE_HPP
+#define MOVE_STRUCTURE_HPP
 
 #include <fstream>
 #include <cstdint>

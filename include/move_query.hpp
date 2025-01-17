@@ -1,5 +1,5 @@
-#ifndef _MOVE_QUERY_HPP_
-#define _MOVE_QUERY_HPP_
+#ifndef MOVE_QUERY_HPP
+#define MOVE_QUERY_HPP
 
 class MoveQuery {
     public:

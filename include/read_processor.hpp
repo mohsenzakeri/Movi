@@ -1,5 +1,5 @@
-#ifndef _READ_PROCESSOR_HPP_
-#define _READ_PROCESSOR_HPP_
+#ifndef READ_PROCESSOR_HPP
+#define READ_PROCESSOR_HPP
 
 #define my_prefetch_r(address) __builtin_prefetch((void *)address, 0, 1)
 #define my_prefetch_w(address) __builtin_prefetch((void *)address, 1, 2)
