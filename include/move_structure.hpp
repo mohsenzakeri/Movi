@@ -20,9 +20,6 @@
 #include "sequitur.hpp"
 #include "utils.hpp"
 
-#define END_CHARACTER 0
-#define THRBYTES 5 
-
 struct MoveInterval {
     MoveInterval() {}
 

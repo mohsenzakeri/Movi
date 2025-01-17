@@ -8,7 +8,9 @@
 #include <chrono>
 #include <fstream>
 #include <iostream>
+#include <cstring>
 
+#include <sdsl/int_vector.hpp>
 #include <zlib.h>
 #include "kseq.h"
 
@@ -18,6 +20,8 @@
 #define KSEQ_INIT_READY
 // STEP 1: declare the type of file handler and the read() function
 KSEQ_INIT(gzFile, gzread)
+kseq_t* open_kseq(gzFile& fp, std::string file_address);
+void close_kseq(kseq_t *seq, gzFile& fp);
 #endif
 
 extern uint32_t alphamap_3[4][4];
@@ -35,6 +39,12 @@ extern uint32_t alphamap_3[4][4];
 #define BLOCKED_MODE MODE == 2 or MODE == 8
 #define TALLY_MODE MODE == 5 or MODE == 7
 
+#define END_CHARACTER 0
+#define THRBYTES 5
+#define NULL_READ_CHUNK 150
+#define NUM_NULL_READS 800 // 150,000 = 150 bp * 1000 reads
+#define NULL_READ_BOUND 1000
+
 std::string program();
 
 char complement(char c);
@@ -48,5 +58,10 @@ std::string number_to_kmer(size_t j, size_t m, std::vector<unsigned char>& alpha
 uint64_t kmer_to_number(size_t k, std::string& r, int32_t pos, std::vector<uint64_t>& alphamap, bool rc = false) ;
 
 uint8_t F_char(std::vector<uint64_t>& first_runs, uint64_t run);
+
+void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds);
+
+// Borrowed from spumoni written by Omar Ahmed: https://github.com/oma219/spumoni/tree/main
+std::string parse_null_reads(const char* ref_file, const char* output_path);
 
 #endif

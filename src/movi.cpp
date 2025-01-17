@@ -14,30 +14,10 @@
 #include "move_query.hpp"
 #include "read_processor.hpp"
 #include "movi_options.hpp"
+#include "emperical_null_database.hpp"
 
 // STEP 1: declare the type of file handler and the read() function
 // KSEQ_INIT(gzFile, gzread)
-
-kseq_t* open_kseq(gzFile& fp, std::string file_address) {
-    std::cerr << "file_address: " << file_address << "\n";
-    kseq_t *seq;
-    // Solution for handling the stdin input: https://biowize.wordpress.com/2013/03/05/using-kseq-h-with-stdin/
-    if (file_address == "-") {
-        FILE *instream = stdin;
-        fp = gzdopen(fileno(instream), "r"); // STEP 2: open the file handler
-    } else {
-        fp = gzopen(file_address.c_str(), "r"); // STEP 2: open the file handler
-    }
-    seq = kseq_init(fp); // STEP 3: initialize seq
-    return seq;
-}
-
-void close_kseq(kseq_t *seq, gzFile& fp) {
-    kseq_destroy(seq); // STEP 5: destroy seq
-    std::cerr << "kseq destroyed!\n";
-    gzclose(fp); // STEP 6: close the file handler
-    std::cerr << "fp file closed!\n";
-}
 
 bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     // movi_options.print_options();
@@ -456,6 +436,16 @@ void view(MoviOptions& movi_options) {
     }
 }
 
+void generate_null_pml_statistics(MoviOptions& movi_options, MoveStructure& mv_) {
+    std::string pattern_file = movi_options.get_index_dir() + "/null_reads.fasta";
+    parse_null_reads(movi_options.get_ref_file().c_str(), pattern_file.c_str());
+
+    EmpNullDatabase nulldb;
+    nulldb.generate_stats(movi_options, mv_, pattern_file);
+    nulldb.compute_stats();
+    nulldb.serialize(movi_options);
+}
+
 int main(int argc, char** argv) {
     try {
 
@@ -476,6 +466,7 @@ int main(int argc, char** argv) {
             if (movi_options.is_output_ids()) {
                 mv_.print_ids();
             }
+            generate_null_pml_statistics(movi_options, mv_);
         } else if (command == "query") {
             MoveStructure mv_(&movi_options);
             auto begin = std::chrono::system_clock::now();

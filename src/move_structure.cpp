@@ -2,40 +2,6 @@
 
 #include "move_structure.hpp"
 
-void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
-    int log_n = 100;
-
-    struct stat filestat;
-    FILE *fd;
-
-    if ((fd = fopen(tmp_filename.c_str(), "r")) == nullptr)
-        std::cerr <<("open() file " + tmp_filename + " failed");
-
-    int fn = fileno(fd);
-    if (fstat(fn, &filestat) < 0)
-        std::cerr <<("stat() file " + tmp_filename + " failed");
-
-    if (filestat.st_size % THRBYTES != 0)
-        std::cerr <<("invilid file " + tmp_filename);
-
-    size_t length_thr = filestat.st_size / THRBYTES;
-    size_t threshold = 0;
-
-    thresholds = sdsl::int_vector<>(length_thr, 0, log_n);
-
-    size_t i = 0;
-    for (i = 0; i < length_thr; ++i) {
-        if (i % 100000 == 0) {
-            std::cerr << "read thresholds:\t" << i << "\r";
-        }
-        size_t threshold = 0;
-        if ((fread(&threshold, THRBYTES, 1, fd)) != 1)
-            std::cerr <<("fread() file " + tmp_filename + " failed");
-        thresholds[i] = threshold;
-    }
-    std::cerr << "Finished reading " << i << " thresholds.\n";
-}
-
 MoveStructure::MoveStructure(MoviOptions* movi_options_) {
     movi_options = movi_options_;
     onebit = false;
