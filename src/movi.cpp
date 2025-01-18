@@ -89,6 +89,10 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>())
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails");
 
+    auto nullOptions = options.add_options("null")
+        ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("gen-reads", "Generate null reads");
+
     options.parse_positional({ "command" });
     std::vector<std::string> help_groups;
 
@@ -238,6 +242,24 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
                 } else {
                     const std::string message = "Please specify the index directory file and the k length for the ftab.";
+                    cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                }
+            } else if (command == "null") {
+                if (result.count("index") == 1) {
+                    movi_options.set_index_dir(result["index"].as<std::string>());
+                    if (result.count("gen-reads") >= 1) {
+                        movi_options.set_generate_null_reads(true);
+                        if (result.count("fasta") >= 1) {
+                            movi_options.set_ref_file(result["fasta"].as<std::string>());
+                        } else {
+                            const std::string message = "Please specify the reference fasta file.";
+                            cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                        }
+                    }
+                    if (result.count("zml") >= 1) { movi_options.set_zml(); }
+                    if (result.count("pml") >= 1) { movi_options.set_pml(); }
+                } else {
+                    const std::string message = "Please specify the index directory file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
             } else {
@@ -502,9 +524,11 @@ void view(MoviOptions& movi_options) {
     }
 }
 
-void generate_null_pml_statistics(MoviOptions& movi_options, MoveStructure& mv_) {
+void generate_null_statistics(MoviOptions& movi_options, MoveStructure& mv_) {
     std::string pattern_file = movi_options.get_index_dir() + "/null_reads.fasta";
-    parse_null_reads(movi_options.get_ref_file().c_str(), pattern_file.c_str());
+    if (movi_options.is_generate_null_reads()) {
+        parse_null_reads(movi_options.get_ref_file().c_str(), pattern_file.c_str());
+    }
 
     EmpNullDatabase nulldb;
     nulldb.generate_stats(movi_options, mv_, pattern_file);
@@ -532,7 +556,8 @@ int main(int argc, char** argv) {
             if (movi_options.is_output_ids()) {
                 mv_.print_ids();
             }
-            generate_null_pml_statistics(movi_options, mv_);
+            movi_options.set_generate_null_reads(true);
+            generate_null_statistics(movi_options, mv_);
         } else if (command == "query") {
             MoveStructure mv_(&movi_options);
             auto begin = std::chrono::system_clock::now();
@@ -571,6 +596,10 @@ int main(int argc, char** argv) {
             MoveStructure mv_(&movi_options);
             mv_.deserialize();
             build_ftab(mv_, movi_options);
+        } else if (command == "null") {
+            MoveStructure mv_(&movi_options);
+            mv_.deserialize();
+            generate_null_statistics(movi_options, mv_);
         } else {
             const std::string message = "Invalid action: \"" + command + "\"";
             throw std::runtime_error(message);

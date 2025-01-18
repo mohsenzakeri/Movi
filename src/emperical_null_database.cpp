@@ -16,39 +16,46 @@ void EmpNullDatabase::generate_stats(MoviOptions& movi_options, MoveStructure& m
         MoveQuery mq = MoveQuery(query_seq);
 
         bool random_jump = false;
-        mv_.query_pml(mq, random_jump);
-        auto& pml_lens = mq.get_matching_lengths();
-        pml_stats.insert(pml_stats.end(), pml_lens.begin(), pml_lens.end());
+        if (movi_options.is_pml()) {
+            mv_.query_pml(mq, random_jump);
+        } else if (movi_options.is_zml()) {
+            mv_.query_zml(mq);
+        } else {
+            // TODO: handle other query types
+            throw std::runtime_error("Invalid query type");
+        }
+        auto& matching_lengths = mq.get_matching_lengths();
+        ml_stats.insert(ml_stats.end(), matching_lengths.begin(), matching_lengths.end());
     }
     close_kseq(seq, fp);
 }
 
 void EmpNullDatabase::compute_stats() {
     // Determine vector size needed
-    auto max_null_stat = std::max_element(pml_stats.begin(), pml_stats.end()); 
+    auto max_null_stat = std::max_element(ml_stats.begin(), ml_stats.end());
     max_stat_width = std::max(static_cast<int>(std::ceil(std::log2(*max_null_stat))), 1);
 
     std::cerr << "Maximum null statistic: " << *max_null_stat << "\n";
     std::cerr << "Number of bits used per null statistic: " << max_stat_width << "\n";
 
     // Initialize attributes
-    num_values = pml_stats.size();
+    num_values = ml_stats.size();
     null_stats.resize(num_values, 0);
 
     // Compute mean
     double sum_values = 0.0;
-    for (size_t i = 0; i < pml_stats.size(); i++) {
-        sum_values += pml_stats[i];
-        null_stats[i] = pml_stats[i];
+    for (size_t i = 0; i < ml_stats.size(); i++) {
+        sum_values += ml_stats[i];
+        null_stats[i] = ml_stats[i];
     }
-    mean_null_stat = sum_values/pml_stats.size();
+    mean_null_stat = sum_values/ml_stats.size();
 
     // Find largest common value
-    std::sort(pml_stats.begin(), pml_stats.end());
+    std::sort(ml_stats.begin(), ml_stats.end());
 
-    size_t largest_val = 0, curr_val = pml_stats[0];
+    size_t largest_val = 0, curr_val = ml_stats[0];
     size_t num_occs = 0;
-    for (auto x: pml_stats) {
+    for (auto x: ml_stats) {
         if (x == curr_val)
             num_occs++;
         else {
@@ -68,7 +75,7 @@ void EmpNullDatabase::compute_stats() {
 }
 
 void EmpNullDatabase::serialize(MoviOptions& movi_options) {
-    std::string output_nulldb_name = movi_options.get_index_dir() + "/movi.pmlnulldb";
+    std::string output_nulldb_name = movi_options.get_index_dir() + "/movi." + query_type(movi_options) + ".nulldb";
     std::ofstream output_nulldb(output_nulldb_name, std::ios::out | std::ios::binary);
 
     output_nulldb.write(reinterpret_cast<char*>(&num_values), sizeof(num_values));
@@ -80,7 +87,7 @@ void EmpNullDatabase::serialize(MoviOptions& movi_options) {
 }
 
 void EmpNullDatabase::deserialize(MoviOptions& movi_options) {
-    std::string input_nulldb_name = movi_options.get_index_dir() + "/movi.pmlnulldb";
+    std::string input_nulldb_name = movi_options.get_index_dir() + "/movi." + query_type(movi_options) + ".nulldb";
     std::ifstream input_nulldb(input_nulldb_name, std::ios::in | std::ios::binary);
 
     input_nulldb.read(reinterpret_cast<char*>(&num_values), sizeof(num_values));
