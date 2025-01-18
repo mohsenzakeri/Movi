@@ -210,6 +210,24 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
             } else if (command == "view") {
                 if (result.count("mls-file") == 1) {
                     movi_options.set_mls_file(result["mls-file"].as<std::string>());
+                    if (result.count("classify") >= 1) {
+                        movi_options.set_classify(true);
+                        if (result.count("bin-width") >= 1) {
+                            movi_options.set_bin_width(static_cast<uint32_t>(result["bin-width"].as<uint32_t>()));
+                        }
+                        if (result.count("zml") >= 1) {
+                            movi_options.set_zml();
+                        }
+                        if (result.count("pml") >= 1) {
+                            movi_options.set_pml();
+                        }
+                        if (result.count("index") == 1) {
+                            movi_options.set_index_dir(result["index"].as<std::string>());
+                        } else {
+                            const std::string message = "Please specify the index directory file.";
+                            cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                        }
+                    }
                 } else {
                     const std::string message = "Please specify one mls.bin file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
@@ -299,6 +317,37 @@ void build_ftab(MoveStructure& mv_, MoviOptions& movi_options) {
     }
 }
 
+size_t initialize_report_file(MoviOptions& movi_options, std::ofstream& report_file) {
+
+    std::string index_type = program();
+
+    // load the threshold from the null database
+    EmpNullDatabase null_db;
+    null_db.deserialize(movi_options);
+    size_t max_value_thr = std::max(null_db.get_percentile_value(), static_cast<size_t>(MIN_MATCHING_LENGTH)) + 1;
+
+    // initial the report file
+    std::string report_file_name = "";
+    if (movi_options.get_read_file() != "") {
+        report_file_name = movi_options.get_read_file() + "." + index_type + "." + query_type(movi_options) + ".report";;
+    } else {
+        report_file_name = movi_options.get_mls_file() + ".report";
+    }
+    std::cerr << "Report file name: " << report_file_name << "\n";
+
+    report_file = std::ofstream(report_file_name);
+    report_file.precision(4);
+    report_file << std::setw(30) << std::left << "read id:"
+                << std::setw(15) << std::left << "status:"
+                << std::setw(19) << std::left << "avg max-value (thr="
+                << std::setw(2) << std::left << max_value_thr
+                << std::setw(5) << std::left << "):"
+                << std::setw(12) << std::left << "above thr:"
+                << std::setw(12) << std::left << "below thr:" << std::endl;
+
+    return max_value_thr;
+}
+
 // Borrowed from spumoni written by Omar Ahmed: https://github.com/oma219/spumoni/tree/main
 void classify(MoviOptions& movi_options, uint16_t max_value_thr, std::ofstream& report_file, std::string read_name, std::vector<uint16_t>& matching_lens) {
     std::vector<size_t> bins_max_value;
@@ -371,22 +420,9 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         }
 
         if (movi_options.is_classify()) {
-            // load the threshold from the null database
-            EmpNullDatabase null_db;
-            null_db.deserialize(movi_options);
-            max_value_thr = std::max(null_db.get_percentile_value(), static_cast<size_t>(MIN_MATCHING_LENGTH)) + 1;
-
-            // initial the report file
-            report_file = std::ofstream(movi_options.get_read_file() + "." + index_type + "." + query_type(movi_options) + ".report");
-            report_file.precision(4);
-            report_file << std::setw(30) << std::left << "read id:"
-                        << std::setw(15) << std::left << "status:"
-                        << std::setw(19) << std::left << "avg max-value (thr="
-                        << std::setw(2) << std::left << max_value_thr
-                        << std::setw(5) << std::left << "):"
-                        << std::setw(12) << std::left << "above thr:"
-                        << std::setw(12) << std::left << "below thr:" << std::endl;
+            max_value_thr = initialize_report_file(movi_options, report_file);
         }
+
         uint64_t total_ff_count = 0;
 
         std::ofstream mls_file;
@@ -433,8 +469,8 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     mls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
                 }
                 if (movi_options.is_classify()) {
-                    std::vector<uint16_t> pos_lens = mq.get_matching_lengths();
-                    classify(movi_options, max_value_thr, report_file, seq->name.s, pos_lens);
+                    std::vector<uint16_t> matching_lens = mq.get_matching_lengths();
+                    classify(movi_options, max_value_thr, report_file, seq->name.s, matching_lens);
                 }
             } else if (movi_options.is_count()) {
                 int32_t pos_on_r = query_seq.length() - 1;
@@ -502,6 +538,13 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 void view(MoviOptions& movi_options) {
     std::ifstream mls_file(movi_options.get_mls_file(), std::ios::in | std::ios::binary);
     mls_file.seekg(0, std::ios::beg);
+
+    std::ofstream report_file;
+    size_t max_value_thr = 0;
+    if (movi_options.is_classify()) {
+        max_value_thr = initialize_report_file(movi_options, report_file);
+    }
+
     while (true) {
         uint16_t st_length = 0;
         mls_file.read(reinterpret_cast<char*>(&st_length), sizeof(st_length));
@@ -521,7 +564,17 @@ void view(MoviOptions& movi_options) {
             std::cout << pml_lens[i] << " ";
         }
         std::cout << "\n";
+
+        if (movi_options.is_classify()) {
+            classify(movi_options, max_value_thr, report_file, read_name, pml_lens);
+        }
+
     }
+
+    if (movi_options.is_classify()) {
+        report_file.close();
+    }
+
 }
 
 void generate_null_statistics(MoviOptions& movi_options, MoveStructure& mv_) {
