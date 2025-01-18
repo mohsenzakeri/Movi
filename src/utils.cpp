@@ -175,7 +175,7 @@ std::string parse_null_reads(const char* ref_file, const char* output_path) {
     /* Parses out null reads in the case that we don't use a file-list */
 
     // Variables for generating null reads ...
-    srand(0);
+    std::srand(time(0));
     char grabbed_seq[NULL_READ_CHUNK+1];
     grabbed_seq[NULL_READ_CHUNK] = '\0';
 
