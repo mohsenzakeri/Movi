@@ -57,6 +57,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("count", "Compute the count queries")
         ("kmer", "Search all the kmers")
         ("kmer-count", "Find the count of every kmer")
+        ("classify", "Classify the reads")
+        ("bin-width", "The width of the bin used for classification", cxxopts::value<uint32_t>())
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
@@ -155,12 +157,14 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         movi_options.set_read_file(result["read"].as<std::string>());
                         if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
                         if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
+                        if (result.count("bin-width") >= 1) { movi_options.set_bin_width(static_cast<uint32_t>(result["bin-width"].as<uint32_t>())); }
                         if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
                         if (result.count("kmer") >= 1) { movi_options.set_kmer(); }
                         if (result.count("kmer-count") >= 1) { movi_options.set_kmer(); movi_options.set_kmer_count(true); }
                         if (result.count("count") >= 1) { movi_options.set_count(); }
                         if (result.count("zml") >= 1) { movi_options.set_zml(); }
                         if (result.count("pml") >= 1) { movi_options.set_pml(); }
+                        if (result.count("classify") >= 1) { movi_options.set_classify(true); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
                         if (result.count("ignore-illegal-chars") == 1) {
                             if (!movi_options.set_ignore_illegal_chars(result["ignore-illegal-chars"].as<int>())) {
@@ -273,6 +277,44 @@ void build_ftab(MoveStructure& mv_, MoviOptions& movi_options) {
     }
 }
 
+// Borrowed from spumoni written by Omar Ahmed: https://github.com/oma219/spumoni/tree/main
+void classify(MoviOptions& movi_options, uint16_t max_value_thr, std::ofstream& report_file, std::string read_name, std::vector<uint16_t>& matching_lens) {
+    std::vector<size_t> bins_max_value;
+    std::string status = "";
+    size_t sum_max_bin_values = 0.0;
+    size_t bins_above = 0, bins_below = 0;
+    size_t start_pos = 0, end_pos = 0;
+    size_t bin_width = movi_options.get_bin_width();
+
+    while (start_pos < matching_lens.size()) {
+        end_pos = (start_pos + bin_width < matching_lens.size()) ? start_pos + bin_width : matching_lens.size();
+
+        // avoids small regions at the end of read
+        if (matching_lens.size() - end_pos < bin_width)
+            end_pos = matching_lens.size();
+
+        // grab maximum value in this region and update variables
+        auto max_val = *std::max_element(matching_lens.begin()+start_pos, matching_lens.begin()+end_pos);
+        if (max_val >= max_value_thr)
+            bins_above++;
+        else
+            bins_below++;
+        bins_max_value.push_back(max_val);
+        start_pos += (end_pos - start_pos);
+    }
+    std::for_each(bins_max_value.begin(), bins_max_value.end(), [&] (double n) {sum_max_bin_values += n;});
+    bool read_found = (bins_above/(bins_above+bins_below+0.0) > 0.50);
+    status = (read_found) ? "FOUND" : "NOT_PRESENT";
+
+    report_file.precision(3);
+    report_file << std::setw(30) << std::left << read_name
+                << std::setw(15) << std::left << status
+                << std::setw(26) << std::left <<  (sum_max_bin_values+0.0)/bins_max_value.size()
+                << std::setw(12) << std::left <<  bins_above
+                << std::setw(12) << std::left <<  bins_below
+                << "\n";
+}
+
 void query(MoveStructure& mv_, MoviOptions& movi_options) {
     if (movi_options.get_ftab_k() != 0) {
         mv_.read_ftab();
@@ -297,21 +339,39 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         std::ofstream costs_file;
         std::ofstream scans_file;
         std::ofstream fastforwards_file;
+        std::ofstream report_file;
+        size_t max_value_thr = 0;
         std::string index_type = program();
         if (movi_options.is_logs()) {
             costs_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".costs");
             scans_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".scans");
             fastforwards_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".fastforwards");
         }
+
+        if (movi_options.is_classify()) {
+            // load the threshold from the null database
+            EmpNullDatabase null_db;
+            null_db.deserialize(movi_options);
+            max_value_thr = std::max(null_db.get_percentile_value(), static_cast<size_t>(MIN_MATCHING_LENGTH)) + 1;
+
+            // initial the report file
+            report_file = std::ofstream(movi_options.get_read_file() + "." + index_type + "." + query_type(movi_options) + ".report");
+            report_file.precision(4);
+            report_file << std::setw(30) << std::left << "read id:"
+                        << std::setw(15) << std::left << "status:"
+                        << std::setw(19) << std::left << "avg max-value (thr="
+                        << std::setw(2) << std::left << max_value_thr
+                        << std::setw(5) << std::left << "):"
+                        << std::setw(12) << std::left << "above thr:"
+                        << std::setw(12) << std::left << "below thr:" << std::endl;
+        }
         uint64_t total_ff_count = 0;
 
         std::ofstream mls_file;
         std::ofstream count_file;
         if (!movi_options.is_stdout()) {
-            if (movi_options.is_pml())
-                mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".pml.bin", std::ios::out | std::ios::binary);
-            else if (movi_options.is_zml())
-                mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".zml.bin", std::ios::out | std::ios::binary);
+            if (movi_options.is_pml() or movi_options.is_zml())
+                mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + "." + query_type(movi_options) + ".bin", std::ios::out | std::ios::binary);
             else if (movi_options.is_count())
                 count_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".matches");
         }
@@ -328,9 +388,9 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     std::reverse(query_seq.begin(), query_seq.end());
                 mq = MoveQuery(query_seq);
                 bool random_jump = false;
-                if (movi_options.is_pml())
+                if (movi_options.is_pml()) {
                     total_ff_count += mv_.query_pml(mq, random_jump);
-                else if (movi_options.is_zml()) {
+                } else if (movi_options.is_zml()) {
                     total_ff_count += mv_.query_zml(mq);
                 }
                 if (movi_options.is_stdout()) {
@@ -349,6 +409,10 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     uint64_t mq_pml_lens_size = pml_lens.size();
                     mls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
                     mls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+                }
+                if (movi_options.is_classify()) {
+                    std::vector<uint16_t> pos_lens = mq.get_matching_lengths();
+                    classify(movi_options, max_value_thr, report_file, seq->name.s, pos_lens);
                 }
             } else if (movi_options.is_count()) {
                 int32_t pos_on_r = query_seq.length() - 1;
@@ -401,7 +465,9 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         } else if (movi_options.is_kmer()) {
             mv_.kmer_stats.print(movi_options.is_kmer_count());
         }
-
+        if (movi_options.is_classify()) {
+            report_file.close();
+        }
         if (movi_options.is_logs()) {
             costs_file.close();
             scans_file.close();

@@ -15,6 +15,7 @@
 #include "kseq.h"
 
 #include "move_query.hpp"
+#include "movi_options.hpp"
 
 #ifndef KSEQ_INIT_READY
 #define KSEQ_INIT_READY
@@ -41,11 +42,14 @@ extern uint32_t alphamap_3[4][4];
 
 #define END_CHARACTER 0
 #define THRBYTES 5
+#define MIN_MATCHING_LENGTH 3
 #define NULL_READ_CHUNK 150
 #define NUM_NULL_READS 800 // 150,000 = 150 bp * 1000 reads
 #define NULL_READ_BOUND 1000
 
 std::string program();
+
+std::string query_type(MoviOptions& movi_options);
 
 char complement(char c);
 

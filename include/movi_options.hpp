@@ -30,6 +30,8 @@ class MoviOptions {
         bool is_kmer_count() { return kmer_count; }
         bool is_reverse() { return reverse; }
         bool is_multi_ftab() { return multi_ftab; }
+        bool is_classify() { return classify; }
+        size_t get_bin_width() { return bin_width; }
         int ignore_illegal_chars_status() { return ilc; }
         size_t get_strands() { return strands; }
         uint32_t get_k () { return k; }
@@ -63,6 +65,8 @@ class MoviOptions {
         void set_tally_checkpoints(uint32_t tally_checkpoints_) { tally_checkpoints = tally_checkpoints_; }
         void set_multi_ftab(bool multi_ftab_) { multi_ftab = multi_ftab_; }
         void set_reverse(bool reverse_) { reverse = reverse_; }
+        void set_classify(bool classify_) { classify = classify_; }
+        void set_bin_width(size_t bin_width_) { bin_width = bin_width_; }
         bool set_ignore_illegal_chars(int ilc_) {
             if (ilc_ > 2 or ilc_ < 1)
                 return false;
@@ -139,6 +143,8 @@ class MoviOptions {
         uint32_t tally_checkpoints = 20;
         bool multi_ftab = false;
         bool verify = false;
+        bool classify = false;
+        size_t bin_width = 150;
 
         bool output_ids = false;
         bool write_stdout = false;

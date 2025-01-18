@@ -1,5 +1,9 @@
 #include "emperical_null_database.hpp"
 
+size_t EmpNullDatabase::get_percentile_value() {
+    return percentile_value;
+}
+
 void EmpNullDatabase::generate_stats(MoviOptions& movi_options, MoveStructure& mv_, std::string pattern_file) {
     bool random_jump = (USE_THRESHOLDS ? false : true);
     std::cerr << "random_jump: " << random_jump << "\n";
@@ -82,6 +86,7 @@ void EmpNullDatabase::deserialize(MoviOptions& movi_options) {
     input_nulldb.read(reinterpret_cast<char*>(&num_values), sizeof(num_values));
     input_nulldb.read(reinterpret_cast<char*>(&mean_null_stat), sizeof(mean_null_stat));
     input_nulldb.read(reinterpret_cast<char*>(&percentile_value), sizeof(percentile_value));
+    null_stats.resize(num_values);
     input_nulldb.read(reinterpret_cast<char*>(&null_stats[0]), num_values * sizeof(null_stats[0]));
 
     input_nulldb.close();

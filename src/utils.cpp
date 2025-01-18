@@ -37,6 +37,17 @@ std::string program() {
     exit(0);
 }
 
+std::string query_type(MoviOptions& movi_options) {
+    if (movi_options.is_pml()) {
+        return "pml";
+    } else if (movi_options.is_zml()) {
+        return "zml";
+    } else {
+        // TODO: handle other query types
+        throw std::runtime_error("Invalid query type");
+    }
+}
+
 kseq_t* open_kseq(gzFile& fp, std::string file_address) {
     std::cerr << "file_address: " << file_address << "\n";
     kseq_t *seq;

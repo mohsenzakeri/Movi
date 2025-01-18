@@ -16,6 +16,8 @@ private:
     size_t percentile_value;
 
 public:
+    size_t get_percentile_value();
+
     void generate_stats(MoviOptions& movi_options, MoveStructure& mv_, std::string pattern_file);
 
     void compute_stats();
