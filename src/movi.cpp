@@ -9,6 +9,7 @@
 #include <sdsl/int_vector.hpp>
 #include "cxxopts.hpp"
 
+#include "classifier.hpp"
 #include "utils.hpp"
 #include "move_structure.hpp"
 #include "move_query.hpp"
@@ -317,75 +318,6 @@ void build_ftab(MoveStructure& mv_, MoviOptions& movi_options) {
     }
 }
 
-size_t initialize_report_file(MoviOptions& movi_options, std::ofstream& report_file) {
-
-    std::string index_type = program();
-
-    // load the threshold from the null database
-    EmpNullDatabase null_db;
-    null_db.deserialize(movi_options);
-    size_t max_value_thr = std::max(null_db.get_percentile_value(), static_cast<size_t>(MIN_MATCHING_LENGTH)) + 1;
-
-    // initial the report file
-    std::string report_file_name = "";
-    if (movi_options.get_read_file() != "") {
-        report_file_name = movi_options.get_read_file() + "." + index_type + "." + query_type(movi_options) + ".report";;
-    } else {
-        report_file_name = movi_options.get_mls_file() + ".report";
-    }
-    std::cerr << "Report file name: " << report_file_name << "\n";
-
-    report_file = std::ofstream(report_file_name);
-    report_file.precision(4);
-    report_file << std::setw(30) << std::left << "read id:"
-                << std::setw(15) << std::left << "status:"
-                << std::setw(19) << std::left << "avg max-value (thr="
-                << std::setw(2) << std::left << max_value_thr
-                << std::setw(5) << std::left << "):"
-                << std::setw(12) << std::left << "above thr:"
-                << std::setw(12) << std::left << "below thr:" << std::endl;
-
-    return max_value_thr;
-}
-
-// Borrowed from spumoni written by Omar Ahmed: https://github.com/oma219/spumoni/tree/main
-void classify(MoviOptions& movi_options, uint16_t max_value_thr, std::ofstream& report_file, std::string read_name, std::vector<uint16_t>& matching_lens) {
-    std::vector<size_t> bins_max_value;
-    std::string status = "";
-    size_t sum_max_bin_values = 0.0;
-    size_t bins_above = 0, bins_below = 0;
-    size_t start_pos = 0, end_pos = 0;
-    size_t bin_width = movi_options.get_bin_width();
-
-    while (start_pos < matching_lens.size()) {
-        end_pos = (start_pos + bin_width < matching_lens.size()) ? start_pos + bin_width : matching_lens.size();
-
-        // avoids small regions at the end of read
-        if (matching_lens.size() - end_pos < bin_width)
-            end_pos = matching_lens.size();
-
-        // grab maximum value in this region and update variables
-        auto max_val = *std::max_element(matching_lens.begin()+start_pos, matching_lens.begin()+end_pos);
-        if (max_val >= max_value_thr)
-            bins_above++;
-        else
-            bins_below++;
-        bins_max_value.push_back(max_val);
-        start_pos += (end_pos - start_pos);
-    }
-    std::for_each(bins_max_value.begin(), bins_max_value.end(), [&] (double n) {sum_max_bin_values += n;});
-    bool read_found = (bins_above/(bins_above+bins_below+0.0) > 0.50);
-    status = (read_found) ? "FOUND" : "NOT_PRESENT";
-
-    report_file.precision(3);
-    report_file << std::setw(30) << std::left << read_name
-                << std::setw(15) << std::left << status
-                << std::setw(26) << std::left <<  (sum_max_bin_values+0.0)/bins_max_value.size()
-                << std::setw(12) << std::left <<  bins_above
-                << std::setw(12) << std::left <<  bins_below
-                << "\n";
-}
-
 void query(MoveStructure& mv_, MoviOptions& movi_options) {
     if (movi_options.get_ftab_k() != 0) {
         mv_.read_ftab();
@@ -411,7 +343,6 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         std::ofstream scans_file;
         std::ofstream fastforwards_file;
         std::ofstream report_file;
-        size_t max_value_thr = 0;
         std::string index_type = program();
         if (movi_options.is_logs()) {
             costs_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".costs");
@@ -419,8 +350,9 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             fastforwards_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".fastforwards");
         }
 
+        Classifier classifier;
         if (movi_options.is_classify()) {
-            max_value_thr = initialize_report_file(movi_options, report_file);
+            classifier.initialize_report_file(movi_options);
         }
 
         uint64_t total_ff_count = 0;
@@ -470,7 +402,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 }
                 if (movi_options.is_classify()) {
                     std::vector<uint16_t> matching_lens = mq.get_matching_lengths();
-                    classify(movi_options, max_value_thr, report_file, seq->name.s, matching_lens);
+                    classifier.classify(seq->name.s, matching_lens, movi_options);
                 }
             } else if (movi_options.is_count()) {
                 int32_t pos_on_r = query_seq.length() - 1;
@@ -524,7 +456,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             mv_.kmer_stats.print(movi_options.is_kmer_count());
         }
         if (movi_options.is_classify()) {
-            report_file.close();
+            classifier.close_report_file();
         }
         if (movi_options.is_logs()) {
             costs_file.close();
@@ -539,10 +471,10 @@ void view(MoviOptions& movi_options) {
     std::ifstream mls_file(movi_options.get_mls_file(), std::ios::in | std::ios::binary);
     mls_file.seekg(0, std::ios::beg);
 
-    std::ofstream report_file;
-    size_t max_value_thr = 0;
+
+    Classifier classifier;
     if (movi_options.is_classify()) {
-        max_value_thr = initialize_report_file(movi_options, report_file);
+        classifier.initialize_report_file(movi_options);
     }
 
     while (true) {
@@ -566,27 +498,14 @@ void view(MoviOptions& movi_options) {
         std::cout << "\n";
 
         if (movi_options.is_classify()) {
-            classify(movi_options, max_value_thr, report_file, read_name, pml_lens);
+            classifier.classify(read_name, pml_lens, movi_options);
         }
 
     }
 
     if (movi_options.is_classify()) {
-        report_file.close();
+        classifier.close_report_file();
     }
-
-}
-
-void generate_null_statistics(MoviOptions& movi_options, MoveStructure& mv_) {
-    std::string pattern_file = movi_options.get_index_dir() + "/null_reads.fasta";
-    if (movi_options.is_generate_null_reads()) {
-        parse_null_reads(movi_options.get_ref_file().c_str(), pattern_file.c_str());
-    }
-
-    EmpNullDatabase nulldb;
-    nulldb.generate_stats(movi_options, mv_, pattern_file);
-    nulldb.compute_stats();
-    nulldb.serialize(movi_options);
 }
 
 int main(int argc, char** argv) {
@@ -610,7 +529,8 @@ int main(int argc, char** argv) {
                 mv_.print_ids();
             }
             movi_options.set_generate_null_reads(true);
-            generate_null_statistics(movi_options, mv_);
+            Classifier classifier;
+            classifier.generate_null_statistics(mv_, movi_options);
         } else if (command == "query") {
             MoveStructure mv_(&movi_options);
             auto begin = std::chrono::system_clock::now();
@@ -652,7 +572,8 @@ int main(int argc, char** argv) {
         } else if (command == "null") {
             MoveStructure mv_(&movi_options);
             mv_.deserialize();
-            generate_null_statistics(movi_options, mv_);
+            Classifier classifier;
+            classifier.generate_null_statistics(mv_, movi_options);
         } else {
             const std::string message = "Invalid action: \"" + command + "\"";
             throw std::runtime_error(message);
