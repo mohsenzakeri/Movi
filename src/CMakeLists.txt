@@ -62,13 +62,13 @@ add_executable(prepare_ref prepare_ref.cpp)
 target_link_libraries(prepare_ref zlibstatic)
 
 if (BUILD_TEST STREQUAL "1")
-  add_executable(test_bidirectional
-    test_bidirectional.cpp move_structure.cpp move_row.cpp utils.cpp sequitur.cpp)
-  target_link_libraries(test_bidirectional sdsl zlibstatic)
-  target_compile_options(test_bidirectional PUBLIC -DMODE=3)
+    add_executable(test_bidirectional
+        test_bidirectional.cpp move_structure.cpp move_row.cpp utils.cpp sequitur.cpp)
+    target_link_libraries(test_bidirectional sdsl zlibstatic OpenMP::OpenMP_CXX)
+    target_compile_options(test_bidirectional PUBLIC -DMODE=3)
 
-  add_executable(test_bidirectional_blocked
-    test_bidirectional_blocked.cpp move_structure.cpp move_row.cpp utils.cpp sequitur.cpp)
-  target_link_libraries(test_bidirectional_blocked sdsl zlibstatic)
-  target_compile_options(test_bidirectional_blocked PUBLIC -DMODE=2)
+    add_executable(test_bidirectional_blocked
+        test_bidirectional_blocked.cpp move_structure.cpp move_row.cpp utils.cpp sequitur.cpp)
+    target_link_libraries(test_bidirectional_blocked sdsl zlibstatic OpenMP::OpenMP_CXX)
+    target_compile_options(test_bidirectional_blocked PUBLIC -DMODE=2)
 endif ()
