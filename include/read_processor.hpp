@@ -6,6 +6,7 @@
 
 #include "move_structure.hpp"
 #include "utils.hpp"
+#include "batch_loader.hpp"
 
 struct Strand {
     Strand() {}
@@ -52,22 +53,23 @@ class ReadProcessor {
     public:
         ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_, bool verbose_, bool reverse_);
         // void process_regular();
-        uint64_t initialize_strands(std::vector<Strand>& processes);
-        void process_latency_hiding();
+        uint64_t initialize_strands(std::vector<Strand>& processes, BatchLoader& reader);
+        void process_latency_hiding(BatchLoader& reader);
         // void ziv_merhav_latency_hiding();
         // void backward_search_latency_hiding();
-        void kmer_search_latency_hiding(uint32_t k);
-        bool next_read(Strand& process);
+        void kmer_search_latency_hiding(uint32_t k, BatchLoader& reader);
+        bool next_read(Strand& process, BatchLoader& reader);
         void write_mls(Strand& process);
         void compute_match_count(Strand& process);
         void write_count(Strand& process);
         void process_char(Strand& process);
+        void end_process();
         bool backward_search(Strand& process, uint64_t end_pos);
-        void reset_process(Strand& process);
+        void reset_process(Strand& process, BatchLoader& reader);
         void reset_backward_search(Strand& process);
-        void reset_kmer_search(Strand& process);
+        void reset_kmer_search(Strand& process, BatchLoader& reader);
         void next_kmer_search(Strand& process);
-        void next_kmer_search_negative_skip_all_heuristic(Strand& process);
+        void next_kmer_search_negative_skip_all_heuristic(Strand& process, BatchLoader& reader);
         bool verify_kmer(Strand& process, uint64_t k);
 
 #if TALLY_MODE
@@ -75,7 +77,7 @@ class ReadProcessor {
     void find_next_id(Strand& process);
     void count_rows_untill_tally(Strand& process);
     void find_tally_b(Strand& process);
-    void process_latency_hiding_tally();
+    void process_latency_hiding_tally(BatchLoader& reader);
 #endif
     private:
         MoveStructure& mv;

@@ -48,6 +48,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("ftab-k", "The length of the ftba kmer", cxxopts::value<uint32_t>())
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
         ("s,strands", "Number of strands for query", cxxopts::value<int>())
+        ("t,threads", "Number of threads for query", cxxopts::value<int>())
         ("stdout", "Write the output to stdout")
         ("ignore-illegal-chars", "In the case of illegal characters (i.e., non-ACGT for genomic data), substitute the character with \'A\'(1) or a random character from the alphabet (2).", cxxopts::value<int>());
 
@@ -167,6 +168,10 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("strands") == 1) {
                             std::cerr << "strands: " << result["strands"].as<int>() << "\n";
                             movi_options.set_strands(static_cast<size_t>(result["strands"].as<int>()));
+                        }
+                        if (result.count("threads") == 1) {
+                            std::cerr << "threads: " << result["threads"].as<int>() << "\n";
+                            movi_options.set_threads(static_cast<size_t>(result["threads"].as<int>()));
                         }
                         if (result.count("stdout")) {
                             // Set global verbose flag

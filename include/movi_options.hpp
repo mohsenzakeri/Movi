@@ -35,6 +35,7 @@ class MoviOptions {
         size_t get_bin_width() { return bin_width; }
         int ignore_illegal_chars_status() { return ilc; }
         size_t get_strands() { return strands; }
+        size_t get_threads() { return threads; }
         uint32_t get_k () { return k; }
         uint32_t get_ftab_k () { return ftab_k; }
         uint32_t get_tally_checkpoints () { return tally_checkpoints; }
@@ -78,6 +79,7 @@ class MoviOptions {
             return true;
         }
         void set_prefetch(bool prefetch_) { prefetch = prefetch_; }
+        void set_threads(size_t threads_) { threads = threads_; }
         void set_strands(size_t strands_) { strands = strands_; }
         void set_command(std::string command_) { command = command_; }
         bool set_LF_type(std::string type) {
@@ -140,6 +142,7 @@ class MoviOptions {
         bool reverse = false;
         bool prefetch = true;
         size_t strands = 16;
+        size_t threads = 1;
         uint32_t k = 31;
         uint32_t ftab_k = 0;
         uint32_t tally_checkpoints = 20;

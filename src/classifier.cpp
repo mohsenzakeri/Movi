@@ -77,11 +77,14 @@ void Classifier::classify(std::string read_name, std::vector<uint16_t>& matching
     bool read_found = (bins_above/(bins_above+bins_below+0.0) > 0.50);
     status = (read_found) ? "FOUND" : "NOT_PRESENT";
 
-    report_file.precision(3);
-    report_file << std::setw(30) << std::left << read_name
-                << std::setw(15) << std::left << status
-                << std::setw(26) << std::left <<  (sum_max_bin_values+0.0)/bins_max_value.size()
-                << std::setw(12) << std::left <<  bins_above
-                << std::setw(12) << std::left <<  bins_below
-                << "\n";
+    #pragma omp critical
+    {
+        report_file.precision(3);
+        report_file << std::setw(30) << std::left << read_name
+                    << std::setw(15) << std::left << status
+                    << std::setw(26) << std::left <<  (sum_max_bin_values+0.0)/bins_max_value.size()
+                    << std::setw(12) << std::left <<  bins_above
+                    << std::setw(12) << std::left <<  bins_below
+                    << "\n";
+    }
 }

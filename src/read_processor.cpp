@@ -18,7 +18,7 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
         fp = gzopen(reads_file_name.c_str(), "r"); // STEP 2: open the file handler
     }
 
-    seq = kseq_init(fp); // STEP 3: initialize seq
+    // seq = kseq_init(fp); // STEP 3: initialize seq
     std::string index_type = program();
     if (!mv_.movi_options->is_stdout()) {
         if (mv_.movi_options->is_pml()) {
@@ -49,15 +49,23 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
     }
 }
 
-bool ReadProcessor::next_read(Strand& process) {
-    if (read_processed % 1000 == 0)
-        std::cerr << read_processed << "\r";
-    read_processed += 1;
-    l = kseq_read(seq); // STEP 4: read sequence
-    if (l >= 0) {
-        process.st_length = seq->name.m;
-        process.read_name = seq->name.s;
-        process.read = seq->seq.s;
+bool ReadProcessor::next_read(Strand& process, BatchLoader& reader) {
+
+    // l = kseq_read(seq); // STEP 4: read sequence
+    bool valid_read = false;
+    Read read_struct;
+    valid_read = reader.grabNextRead(read_struct);
+
+    if (valid_read) {
+        #pragma omp atomic
+        read_processed += 1;
+    // if (l >= 0) {
+        // process.st_length = seq->name.m;
+        process.st_length = read_struct.id.length();
+        // process.read_name = seq->name.s;
+        process.read_name = read_struct.id;
+        // process.read = seq->seq.s;
+        process.read = std::string(read_struct.seq);
         if (reverse) {
             std::reverse(process.read.begin(), process.read.end());
         }
@@ -67,12 +75,13 @@ bool ReadProcessor::next_read(Strand& process) {
         process.mq = MoveQuery(process.read);
         return false;
     } else {
+        // std::cerr << "No more reads to process!\n";
         return true;
     }
 }
 
-void ReadProcessor::reset_process(Strand& process) {
-    process.finished = next_read(process);
+void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
+    process.finished = next_read(process, reader);
     if (!process.finished) {
         process.length_processed = 0;
         process.pos_on_r = process.read.length() - 1;
@@ -458,7 +467,37 @@ void ReadProcessor::compute_match_count(Strand& process) {
     }
 }
 
-void ReadProcessor::process_latency_hiding() {
+void ReadProcessor::end_process() {
+    bool is_pml = mv.movi_options->is_pml();
+    bool is_zml = mv.movi_options->is_zml();
+    bool is_count = mv.movi_options->is_count();
+
+    if (!mv.movi_options->is_stdout()) {
+        if (is_pml or is_zml) {
+            mls_file.close();
+            std::cerr << "Matching lengths file is closed!\n";
+        } else if (is_count) {
+            matches_file.close();
+            std::cerr << "match_file file closed!\n";
+        }
+    }
+
+    std::cerr << "no_ftab: " << mv.no_ftab << "\n";
+    std::cerr << "all_initializations: " << mv.all_initializations << "\n";
+
+    // kseq_destroy(seq); // STEP 5: destroy seq
+    // std::cerr << "kseq destroyed!\n";
+    // gzclose(fp); // STEP 6: close the file handler
+    // std::cerr << "fp file closed!\n";
+
+    if (mv.movi_options->is_logs()) {
+        costs_file.close();
+        scans_file.close();
+        fastforwards_file.close();
+    }
+}
+
+void ReadProcessor::process_latency_hiding(BatchLoader& reader) {
     bool is_pml = mv.movi_options->is_pml();
     bool is_zml = mv.movi_options->is_zml();
     bool is_count = mv.movi_options->is_count();
@@ -469,8 +508,12 @@ void ReadProcessor::process_latency_hiding() {
     }
 
     std::vector<Strand> processes;
-    uint64_t finished_count = initialize_strands(processes);
-    std::cerr << strands << " processes are initiated.\n";
+    uint64_t finished_count = 0;
+    #pragma omp critical
+    {
+        finished_count = initialize_strands(processes, reader);
+        // std::cerr << strands << " processes are initiated.\n";
+    }
 
     while (finished_count != strands) {
         for (uint64_t i = 0; i < strands; i++) {
@@ -490,31 +533,36 @@ void ReadProcessor::process_latency_hiding() {
                     (is_count and backward_search_finished) or
                     (is_zml and (backward_search_finished and processes[i].pos_on_r > 0)) or
                     (is_zml and (processes[i].pos_on_r <= 0))) {
-                    if (is_pml) {
-                        write_mls(processes[i]);
-                        reset_process(processes[i]);
-                    } else if (is_count) {
-                        write_count(processes[i]);
-                        reset_process(processes[i]);
-                        reset_backward_search(processes[i]);
-                    } else if (is_zml) {
-                        if (backward_search_finished and processes[i].pos_on_r > 0) {
-                            processes[i].mq.add_ml(processes[i].match_len);
-                            processes[i].pos_on_r -= 1;
-                            reset_backward_search(processes[i]);
-                            processes[i].kmer_end = processes[i].pos_on_r;
-                            continue;
-                        } else if (processes[i].pos_on_r <= 0) {
-                            processes[i].mq.add_ml(processes[i].match_len);
+                    #pragma omp critical
+                    {
+                        if (read_processed % 1000 == 0)
+                            std::cerr << read_processed << "\r";
+                        if (is_pml) {
                             write_mls(processes[i]);
-                            reset_process(processes[i]);
+                            reset_process(processes[i], reader);
+                        } else if (is_count) {
+                            write_count(processes[i]);
+                            reset_process(processes[i], reader);
                             reset_backward_search(processes[i]);
-                            processes[i].kmer_end = processes[i].pos_on_r;
+                        } else if (is_zml) {
+                            if (backward_search_finished and processes[i].pos_on_r > 0) {
+                                processes[i].mq.add_ml(processes[i].match_len);
+                                processes[i].pos_on_r -= 1;
+                                reset_backward_search(processes[i]);
+                                processes[i].kmer_end = processes[i].pos_on_r;
+                                // continue;
+                            } else if (processes[i].pos_on_r <= 0) {
+                                processes[i].mq.add_ml(processes[i].match_len);
+                                write_mls(processes[i]);
+                                reset_process(processes[i], reader);
+                                reset_backward_search(processes[i]);
+                                processes[i].kmer_end = processes[i].pos_on_r;
+                            }
                         }
-                    }
-                    // 3: -- check if it was the last read in the file -> finished_count++
-                    if (processes[i].finished) {
-                        finished_count += 1;
+                        // 3: -- check if it was the last read in the file -> finished_count++
+                        if (processes[i].finished) {
+                            finished_count += 1;
+                        }
                     }
                 } else {
                     // 4: big jump with prefetch
@@ -528,38 +576,14 @@ void ReadProcessor::process_latency_hiding() {
             }
         }
     }
-
-    if (!mv.movi_options->is_stdout()) {
-        if (is_pml or is_zml) {
-            mls_file.close();
-            std::cerr << "Matching lengths file is closed!\n";
-        } else if (is_count) {
-            matches_file.close();
-            std::cerr << "match_file file closed!\n";
-        }
-    }
-
-    std::cerr << "no_ftab: " << mv.no_ftab << "\n";
-    std::cerr << "all_initializations: " << mv.all_initializations << "\n";
-
-    kseq_destroy(seq); // STEP 5: destroy seq
-    std::cerr << "kseq destroyed!\n";
-    gzclose(fp); // STEP 6: close the file handler
-    std::cerr << "fp file closed!\n";
-
-    if (mv.movi_options->is_logs()) {
-        costs_file.close();
-        scans_file.close();
-        fastforwards_file.close();
-    }
 }
 
 #if TALLY_MODE
-void ReadProcessor::process_latency_hiding_tally() {
+void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
     bool is_pml = mv.movi_options->is_pml();
 
     std::vector<Strand> processes;
-    uint64_t finished_count = initialize_strands(processes);
+    uint64_t finished_count = initialize_strands(processes, reader);
     std::cerr << strands << " processes are initiated.\n";
 
     while (finished_count != strands) {
@@ -571,7 +595,7 @@ void ReadProcessor::process_latency_hiding_tally() {
                 // 2: if the read is done -> Write the pmls and go to next read
                 if (is_pml and processes[i].pos_on_r <= -1) {
                     write_mls(processes[i]);
-                    reset_process(processes[i]);
+                    reset_process(processes[i], reader);
                 }
                 // 3: -- check if it was the last read in the file -> finished_count++
                 if (processes[i].finished) {
@@ -669,20 +693,20 @@ void ReadProcessor::process_latency_hiding_tally() {
     std::cerr << "fp file closed!\n";
 } */
 
-uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes) {
+uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes, BatchLoader& reader) {
     uint64_t finished_count = 0;
     uint64_t empty_strands = 0;
     for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
-    std::cerr << strands << " processes are created.\n";
+    // std::cerr << strands << " processes are created.\n";
     for (uint64_t i = 0; i < strands; i++) {
         if (finished_count == 0) {
             if (mv.movi_options->is_kmer()) {
-                reset_kmer_search(processes[i]);
+                reset_kmer_search(processes[i], reader);
                 if (!processes[i].finished) {
                     next_kmer_search(processes[i]);
                 }
             } else {
-                reset_process(processes[i]);
+                reset_process(processes[i], reader);
                 if (!processes[i].finished)
                     reset_backward_search(processes[i]);
                 /* if (mv.movi_options->is_zml()) {
@@ -700,16 +724,16 @@ uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes) {
     }
 
     if (empty_strands > 0) {
-        std::cerr << "Warning: there are fewer reads (" << strands - empty_strands << ") than the number of strands (" << strands << ").\n";
+        // std::cerr << "Warning: there are fewer reads (" << strands - empty_strands << ") than the number of strands (" << strands << ").\n";
     }
     return finished_count;
 }
 
-void ReadProcessor::kmer_search_latency_hiding(uint32_t k_) {
+void ReadProcessor::kmer_search_latency_hiding(uint32_t k_, BatchLoader& reader) {
     k = k_;
 
     std::vector<Strand> processes;
-    uint64_t finished_count = initialize_strands(processes);
+    uint64_t finished_count = initialize_strands(processes, reader);
     std::cerr << strands << " processes are initiated.\n";
 
     uint64_t total_bs = 0;
@@ -746,7 +770,7 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k_) {
                             total_kmer_count += 1;
                         /////next_kmer_search(processes[i]);
                     } else {
-                        reset_kmer_search(processes[i]);
+                        reset_kmer_search(processes[i], reader);
                         next_kmer_search(processes[i]);
                         // 3: -- check if it was the last read in the file -> finished_count++
                         if (processes[i].finished) {
@@ -772,7 +796,7 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k_) {
                             finished_count += 1;
                         }
                     } else {
-                        reset_kmer_search(processes[i]);
+                        reset_kmer_search(processes[i], reader);
                         next_kmer_search(processes[i]);
                         // 3: -- check if it was the last read in the file -> finished_count++
                         if (processes[i].finished) {
@@ -782,7 +806,7 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k_) {
                 } else if (processes[i].kmer_start < 0) {
                     if (verbose)
                         std::cerr << "- ";
-                    reset_kmer_search(processes[i]);
+                    reset_kmer_search(processes[i], reader);
                     next_kmer_search(processes[i]);
                     // 3: -- check if it was the last read in the file -> finished_count++
                     if (processes[i].finished) {
@@ -840,8 +864,8 @@ void ReadProcessor::reset_backward_search(Strand& process) {
     // Very expensive operation: process.match_count = process.range.count(mv.rlbwt);
 }
 
-void ReadProcessor::reset_kmer_search(Strand& process) {
-    process.finished = next_read(process);
+void ReadProcessor::reset_kmer_search(Strand& process, BatchLoader& reader) {
+    process.finished = next_read(process, reader);
     if (!process.finished) {
         process.length_processed = 0;
         process.kmer_start = process.read.length() - k + 1;
@@ -855,7 +879,7 @@ void ReadProcessor::reset_kmer_search(Strand& process) {
     }
 }
 
-void ReadProcessor::next_kmer_search_negative_skip_all_heuristic(Strand& process) {
+void ReadProcessor::next_kmer_search_negative_skip_all_heuristic(Strand& process, BatchLoader& reader) {
     process.kmer_extension = false;
     std::string& R = process.mq.query();
     process.kmer_start = process.pos_on_r - k;
@@ -874,7 +898,7 @@ void ReadProcessor::next_kmer_search_negative_skip_all_heuristic(Strand& process
         total_kmer_count += (process.kmer_end - k + 1);
         negative_kmer_count += (process.kmer_end - k + 1);
         negative_kmer_extension_count += (process.kmer_end - k + 1);
-        reset_kmer_search(process);
+        reset_kmer_search(process, reader);
         next_kmer_search(process);
     }
 }

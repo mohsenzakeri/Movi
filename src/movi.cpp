@@ -6,16 +6,18 @@
 #include <unistd.h>
 #include <sys/stat.h>
 
+#include <omp.h>
 #include <sdsl/int_vector.hpp>
 #include "cxxopts.hpp"
 
-#include "classifier.hpp"
 #include "utils.hpp"
 #include "move_structure.hpp"
 #include "move_query.hpp"
 #include "read_processor.hpp"
 #include "movi_options.hpp"
 #include "movi_parser.hpp"
+#include "classifier.hpp"
+#include "batch_loader.hpp"
 
 void build_ftab(MoveStructure& mv_, MoviOptions& movi_options) {
     if (movi_options.is_multi_ftab() and movi_options.get_ftab_k() > 1) {
@@ -38,21 +40,48 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         std::cerr<<"Ftab was read!\n";
     }
 
+    omp_set_num_threads(movi_options.get_threads());
+    omp_set_nested(0);
+
     if (!movi_options.no_prefetch()) {
         ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
-        if (movi_options.is_pml() or movi_options.is_zml() or movi_options.is_count()) {
+
+        std::ifstream input_file (movi_options.get_read_file().c_str());
+
+#pragma omp parallel
+        {
+        BatchLoader reader;
+
+            // Iterates over batches of data until none left
+            while (true) {
+                bool valid_batch = true;
+                #pragma omp critical // one reader at a time
+                {
+                    valid_batch = reader.loadBatch(input_file, 1000, 4*movi_options.get_strands());
+                }
+                if (!valid_batch) {
+                    break;
+                }
+
+                if (movi_options.is_pml() or movi_options.is_zml() or movi_options.is_count()) {
+
+
 #if TALLY_MODE
-            rp.process_latency_hiding_tally();
+                    rp.process_latency_hiding_tally(reader);
 #else
-            rp.process_latency_hiding();
+                    rp.process_latency_hiding(reader);
 #endif
-        } else if (movi_options.is_kmer()) {
-            rp.kmer_search_latency_hiding(movi_options.get_k());
+                } else if (movi_options.is_kmer()) {
+                    rp.kmer_search_latency_hiding(movi_options.get_k(), reader);
+                }
+            }
         }
+        rp.end_process();
+
     } else {
-        gzFile fp;
-        int l;
-        kseq_t* seq = open_kseq(fp, movi_options.get_read_file());
+        // gzFile fp;
+        // int l;
+        // kseq_t* seq = open_kseq(fp, movi_options.get_read_file());
         std::ofstream costs_file;
         std::ofstream scans_file;
         std::ofstream fastforwards_file;
@@ -80,78 +109,127 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 count_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".matches");
         }
 
+        std::ifstream input_file (movi_options.get_read_file().c_str());
         uint64_t read_processed = 0;
-        while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
-            if (read_processed % 1000 == 0)
-                std::cerr << read_processed << "\r";
-            read_processed += 1 ;
-            std::string query_seq = seq->seq.s;
-            MoveQuery mq;
-            if (movi_options.is_pml() or movi_options.is_zml()) {
-                if (movi_options.is_reverse())
-                    std::reverse(query_seq.begin(), query_seq.end());
-                mq = MoveQuery(query_seq);
-                bool random_jump = false;
-                if (movi_options.is_pml()) {
-                    total_ff_count += mv_.query_pml(mq, random_jump);
-                } else if (movi_options.is_zml()) {
-                    total_ff_count += mv_.query_zml(mq);
-                }
-                if (movi_options.is_stdout()) {
-                    std::cout << ">" << seq->name.s << " \n";
-                    auto& pml_lens = mq.get_matching_lengths();
-                    uint64_t mq_pml_lens_size = pml_lens.size();
-                    for (int64_t i = mq_pml_lens_size - 1; i >= 0; i--) {
-                        std::cout << pml_lens[i] << " ";
-                    }
-                    std::cout << "\n";
-                } else {
-                    uint16_t st_length = seq->name.m;
-                    mls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
-                    mls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
-                    auto& pml_lens = mq.get_matching_lengths();
-                    uint64_t mq_pml_lens_size = pml_lens.size();
-                    mls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
-                    mls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
-                }
-                if (movi_options.is_classify()) {
-                    std::vector<uint16_t> matching_lens = mq.get_matching_lengths();
-                    classifier.classify(seq->name.s, matching_lens, movi_options);
-                }
-            } else if (movi_options.is_count()) {
-                int32_t pos_on_r = query_seq.length() - 1;
-                // uint64_t match_count = mv_.backward_search(query_seq, pos_on_r);
-                // if (pos_on_r != 0) pos_on_r += 1;
-                mq = MoveQuery(query_seq);
-                uint64_t match_count = mv_.query_backward_search(mq, pos_on_r);
-                if (movi_options.is_stdout()) {
-                    std::cout << seq->name.s << "\t";
-                    std::cout << query_seq.length() - pos_on_r << "/" << query_seq.length() << "\t" << match_count << "\n";
-                } else {
-                    count_file << seq->name.s << "\t";
-                    count_file << query_seq.length() - pos_on_r << "/" << query_seq.length() << "\t" << match_count << "\n";
-                }
-            } else if (movi_options.is_kmer()) {
-                mq = MoveQuery(query_seq);
-                mv_.query_all_kmers(mq, movi_options.is_kmer_count());
-            }
 
-            if (movi_options.is_logs()) {
-                costs_file << ">" << seq->name.s << "\n";
-                scans_file << ">" << seq->name.s << "\n";
-                fastforwards_file << ">" << seq->name.s << "\n";
-                for (auto& cost : mq.get_costs()) {
-                    costs_file << cost.count() << " ";
+        #pragma omp parallel
+        {
+            BatchLoader reader;
+
+            // Iterates over batches of data until none left
+            while (true) {
+                bool valid_batch = true;
+                #pragma omp critical // one reader at a time
+                {
+                    valid_batch = reader.loadBatch(input_file, 1000, 1);
                 }
-                for (auto& scan: mq.get_scans()) {
-                    scans_file << scan << " ";
+                if (!valid_batch) break;
+
+
+                Read read_struct;
+                bool valid_read = false;
+
+                // while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
+                // Iterates over reads in a single batch
+                while (true) {
+                    valid_read = reader.grabNextRead(read_struct);
+                    if (!valid_read) break;
+
+                    #pragma omp atomic
+                    read_processed += 1 ;
+                    #pragma omp critical
+                    {
+                        if (read_processed % 1000 == 0)
+                            std::cerr << read_processed << "\r";
+                    }
+
+                    // std::string query_seq = seq->seq.s;
+                    std::string query_seq = std::string(read_struct.seq);
+                    MoveQuery mq;
+                    if (movi_options.is_pml() or movi_options.is_zml()) {
+                        if (movi_options.is_reverse())
+                            std::reverse(query_seq.begin(), query_seq.end());
+                        mq = MoveQuery(query_seq);
+                        bool random_jump = false;
+                        if (movi_options.is_pml()) {
+                            total_ff_count += mv_.query_pml(mq, random_jump);
+                        } else if (movi_options.is_zml()) {
+                            total_ff_count += mv_.query_zml(mq);
+                        }
+
+                        if (movi_options.is_classify()) {
+                            std::vector<uint16_t> matching_lens = mq.get_matching_lengths();
+                            // classifier.classify(seq->name.s, matching_lens, movi_options);
+                            classifier.classify(read_struct.id, matching_lens, movi_options);
+                        }
+
+                        #pragma omp critical
+                        {
+                            if (movi_options.is_stdout()) {
+                                // std::cout << ">" << seq->name.s << " \n";
+                                std::cout << ">" << read_struct.id << " \n";
+                                auto& pml_lens = mq.get_matching_lengths();
+                                uint64_t mq_pml_lens_size = pml_lens.size();
+                                for (int64_t i = mq_pml_lens_size - 1; i >= 0; i--) {
+                                    std::cout << pml_lens[i] << " ";
+                                }
+                                std::cout << "\n";
+                            } else {
+                                // uint16_t st_length = seq->name.m;
+                                uint16_t st_length = read_struct.id.length();
+                                mls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
+                                // mls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
+                                mls_file.write(reinterpret_cast<char*>(&read_struct.id[0]), st_length);
+                                auto& pml_lens = mq.get_matching_lengths();
+                                uint64_t mq_pml_lens_size = pml_lens.size();
+                                mls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
+                                mls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+                            }
+                        }
+                    } else if (movi_options.is_count()) {
+                        int32_t pos_on_r = query_seq.length() - 1;
+                        // uint64_t match_count = mv_.backward_search(query_seq, pos_on_r);
+                        // if (pos_on_r != 0) pos_on_r += 1;
+                        mq = MoveQuery(query_seq);
+                        uint64_t match_count = mv_.query_backward_search(mq, pos_on_r);
+
+                        #pragma omp critical
+                        {
+                            if (movi_options.is_stdout()) {
+                                // std::cout << seq->name.s << "\t";
+                                std::cout << read_struct.id << "\t";
+                                std::cout << query_seq.length() - pos_on_r << "/" << query_seq.length() << "\t" << match_count << "\n";
+                            } else {
+                                // count_file << seq->name.s << "\t";
+                                count_file << read_struct.id << "\t";
+                                count_file << query_seq.length() - pos_on_r << "/" << query_seq.length() << "\t" << match_count << "\n";
+                            }
+                        }
+                    } else if (movi_options.is_kmer()) {
+                        mq = MoveQuery(query_seq);
+                        mv_.query_all_kmers(mq, movi_options.is_kmer_count());
+                    }
+
+                    if (movi_options.is_logs()) {
+                        // costs_file << ">" << seq->name.s << "\n";
+                        // scans_file << ">" << seq->name.s << "\n";
+                        costs_file << ">" << read_struct.id << "\n";
+                        scans_file << ">" << read_struct.id << "\n";
+                        fastforwards_file << ">" << read_struct.id << "\n";
+                        for (auto& cost : mq.get_costs()) {
+                            costs_file << cost.count() << " ";
+                        }
+                        for (auto& scan: mq.get_scans()) {
+                            scans_file << scan << " ";
+                        }
+                        for (auto& fast_forward : mq.get_fastforwards()) {
+                            fastforwards_file << fast_forward << " ";
+                        }
+                        costs_file << "\n";
+                        scans_file << "\n";
+                        fastforwards_file << "\n";
+                    }
                 }
-                for (auto& fast_forward : mq.get_fastforwards()) {
-                    fastforwards_file << fast_forward << " ";
-                }
-                costs_file << "\n";
-                scans_file << "\n";
-                fastforwards_file << "\n";
             }
         }
         
@@ -177,7 +255,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             scans_file.close();
             fastforwards_file.close();
         }
-        close_kseq(seq, fp);
+        // close_kseq(seq, fp);
     }
 }
 
