@@ -65,6 +65,28 @@ Alternatively, you can directly output the PMLs to a text file using the `--stdo
 ./movi query --index <index directory> --read <reads file> --stdout > <output file>
 ```
 
+## Binary classification of the reads
+
+You can apply different classification schemes on the pseudo matching lengths produced by Movi to determine whether the read is found in the index or not.
+You can also apply the in-built classification scheme by Movi by passing the flag `--classify` to the query step:
+```
+./movi query --index <index directory> --read <reads file> --classify
+```
+Then, a file called `<reads file>.<index type>.<query type>.report` will be generated with 5 columns:
+```
+read id: the read name or id
+status: whether the read is found or not present
+avg max-value: average of the max PML found in each window
+above thr: how many windows have a mx PML above the threshold -- the threshold is determined from a null distribution
+below thr: how many windows have a mx PML below the threshold
+```
+The classification scheme is adopted from the [SPUMONI](https://github.com/oma219/spumoni/tree/main) software written by Omar Y. Ahmed.
+
+In order for the classification to work, the null distribution should be also generated in the index building step which is now the default behavior. However, if you want to use  an old index, you can add the null distribution to the index by running:
+```
+./movi null --index <index directory>
+```
+
 ### Movi is now published in iScience, you can read more about it here:
 > [https://www.cell.com/iscience/fulltext/S2589-0042(24)02691-9](https://www.cell.com/iscience/fulltext/S2589-0042(24)02691-9)
 
