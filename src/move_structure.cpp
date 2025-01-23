@@ -36,6 +36,10 @@ MoveStructure::MoveStructure(MoviOptions* movi_options_, uint16_t splitting_, bo
     build();
 }
 
+std::vector<MoveRow> MoveStructure::get_rlbwt() {
+    return rlbwt;
+}
+
 /*char MoveStructure::compute_char(uint64_t idx) {
     if (verbose) {
         std::cerr << idx << " bit1_begin: " << bit1_begin << "\n";

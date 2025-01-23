@@ -183,6 +183,7 @@ class MoveStructure {
 #endif
         KmerStatistics kmer_stats;
         friend class ReadProcessor;
+        std::vector<MoveRow> get_rlbwt();
     private:
         MoviOptions* movi_options;
 	    bool onebit;

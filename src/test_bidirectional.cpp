@@ -28,6 +28,7 @@ int main(int argc, char** argv) {
 
     MoveStructure mv_(&movi_options);
     mv_.deserialize();
+    auto rlbwt = mv_.get_rlbwt();
     mv_.print_stats();
 
     movi_options.set_ftab_k(12);
@@ -47,14 +48,14 @@ int main(int argc, char** argv) {
     std::cerr << "\n\n**** Test 1, with initialization\n\n";
     std::cerr << R_.substr(match_left_end, matched_len - 1) << "\t"
               << bi_init_test.fw_interval << "\t" << bi_init_test.rc_interval << "\t"
-              << bi_init_test.fw_interval.count(mv_.rlbwt) << "\n";
+              << bi_init_test.fw_interval.count(rlbwt) << "\n";
     while (match_right_end < R_.size() - 1 and  mv_.extend_right(R_[match_right_end + 1], bi_init_test)) {
         matched_len++;
         match_right_end++;
         std::cerr << match_left_end << " " << bi_init_test.match_len << " ";
         std::cerr << R_.substr(match_left_end, matched_len - 1) << "\t"
                   << bi_init_test.fw_interval << "\t" << bi_init_test.rc_interval << "\t"
-                  << bi_init_test.fw_interval.count(mv_.rlbwt) << "\n";
+                  << bi_init_test.fw_interval.count(rlbwt) << "\n";
     }
 
     while (match_left_end > 0 and mv_.extend_left(R_[match_left_end - 1], bi_init_test)) {        
@@ -63,7 +64,7 @@ int main(int argc, char** argv) {
         std::cerr << match_left_end << " " << bi_init_test.match_len << " ";
         std::cerr << R_.substr(match_left_end, matched_len - 1) << "\t"
                   << bi_init_test.fw_interval << "\t" << bi_init_test.rc_interval << "\t"
-                  << bi_init_test.fw_interval.count(mv_.rlbwt) << "\n";
+                  << bi_init_test.fw_interval.count(rlbwt) << "\n";
     }
 
 
