@@ -24,6 +24,7 @@ int main(int argc, char** argv) {
     MoviOptions movi_options;
     movi_options.set_index_dir(std::string(argv[1]));
     movi_options.set_kmer();
+    movi_options.set_no_header(true);
 
     MoveStructure mv_(&movi_options);
     mv_.deserialize();
@@ -33,14 +34,43 @@ int main(int argc, char** argv) {
     mv_.read_ftab();
     std::cerr<<"Ftab was read!\n";
 
-    std::string R_ = "GTACCGGGAC";
+    // Test 1, with initialization
+    std::string R_ = "AATCGCACCGGACATCAAATGACAAAGAACTTATACGGTGGGACAAAGACTATGCTAAAA";
     MoveQuery mq(R_);
     uint64_t matched_len = 0;
     std::cerr << R_ << "\n";
-    int32_t p = 9;
+    int match_right_end = 40;
+    int32_t p = match_right_end;
     MoveBiInterval bi_init_test = mv_.initialize_bidirectional_search(mq, p, matched_len);
-    std::cerr << "bi_init_test:\t" << bi_init_test << "\n";
-    std::cerr << matched_len << "\n";
+    int match_left_end = p;
+
+    std::cerr << "\n\n**** Test 1, with initialization\n\n";
+    std::cerr << R_.substr(match_left_end, matched_len - 1) << "\t"
+              << bi_init_test.fw_interval << "\t" << bi_init_test.rc_interval << "\t"
+              << bi_init_test.fw_interval.count(mv_.rlbwt) << "\n";
+    while (match_right_end < R_.size() - 1 and  mv_.extend_right(R_[match_right_end + 1], bi_init_test)) {
+        matched_len++;
+        match_right_end++;
+        std::cerr << match_left_end << " " << bi_init_test.match_len << " ";
+        std::cerr << R_.substr(match_left_end, matched_len - 1) << "\t"
+                  << bi_init_test.fw_interval << "\t" << bi_init_test.rc_interval << "\t"
+                  << bi_init_test.fw_interval.count(mv_.rlbwt) << "\n";
+    }
+
+    while (match_left_end > 0 and mv_.extend_left(R_[match_left_end - 1], bi_init_test)) {        
+        match_left_end--;
+        matched_len++;
+        std::cerr << match_left_end << " " << bi_init_test.match_len << " ";
+        std::cerr << R_.substr(match_left_end, matched_len - 1) << "\t"
+                  << bi_init_test.fw_interval << "\t" << bi_init_test.rc_interval << "\t"
+                  << bi_init_test.fw_interval.count(mv_.rlbwt) << "\n";
+    }
+
+
+
+    // Test 2, without the initialization
+    std::cerr << "\n\n**** Test 2, without the initialization\n\n";
+    R_ = "GTACCGGGAC";
     MoveBiInterval bi_interval;
     bi_interval.fw_interval.run_start = 13;
     bi_interval.fw_interval.offset_start = 1;
