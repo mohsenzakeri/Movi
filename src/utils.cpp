@@ -170,6 +170,60 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
 }
 
 
+void output_matching_lengths(bool stdout, std::ofstream& mls_file, std::string read_id, std::vector<uint16_t>& matching_lengths) {
+
+    uint64_t matching_lengths_size = matching_lengths.size();
+
+    if (stdout) {
+        // std::cout << ">" << seq->name.s << " \n";
+        std::cout << ">" << read_id << " \n";
+        for (int64_t i = matching_lengths_size - 1; i >= 0; i--) {
+            std::cout << matching_lengths[i] << " ";
+        }
+        std::cout << "\n";
+    } else {
+        // uint16_t st_length = seq->name.m;
+        uint16_t st_length = read_id.length();
+        mls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
+        // mls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
+        mls_file.write(reinterpret_cast<char*>(&read_id[0]), st_length);
+        mls_file.write(reinterpret_cast<char*>(&matching_lengths_size), sizeof(matching_lengths_size));
+        mls_file.write(reinterpret_cast<char*>(&matching_lengths[0]), matching_lengths_size * sizeof(matching_lengths[0]));
+    }
+}
+
+void output_counts(bool stdout, std::ofstream& count_file, std::string read_id, size_t query_length, int32_t pos_on_r, uint64_t match_count) {
+    if (stdout) {
+        // std::cout << seq->name.s << "\t";
+        std::cout << read_id << "\t";
+        std::cout << query_length - pos_on_r << "/" << query_length << "\t" << match_count << "\n";
+    } else {
+        // count_file << seq->name.s << "\t";
+        count_file << read_id << "\t";
+        count_file << query_length - pos_on_r << "/" << query_length << "\t" << match_count << "\n";
+    }
+}
+
+void output_logs(std::ofstream& costs_file, std::ofstream& scans_file, std::ofstream& fastforwards_file, std::string read_id, MoveQuery& mq) {
+    // costs_file << ">" << seq->name.s << "\n";
+    // scans_file << ">" << seq->name.s << "\n";
+    costs_file << ">" << read_id << "\n";
+    scans_file << ">" << read_id << "\n";
+    fastforwards_file << ">" << read_id << "\n";
+    for (auto& cost : mq.get_costs()) {
+        costs_file << cost.count() << " ";
+    }
+    for (auto& scan: mq.get_scans()) {
+        scans_file << scan << " ";
+    }
+    for (auto& fast_forward : mq.get_fastforwards()) {
+        fastforwards_file << fast_forward << " ";
+    }
+    costs_file << "\n";
+    scans_file << "\n";
+    fastforwards_file << "\n";
+}
+
 // Borrowed from spumoni written by Omar Ahmed: https://github.com/oma219/spumoni/tree/main
 std::string parse_null_reads(const char* ref_file, const char* output_path) {
     /* Parses out null reads in the case that we don't use a file-list */

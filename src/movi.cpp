@@ -157,34 +157,14 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                             total_ff_count += mv_.query_zml(mq);
                         }
 
+                        std::vector<uint16_t> matching_lens = mq.get_matching_lengths();
                         if (movi_options.is_classify()) {
-                            std::vector<uint16_t> matching_lens = mq.get_matching_lengths();
                             // classifier.classify(seq->name.s, matching_lens, movi_options);
                             classifier.classify(read_struct.id, matching_lens, movi_options);
                         }
-
                         #pragma omp critical
                         {
-                            if (movi_options.is_stdout()) {
-                                // std::cout << ">" << seq->name.s << " \n";
-                                std::cout << ">" << read_struct.id << " \n";
-                                auto& pml_lens = mq.get_matching_lengths();
-                                uint64_t mq_pml_lens_size = pml_lens.size();
-                                for (int64_t i = mq_pml_lens_size - 1; i >= 0; i--) {
-                                    std::cout << pml_lens[i] << " ";
-                                }
-                                std::cout << "\n";
-                            } else {
-                                // uint16_t st_length = seq->name.m;
-                                uint16_t st_length = read_struct.id.length();
-                                mls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
-                                // mls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
-                                mls_file.write(reinterpret_cast<char*>(&read_struct.id[0]), st_length);
-                                auto& pml_lens = mq.get_matching_lengths();
-                                uint64_t mq_pml_lens_size = pml_lens.size();
-                                mls_file.write(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
-                                mls_file.write(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
-                            }
+                            output_matching_lengths(movi_options.is_stdout(), mls_file, read_struct.id, matching_lens);
                         }
                     } else if (movi_options.is_count()) {
                         int32_t pos_on_r = query_seq.length() - 1;
@@ -195,15 +175,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
                         #pragma omp critical
                         {
-                            if (movi_options.is_stdout()) {
-                                // std::cout << seq->name.s << "\t";
-                                std::cout << read_struct.id << "\t";
-                                std::cout << query_seq.length() - pos_on_r << "/" << query_seq.length() << "\t" << match_count << "\n";
-                            } else {
-                                // count_file << seq->name.s << "\t";
-                                count_file << read_struct.id << "\t";
-                                count_file << query_seq.length() - pos_on_r << "/" << query_seq.length() << "\t" << match_count << "\n";
-                            }
+                            output_counts(movi_options.is_stdout(), count_file, read_struct.id, query_seq.length(), pos_on_r, match_count);
                         }
                     } else if (movi_options.is_kmer()) {
                         mq = MoveQuery(query_seq);
@@ -211,23 +183,10 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     }
 
                     if (movi_options.is_logs()) {
-                        // costs_file << ">" << seq->name.s << "\n";
-                        // scans_file << ">" << seq->name.s << "\n";
-                        costs_file << ">" << read_struct.id << "\n";
-                        scans_file << ">" << read_struct.id << "\n";
-                        fastforwards_file << ">" << read_struct.id << "\n";
-                        for (auto& cost : mq.get_costs()) {
-                            costs_file << cost.count() << " ";
+                        #pragma omp critical
+                        {
+                            output_logs(costs_file, scans_file, fastforwards_file, read_struct.id, mq);
                         }
-                        for (auto& scan: mq.get_scans()) {
-                            scans_file << scan << " ";
-                        }
-                        for (auto& fast_forward : mq.get_fastforwards()) {
-                            fastforwards_file << fast_forward << " ";
-                        }
-                        costs_file << "\n";
-                        scans_file << "\n";
-                        fastforwards_file << "\n";
                     }
                 }
             }

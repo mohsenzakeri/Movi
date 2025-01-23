@@ -404,54 +404,17 @@ void ReadProcessor::write_mls(Strand& process) {
         process.mq.add_cost(elapsed);
         process.mq.add_fastforward(process.ff_count);
         process.mq.add_scan(process.scan_count);
-    }
-    if (write_stdout) {
-        std::cout << ">" << process.read_name << " \n";
-        auto& matching_lens = process.mq.get_matching_lengths();
-        uint64_t mq_lens_size = matching_lens.size();
-        for (int64_t i = mq_lens_size - 1; i >= 0; i--) {
-            std::cout << matching_lens[i] << " ";
-        }
-        std::cout << "\n";
-    } else {
-        mls_file.write(reinterpret_cast<char*>(&process.st_length), sizeof(process.st_length));
-        mls_file.write(reinterpret_cast<char*>(&process.read_name[0]), process.st_length);
-        auto& ml_lens = process.mq.get_matching_lengths();
-        uint64_t mq_lens_size = ml_lens.size();
-        mls_file.write(reinterpret_cast<char*>(&mq_lens_size), sizeof(mq_lens_size));
-        mls_file.write(reinterpret_cast<char*>(&ml_lens[0]), mq_lens_size * sizeof(ml_lens[0]));
+        output_logs(costs_file, scans_file, fastforwards_file, process.read_name, process.mq);
     }
 
-    if (logs) {
-        costs_file << ">" << process.read_name << "\n";
-        scans_file << ">" << process.read_name << "\n";
-        fastforwards_file << ">" << process.read_name << "\n";
-        for (auto& cost : process.mq.get_costs()) {
-            costs_file << cost.count() << " ";
-        }
-        for (auto& scan: process.mq.get_scans()) {
-            scans_file << scan << " ";
-        }
-        for (auto& fast_forward : process.mq.get_fastforwards()) {
-            fastforwards_file << fast_forward << " ";
-        }
-        costs_file << "\n";
-        scans_file << "\n";
-        fastforwards_file << "\n";
-    }
+    output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq.get_matching_lengths());
 }
 
 void ReadProcessor::write_count(Strand& process) {
     compute_match_count(process);
     auto& R = process.mq.query();
     bool write_stdout = mv.movi_options->is_stdout();
-    if (write_stdout) {
-        std::cout << process.read_name << "\t";
-        std::cout << R.length() - process.pos_on_r << "/" << R.length() << "\t" << process.match_count << "\n";
-    } else {
-        matches_file << process.read_name << "\t";
-        matches_file << R.length() - process.pos_on_r << "/" << R.length() << "\t" << process.match_count << "\n";
-    }
+    output_counts(write_stdout, matches_file, process.read_name, R.length(), process.pos_on_r, process.match_count);
 }
 
 void ReadProcessor::compute_match_count(Strand& process) {
