@@ -176,11 +176,11 @@ void output_matching_lengths(bool stdout, std::ofstream& mls_file, std::string r
 
     if (stdout) {
         // std::cout << ">" << seq->name.s << " \n";
-        std::cout << ">" << read_id << " \n";
+        printf(">%s \n", read_id);
         for (int64_t i = matching_lengths_size - 1; i >= 0; i--) {
-            std::cout << matching_lengths[i] << " ";
+            printf("%d ", matching_lengths[i]);
         }
-        std::cout << "\n";
+        printf("\n");
     } else {
         // uint16_t st_length = seq->name.m;
         uint16_t st_length = read_id.length();

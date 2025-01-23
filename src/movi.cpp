@@ -266,6 +266,21 @@ int main(int argc, char** argv) {
         if (!parse_command(argc, argv, movi_options)) {
             return 0;
         }
+
+        if (movi_options.is_stdout()) {
+            // Disable sync for faster I/O
+            std::ios_base::sync_with_stdio(false);
+
+            // Untie std::cin from std::cout for better performance
+            std::cin.tie(nullptr);
+
+            // Define a buffer of 1 MB
+            constexpr size_t BUFFER_SIZE = 1024 * 1024; // 1 MB
+            char buffer[BUFFER_SIZE];
+            // Set the custom buffer for std::cout
+            std::cout.rdbuf()->pubsetbuf(buffer, BUFFER_SIZE);
+        }
+
         std::string command = movi_options.get_command();
         if (command == "build") {
             MoveStructure mv_(&movi_options, SPLIT_ARRAY, CONSTANT_MODE);
