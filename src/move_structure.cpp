@@ -1803,7 +1803,7 @@ MoveInterval MoveStructure::try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t&
                 // Add the skipped matching length, e.g., for zml computation
                 if (movi_options->is_zml()) {
                     for (size_t i = 0; i < ftab_k - 1; i++) {
-                        mq.add_ml(i);
+                        mq.add_ml(i, movi_options->is_stdout());
                     }
                 }
                 if (movi_options->is_zml() or movi_options->is_kmer()) {
@@ -1930,7 +1930,7 @@ uint64_t MoveStructure::query_zml(MoveQuery& mq) {
     uint64_t ff_count_tot = 0;
 
     while (!check_alphabet(query_seq[pos_on_r]) and pos_on_r >= 0) {
-        mq.add_ml(0);
+        mq.add_ml(0, movi_options->is_stdout());
         pos_on_r -= 1;
     }
 
@@ -1944,15 +1944,15 @@ uint64_t MoveStructure::query_zml(MoveQuery& mq) {
     while (pos_on_r > 0) {
         ff_count_tot += backward_search_step(query_seq, pos_on_r, interval);
         if (!interval.is_empty()) {
-            mq.add_ml(match_len);
+            mq.add_ml(match_len, movi_options->is_stdout());
             pos_on_r -= 1;
             match_len += 1;
         } else {
-            mq.add_ml(match_len);
+            mq.add_ml(match_len, movi_options->is_stdout());
             pos_on_r -= 1;
             match_len = 0;
             while (!check_alphabet(query_seq[pos_on_r]) and pos_on_r > 0) {
-                mq.add_ml(match_len);
+                mq.add_ml(match_len, movi_options->is_stdout());
                 pos_on_r -= 1;
             }
             // Special case where the character at position 0 of the read does not exist in the index.
@@ -1963,7 +1963,7 @@ uint64_t MoveStructure::query_zml(MoveQuery& mq) {
     if (interval.is_empty()) {
         match_len = 0;
     }
-    mq.add_ml(match_len);
+    mq.add_ml(match_len, movi_options->is_stdout());
 
     return ff_count_tot;
 }
@@ -2123,7 +2123,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
             }
         }
 
-        mq.add_ml(match_len);
+        mq.add_ml(match_len, movi_options->is_stdout());
         pos_on_r -= 1;
 
         // LF step

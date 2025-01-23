@@ -170,18 +170,16 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
 }
 
 
-void output_matching_lengths(bool stdout, std::ofstream& mls_file, std::string read_id, std::vector<uint16_t>& matching_lengths) {
+void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::string read_id, MoveQuery& mq) {
 
-    uint64_t matching_lengths_size = matching_lengths.size();
-
-    if (stdout) {
-        // std::cout << ">" << seq->name.s << " \n";
-        printf(">%s \n", read_id);
-        for (int64_t i = matching_lengths_size - 1; i >= 0; i--) {
-            printf("%d ", matching_lengths[i]);
-        }
-        printf("\n");
+    if (to_stdout) {
+        std::cout << ">" << read_id << " \n";
+        std::reverse(mq.get_matching_lengths_string().begin(), mq.get_matching_lengths_string().end());
+        std::cout << mq.get_matching_lengths_string();
+        std::cout << "\n";
     } else {
+        auto& matching_lengths = mq.get_matching_lengths();
+        uint64_t matching_lengths_size = matching_lengths.size();
         // uint16_t st_length = seq->name.m;
         uint16_t st_length = read_id.length();
         mls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
@@ -192,8 +190,8 @@ void output_matching_lengths(bool stdout, std::ofstream& mls_file, std::string r
     }
 }
 
-void output_counts(bool stdout, std::ofstream& count_file, std::string read_id, size_t query_length, int32_t pos_on_r, uint64_t match_count) {
-    if (stdout) {
+void output_counts(bool to_stdout, std::ofstream& count_file, std::string read_id, size_t query_length, int32_t pos_on_r, uint64_t match_count) {
+    if (to_stdout) {
         // std::cout << seq->name.s << "\t";
         std::cout << read_id << "\t";
         std::cout << query_length - pos_on_r << "/" << query_length << "\t" << match_count << "\n";

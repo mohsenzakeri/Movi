@@ -164,7 +164,7 @@ void ReadProcessor::process_char(Strand& process) {
             std::cerr << "\t \t This should not happen!\n";
         }
     }
-    process.mq.add_ml(process.match_len);
+    process.mq.add_ml(process.match_len, mv.movi_options->is_stdout());
     process.pos_on_r -= 1;
     // if (mv.logs)
     //     process.t2 = std::chrono::high_resolution_clock::now();
@@ -229,7 +229,7 @@ void ReadProcessor::process_char_tally(Strand& process) {
                 std::cerr << "\t \t This should not happen!\n";
             }
         }
-        process.mq.add_ml(process.match_len);
+        process.mq.add_ml(process.match_len, mv.movi_options->is_stdout());
         process.pos_on_r -= 1;
 
         // get_id is called at the beginning of the next LF
@@ -407,7 +407,7 @@ void ReadProcessor::write_mls(Strand& process) {
         output_logs(costs_file, scans_file, fastforwards_file, process.read_name, process.mq);
     }
 
-    output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq.get_matching_lengths());
+    output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq);
 }
 
 void ReadProcessor::write_count(Strand& process) {
@@ -509,13 +509,13 @@ void ReadProcessor::process_latency_hiding(BatchLoader& reader) {
                             reset_backward_search(processes[i]);
                         } else if (is_zml) {
                             if (backward_search_finished and processes[i].pos_on_r > 0) {
-                                processes[i].mq.add_ml(processes[i].match_len);
+                                processes[i].mq.add_ml(processes[i].match_len, mv.movi_options->is_stdout());
                                 processes[i].pos_on_r -= 1;
                                 reset_backward_search(processes[i]);
                                 processes[i].kmer_end = processes[i].pos_on_r;
                                 // continue;
                             } else if (processes[i].pos_on_r <= 0) {
-                                processes[i].mq.add_ml(processes[i].match_len);
+                                processes[i].mq.add_ml(processes[i].match_len, mv.movi_options->is_stdout());
                                 write_mls(processes[i]);
                                 reset_process(processes[i], reader);
                                 reset_backward_search(processes[i]);
@@ -813,7 +813,7 @@ void ReadProcessor::reset_backward_search(Strand& process) {
         return;
     }
     while (!mv.check_alphabet(query_seq[process.pos_on_r]) and process.pos_on_r >= 0) {
-        process.mq.add_ml(0);
+        process.mq.add_ml(0, mv.movi_options->is_stdout());
         process.pos_on_r -= 1;
     }
     if (process.pos_on_r < 0) {
@@ -937,7 +937,7 @@ bool ReadProcessor::backward_search(Strand& process, uint64_t end_pos) {
         // Therefore, we can safely say that the read at position pos_on_r - 1 is matched now.
         process.pos_on_r -= 1;
         if (mv.movi_options->is_zml()) {
-            process.mq.add_ml(process.match_len);
+            process.mq.add_ml(process.match_len, mv.movi_options->is_stdout());
             process.match_len += 1;
         }
         // To make the pos_on_r match the range currently represented after the two LF steps.

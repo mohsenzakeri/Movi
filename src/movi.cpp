@@ -164,7 +164,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                         }
                         #pragma omp critical
                         {
-                            output_matching_lengths(movi_options.is_stdout(), mls_file, read_struct.id, matching_lens);
+                            output_matching_lengths(movi_options.is_stdout(), mls_file, read_struct.id, mq);
                         }
                     } else if (movi_options.is_count()) {
                         int32_t pos_on_r = query_seq.length() - 1;
