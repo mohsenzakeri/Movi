@@ -279,6 +279,12 @@ int main(int argc, char** argv) {
             char buffer[BUFFER_SIZE];
             // Set the custom buffer for std::cout
             std::cout.rdbuf()->pubsetbuf(buffer, BUFFER_SIZE);
+
+            // Set custom buffer for stdout (printf uses stdout)
+            if (setvbuf(stdout, buffer, _IOFBF, BUFFER_SIZE) != 0) {
+                perror("Failed to set buffer for stdout");
+                return 1;
+            }
         }
 
         std::string command = movi_options.get_command();
