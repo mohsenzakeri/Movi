@@ -201,7 +201,7 @@ class __attribute__((packed)) MoveRow {
         bool is_overflow_offset() const;
 #endif
 
-#if MODE == 1
+#if USE_NEXT_POINTERS
         uint16_t get_next_up(uint32_t i) { return next_up[i]; }
         uint16_t get_next_down(uint32_t i) { return next_down[i]; }
         void set_next_up(uint32_t i, uint16_t t) { next_up[i] = t; }

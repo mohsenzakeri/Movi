@@ -105,7 +105,6 @@ class MoveStructure {
         MoveStructure(MoviOptions* movi_options_);
         MoveStructure(MoviOptions* movi_options_, uint16_t splitting, bool constant);
 
-        bool check_mode();
         void build();
         void fill_bits_by_thresholds();
         void build_rlbwt();
@@ -140,9 +139,11 @@ class MoveStructure {
 
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
         uint32_t compute_index(char row_char, char lookup_char);
-#if CONSTANT_MODE
+
+#if USE_NEXT_POINTERS
         void compute_nexts();
 #endif
+
         void compute_ftab();
         void write_ftab();
         void compute_run_lcs();
@@ -186,7 +187,7 @@ class MoveStructure {
         std::vector<MoveRow> get_rlbwt();
     private:
         MoviOptions* movi_options;
-	    bool onebit;
+	    bool onebit; // This is not used any more as the onebit modes is deprecated
         bool constant;
         uint16_t splitting;
 

@@ -28,7 +28,9 @@ void close_kseq(kseq_t *seq, gzFile& fp);
 extern uint32_t alphamap_3[4][4];
 
 #define USE_THRESHOLDS MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6 or MODE == 7 or MODE == 8
+#define NO_THRESHOLDS MODE == 2 or MODE == 3 or MODE == 5
 #define THRESHOLDS_WITHOUT_NEXTS MODE == 0 or MODE == 4 or MODE == 8 or MODE == 7 or MODE == 6
+#define USE_NEXT_POINTERS MODE == 1
 #define SPLIT_THRESHOLDS_FALSE MODE == 0 or MODE == 1 or MODE == 4
 #define SPLIT_THRESHOLDS_TRUE MODE == 8 or MODE == 7 or MODE == 6
 #define SPLIT_MAX_RUN MODE == 3 or MODE == 6 or MODE == 2 or MODE == 8 or MODE == 5 or MODE == 7

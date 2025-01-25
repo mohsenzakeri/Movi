@@ -73,11 +73,11 @@ class ReadProcessor {
         bool verify_kmer(Strand& process, uint64_t k);
 
 #if TALLY_MODE
-    void process_char_tally(Strand& process);
-    void find_next_id(Strand& process);
-    void count_rows_untill_tally(Strand& process);
-    void find_tally_b(Strand& process);
-    void process_latency_hiding_tally(BatchLoader& reader);
+        void process_char_tally(Strand& process);
+        void find_next_id(Strand& process);
+        void count_rows_untill_tally(Strand& process);
+        void find_tally_b(Strand& process);
+        void process_latency_hiding_tally(BatchLoader& reader);
 #endif
     private:
         MoveStructure& mv;

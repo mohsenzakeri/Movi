@@ -4,26 +4,18 @@
 
 MoveStructure::MoveStructure(MoviOptions* movi_options_) {
     movi_options = movi_options_;
-    onebit = false;
+    onebit = false; // This is not used any more as the onebit modes is deprecated
     no_ftab = 0;
     all_initializations = 0;
 }
 
 MoveStructure::MoveStructure(MoviOptions* movi_options_, uint16_t splitting_, bool constant_) {
     movi_options = movi_options_;
-    onebit = false;
+    onebit = false; // This is not used any more as the onebit modes is deprecated
     splitting = splitting_;
     constant = constant_;
     no_ftab = 0;
     all_initializations = 0;
-
-    if (!check_mode()) {
-        std::cerr << "Your settings: \n"
-                    << "constant: " << constant << "\n"
-                    << "splitting " << splitting << "\n";
-        exit(0);
-    }
-
     reconstructed = false;
 
     std::string bwt_filename = movi_options->get_ref_file() + std::string(".bwt");
@@ -56,28 +48,6 @@ std::vector<MoveRow> MoveStructure::get_rlbwt() {
     }
     return row_c;
 }*/
-
-bool MoveStructure::check_mode() {
-#if MODE == 0
-    if (constant) {
-        std::cerr << "MODE is set to be 0: regular!\n";
-        return false;
-    }
-#endif
-#if MODE == 1
-    if (!constant || !splitting) {
-        std::cerr << "MODE is set to be 1: constant!\n";
-        return false;
-    }
-#endif
-#if MODE == 4
-    if (constant || !splitting) {
-        std::cerr << "MODE is set to be 4: split!\n";
-        return false;
-    }
-#endif
-    return true;
-}
 
 uint64_t MoveStructure::LF(uint64_t row_number, uint64_t alphabet_index) {
     uint64_t lf = 0;
@@ -1207,7 +1177,7 @@ void MoveStructure::build() {
     std::cerr << "Maximum distance between the check points: " << max_diff << "\n";
 #endif
 
-#if CONSTANT_MODE
+#if USE_NEXT_POINTERS
     if (constant) {
         std::cerr << "Computing the next ups and downs.\n";
         compute_nexts();
@@ -1454,7 +1424,7 @@ void MoveStructure::compute_thresholds() {
 #if SPLIT_THRESHOLDS_FALSE
                         << "rlbwt[i].thresholds[j]:" << get_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j]) << "\n";
 #endif
-#if MODE == 8 or MODE == 7 or MODE == 6
+#if SPLIT_THRESHOLDS_TRUE
                         << "rlbwt[i].thresholds[j]:" << get_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j]) << "\n";
 #endif
                 }
@@ -1483,7 +1453,7 @@ void MoveStructure::compute_thresholds() {
 #if SPLIT_THRESHOLDS_FALSE
         set_rlbwt_thresholds(0, j, 0);
 #endif
-#if MODE == 8 or MODE == 7 or MODE == 6
+#if SPLIT_THRESHOLDS_TRUE
         rlbwt[0].set_threshold(j, 0);
 #endif
     }
@@ -1491,7 +1461,7 @@ void MoveStructure::compute_thresholds() {
 #endif
 
 uint64_t scan_count;
-#if MODE == 1
+#if USE_NEXT_POINTERS
 void MoveStructure::compute_nexts() {
     for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
         if (i % 100000 == 0)
@@ -1597,23 +1567,7 @@ void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
         std::cerr << "This should not happen! The character should have been checked before.\n";
         exit(0);
     }
-#if MODE == 0 or MODE == 2 or MODE == 4 or MODE == 5 or MODE == 8 or MODE == 7 or MODE == 3 or MODE == 6
-    while (interval.run_start <= interval.run_end and get_char(interval.run_start) != next_char) { //  >= or >
-        interval.run_start += 1;
-        interval.offset_start = 0;
-        if (interval.run_start >= r) {
-            break;
-        }
-    }
-    while (interval.run_end >= interval.run_start and get_char(interval.run_end) != next_char) { //  >= or >
-        interval.run_end -= 1;
-        interval.offset_end = rlbwt[interval.run_end].get_n() - 1;
-        if (interval.run_end == 0) {
-            break;
-        }
-    }
-#endif
-#if MODE == 1
+#if USE_NEXT_POINTERS
     // if (movi_options->is_debug())
     //     dbg << alphabet[rlbwt[interval.run_start].get_c()] << " " << alphabet[rlbwt[interval.run_end].get_c()] << " " << next_char << "\n";
     uint64_t read_alphabet_index = alphamap[static_cast<uint64_t>(next_char)];
@@ -1652,7 +1606,23 @@ void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
             interval.offset_end = rlbwt[interval.run_end].get_n() - 1;
         }
     }
+#else
+    while (interval.run_start <= interval.run_end and get_char(interval.run_start) != next_char) { //  >= or >
+        interval.run_start += 1;
+        interval.offset_start = 0;
+        if (interval.run_start >= r) {
+            break;
+        }
+    }
+    while (interval.run_end >= interval.run_start and get_char(interval.run_end) != next_char) { //  >= or >
+        interval.run_end -= 1;
+        interval.offset_end = rlbwt[interval.run_end].get_n() - 1;
+        if (interval.run_end == 0) {
+            break;
+        }
+    }
 #endif
+
 }
 
 bool MoveStructure::extend_bidirectional(char c_, MoveInterval& fw_interval, MoveInterval& rc_interval) {
@@ -2168,7 +2138,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
         if (offset >= end_bwt_idx_thresholds[alphabet_index]) {
             if (movi_options->is_verbose())
                 std::cerr << "\t \t \t Jumping down with thresholds:\n";
-#if CONSTANT_MODE
+#if USE_NEXT_POINTERS
             if (constant) {
                 scan_count += 1;
                 if (end_bwt_idx_next_down[alphabet_index] == std::numeric_limits<uint16_t>::max())
@@ -2187,7 +2157,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
         } else {
             if (movi_options->is_verbose())
                 std::cerr << "\t \t \t Jumping up with thresholds:\n";
-#if CONSTANT_MODE
+#if USE_NEXT_POINTERS
             if (constant) {
                 scan_count += 1;
                 if (end_bwt_idx_next_up[alphabet_index] == std::numeric_limits<uint16_t>::max())
@@ -2218,13 +2188,16 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
     if (offset >= get_thresholds(idx, alphabet_index)) {
         if (movi_options->is_verbose())
             std::cerr << "\t \t \t Jumping down with thresholds:\n";
-#if CONSTANT_MODE
+#if USE_NEXT_POINTERS
         if (constant) {
             scan_count += 1;
             if (rlbwt[saved_idx].get_next_down(alphabet_index) == std::numeric_limits<uint16_t>::max())
                 idx = r;
             else
                 idx = saved_idx + rlbwt[saved_idx].get_next_down(alphabet_index);
+        } else {
+            std::cerr << "MODE is set to " << MODE <<", but the constant variable is false.\n";
+            exit(0);
         }
 #endif
         auto tmp = idx;
@@ -2241,7 +2214,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
     } else {
         if (movi_options->is_verbose())
             std::cerr << "\t \t \t Jumping up with thresholds:\n";
-#if CONSTANT_MODE
+#if USE_NEXT_POINTERS
         scan_count += 1;
         if (constant) {
             if (rlbwt[saved_idx].get_next_up(alphabet_index) == std::numeric_limits<uint16_t>::max())
@@ -2371,7 +2344,10 @@ void MoveStructure::serialize() {
 
     fout.write(reinterpret_cast<char*>(&splitting), sizeof(splitting));
     fout.write(reinterpret_cast<char*>(&constant), sizeof(constant));
+
+    // This is not used any more as the onebit modes is deprecated
     fout.write(reinterpret_cast<char*>(&onebit), sizeof(onebit));
+
     fout.write(reinterpret_cast<char*>(&rlbwt[0]), rlbwt.size()*sizeof(rlbwt[0]));
 
 #if TALLY_MODE
@@ -2474,14 +2450,10 @@ void MoveStructure::deserialize() {
 
     fin.read(reinterpret_cast<char*>(&splitting), sizeof(splitting));
     fin.read(reinterpret_cast<char*>(&constant), sizeof(constant));
+
+    // This is not used any more as the onebit modes is deprecated
     fin.read(reinterpret_cast<char*>(&onebit), sizeof(onebit));
 
-    if (!check_mode()) {
-        std::cerr << "Your settings: \n"
-                    << "constant: " << constant << "\n"
-                    << "splitting " << splitting << "\n";
-        exit(0);
-    }
     rlbwt.resize(r);
     fin.read(reinterpret_cast<char*>(&rlbwt[0]), r*sizeof(MoveRow));
 

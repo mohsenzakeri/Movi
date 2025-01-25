@@ -50,7 +50,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
 #pragma omp parallel
         {
-        BatchLoader reader;
+            BatchLoader reader;
 
             // Iterates over batches of data until none left
             while (true) {
