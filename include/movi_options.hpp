@@ -23,6 +23,7 @@ class MoviOptions {
         bool is_logs() { return logs; }
         bool is_debug() { return debug; }
         bool if_verify() { return verify; }
+        bool is_random_repositioning() { return random_repositioning; }
         bool is_pml() { return pml_query; }
         bool is_zml() { return zml_query; }
         bool is_count() { return count_query; }
@@ -57,6 +58,7 @@ class MoviOptions {
         void set_logs(bool logs_) { logs = logs_; }
         void set_debug(bool debug_) { debug = debug_; }
         void set_verify(bool verify_) { verify = verify_; }
+        void set_random_repositioning(bool random_repositioning_) { random_repositioning = random_repositioning_; }
         void set_pml()   { pml_query = true; count_query = false; kmer_query = false; zml_query = false; }
         void set_zml()   { zml_query = true; pml_query = false; count_query = false; kmer_query = false; }
         void set_count() { count_query = true; pml_query = false; kmer_query = false; zml_query = false; }
@@ -134,6 +136,7 @@ class MoviOptions {
         int ilc = 0;
         bool split = false;
         bool thresholds = false;
+        bool random_repositioning = false;
         bool pml_query = false;
         bool zml_query = false;
         bool count_query = false;

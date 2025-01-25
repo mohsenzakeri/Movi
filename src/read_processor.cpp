@@ -22,12 +22,10 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
     std::string index_type = program();
     if (!mv_.movi_options->is_stdout()) {
         if (mv_.movi_options->is_pml()) {
-            std::string mls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.pml.bin" :
-                                                reads_file_name + "." + index_type + ".pml.bin";
+            std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
             mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
         } else if (mv_.movi_options->is_zml()) {
-            std::string mls_file_name = reverse ? reads_file_name + "." + index_type + ".reverse.zml.bin" :
-                                                reads_file_name + "." + index_type + ".zml.bin";
+            std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
             mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
         } else if (mv_.movi_options->is_count()) {
             std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
@@ -146,8 +144,9 @@ void ReadProcessor::process_char(Strand& process) {
 
         bool up = false;
 #if USE_THRESHOLDS
-        up = random ? mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
-                      mv.reposition_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
+        up = mv.movi_options->is_random_repositioning() ?
+                mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
+                mv.reposition_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #else
         // When there is no threshold, reposition randomly
         up = mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count);
@@ -214,8 +213,9 @@ void ReadProcessor::process_char_tally(Strand& process) {
 
             bool up = false;
 #if USE_THRESHOLDS
-            up = random ? mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
-                          mv.reposition_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
+            up = mv.movi_options->is_random_repositioning() ?
+                    mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
+                    mv.reposition_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #else
             // When there is no threshold, reposition randomly
             up = mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count);

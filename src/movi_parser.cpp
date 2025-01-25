@@ -150,6 +150,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("count") >= 1) { movi_options.set_count(); }
                         if (result.count("zml") >= 1) { movi_options.set_zml(); }
                         if (result.count("pml") >= 1) { movi_options.set_pml(); }
+                        if (result.count("rpml") >= 1) { movi_options.set_random_repositioning(true); }
                         if (result.count("classify") >= 1) { movi_options.set_classify(true); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
                         if (result.count("ignore-illegal-chars") == 1) {

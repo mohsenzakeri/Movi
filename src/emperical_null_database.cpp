@@ -5,8 +5,9 @@ size_t EmpNullDatabase::get_percentile_value() {
 }
 
 void EmpNullDatabase::generate_stats(MoviOptions& movi_options, MoveStructure& mv_, std::string pattern_file) {
-    bool random_jump = (USE_THRESHOLDS ? false : true);
-    std::cerr << "random_jump: " << random_jump << "\n";
+    bool random_repositioning = (USE_THRESHOLDS ? false : true);
+    std::cerr << "random_repositioning: " << random_repositioning << "\n";
+    movi_options.set_random_repositioning(random_repositioning);
     gzFile fp;
     int l;
     kseq_t* seq = open_kseq(fp, pattern_file);
@@ -15,9 +16,8 @@ void EmpNullDatabase::generate_stats(MoviOptions& movi_options, MoveStructure& m
         std::reverse(query_seq.begin(), query_seq.end());
         MoveQuery mq = MoveQuery(query_seq);
 
-        bool random_jump = false;
         if (movi_options.is_pml()) {
-            mv_.query_pml(mq, random_jump);
+            mv_.query_pml(mq);
         } else if (movi_options.is_zml()) {
             mv_.query_zml(mq);
         } else {

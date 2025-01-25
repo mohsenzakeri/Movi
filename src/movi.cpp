@@ -150,9 +150,8 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                         if (movi_options.is_reverse())
                             std::reverse(query_seq.begin(), query_seq.end());
                         mq = MoveQuery(query_seq);
-                        bool random_jump = false;
                         if (movi_options.is_pml()) {
-                            total_ff_count += mv_.query_pml(mq, random_jump);
+                            total_ff_count += mv_.query_pml(mq);
                         } else if (movi_options.is_zml()) {
                             total_ff_count += mv_.query_zml(mq);
                         }

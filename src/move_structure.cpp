@@ -1978,7 +1978,7 @@ bool MoveStructure::look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r,
     }
 }
 
-uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
+uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     if (random) {
         if (movi_options->is_verbose())
             std::cerr << "Repositioning randomly - not with thresholds! \n";
@@ -2040,7 +2040,8 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
 
             uint64_t idx_before_reposition = idx;
 #if USE_THRESHOLDS
-            bool up = random ? reposition_randomly(idx, R[pos_on_r], scan_count) :
+            bool up = movi_options->is_random_repositioning() ?
+                               reposition_randomly(idx, R[pos_on_r], scan_count) :
                                reposition_thresholds(idx, offset, R[pos_on_r], scan_count);
 #else
             // When there is no threshold, reposition randomly

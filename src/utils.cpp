@@ -39,7 +39,11 @@ std::string program() {
 
 std::string query_type(MoviOptions& movi_options) {
     if (movi_options.is_pml()) {
-        return "pml";
+        if (movi_options.is_random_repositioning()) {
+            return "rpml";
+        } else {
+            return "pml";
+        }
     } else if (movi_options.is_zml()) {
         return "zml";
     } else {
