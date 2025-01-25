@@ -49,6 +49,21 @@ extern uint32_t alphamap_3[4][4];
 #define NUM_NULL_READS 800 // 150,000 = 150 bp * 1000 reads
 #define NULL_READ_BOUND 1000
 
+// To be used for generating random numbers for each thread
+struct ThreadRandom {
+    std::mt19937 generator;
+    std::uniform_int_distribution<int> dist;
+
+    ThreadRandom()
+        : generator(std::random_device{}()),
+          dist(1, 100)
+    {}
+
+    int get_random() {
+        return dist(generator);
+    }
+};
+
 std::string program();
 
 std::string query_type(MoviOptions& movi_options);

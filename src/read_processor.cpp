@@ -143,10 +143,13 @@ void ReadProcessor::process_char(Strand& process) {
         // Case 2
         // Jumping up or down (randomly or with thresholds)
         uint64_t idx_before_jump = process.idx;
+
         bool up = false;
 #if USE_THRESHOLDS
-        up = mv.jump_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
+        up = random ? mv.jump_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
+                      mv.jump_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #else
+        // When there is no threshold, jump randomly
         up = mv.jump_randomly(process.idx, R[process.pos_on_r], process.scan_count);
 #endif
         process.match_len = 0;
@@ -208,10 +211,13 @@ void ReadProcessor::process_char_tally(Strand& process) {
             // Case 2
             // Jumping up or down (randomly or with thresholds)
             uint64_t idx_before_jump = process.idx;
+
             bool up = false;
 #if USE_THRESHOLDS
-            up = mv.jump_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
+            up = random ? mv.jump_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
+                          mv.jump_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #else
+            // When there is no threshold, jump randomly
             up = mv.jump_randomly(process.idx, R[process.pos_on_r], process.scan_count);
 #endif
             process.match_len = 0;

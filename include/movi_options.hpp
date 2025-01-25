@@ -74,7 +74,7 @@ class MoviOptions {
             if (ilc_ > 2 or ilc_ < 1)
                 return false;
             ilc = ilc_;
-	        if (ilc == 2)
+	        if (ilc == 2) // A random character is generated for each illegal character
                 std::srand(time(0));
             return true;
         }

@@ -1989,12 +1989,11 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     if (random) {
         if (movi_options->is_verbose())
             std::cerr << "Jumps are random - not with thresholds! \n";
-        std::srand(time(0));
     }
 
     auto& R = mq.query();
     int32_t pos_on_r = R.length() - 1;
-    uint64_t idx = r - 1; // std::rand() % r; // r - 1
+    uint64_t idx = r - 1; // or we can start from a random position in the rlbwt std::rand() % r
     uint64_t offset = get_n(idx) - 1;
 
     uint16_t match_len = 0;
@@ -2050,11 +2049,9 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
 #if USE_THRESHOLDS
             bool up = random ? jump_randomly(idx, R[pos_on_r], scan_count) : 
                                jump_thresholds(idx, offset, R[pos_on_r], scan_count);
-#endif
-#if MODE == 2 or MODE == 5 or MODE == 3
-            bool up = idx == 0 ? false : (idx == r - 1 ? true : false);
-            std::cout << idx << "\t" << up << "\n";
-            // bool up = jump_randomly(idx, R[pos_on_r], scan_count);
+#else
+            // When there is no threshold, jump randomly
+            bool up = jump_randomly(idx, R[pos_on_r], scan_count);
 #endif
             match_len = 0;
             // scan_count = (!constant) ? std::abs((int)idx - (int)idx_before_jump) : 0;
@@ -2246,7 +2243,8 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
 
 bool MoveStructure::jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_count) {
     uint64_t saved_idx = idx;
-    uint64_t jump = std::rand() % 2; // To replace with ...
+    thread_local ThreadRandom random_generator;
+    uint64_t jump = random_generator.get_random() % 2;
     bool up = false;
     scan_count = 0;
     if (movi_options->is_verbose())
@@ -2304,7 +2302,8 @@ bool MoveStructure::check_alphabet(char& c) {
     // return false;
     if (movi_options->ignore_illegal_chars_status() > 0) {
         if (alphamap[static_cast<uint64_t>(c)] == alphamap.size()) {
-            c = movi_options->ignore_illegal_chars_status() == 1 ?  'A' : alphabet[ std::rand() % alphabet.size() ];
+            thread_local ThreadRandom random_generator;
+            c = movi_options->ignore_illegal_chars_status() == 1 ?  'A' : alphabet[ random_generator.get_random() % alphabet.size() ];
             return true;
         }
     }
