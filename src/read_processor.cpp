@@ -141,22 +141,22 @@ void ReadProcessor::process_char(Strand& process) {
         process.match_len += 1;
     } else {
         // Case 2
-        // Jumping up or down (randomly or with thresholds)
-        uint64_t idx_before_jump = process.idx;
+        // Repositioning up or down (randomly or with thresholds)
+        uint64_t idx_before_reposition = process.idx;
 
         bool up = false;
 #if USE_THRESHOLDS
-        up = random ? mv.jump_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
-                      mv.jump_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
+        up = random ? mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
+                      mv.reposition_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #else
-        // When there is no threshold, jump randomly
-        up = mv.jump_randomly(process.idx, R[process.pos_on_r], process.scan_count);
+        // When there is no threshold, reposition randomly
+        up = mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count);
 #endif
         process.match_len = 0;
         char c = mv.alphabet[mv.rlbwt[process.idx].get_c()];
         // sanity check
         if (c == R[process.pos_on_r]) {
-            // Observing a match after the jump
+            // Observing a match after the repositioning
             // The right match_len should be:
             // min(new_lcp, match_len + 1)
             // But we cannot compute lcp here
@@ -209,22 +209,22 @@ void ReadProcessor::process_char_tally(Strand& process) {
             process.match_len += 1;
         } else {
             // Case 2
-            // Jumping up or down (randomly or with thresholds)
-            uint64_t idx_before_jump = process.idx;
+            // Repositioning up or down (randomly or with thresholds)
+            uint64_t idx_before_reposition = process.idx;
 
             bool up = false;
 #if USE_THRESHOLDS
-            up = random ? mv.jump_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
-                          mv.jump_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
+            up = random ? mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
+                          mv.reposition_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #else
-            // When there is no threshold, jump randomly
-            up = mv.jump_randomly(process.idx, R[process.pos_on_r], process.scan_count);
+            // When there is no threshold, reposition randomly
+            up = mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count);
 #endif
             process.match_len = 0;
             char c = mv.alphabet[mv.rlbwt[process.idx].get_c()];
             // sanity check
             if (c == R[process.pos_on_r]) {
-                // Observing a match after the jump
+                // Observing a match after the repositioning
                 // The right match_len should be:
                 // min(new_lcp, match_len + 1)
                 // But we cannot compute lcp here

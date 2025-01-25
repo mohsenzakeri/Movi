@@ -111,21 +111,25 @@ class MoveStructure {
         uint64_t query_pml(MoveQuery& mq, bool random);
         uint64_t query_backward_search(MoveQuery& mq, int32_t& pos_on_r);
         uint64_t query_zml(MoveQuery& mq);
+
         void query_all_kmers(MoveQuery& mq, bool kmer_counts = false);
         uint64_t query_kmers_from_bidirectional(MoveQuery& mq, int32_t& pos_on_r);
         uint64_t query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool single = false);
+
+        MoveInterval try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k, bool rc = false);
         bool look_ahead_ftab(MoveQuery& mq, uint32_t pos_on_r, int32_t& step);
         bool look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r, int32_t step);
+
         bool extend_bidirectional(char c_, MoveInterval& fw_interval, MoveInterval& rc_interval);
         bool extend_left(char c, MoveBiInterval& bi_interval);
         bool extend_right(char c, MoveBiInterval& bi_interval);
         MoveBiInterval backward_search_bidirectional(std::string& R, int32_t& pos_on_r, MoveBiInterval interval, int32_t max_length);
         MoveBiInterval initialize_bidirectional_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len);
+
         bool backward_search_step(char c, MoveInterval& interval);
         uint64_t backward_search_step(std::string& R, int32_t& pos_on_r, MoveInterval& interval);
         MoveInterval backward_search(std::string& R, int32_t& pos_on_r, MoveInterval interval, int32_t max_length);
         MoveInterval initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, bool rc = false);
-        MoveInterval try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k, bool rc = false);
         void update_interval(MoveInterval& interval, char next_char);
 
         void sequential_lf();
@@ -156,9 +160,9 @@ class MoveStructure {
         // uint64_t naive_sa(uint64_t bwt_row);
         // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
 
-        uint64_t jump_up(uint64_t idx, char c, uint64_t& scan_count);
-        uint64_t jump_down(uint64_t idx, char c, uint64_t& scan_count);
-        bool jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_count);
+        uint64_t reposition_up(uint64_t idx, char c, uint64_t& scan_count);
+        uint64_t reposition_down(uint64_t idx, char c, uint64_t& scan_count);
+        bool reposition_randomly(uint64_t& idx, char r_char, uint64_t& scan_count);
 
         void verify_lfs();
         void print_stats();
@@ -175,7 +179,7 @@ class MoveStructure {
         uint64_t get_id(uint64_t idx);
 #if USE_THRESHOLDS
         void compute_thresholds();
-        bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
+        bool reposition_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
         uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
 #endif
 #if SPLIT_THRESHOLDS_FALSE
@@ -239,7 +243,7 @@ class MoveStructure {
         // Used for gathering statistics
         uint64_t no_ftab;
         uint64_t all_initializations;
-        std::unordered_map<uint32_t, uint32_t> jumps;
+        std::unordered_map<uint32_t, uint32_t> repositions;
         std::unordered_map<uint32_t, uint32_t> ff_counts;
         std::unordered_map<uint64_t, uint64_t> run_lengths;
 

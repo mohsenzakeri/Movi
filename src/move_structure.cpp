@@ -1372,10 +1372,6 @@ void MoveStructure::compute_thresholds() {
                         continue;
                     }
 #if SPLIT_THRESHOLDS_FALSE
-                    // This may not be called, because the way the status implies the jump direciton
-                    // if (get_n(i) >= std::numeric_limits<uint16_t>::max()) {
-                    //     rlbwt[i].set_overflow_thresholds();
-                    // }
                     set_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j], get_n(i));
 #endif
 #if SPLIT_THRESHOLDS_TRUE
@@ -1470,29 +1466,29 @@ void MoveStructure::compute_nexts() {
         char rlbwt_c = alphabet[rlbwt[i].get_c()];
         for (uint64_t j = 0; j < alphabet.size(); j++) {
             if (i == end_bwt_idx) {
-                auto idx = jump_up(i, alphabet[j], scan_count);
+                auto idx = reposition_up(i, alphabet[j], scan_count);
                 end_bwt_idx_next_up[j] = (idx == r) ? std::numeric_limits<uint16_t>::max() : i - idx;
-                idx = jump_down(i, alphabet[j], scan_count);
+                idx = reposition_down(i, alphabet[j], scan_count);
                 end_bwt_idx_next_down[j] = (idx == r) ? std::numeric_limits<uint16_t>::max() : idx - i;
                 continue;
             }
             if (alphabet[j] != rlbwt_c) {
                 auto alphabet_idx = alphamap_3[alphamap[rlbwt_c]][j];
-                auto idx = jump_up(i, alphabet[j], scan_count);
+                auto idx = reposition_up(i, alphabet[j], scan_count);
                 if (idx == r) {
                     rlbwt[i].set_next_up(alphabet_idx, std::numeric_limits<uint16_t>::max());
                 } else {
                     if (i - idx > std::numeric_limits<uint16_t>::max())
-                        std::cerr << "Warning - jump up " << i - idx << " does not fit in 16 bits.\n";
+                        std::cerr << "Warning - reposition up " << i - idx << " does not fit in 16 bits.\n";
                     rlbwt[i].set_next_up(alphabet_idx, i - idx);
                 }
 
-                idx = jump_down(i, alphabet[j], scan_count);
+                idx = reposition_down(i, alphabet[j], scan_count);
                 if (idx == r) {
                     rlbwt[i].set_next_down(alphabet_idx, std::numeric_limits<uint16_t>::max());
                 } else {
                     if (idx - i > std::numeric_limits<uint16_t>::max())
-                        std::cerr << "Warning - jump down " << idx - i << " does not fit in 16 bits.\n";
+                        std::cerr << "Warning - reposition down " << idx - i << " does not fit in 16 bits.\n";
                     rlbwt[i].set_next_down(alphabet_idx, idx - i);
                 }
             }
@@ -1517,7 +1513,7 @@ uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx, uint64_t x)
     return idx - idx_;
 }
 
-uint64_t MoveStructure::jump_up(uint64_t idx, char c, uint64_t& scan_count) {
+uint64_t MoveStructure::reposition_up(uint64_t idx, char c, uint64_t& scan_count) {
     if (idx == 0)
         return r;
     char row_c = alphabet[rlbwt[idx].get_c()];
@@ -1526,22 +1522,19 @@ uint64_t MoveStructure::jump_up(uint64_t idx, char c, uint64_t& scan_count) {
         scan_count += 1;
         idx -= 1;
         row_c = alphabet[rlbwt[idx].get_c()];
-        // if (idx == 0) {
-        //     break;
-        // }
     }
     /* if (logs) {
-        if (jumps.find(scan_count) != jumps.end())
-            jumps[scan_count] += 1;
+        if (repositions.find(scan_count) != repositions.end())
+            repositions[scan_count] += 1;
         else
-            jumps[scan_count] = 1;
+            repositions[scan_count] = 1;
     } */
     /* if (movi_options->is_verbose())
-        std::cerr << "\t \t \t \t idx after the while in the jump" << idx << "\n";*/
+        std::cerr << "\t \t \t \t idx after the while in the reposition up" << idx << "\n";*/
     return (row_c == c) ? idx : r;
 }
 
-uint64_t MoveStructure::jump_down(uint64_t idx, char c, uint64_t& scan_count) {
+uint64_t MoveStructure::reposition_down(uint64_t idx, char c, uint64_t& scan_count) {
     if (idx == r - 1)
         return r;
     char row_c = alphabet[rlbwt[idx].get_c()];
@@ -1552,13 +1545,13 @@ uint64_t MoveStructure::jump_down(uint64_t idx, char c, uint64_t& scan_count) {
         row_c = alphabet[rlbwt[idx].get_c()];
     }
     /* if (logs) {
-        if (jumps.find(scan_count) != jumps.end())
-            jumps[scan_count] += 1;
+        if (repositions.find(scan_count) != repositions.end())
+            repositions[scan_count] += 1;
         else
-            jumps[scan_count] = 1;
+            repositions[scan_count] = 1;
     } */
     /*if (movi_options->is_verbose())
-        std::cerr << "\t \t \t \t idx after the while in the jump: " << idx << " " << c << " " << row_c << "\n";*/
+        std::cerr << "\t \t \t \t idx after the while in the reposition down: " << idx << " " << c << " " << row_c << "\n";*/
     return (row_c == c) ? idx : r;
 }
 
@@ -1988,7 +1981,7 @@ bool MoveStructure::look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r,
 uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
     if (random) {
         if (movi_options->is_verbose())
-            std::cerr << "Jumps are random - not with thresholds! \n";
+            std::cerr << "Repositioning randomly - not with thresholds! \n";
     }
 
     auto& R = mq.query();
@@ -2041,20 +2034,20 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
             }
         } else {
             // Case 2
-            // Jumping up or down (randomly or with thresholds)
+            // Repositioning up or down (randomly or with thresholds)
             if (movi_options->is_verbose())
                 std::cerr << "\t Case2: Not a match, looking for a match either up or down...\n";
 
-            uint64_t idx_before_jump = idx;
+            uint64_t idx_before_reposition = idx;
 #if USE_THRESHOLDS
-            bool up = random ? jump_randomly(idx, R[pos_on_r], scan_count) : 
-                               jump_thresholds(idx, offset, R[pos_on_r], scan_count);
+            bool up = random ? reposition_randomly(idx, R[pos_on_r], scan_count) :
+                               reposition_thresholds(idx, offset, R[pos_on_r], scan_count);
 #else
-            // When there is no threshold, jump randomly
-            bool up = jump_randomly(idx, R[pos_on_r], scan_count);
+            // When there is no threshold, reposition randomly
+            bool up = reposition_randomly(idx, R[pos_on_r], scan_count);
 #endif
             match_len = 0;
-            // scan_count = (!constant) ? std::abs((int)idx - (int)idx_before_jump) : 0;
+            // scan_count = (!constant) ? std::abs((int)idx - (int)idx_before_reposition) : 0;
 
             char c = alphabet[rlbwt[idx].get_c()];
 
@@ -2063,7 +2056,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
 
             // sanity check
             if (c == R[pos_on_r]) {
-                // Observing a match after the jump
+                // Observing a match after the reposition
                 // The right match_len should be:
                 // min(new_lcp, match_len + 1)
                 // But we cannot compute lcp here
@@ -2084,7 +2077,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
 
                 movi_options->set_verbose(true);
 #if USE_THRESHOLDS
-                jump_thresholds(saved_idx, offset, R[pos_on_r], scan_count);
+                reposition_thresholds(saved_idx, offset, R[pos_on_r], scan_count);
 #endif
                 exit(0);
             }
@@ -2110,15 +2103,15 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq, bool random) {
 }
 
 #if USE_THRESHOLDS
-bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count) {
-    // If offset is greather than or equal to the threshold, jump down
-    // otherwise, jump up
+bool MoveStructure::reposition_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count) {
+    // If offset is greather than or equal to the threshold, reposition down
+    // otherwise, reposition up
     uint64_t saved_idx = idx;
     uint64_t alphabet_index = alphamap[static_cast<uint64_t>(r_char)];
     scan_count = 0;
 
     if (movi_options->is_verbose())
-        std::cerr << "\t \t \t jumping with thresholds ... \n";
+        std::cerr << "\t \t \t repositioning with thresholds ... \n";
 
     char rlbwt_char = alphabet[rlbwt[idx].get_c()];
 
@@ -2134,7 +2127,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
                                 << "\t \t \t end_bwt_idx_thresholds[alphabet_index]: " << end_bwt_idx_thresholds[alphabet_index] << "\n";
         if (offset >= end_bwt_idx_thresholds[alphabet_index]) {
             if (movi_options->is_verbose())
-                std::cerr << "\t \t \t Jumping down with thresholds:\n";
+                std::cerr << "\t \t \t Repositioning down with thresholds:\n";
 #if USE_NEXT_POINTERS
             if (constant) {
                 scan_count += 1;
@@ -2146,14 +2139,14 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
 #endif
 
 #if THRESHOLDS_WITHOUT_NEXTS
-            idx = jump_down(saved_idx, r_char, scan_count);
+            idx = reposition_down(saved_idx, r_char, scan_count);
 #endif
             if (r_char != alphabet[rlbwt[idx].get_c()])
                 std::cerr << "1: " << r_char << " " << alphabet[rlbwt[idx].get_c()];
             return false;
         } else {
             if (movi_options->is_verbose())
-                std::cerr << "\t \t \t Jumping up with thresholds:\n";
+                std::cerr << "\t \t \t Repositioning up with thresholds:\n";
 #if USE_NEXT_POINTERS
             if (constant) {
                 scan_count += 1;
@@ -2165,7 +2158,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
 #endif
 
 #if THRESHOLDS_WITHOUT_NEXTS
-            idx = jump_up(saved_idx, r_char, scan_count);
+            idx = reposition_up(saved_idx, r_char, scan_count);
 #endif
             if (r_char != alphabet[rlbwt[idx].get_c()])
                 std::cerr << "2: " << r_char << " " << alphabet[rlbwt[idx].get_c()];
@@ -2184,7 +2177,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
 
     if (offset >= get_thresholds(idx, alphabet_index)) {
         if (movi_options->is_verbose())
-            std::cerr << "\t \t \t Jumping down with thresholds:\n";
+            std::cerr << "\t \t \t Repositioning down with thresholds:\n";
 #if USE_NEXT_POINTERS
         if (constant) {
             scan_count += 1;
@@ -2199,7 +2192,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
 #endif
         auto tmp = idx;
 #if THRESHOLDS_WITHOUT_NEXTS
-        idx = jump_down(saved_idx, r_char, scan_count);
+        idx = reposition_down(saved_idx, r_char, scan_count);
 #endif
         if (r_char != alphabet[rlbwt[idx].get_c()]) {
             std::cerr << "3: " << r_char << " " << alphabet[rlbwt[idx].get_c()] << "\n";
@@ -2210,7 +2203,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
         return false;
     } else {
         if (movi_options->is_verbose())
-            std::cerr << "\t \t \t Jumping up with thresholds:\n";
+            std::cerr << "\t \t \t Repositioning up with thresholds:\n";
 #if USE_NEXT_POINTERS
         scan_count += 1;
         if (constant) {
@@ -2222,7 +2215,7 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
 #endif
 
 #if THRESHOLDS_WITHOUT_NEXTS
-        idx = jump_up(saved_idx, r_char, scan_count);
+        idx = reposition_up(saved_idx, r_char, scan_count);
 #endif
         if (r_char != alphabet[rlbwt[idx].get_c()]) {
             std::cerr << "idx: " << idx << " saved_idx: " << saved_idx << "\n";
@@ -2241,56 +2234,94 @@ bool MoveStructure::jump_thresholds(uint64_t& idx, uint64_t offset, char r_char,
 }
 #endif
 
-bool MoveStructure::jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_count) {
+bool MoveStructure::reposition_randomly(uint64_t& idx, char r_char, uint64_t& scan_count) {
     uint64_t saved_idx = idx;
     thread_local ThreadRandom random_generator;
-    uint64_t jump = random_generator.get_random() % 2;
+    uint16_t reposition_direction = random_generator.get_random() % 2;
     bool up = false;
     scan_count = 0;
     if (movi_options->is_verbose())
-        std::cerr << "idx before jump: " << idx << "\n";
+        std::cerr << "idx before repositioning: " << idx << "\n";
 
-    if ( (jump == 1 && idx > 0) or idx == r - 1) {
-        if (movi_options->is_verbose())
-            std::cerr << "Jumping up randomly:\n";
 
-        // jumping up
+    // Selecting the right direction for trivial cases at the beginning and end of the move table
+    if (idx == r - 1) {
+        reposition_direction = 1;
+    }
+    if (idx == 0) {
+        reposition_direction = 0;
+    }
+
+    if ( (reposition_direction == 1 && idx > 0) or idx == r - 1) {
+
+        // repositioning up
         up = true;
-        idx = jump_up(saved_idx, r_char, scan_count);
-        if (movi_options->is_verbose())
-            std::cerr << "idx after jump: " << idx << "\n";
-        char c = alphabet[rlbwt[idx].get_c()];
-        if (c != r_char) {
-            if (movi_options->is_verbose())
-                std::cerr << "Up didn't work, try jumping down:\n";
 
-            // jump down
-            up = false;
-            idx = jump_down(saved_idx, r_char, scan_count);
+        if (movi_options->is_verbose())
+            std::cerr << "Repositioning up randomly:\n";
+
+        idx = reposition_up(saved_idx, r_char, scan_count);
+        if (movi_options->is_verbose())
+            std::cerr << "idx after repositioning up: " << idx << "\n";
+
+        if (idx >= r) {
             if (movi_options->is_verbose())
-                std::cerr << "idx after jump: " << idx << "\n";
+                std::cerr << "Up didn't work, try repositioning down:\n";
+
+            // repositioning down
+            up = false;
+            idx = reposition_down(saved_idx, r_char, scan_count);
+            if (movi_options->is_verbose())
+                std::cerr << "idx after repositioning down: " << idx << "\n";
+            if (idx == r) {
+                // TODO
+                std::cerr << "Neither up or down repositioning works.\n";
+                std::cerr << "The character does not exist in the index.\n";
+                exit(0);
+            }
         }
     } else {
-        if (movi_options->is_verbose())
-            std::cerr << "Jumping down randomly:\n";
 
-        // jumping down
+        // repositioning down
         up = false;
-        idx = jump_down(saved_idx, r_char, scan_count);
-        if (movi_options->is_verbose())
-            std::cerr << "idx after jump: " << idx << "\n";
-        char c = alphabet[rlbwt[idx].get_c()];
-        if (c != r_char) {
-            if (movi_options->is_verbose())
-                std::cerr << "Down didn't work, try jumping up:\n";
 
-            // jump up
-            up = true;
-            idx = jump_up(saved_idx, r_char, scan_count);
+        if (movi_options->is_verbose())
+            std::cerr << "Repositioning down randomly:\n";
+
+        idx = reposition_down(saved_idx, r_char, scan_count);
+        if (movi_options->is_verbose())
+            std::cerr << "idx after repositioning down: " << idx << "\n";
+
+        if (idx >= r) {
             if (movi_options->is_verbose())
-                std::cerr << "idx after jump: " << idx << "\n";
+                std::cerr << "Down didn't work, try repositioning up:\n";
+
+            // repositioning up
+            up = true;
+            idx = reposition_up(saved_idx, r_char, scan_count);
+            if (movi_options->is_verbose())
+                std::cerr << "idx after repositioning up: " << idx << "\n";
+            if (idx == r) {
+                // TODO
+                std::cerr << "Neither up or down repositioning works.\n";
+                std::cerr << "The character does not exist in the index.\n";
+                exit(0);
+            }
         }
     }
+
+    // sanity check
+    char c = alphabet[rlbwt[idx].get_c()];
+    if (c != r_char or idx == r) {
+        if (movi_options->is_verbose()) {
+            std::cerr << "c: " << c << "\n";
+            std::cerr << "idx: " << idx << "\n";
+        }
+        // TODO
+        std::cerr << "This should never happen.\n";
+        exit(0);
+    }
+
     return up;
 }
 
