@@ -1,9 +1,6 @@
 #ifndef READ_PROCESSOR_HPP
 #define READ_PROCESSOR_HPP
 
-#define my_prefetch_r(address) __builtin_prefetch((void *)address, 0, 1)
-#define my_prefetch_w(address) __builtin_prefetch((void *)address, 1, 2)
-
 #include "move_structure.hpp"
 #include "utils.hpp"
 #include "batch_loader.hpp"

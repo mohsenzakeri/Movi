@@ -17,6 +17,9 @@
 #include "move_query.hpp"
 #include "movi_options.hpp"
 
+#define my_prefetch_r(address) __builtin_prefetch((void *)address, 0, 1)
+#define my_prefetch_w(address) __builtin_prefetch((void *)address, 1, 2)
+
 #ifndef KSEQ_INIT_READY
 #define KSEQ_INIT_READY
 // STEP 1: declare the type of file handler and the read() function
