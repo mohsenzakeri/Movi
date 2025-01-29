@@ -36,6 +36,14 @@ if(NOT sdsl_POPULATED)
   add_subdirectory(${sdsl_SOURCE_DIR} ${sdsl_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
+#----------------------------------------
+# Add hclust
+#----------------------------------------
+add_library(hclust
+  hclust-cpp/fastcluster.cpp
+)
+target_include_directories(hclust PUBLIC hclust-cpp)
+
 # SET(COMPILE_FLAGS "-O2 -DMODE=0")
 # debug:
 # SET(COMPILE_FLAGS "-g -DMODE=0")
@@ -51,23 +59,23 @@ set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++14")
 # add_link_options(-fsanitize-recover=unsigned-integer-overflow)
 
 add_executable(movi-default src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
-target_link_libraries(movi-default sdsl ZLIB::ZLIB)
+target_link_libraries(movi-default sdsl ZLIB::ZLIB hclust)
 target_compile_options(movi-default PUBLIC -g -O2 -DMODE=0)
 
 add_executable(movi-constant src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
-target_link_libraries(movi-constant sdsl ZLIB::ZLIB)
+target_link_libraries(movi-constant sdsl ZLIB::ZLIB hclust)
 target_compile_options(movi-constant PUBLIC -O2 -DMODE=1)
 
 add_executable(movi-compact src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
-target_link_libraries(movi-compact sdsl ZLIB::ZLIB)
+target_link_libraries(movi-compact sdsl ZLIB::ZLIB hclust)
 target_compile_options(movi-compact PUBLIC -O2 -DMODE=3)
 
 add_executable(movi-split src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
-target_link_libraries(movi-split sdsl ZLIB::ZLIB)
+target_link_libraries(movi-split sdsl ZLIB::ZLIB hclust)
 target_compile_options(movi-split PUBLIC -O2 -DMODE=4)
 
 add_executable(movi-compact-thresholds src/movi.cpp src/move_structure.cpp src/move_row.cpp src/read_processor.cpp src/utils.cpp src/sequitur.cpp)
-target_link_libraries(movi-compact-thresholds sdsl ZLIB::ZLIB)
+target_link_libraries(movi-compact-thresholds sdsl ZLIB::ZLIB hclust)
 target_compile_options(movi-compact-thresholds PUBLIC -O2 -DMODE=6) 
 
 add_executable(prepare_ref src/prepare_ref.cpp)

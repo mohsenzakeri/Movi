@@ -13,6 +13,7 @@
 #include <unordered_map>
 
 #include "kseq.h"
+#include "fastcluster.h"
 
 #include <sdsl/int_vector.hpp>
 #include <sdsl/bit_vectors.hpp>
@@ -24,6 +25,83 @@
 
 #define END_CHARACTER 0
 #define THRBYTES 5 
+
+class DocSet {
+public:
+    // Used for efficient hashing.
+    static const uint32_t ARR_SIZE = (1 << 16);
+    static const uint32_t MOD = 1000000007;
+    static uint32_t pow2[ARR_SIZE];
+
+    int size;
+    uint64_t hash;
+    sdsl::bit_vector bv;
+
+    DocSet(int n) : size(n), hash(0) { bv.resize(n); }
+    DocSet(sdsl::bit_vector bits) : size(bits.size()), bv(bits) {
+        calc_hash();
+    }
+
+    void calc_hash() {
+        hash = 0;
+        for (int i = 0; i < size; i++) {
+            if (bv[i]) {
+                hash += pow2[i];
+                if (hash >= MOD) {
+                    hash -= MOD;
+                }
+            }
+        }
+    }
+
+    void set(int ind) {
+        if (!bv[ind]) {
+            bv[ind] = 1;
+            hash += pow2[ind];
+            if (hash >= MOD) {
+                hash -= MOD;
+            }
+        }
+    }
+
+    void unset(int ind) {
+        if (bv[ind]) {
+            bv[ind] = 0;
+            hash -= pow2[ind];
+            if (hash < 0) {
+                hash += MOD;
+            }
+        }
+    }
+
+    bool operator==(const DocSet &o) const {
+        for (int i = 0; i < size; i++) {
+            if (bv[i] != o.bv[i]) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static void initialize_pow2() {
+        // Fill in powers of 2 array.
+        pow2[0] = 1;
+        for (size_t i = 1; i < ARR_SIZE; i++) {
+            pow2[i] = (pow2[i - 1] << 1);
+            if (pow2[i] >= MOD) {
+                pow2[i] -= MOD;
+            }
+        }
+    }
+};
+
+template<>
+struct std::hash<DocSet> {
+    const size_t MOD = 1000000007;
+    std::size_t operator()(const DocSet &dc) const {
+        return dc.hash;
+    }
+};
 
 struct MoveInterval {
     MoveInterval() {}
@@ -162,8 +240,10 @@ class MoveStructure {
         void print_SA();
         // Builds document sets for each run in rlbwt.
         void build_doc_sets();
+        void hash_collapse(std::unordered_map<DocSet, uint32_t> &keep_set, int run_ind);
+        void build_tree_doc_sets();
         void build_doc_set_similarities();
-        void compress_doc_sets();
+        void compress_doc_sets(bool hash_compress);
         // Builds document information for all rows.
         void build_doc_pats();
         // Writes frequencies of document sets to file.
@@ -230,6 +310,7 @@ class MoveStructure {
         // Document sets.
         std::vector<sdsl::bit_vector> unique_doc_sets;
         std::vector<uint32_t> doc_set_inds;
+        
         // Count of how much each doc set appears (by ID).
         std::vector<uint64_t> doc_set_cnts;
 
@@ -300,58 +381,6 @@ class MoveStructure {
         sdsl::bit_vector bits;
         sdsl::rank_support_v<> rbits;
         // sdsl::select_support_mcl<> sbits;
-};
-
-class DocSet {
-public:
-    // Used for efficient hashing.
-    static const uint32_t ARR_SIZE = (1 << 16);
-    static const uint32_t MOD = 1000000007;
-    static uint32_t pow2[ARR_SIZE];
-
-    int size;
-    uint64_t hash;
-    sdsl::bit_vector bv;
-
-    DocSet(int n) : size(n), hash(0) { bv.resize(n); }
-
-    void set(int ind) {
-        if (!bv[ind]) {
-            bv[ind] = 1;
-            hash += pow2[ind];
-            if (hash >= MOD) {
-                hash -= MOD;
-            }
-        }
-    }
-
-    bool operator==(const DocSet &o) const {
-        for (int i = 0; i < size; i++) {
-            if (bv[i] != o.bv[i]) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    static void initialize_pow2() {
-        // Fill in powers of 2 array.
-        pow2[0] = 1;
-        for (size_t i = 1; i < ARR_SIZE; i++) {
-            pow2[i] = (pow2[i - 1] << 1);
-            if (pow2[i] >= MOD) {
-                pow2[i] -= MOD;
-            }
-        }
-    }
-};
-
-template<>
-struct std::hash<DocSet> {
-    const size_t MOD = 1000000007;
-    std::size_t operator()(const DocSet &dc) const {
-        return dc.hash;
-    }
 };
 
 #endif

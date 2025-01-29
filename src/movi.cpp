@@ -216,7 +216,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("zml")) { 
                         movi_options.set_zml(); 
                     }
-                    if (result.count("pml")) {
+                    if (result.count("pml") || result.count("zml")) {
                         if (result.count("full")) {
                             movi_options.set_full_color(true);
                         }
@@ -371,6 +371,8 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 mv_.genotype_cnts.resize(mv_.get_num_docs()); 
                 mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".pml.bin", std::ios::out | std::ios::binary);
             } else if (movi_options.is_zml()) {
+                // remember to eventually remove classification for zml, right now its just for testing purposes
+                mv_.genotype_cnts.resize(mv_.get_num_docs()); 
                 mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".zml.bin", std::ios::out | std::ios::binary);
             } else if (movi_options.is_count()) {
                 count_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".matches");
@@ -448,7 +450,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             }
         }
         
-        if (movi_options.is_pml()) {
+        if (movi_options.is_pml() || movi_options.is_zml()) {
             // Write genotype query results to file.
             std::ofstream out(movi_options.get_out_file(), std::ofstream::app);
             for (uint16_t i = 0; i < mv_.get_num_species(); i++) {
@@ -462,12 +464,6 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 mls_file.close();
             }
             std::cerr << "The output file for the matching lengths closed.\n";
-        } else if (movi_options.is_zml()) {
-            std::cerr << "all fast forward counts: " << total_ff_count << "\n";
-            if (!movi_options.is_stdout()) {
-                mls_file.close();
-            }
-            std::cerr << "The output file for the matching lengths closed.\n";    
         } else if (movi_options.is_count()) {
             if (!movi_options.is_stdout()) {
                 count_file.close();
@@ -546,13 +542,13 @@ int main(int argc, char** argv) {
             mv_.build_doc_pats();
             mv_.serialize_doc_pats();
         } else {
-            // mv_.build_doc_set_similarities();
             if (!movi_options.is_compressed()) {
                 mv_.build_doc_sets();
                 mv_.serialize_doc_sets("doc_sets.bin");
             } else {
                 mv_.deserialize_doc_sets("doc_sets.bin");
-                mv_.compress_doc_sets();
+                mv_.compress_doc_sets(false);
+                //mv_.build_tree_doc_sets();
                 mv_.serialize_doc_sets("doc_sets_compressed.bin");
             }
         }
@@ -578,7 +574,7 @@ int main(int argc, char** argv) {
             if (!movi_options.is_compressed()) {
                 mv_.deserialize_doc_sets("doc_sets.bin");
             } else {
-                mv_.deserialize_doc_sets("doc_sets_compressed.bin");
+                mv_.deserialize_doc_sets("doc_sets_rand_tree_compressed.bin");
             }
             // mv_.write_doc_set_freqs("../output/48_species/long_reads/doc_set_freqs.txt");
         }
