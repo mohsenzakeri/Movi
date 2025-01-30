@@ -1,9 +1,8 @@
-#ifndef __MOVE_STRUCTURE__
-#define __MOVE_STRUCTURE__
+#ifndef MOVE_STRUCTURE_HPP
+#define MOVE_STRUCTURE_HPP
 
 #include <fstream>
 #include <cstdint>
-#include <zlib.h>
 #include <stdio.h>
 #include <chrono>
 #include <cstddef>
@@ -22,9 +21,7 @@
 #include "move_row.hpp"
 #include "move_query.hpp"
 #include "sequitur.hpp"
-
-#define END_CHARACTER 0
-#define THRBYTES 5 
+#include "utils.hpp"
 
 class DocSet {
 public:
@@ -189,30 +186,32 @@ class MoveStructure {
         MoveStructure(MoviOptions* movi_options_, uint16_t splitting, bool constant);
 
         std::ofstream debug_out;
-
-        bool check_mode();
-        std::string index_type();
+        
         void build();
         void fill_bits_by_thresholds();
         void build_rlbwt();
-        uint64_t query_pml(MoveQuery& mq, bool random);
+        uint64_t query_pml(MoveQuery& mq);
         uint64_t query_backward_search(MoveQuery& mq, int32_t& pos_on_r);
         uint64_t query_zml(MoveQuery& mq);
+
         void query_all_kmers(MoveQuery& mq, bool kmer_counts = false);
         uint64_t query_kmers_from_bidirectional(MoveQuery& mq, int32_t& pos_on_r);
         uint64_t query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool single = false);
+
+        MoveInterval try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k, bool rc = false);
         bool look_ahead_ftab(MoveQuery& mq, uint32_t pos_on_r, int32_t& step);
         bool look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r, int32_t step);
+
         bool extend_bidirectional(char c_, MoveInterval& fw_interval, MoveInterval& rc_interval);
         bool extend_left(char c, MoveBiInterval& bi_interval);
         bool extend_right(char c, MoveBiInterval& bi_interval);
         MoveBiInterval backward_search_bidirectional(std::string& R, int32_t& pos_on_r, MoveBiInterval interval, int32_t max_length);
         MoveBiInterval initialize_bidirectional_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len);
+
         bool backward_search_step(char c, MoveInterval& interval);
         uint64_t backward_search_step(std::string& R, int32_t& pos_on_r, MoveInterval& interval);
         MoveInterval backward_search(std::string& R, int32_t& pos_on_r, MoveInterval interval, int32_t max_length);
         MoveInterval initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, bool rc = false);
-        MoveInterval try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k, bool rc = false);
         void update_interval(MoveInterval& interval, char next_char);
 
         void sequential_lf();
@@ -220,14 +219,17 @@ class MoveStructure {
         std::string reconstruct_lf();
 
         uint64_t LF(uint64_t row_number, uint64_t alphabet_index);
-        uint16_t LF_move(uint64_t& pointer, uint64_t& i);
+        // The 3rd argument of LF_move is used in the latency_hiding_tally mode
+        uint16_t LF_move(uint64_t& pointer, uint64_t& i, uint64_t id = std::numeric_limits<uint64_t>::max());
         uint64_t fast_forward(uint64_t& offset, uint64_t index, uint64_t x);
 
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
         uint32_t compute_index(char row_char, char lookup_char);
-#if MODE == 1
+
+#if USE_NEXT_POINTERS
         void compute_nexts();
 #endif
+
         void compute_ftab();
         void write_ftab();
         void compute_run_lcs();
@@ -256,10 +258,6 @@ class MoveStructure {
         // uint64_t naive_sa(uint64_t bwt_row);
         // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
 
-        uint64_t jump_up(uint64_t idx, char c, uint64_t& scan_count);
-        uint64_t jump_down(uint64_t idx, char c, uint64_t& scan_count);
-        bool jump_randomly(uint64_t& idx, char r_char, uint64_t& scan_count);
-        
         void serialize_doc_pats();
         void deserialize_doc_pats();
         void serialize_doc_sets(std::string file_suf);
@@ -267,6 +265,10 @@ class MoveStructure {
         void serialize();
         void deserialize();
         
+        uint64_t reposition_up(uint64_t idx, char c, uint64_t& scan_count);
+        uint64_t reposition_down(uint64_t idx, char c, uint64_t& scan_count);
+        bool reposition_randomly(uint64_t& idx, char r_char, uint64_t& scan_count);
+
         void verify_lfs();
         void print_stats();
         void print_ids();
@@ -280,12 +282,12 @@ class MoveStructure {
         uint64_t get_n(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
         uint64_t get_id(uint64_t idx);
-#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6
+#if USE_THRESHOLDS
         void compute_thresholds();
-        bool jump_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
+        bool reposition_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
         uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
 #endif
-#if MODE == 0 or MODE == 1 or MODE == 4
+#if SPLIT_THRESHOLDS_FALSE
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
 #endif
@@ -294,6 +296,7 @@ class MoveStructure {
     
         KmerStatistics kmer_stats;
         friend class ReadProcessor;
+        std::vector<MoveRow> get_rlbwt();
     private:
         // Sorted vector of the start offsets of each document.  
         std::vector<uint64_t> doc_offsets;
@@ -321,7 +324,7 @@ class MoveStructure {
         bool use_doc_pats;
     
         MoviOptions* movi_options;
-        bool onebit;
+	    bool onebit; // This is not used any more as the onebit modes is deprecated
         bool constant;
         uint16_t splitting;
 
@@ -348,6 +351,11 @@ class MoveStructure {
 
         // The move structure rows
         std::vector<MoveRow> rlbwt;
+#if TALLY_MODE
+        uint32_t tally_checkpoints;
+        std::vector<std::vector<MoveTally>> tally_ids;
+#endif
+        std::vector<std::vector<uint32_t>> id_blocks;
 
         // auxilary datastructures for the length, offset and thresholds overflow
         std::vector<uint64_t> n_overflow;
@@ -368,7 +376,7 @@ class MoveStructure {
         // Used for gathering statistics
         uint64_t no_ftab;
         uint64_t all_initializations;
-        std::unordered_map<uint32_t, uint32_t> jumps;
+        std::unordered_map<uint32_t, uint32_t> repositions;
         std::unordered_map<uint32_t, uint32_t> ff_counts;
         std::unordered_map<uint64_t, uint64_t> run_lengths;
 
