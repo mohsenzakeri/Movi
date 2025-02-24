@@ -34,6 +34,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
     auto queryOptions = options.add_options("query")
         ("pml", "Compute the pseudo-matching lengths (PMLs)")
+        ("rpml", "Compute the pseudo-matching lengths using random repositioning (RPMLs)")
         ("zml", "Compute the Ziv-Merhav cross parsing length (ZMLs)")
         ("count", "Compute the count queries")
         ("kmer", "Search all the kmers")
