@@ -153,6 +153,9 @@ class MoveStructure {
         void compute_run_lcs();
         void read_ftab();
 
+        // Finds SA entries of all rows in BWT.
+        void find_all_SA();
+
         // The following are used during development only
         // std::string reconstruct();
         // char compute_char(uint64_t idx);
@@ -172,6 +175,8 @@ class MoveStructure {
 
         void serialize();
         void deserialize();
+        void serialize_SA();
+        void deserialize_SA();
 
         char get_char(uint64_t idx);
         uint64_t get_n(uint64_t idx);
@@ -194,6 +199,12 @@ class MoveStructure {
 	    bool onebit; // This is not used any more as the onebit modes is deprecated
         bool constant;
         uint16_t splitting;
+
+        // Offset of run heads in the rlbwt. For experimental purposes.
+        // std::vector<uint64_t> run_offsets;
+
+        // Vector of all SA entries. For experiment purposes.
+        std::vector<uint64_t> SA_entries;
 
         std::string bwt_string;
         uint64_t length;

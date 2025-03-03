@@ -194,6 +194,14 @@ void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::strin
     }
 }
 
+void output_sa_entries(std::ofstream& sa_entries_file, std::string read_id, MoveQuery& mq) {
+    sa_entries_file << ">" << read_id << "\n";
+    for (auto& sa_entry : mq.get_sa_entries()) {
+        sa_entries_file << sa_entry << " ";
+    }
+    sa_entries_file << "\n";
+}
+
 void output_counts(bool to_stdout, std::ofstream& count_file, std::string read_id, size_t query_length, int32_t pos_on_r, uint64_t match_count) {
     if (to_stdout) {
         // std::cout << seq->name.s << "\t";

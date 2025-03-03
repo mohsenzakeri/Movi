@@ -32,6 +32,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("skip-rlbwt", "Skip the rlbwt step -- constant and split index")
         ("skip-r-permute", "Skip the r-permute step -- constant and split index");
 
+    auto buildSAOptions = options.add_options("build-SA")
+        ("i,index", "Index directory", cxxopts::value<std::string>());
+
     auto queryOptions = options.add_options("query")
         ("pml", "Compute the pseudo-matching lengths (PMLs)")
         ("rpml", "Compute the pseudo-matching lengths using random repositioning (RPMLs)")
@@ -39,6 +42,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("count", "Compute the count queries")
         ("kmer", "Search all the kmers")
         ("kmer-count", "Find the count of every kmer")
+        ("sa-entries", "Find the SA entries for each read")
         ("classify", "Classify the reads")
         ("bin-width", "The width of the bin used for classification", cxxopts::value<uint32_t>())
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
@@ -137,6 +141,13 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     const std::string message = "Please include one index directory and one fasta file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
+            } else if (command == "build-SA") {
+                if (result.count("index") == 1) {
+                    movi_options.set_index_dir(result["index"].as<std::string>());
+                } else {
+                    const std::string message = "Please specify the index directory file.";
+                    cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                }
             } else if (command == "query") {
                 try {
                     if (result.count("index") == 1 and result.count("read") == 1) {
@@ -151,6 +162,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("count") >= 1) { movi_options.set_count(); }
                         if (result.count("zml") >= 1) { movi_options.set_zml(); }
                         if (result.count("pml") >= 1) { movi_options.set_pml(); }
+                        if (result.count("sa-entries") >= 1) { movi_options.set_get_sa_entries(true); std::cerr << "get_sa_entries: " << movi_options.is_get_sa_entries() << "\n"; }
                         if (result.count("rpml") >= 1) { movi_options.set_random_repositioning(true); }
                         if (result.count("classify") >= 1) { movi_options.set_classify(true); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }

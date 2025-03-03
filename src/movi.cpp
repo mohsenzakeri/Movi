@@ -86,11 +86,16 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         std::ofstream scans_file;
         std::ofstream fastforwards_file;
         std::ofstream report_file;
+        std::ofstream sa_entries_file;
         std::string index_type = program();
         if (movi_options.is_logs()) {
             costs_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".costs");
             scans_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".scans");
             fastforwards_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".fastforwards");
+        }
+
+        if (movi_options.is_get_sa_entries()) {
+            sa_entries_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".sa_entries");
         }
 
         Classifier classifier;
@@ -164,7 +169,11 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                         #pragma omp critical
                         {
                             output_matching_lengths(movi_options.is_stdout(), mls_file, read_struct.id, mq);
+                            if (movi_options.is_get_sa_entries()) {
+                                output_sa_entries(sa_entries_file, read_struct.id, mq);
+                            }
                         }
+
                     } else if (movi_options.is_count()) {
                         int32_t pos_on_r = query_seq.length() - 1;
                         // uint64_t match_count = mv_.backward_search(query_seq, pos_on_r);
@@ -195,6 +204,9 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             std::cerr << "all fast forward counts: " << total_ff_count << "\n";
             if (!movi_options.is_stdout()) {
                 mls_file.close();
+            }
+            if (movi_options.is_get_sa_entries()) {
+                sa_entries_file.close();
             }
             std::cerr << "The output file for the matching lengths closed.\n";
         } else if (movi_options.is_count()) {
@@ -308,10 +320,18 @@ int main(int argc, char** argv) {
             movi_options.set_zml();
             movi_options.set_generate_null_reads(false); // do not regenerate the null reads
             classifier.generate_null_statistics(mv_, movi_options);
+        } else if (command == "build-SA") {
+            MoveStructure mv_(&movi_options);
+            mv_.deserialize();
+            mv_.find_all_SA();
+            mv_.serialize_SA();
         } else if (command == "query") {
             MoveStructure mv_(&movi_options);
             auto begin = std::chrono::system_clock::now();
             mv_.deserialize();
+            if (movi_options.is_get_sa_entries()) {
+                mv_.deserialize_SA();
+            }
             auto end = std::chrono::system_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
             std::fprintf(stderr, "Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);

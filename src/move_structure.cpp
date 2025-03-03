@@ -106,6 +106,30 @@ uint64_t MoveStructure::LF(uint64_t row_number, uint64_t alphabet_index) {
     return sa;
 }*/
 
+// Finds all SA entries in O(n).
+void MoveStructure::find_all_SA() {
+    uint64_t tot_len = 0;
+    all_p.resize(r);
+    std::cerr << "r: " << r << "\n";
+    for (uint64_t i = 0; i < r; i++) {
+        all_p[i] = tot_len;
+        tot_len += rlbwt[i].get_n();
+    }
+    std::cerr << "tot_len: " << tot_len << "\n";
+    // run_offsets is the same as all_p
+
+    SA_entries.resize(tot_len);
+    uint64_t offset = 0;
+    uint64_t index = 0;
+    uint64_t SA_val = tot_len;
+    for (uint64_t i = 0; i < tot_len; i++) {
+        SA_val--;
+        uint64_t row_ind = all_p[index] + offset;
+        SA_entries[row_ind] = SA_val;
+        LF_move(offset, index);
+    }
+}
+
 uint32_t MoveStructure::compute_index(char row_char, char lookup_char) {
     uint32_t alpha_index = alphamap[lookup_char];
     return alpha_index;
@@ -2085,6 +2109,11 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
         }
 
         mq.add_ml(match_len, movi_options->is_stdout());
+        if (movi_options->is_get_sa_entries()) {
+            uint64_t abs_offset = all_p[idx] + offset;
+            uint64_t sa_entry = SA_entries[abs_offset];
+            mq.add_sa_entries(sa_entry);
+        }
         pos_on_r -= 1;
 
         // LF step
@@ -2561,6 +2590,32 @@ void MoveStructure::deserialize() {
         fin.read(reinterpret_cast<char*>(&original_r), sizeof(original_r));
     }
 
+    fin.close();
+}
+
+void MoveStructure::serialize_SA() {
+    std::string fname = movi_options->get_index_dir() + "/SA.movi";
+    std::ofstream fout(fname, std::ios::out | std::ios::binary);
+    uint64_t SA_entries_size = SA_entries.size();
+    fout.write(reinterpret_cast<char*>(&SA_entries_size), sizeof(SA_entries_size));
+    fout.write(reinterpret_cast<char*>(&SA_entries[0]), SA_entries_size*sizeof(SA_entries[0]));
+    uint64_t all_p_size = all_p.size();
+    fout.write(reinterpret_cast<char*>(&all_p_size), sizeof(all_p_size));
+    fout.write(reinterpret_cast<char*>(&all_p[0]), all_p_size*sizeof(all_p[0]));
+    fout.close();
+}
+
+void MoveStructure::deserialize_SA() {
+    std::string fname = movi_options->get_index_dir() + "/SA.movi";
+    std::ifstream fin(fname, std::ios::in | std::ios::binary);
+    uint64_t SA_entries_size = 0;
+    fin.read(reinterpret_cast<char*>(&SA_entries_size), sizeof(SA_entries_size));
+    SA_entries.resize(SA_entries_size);
+    fin.read(reinterpret_cast<char*>(&SA_entries[0]), SA_entries_size*sizeof(SA_entries[0]));
+    uint64_t all_p_size = 0;
+    fin.read(reinterpret_cast<char*>(&all_p_size), sizeof(all_p_size));
+    all_p.resize(all_p_size);
+    fin.read(reinterpret_cast<char*>(&all_p[0]), all_p_size*sizeof(all_p[0]));
     fin.close();
 }
 

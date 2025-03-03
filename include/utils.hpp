@@ -91,6 +91,8 @@ void output_counts(bool to_stdout, std::ofstream& count_file, std::string read_i
 
 void output_logs(std::ofstream& costs_file, std::ofstream& scans_file, std::ofstream& fastforwards_file, std::string read_id, MoveQuery& mq);
 
+void output_sa_entries(std::ofstream& sa_entries_file, std::string read_id, MoveQuery& mq);
+
 // Borrowed from spumoni written by Omar Ahmed: https://github.com/oma219/spumoni/tree/main
 std::string parse_null_reads(const char* ref_file, const char* output_path);
 

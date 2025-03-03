@@ -16,11 +16,16 @@ class MoveQuery {
                 matching_lengths_string += " " + len_str;
             }
         }
+        void add_sa_entries(uint64_t sa_entry) {
+            sa_entries.push_back(sa_entry);
+        }
+
         void add_cost(std::chrono::nanoseconds cost) { costs.push_back(cost); }
         void add_scan(uint64_t scan) { scans.push_back(scan); }
         void add_fastforward(uint64_t fastforward) { fastforwards.push_back(fastforward); }
         std::vector<uint16_t>& get_matching_lengths() { return matching_lens; }
         std::string& get_matching_lengths_string() { return matching_lengths_string; }
+        std::vector<uint64_t>& get_sa_entries() { return sa_entries; }
         std::vector<uint16_t>& get_scans() { return scans; }
         std::vector<uint16_t>& get_fastforwards() { return fastforwards; }
         std::vector<std::chrono::nanoseconds>& get_costs() { return costs; }
@@ -36,6 +41,7 @@ class MoveQuery {
     private:
         std::string query_string;
         std::string matching_lengths_string = "";
+        std::vector<uint64_t> sa_entries;
         std::vector<uint16_t> matching_lens;
         std::vector<uint16_t> scans;
         std::vector<uint16_t> fastforwards;
