@@ -107,7 +107,7 @@ uint64_t MoveStructure::LF(uint64_t row_number, uint64_t alphabet_index) {
 }*/
 
 // Finds all SA entries in O(n).
-void MoveStructure::find_all_SA() {
+void MoveStructure::find_sampled_SA_entries() {
     uint64_t tot_len = 0;
     all_p.resize(r);
     std::cerr << "r: " << r << "\n";
