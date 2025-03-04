@@ -154,7 +154,8 @@ class MoveStructure {
         void read_ftab();
 
         // Finds SA entries of all rows in BWT.
-        void find_all_SA();
+        void find_sampled_SA_entries();
+        uint64_t get_SA_entries(uint64_t idx, uint64_t offset);
 
         // The following are used during development only
         // std::string reconstruct();
@@ -175,8 +176,8 @@ class MoveStructure {
 
         void serialize();
         void deserialize();
-        void serialize_SA();
-        void deserialize_SA();
+        void serialize_sampled_SA();
+        void deserialize_sampled_SA();
 
         char get_char(uint64_t idx);
         uint64_t get_n(uint64_t idx);
@@ -200,11 +201,8 @@ class MoveStructure {
         bool constant;
         uint16_t splitting;
 
-        // Offset of run heads in the rlbwt. For experimental purposes.
-        // std::vector<uint64_t> run_offsets;
-
-        // Vector of all SA entries. For experiment purposes.
-        std::vector<uint64_t> SA_entries;
+        // Vector of sampled SA entries. For experiment purposes.
+        std::vector<uint64_t> sampled_SA_entries;
 
         std::string bwt_string;
         uint64_t length;

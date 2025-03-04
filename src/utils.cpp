@@ -140,7 +140,7 @@ uint8_t F_char(std::vector<uint64_t>& first_runs, uint64_t run) {
 }
 
 void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
-    int log_n = 100;
+    int log_n = 100; // TODO: This is too large, might help for improving the build process
 
     struct stat filestat;
     FILE *fd;

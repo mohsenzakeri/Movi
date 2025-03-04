@@ -116,18 +116,38 @@ void MoveStructure::find_all_SA() {
         tot_len += rlbwt[i].get_n();
     }
     std::cerr << "tot_len: " << tot_len << "\n";
-    // run_offsets is the same as all_p
 
-    SA_entries.resize(tot_len);
+    // Create a sampled SA
+    uint64_t SA_sample_rate = movi_options->get_SA_sample_rate();
+    uint64_t SA_sample_size = tot_len / SA_sample_rate + 1;
+    sampled_SA_entries.resize(SA_sample_size);
+
     uint64_t offset = 0;
     uint64_t index = 0;
     uint64_t SA_val = tot_len;
     for (uint64_t i = 0; i < tot_len; i++) {
         SA_val--;
         uint64_t row_ind = all_p[index] + offset;
-        SA_entries[row_ind] = SA_val;
+        if (row_ind % SA_sample_rate == 0) {
+            sampled_SA_entries[row_ind / SA_sample_rate] = SA_val;
+        }
         LF_move(offset, index);
     }
+}
+
+uint64_t MoveStructure::get_SA_entries(uint64_t idx, uint64_t offset) {
+    uint64_t abs_offset = all_p[idx] + offset;
+
+    // Reaching the nearest SA sample entry
+    uint64_t distance = 0;
+    uint64_t SA_sample_rate = movi_options->get_SA_sample_rate();
+    while (abs_offset % SA_sample_rate != 0) {
+        LF_move(offset, idx);
+        abs_offset = all_p[idx] + offset;
+        distance += 1;
+    }
+
+    return sampled_SA_entries[abs_offset / SA_sample_rate] + distance;
 }
 
 uint32_t MoveStructure::compute_index(char row_char, char lookup_char) {
@@ -2110,8 +2130,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
 
         mq.add_ml(match_len, movi_options->is_stdout());
         if (movi_options->is_get_sa_entries()) {
-            uint64_t abs_offset = all_p[idx] + offset;
-            uint64_t sa_entry = SA_entries[abs_offset];
+            uint64_t sa_entry = get_SA_entries(idx, offset);
             mq.add_sa_entries(sa_entry);
         }
         pos_on_r -= 1;
@@ -2475,7 +2494,7 @@ void MoveStructure::deserialize() {
             throw std::runtime_error("Failed to open the index file at: " + movi_options->get_index_dir());
         }
     }
-    fin.seekg(0, std::ios::beg); 
+    fin.seekg(0, std::ios::beg);
 
     if (!movi_options->is_no_header()) {
         char index_type;
@@ -2593,25 +2612,30 @@ void MoveStructure::deserialize() {
     fin.close();
 }
 
-void MoveStructure::serialize_SA() {
-    std::string fname = movi_options->get_index_dir() + "/SA.movi";
+void MoveStructure::serialize_sampled_SA() {
+    std::string fname = movi_options->get_index_dir() + "/ssa.movi";
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
-    uint64_t SA_entries_size = SA_entries.size();
-    fout.write(reinterpret_cast<char*>(&SA_entries_size), sizeof(SA_entries_size));
-    fout.write(reinterpret_cast<char*>(&SA_entries[0]), SA_entries_size*sizeof(SA_entries[0]));
+    uint64_t SA_sample_rate = movi_options->get_SA_sample_rate();
+    fout.write(reinterpret_cast<char*>(&SA_sample_rate), sizeof(SA_sample_rate));
+    uint64_t sampled_SA_entries_size = sampled_SA_entries.size();
+    fout.write(reinterpret_cast<char*>(&sampled_SA_entries_size), sizeof(sampled_SA_entries_size));
+    fout.write(reinterpret_cast<char*>(&sampled_SA_entries[0]), sampled_SA_entries_size*sizeof(sampled_SA_entries[0]));
     uint64_t all_p_size = all_p.size();
     fout.write(reinterpret_cast<char*>(&all_p_size), sizeof(all_p_size));
     fout.write(reinterpret_cast<char*>(&all_p[0]), all_p_size*sizeof(all_p[0]));
     fout.close();
 }
 
-void MoveStructure::deserialize_SA() {
-    std::string fname = movi_options->get_index_dir() + "/SA.movi";
+void MoveStructure::deserialize_sampled_SA() {
+    std::string fname = movi_options->get_index_dir() + "/ssa.movi";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
-    uint64_t SA_entries_size = 0;
-    fin.read(reinterpret_cast<char*>(&SA_entries_size), sizeof(SA_entries_size));
-    SA_entries.resize(SA_entries_size);
-    fin.read(reinterpret_cast<char*>(&SA_entries[0]), SA_entries_size*sizeof(SA_entries[0]));
+    uint64_t SA_sample_rate = 0;
+    fin.read(reinterpret_cast<char*>(&SA_sample_rate), sizeof(SA_sample_rate));
+    movi_options->set_SA_sample_rate(SA_sample_rate);
+    uint64_t sampled_SA_entries_size = 0;
+    fin.read(reinterpret_cast<char*>(&sampled_SA_entries_size), sizeof(sampled_SA_entries_size));
+    sampled_SA_entries.resize(sampled_SA_entries_size);
+    fin.read(reinterpret_cast<char*>(&sampled_SA_entries[0]), sampled_SA_entries_size*sizeof(sampled_SA_entries[0]));
     uint64_t all_p_size = 0;
     fin.read(reinterpret_cast<char*>(&all_p_size), sizeof(all_p_size));
     all_p.resize(all_p_size);

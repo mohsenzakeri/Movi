@@ -323,14 +323,14 @@ int main(int argc, char** argv) {
         } else if (command == "build-SA") {
             MoveStructure mv_(&movi_options);
             mv_.deserialize();
-            mv_.find_all_SA();
-            mv_.serialize_SA();
+            mv_.find_sampled_SA_entries();
+            mv_.serialize_sampled_SA();
         } else if (command == "query") {
             MoveStructure mv_(&movi_options);
             auto begin = std::chrono::system_clock::now();
             mv_.deserialize();
             if (movi_options.is_get_sa_entries()) {
-                mv_.deserialize_SA();
+                mv_.deserialize_sampled_SA();
             }
             auto end = std::chrono::system_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);

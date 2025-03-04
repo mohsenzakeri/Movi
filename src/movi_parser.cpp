@@ -33,7 +33,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("skip-r-permute", "Skip the r-permute step -- constant and split index");
 
     auto buildSAOptions = options.add_options("build-SA")
-        ("i,index", "Index directory", cxxopts::value<std::string>());
+        ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("sample-rate", "The sample rate for storing the sampled SA (default: 100)", cxxopts::value<uint64_t>());
 
     auto queryOptions = options.add_options("query")
         ("pml", "Compute the pseudo-matching lengths (PMLs)")
@@ -144,6 +145,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
             } else if (command == "build-SA") {
                 if (result.count("index") == 1) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
+                    if (result.count("sample-rate") >= 1) {
+                        movi_options.set_SA_sample_rate(static_cast<uint64_t>(result["sample-rate"].as<uint64_t>()));
+                    }
                 } else {
                     const std::string message = "Please specify the index directory file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
