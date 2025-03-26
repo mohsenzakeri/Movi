@@ -80,9 +80,8 @@ void Classifier::classify(std::string read_name, std::vector<uint16_t>& matching
     bool read_found = (bins_above/(bins_above+bins_below+0.0) > 0.50);
     status = (read_found) ? "FOUND" : "NOT_PRESENT";
 
-    #pragma omp critical
+    // #pragma omp critical --> this is now handled by the method that call classify
     {
-
         std::ostream& out = movi_options.is_stdout() ? std::cout : report_file;
         out.precision(3);
         out << std::setw(30) << std::left << read_name

@@ -99,7 +99,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         std::ofstream fastforwards_file;
         std::ofstream report_file;
 
-        if (!movi_options.is_stdout()) {
+        if (!movi_options.is_stdout() or movi_options.is_classify()) {
             if (movi_options.is_logs()) {
                 costs_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".costs");
                 scans_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".scans");
@@ -174,16 +174,14 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                             total_ff_count += mv_.query_zml(mq);
                         }
 
-                        std::vector<uint16_t> matching_lens = mq.get_matching_lengths();
-                        if (movi_options.is_classify()) {
-                            // classifier.classify(seq->name.s, matching_lens, movi_options);
-                            classifier.classify(read_struct.id, matching_lens, movi_options);
-                        }
                         #pragma omp critical
                         {
-                            if (!movi_options.is_stdout() and !movi_options.is_classify()) {
-                                output_matching_lengths(movi_options.is_stdout(), mls_file, read_struct.id, mq, movi_options.is_no_output());
+                            if (movi_options.is_classify()) {
+                                std::vector<uint16_t>& matching_lens = mq.get_matching_lengths();
+                                // classifier.classify(seq->name.s, matching_lens, movi_options);
+                                classifier.classify(read_struct.id, matching_lens, movi_options);
                             }
+                            output_matching_lengths(movi_options.is_stdout() and !movi_options.is_classify(), mls_file, read_struct.id, mq, movi_options.is_no_output());
                         }
 
                     } else if (movi_options.is_count()) {
@@ -195,9 +193,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
                         #pragma omp critical
                         {
-                            if (!movi_options.is_stdout() and !movi_options.is_classify()) {
-                                output_counts(movi_options.is_stdout(), count_file, read_struct.id, query_seq.length(), pos_on_r, match_count, movi_options.is_no_output());
-                            }
+                            output_counts(movi_options.is_stdout() and !movi_options.is_classify(), count_file, read_struct.id, query_seq.length(), pos_on_r, match_count, movi_options.is_no_output());
                         }
                     } else if (movi_options.is_kmer()) {
                         mq = MoveQuery(query_seq);

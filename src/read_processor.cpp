@@ -39,6 +39,10 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
         }
     }
 
+    if (mv_.movi_options->is_classify()) {
+        classifier.initialize_report_file(*mv_.movi_options);
+    }
+
     total_kmer_count = 0;
     positive_kmer_count = 0;
     negative_kmer_count = 0;
@@ -404,7 +408,7 @@ void ReadProcessor::find_tally_b(Strand& process) {
 #endif
 
 void ReadProcessor::write_mls(Strand& process) {
-    bool write_stdout = mv.movi_options->is_stdout();
+    bool write_stdout = mv.movi_options->is_stdout() and !mv.movi_options->is_classify();
     bool logs = mv.movi_options->is_logs();
     if (logs) {
         auto t2 = std::chrono::high_resolution_clock::now();
@@ -415,6 +419,10 @@ void ReadProcessor::write_mls(Strand& process) {
         output_logs(costs_file, scans_file, fastforwards_file, process.read_name, process.mq, mv.movi_options->is_no_output());
     }
 
+    if (mv.movi_options->is_classify()) {
+        std::vector<uint16_t>& matching_lens = process.mq.get_matching_lengths();
+        classifier.classify(process.read_name, matching_lens, *mv.movi_options);
+    }
     output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, mv.movi_options->is_no_output());
 }
 
@@ -451,6 +459,10 @@ void ReadProcessor::end_process() {
             matches_file.close();
             std::cerr << "match_file file closed!\n";
         }
+    }
+
+    if (mv.movi_options->is_classify()) {
+        classifier.close_report_file();
     }
 
     std::cerr << "no_ftab: " << mv.no_ftab << "\n";

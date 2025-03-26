@@ -4,6 +4,7 @@
 #include "move_structure.hpp"
 #include "utils.hpp"
 #include "batch_loader.hpp"
+#include "classifier.hpp"
 
 struct Strand {
     Strand() {}
@@ -78,6 +79,7 @@ class ReadProcessor {
 #endif
     private:
         MoveStructure& mv;
+        Classifier classifier;
         int cache_line_size;
         int prefetch_step;
         gzFile fp;
