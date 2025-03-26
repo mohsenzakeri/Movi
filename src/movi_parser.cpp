@@ -55,7 +55,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
         ("s,strands", "Number of strands for query", cxxopts::value<int>())
         ("t,threads", "Number of threads for query", cxxopts::value<int>())
-        ("stdout", "Write the output to stdout")
+        ("stdout", "Write the output to stdout, writes the matching lengths by default, or the report of classification if --classify is passed")
         ("no-output", "Do not write any output, ignores other options about the output")
         ("ignore-illegal-chars", "In the case of illegal characters (i.e., non-ACGT for genomic data), substitute the character with \'A\'(1) or a random character from the alphabet (2).", cxxopts::value<int>());
 

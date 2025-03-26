@@ -174,7 +174,7 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
 }
 
 
-void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::string read_id, MoveQuery& mq) {
+void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::string read_id, MoveQuery& mq, bool no_output) {
 
     if (to_stdout) {
         std::cout << ">" << read_id << " \n";
@@ -194,44 +194,50 @@ void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::strin
     }
 }
 
-void output_sa_entries(std::ofstream& sa_entries_file, std::string read_id, MoveQuery& mq) {
-    sa_entries_file << ">" << read_id << "\n";
-    for (auto& sa_entry : mq.get_sa_entries()) {
-        sa_entries_file << sa_entry << " ";
-    }
-    sa_entries_file << "\n";
-}
-
-void output_counts(bool to_stdout, std::ofstream& count_file, std::string read_id, size_t query_length, int32_t pos_on_r, uint64_t match_count) {
-    if (to_stdout) {
-        // std::cout << seq->name.s << "\t";
-        std::cout << read_id << "\t";
-        std::cout << query_length - pos_on_r << "/" << query_length << "\t" << match_count << "\n";
-    } else {
-        // count_file << seq->name.s << "\t";
-        count_file << read_id << "\t";
-        count_file << query_length - pos_on_r << "/" << query_length << "\t" << match_count << "\n";
+void output_sa_entries(std::ofstream& sa_entries_file, std::string read_id, MoveQuery& mq, bool no_output) {
+    if (!no_output) {
+        sa_entries_file << ">" << read_id << "\n";
+        for (auto& sa_entry : mq.get_sa_entries()) {
+            sa_entries_file << sa_entry << " ";
+        }
+        sa_entries_file << "\n";
     }
 }
 
-void output_logs(std::ofstream& costs_file, std::ofstream& scans_file, std::ofstream& fastforwards_file, std::string read_id, MoveQuery& mq) {
-    // costs_file << ">" << seq->name.s << "\n";
-    // scans_file << ">" << seq->name.s << "\n";
-    costs_file << ">" << read_id << "\n";
-    scans_file << ">" << read_id << "\n";
-    fastforwards_file << ">" << read_id << "\n";
-    for (auto& cost : mq.get_costs()) {
-        costs_file << cost.count() << " ";
+void output_counts(bool to_stdout, std::ofstream& count_file, std::string read_id, size_t query_length, int32_t pos_on_r, uint64_t match_count, bool no_output) {
+    if (!no_output) {
+        if (to_stdout) {
+            // std::cout << seq->name.s << "\t";
+            std::cout << read_id << "\t";
+            std::cout << query_length - pos_on_r << "/" << query_length << "\t" << match_count << "\n";
+        } else {
+            // count_file << seq->name.s << "\t";
+            count_file << read_id << "\t";
+            count_file << query_length - pos_on_r << "/" << query_length << "\t" << match_count << "\n";
+        }
     }
-    for (auto& scan: mq.get_scans()) {
-        scans_file << scan << " ";
+}
+
+void output_logs(std::ofstream& costs_file, std::ofstream& scans_file, std::ofstream& fastforwards_file, std::string read_id, MoveQuery& mq, bool no_output) {
+    if (!no_output) {
+        // costs_file << ">" << seq->name.s << "\n";
+        // scans_file << ">" << seq->name.s << "\n";
+        costs_file << ">" << read_id << "\n";
+        scans_file << ">" << read_id << "\n";
+        fastforwards_file << ">" << read_id << "\n";
+        for (auto& cost : mq.get_costs()) {
+            costs_file << cost.count() << " ";
+        }
+        for (auto& scan: mq.get_scans()) {
+            scans_file << scan << " ";
+        }
+        for (auto& fast_forward : mq.get_fastforwards()) {
+            fastforwards_file << fast_forward << " ";
+        }
+        costs_file << "\n";
+        scans_file << "\n";
+        fastforwards_file << "\n";
     }
-    for (auto& fast_forward : mq.get_fastforwards()) {
-        fastforwards_file << fast_forward << " ";
-    }
-    costs_file << "\n";
-    scans_file << "\n";
-    fastforwards_file << "\n";
 }
 
 // Borrowed from spumoni written by Omar Ahmed: https://github.com/oma219/spumoni/tree/main

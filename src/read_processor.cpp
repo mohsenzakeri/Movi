@@ -20,7 +20,8 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
 
     // seq = kseq_init(fp); // STEP 3: initialize seq
     std::string index_type = program();
-    if (!mv_.movi_options->is_stdout()) {
+
+    if (!mv_.movi_options->is_stdout() and !mv_.movi_options->is_no_output()) {
         if (mv_.movi_options->is_pml()) {
             std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
             mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
@@ -31,7 +32,13 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
             std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
             matches_file = std::ofstream(matches_file_name);
         }
+        if (mv_.movi_options->is_logs()) {
+            costs_file = std::ofstream(reads_file_name + "." + index_type + ".costs");
+            scans_file = std::ofstream(reads_file_name + "." + index_type + ".scans");
+            fastforwards_file = std::ofstream(reads_file_name + "." + index_type + ".fastforwards");
+        }
     }
+
     total_kmer_count = 0;
     positive_kmer_count = 0;
     negative_kmer_count = 0;
@@ -40,11 +47,6 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
     negative_kmer_extension_count = 0;
     read_processed = 0;
     strands = strands_;
-    if (mv_.movi_options->is_logs()) {
-        costs_file = std::ofstream(reads_file_name + "." + index_type + ".costs");
-        scans_file = std::ofstream(reads_file_name + "." + index_type + ".scans");
-        fastforwards_file = std::ofstream(reads_file_name + "." + index_type + ".fastforwards");
-    }
 }
 
 bool ReadProcessor::next_read(Strand& process, BatchLoader& reader) {
@@ -410,17 +412,17 @@ void ReadProcessor::write_mls(Strand& process) {
         process.mq.add_cost(elapsed);
         process.mq.add_fastforward(process.ff_count);
         process.mq.add_scan(process.scan_count);
-        output_logs(costs_file, scans_file, fastforwards_file, process.read_name, process.mq);
+        output_logs(costs_file, scans_file, fastforwards_file, process.read_name, process.mq, mv.movi_options->is_no_output());
     }
 
-    output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq);
+    output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, mv.movi_options->is_no_output());
 }
 
 void ReadProcessor::write_count(Strand& process) {
     compute_match_count(process);
     auto& R = process.mq.query();
     bool write_stdout = mv.movi_options->is_stdout();
-    output_counts(write_stdout, matches_file, process.read_name, R.length(), process.pos_on_r, process.match_count);
+    output_counts(write_stdout, matches_file, process.read_name, R.length(), process.pos_on_r, process.match_count, mv.movi_options->is_no_output());
 }
 
 void ReadProcessor::compute_match_count(Strand& process) {

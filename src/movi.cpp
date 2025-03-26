@@ -90,22 +90,26 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         // int l;
         // kseq_t* seq = open_kseq(fp, movi_options.get_read_file());
 
+        std::string index_type = program();
+
         std::ofstream mls_file;
         std::ofstream count_file;
         std::ofstream costs_file;
         std::ofstream scans_file;
         std::ofstream fastforwards_file;
         std::ofstream report_file;
-        std::ofstream sa_entries_file;
-        std::string index_type = program();
-        if (movi_options.is_logs()) {
-            costs_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".costs");
-            scans_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".scans");
-            fastforwards_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".fastforwards");
-        }
 
-        if (movi_options.is_get_sa_entries()) {
-            sa_entries_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".sa_entries");
+        if (!movi_options.is_stdout()) {
+            if (movi_options.is_logs()) {
+                costs_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".costs");
+                scans_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".scans");
+                fastforwards_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".fastforwards");
+            }
+
+            if (movi_options.is_pml() or movi_options.is_zml())
+                mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + "." + query_type(movi_options) + ".bin", std::ios::out | std::ios::binary);
+            else if (movi_options.is_count())
+                count_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".matches");
         }
 
         Classifier classifier;
@@ -178,11 +182,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                         #pragma omp critical
                         {
                             if (!movi_options.is_stdout() and !movi_options.is_classify()) {
-                                output_matching_lengths(movi_options.is_stdout(), mls_file, read_struct.id, mq);
-                            }
-
-                            if (movi_options.is_get_sa_entries()) {
-                                output_sa_entries(sa_entries_file, read_struct.id, mq);
+                                output_matching_lengths(movi_options.is_stdout(), mls_file, read_struct.id, mq, movi_options.is_no_output());
                             }
                         }
 
@@ -196,7 +196,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                         #pragma omp critical
                         {
                             if (!movi_options.is_stdout() and !movi_options.is_classify()) {
-                                output_counts(movi_options.is_stdout(), count_file, read_struct.id, query_seq.length(), pos_on_r, match_count);
+                                output_counts(movi_options.is_stdout(), count_file, read_struct.id, query_seq.length(), pos_on_r, match_count, movi_options.is_no_output());
                             }
                         }
                     } else if (movi_options.is_kmer()) {
@@ -207,37 +207,36 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     if (movi_options.is_logs()) {
                         #pragma omp critical
                         {
-                            output_logs(costs_file, scans_file, fastforwards_file, read_struct.id, mq);
+                            output_logs(costs_file, scans_file, fastforwards_file, read_struct.id, mq, movi_options.is_no_output());
                         }
                     }
                 }
             }
         }
-        
-        if (movi_options.is_pml() or movi_options.is_zml()) {
-            std::cerr << "all fast forward counts: " << total_ff_count << "\n";
-            if (!movi_options.is_stdout()) {
-                mls_file.close();
+
+        if (!movi_options.is_no_output()) {
+            if (movi_options.is_pml() or movi_options.is_zml()) {
+                std::cerr << "all fast forward counts: " << total_ff_count << "\n";
+                if (!movi_options.is_stdout()) {
+                    mls_file.close();
+                }
+                std::cerr << "The output file for the matching lengths closed.\n";
+            } else if (movi_options.is_count()) {
+                if (!movi_options.is_stdout()) {
+                    count_file.close();
+                }
+                std::cerr << "The count file is closed.\n";
+            } else if (movi_options.is_kmer()) {
+                mv_.kmer_stats.print(movi_options.is_kmer_count());
             }
-            if (movi_options.is_get_sa_entries()) {
-                sa_entries_file.close();
+            if (movi_options.is_classify()) {
+                classifier.close_report_file();
             }
-            std::cerr << "The output file for the matching lengths closed.\n";
-        } else if (movi_options.is_count()) {
-            if (!movi_options.is_stdout()) {
-                count_file.close();
+            if (movi_options.is_logs()) {
+                costs_file.close();
+                scans_file.close();
+                fastforwards_file.close();
             }
-            std::cerr << "The count file is closed.\n";
-        } else if (movi_options.is_kmer()) {
-            mv_.kmer_stats.print(movi_options.is_kmer_count());
-        }
-        if (movi_options.is_classify()) {
-            classifier.close_report_file();
-        }
-        if (movi_options.is_logs()) {
-            costs_file.close();
-            scans_file.close();
-            fastforwards_file.close();
         }
         // close_kseq(seq, fp);
     }
@@ -292,7 +291,7 @@ int main(int argc, char** argv) {
             return 0;
         }
 
-        if (movi_options.is_stdout()) {
+        if (movi_options.is_stdout() and !movi_options.is_no_output()) {
             // Disable sync for faster I/O
             std::ios_base::sync_with_stdio(false);
 
