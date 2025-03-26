@@ -98,8 +98,9 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         std::ofstream scans_file;
         std::ofstream fastforwards_file;
         std::ofstream report_file;
+        std::ofstream sa_entries_file;
 
-        if (!movi_options.is_stdout() or movi_options.is_classify()) {
+        if ((!movi_options.is_stdout() or movi_options.is_classify()) and !movi_options.is_filter()) {
             if (movi_options.is_logs()) {
                 costs_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".costs");
                 scans_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".scans");
@@ -113,7 +114,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         }
 
         Classifier classifier;
-        if (movi_options.is_classify()) {
+        if (movi_options.is_classify() or movi_options.is_filter()) {
             classifier.initialize_report_file(movi_options);
         }
 
@@ -176,12 +177,21 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
                         #pragma omp critical
                         {
-                            if (movi_options.is_classify()) {
+                            if (movi_options.is_classify() or movi_options.is_filter()) {
                                 std::vector<uint16_t>& matching_lens = mq.get_matching_lengths();
                                 // classifier.classify(seq->name.s, matching_lens, movi_options);
-                                classifier.classify(read_struct.id, matching_lens, movi_options);
+                                bool found = classifier.classify(read_struct.id, matching_lens, movi_options);
+                                if (found and movi_options.is_filter()) {
+                                    output_read(read_struct.id, read_struct.seq, movi_options.is_no_output());
+                                }
                             }
-                            output_matching_lengths(movi_options.is_stdout() and !movi_options.is_classify(), mls_file, read_struct.id, mq, movi_options.is_no_output());
+
+                            if (!movi_options.is_filter()) {
+                                output_matching_lengths(movi_options.is_stdout() and !movi_options.is_classify(), mls_file, read_struct.id, mq, movi_options.is_no_output());
+                                if (movi_options.is_get_sa_entries()) {
+                                    output_sa_entries(sa_entries_file, read_struct.id, mq, movi_options.is_no_output());
+                                }
+                            }
                         }
 
                     } else if (movi_options.is_count()) {
@@ -210,7 +220,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             }
         }
 
-        if (!movi_options.is_no_output()) {
+        if (!movi_options.is_no_output() and !movi_options.is_filter()) {
             if (movi_options.is_pml() or movi_options.is_zml()) {
                 std::cerr << "all fast forward counts: " << total_ff_count << "\n";
                 if (!movi_options.is_stdout()) {

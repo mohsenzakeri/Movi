@@ -34,6 +34,7 @@ class MoviOptions {
         bool is_reverse() { return reverse; }
         bool is_multi_ftab() { return multi_ftab; }
         bool is_classify() { return classify; }
+        bool is_filter() { return filter; }
         bool is_generate_null_reads() { return generate_null_reads; }
         size_t get_bin_width() { return bin_width; }
         int ignore_illegal_chars_status() { return ilc; }
@@ -76,6 +77,7 @@ class MoviOptions {
         void set_multi_ftab(bool multi_ftab_) { multi_ftab = multi_ftab_; }
         void set_reverse(bool reverse_) { reverse = reverse_; }
         void set_classify(bool classify_) { classify = classify_; }
+        void set_filter(bool filter_) { filter = filter_; }
         void set_generate_null_reads(bool generate_null_reads_) { generate_null_reads = generate_null_reads_; }
         void set_bin_width(size_t bin_width_) { bin_width = bin_width_; }
         bool set_ignore_illegal_chars(int ilc_) {
@@ -105,26 +107,39 @@ class MoviOptions {
         void set_index_dir(std::string dir) { index_dir = dir; }
 
         void print_options() {
-            std::cerr << "no_header:\t" << no_header << "\n";
-            std::cerr << "split:\t" << split << "\n";
-            std::cerr << "thresholds:\t" << thresholds << "\n";
+            std::cerr << "command:\t" << command << "\n";
             std::cerr << "ref_file:\t" << ref_file << "\n";
             std::cerr << "bwt_file:\t" << bwt_file << "\n";
             std::cerr << "read_file:\t" << read_file << "\n";
             std::cerr << "mls_file:\t" << mls_file << "\n";
             std::cerr << "index_dir:\t" << index_dir << "\n";
             std::cerr << "LF_type:\t" << LF_type << "\n";
+            std::cerr << "no_header:\t" << no_header << "\n";
+            std::cerr << "preprocessed:\t" << preprocessed << "\n";
+            std::cerr << "ilc:\t" << ilc << "\n";
+            std::cerr << "split:\t" << split << "\n";
+            std::cerr << "thresholds:\t" << thresholds << "\n";
+            std::cerr << "random_repositioning:\t" << random_repositioning << "\n";
             std::cerr << "get_sa_entries:\t" << get_sa_entries << "\n";
             std::cerr << "pml_query:\t" << pml_query << "\n";
             std::cerr << "zml_query:\t" << zml_query << "\n";
             std::cerr << "count_query:\t" << count_query << "\n";
-            std::cerr << "ftab_k:\t" << ftab_k << "\n";
-            std::cerr << "tally_checkpoints:\t" << tally_checkpoints << "\n";
-            std::cerr << "SA_sample_rate:\t" << SA_sample_rate << "\n";
+            std::cerr << "kmer_query:\t" << kmer_query << "\n";
+            std::cerr << "kmer_count:\t" << kmer_count << "\n";
             std::cerr << "reverse:\t" << reverse << "\n";
             std::cerr << "prefetch:\t" << prefetch << "\n";
             std::cerr << "strands:\t" << strands << "\n";
+            std::cerr << "threads:\t" << threads << "\n";
+            std::cerr << "k:\t" << k << "\n";
+            std::cerr << "ftab_k:\t" << ftab_k << "\n";
+            std::cerr << "tally_checkpoints:\t" << tally_checkpoints << "\n";
+            std::cerr << "SA_sample_rate:\t" << SA_sample_rate << "\n";
+            std::cerr << "multi_ftab:\t" << multi_ftab << "\n";
             std::cerr << "verify:\t" << verify << "\n";
+            std::cerr << "classify:\t" << classify << "\n";
+            std::cerr << "filter:\t" << filter << "\n";
+            std::cerr << "generate_null_reads:\t" << generate_null_reads << "\n";
+            std::cerr << "bin_width:\t" << bin_width << "\n";
             std::cerr << "no_output:\t" << no_output << "\n";
             std::cerr << "output_ids:\t" << output_ids << "\n";
             std::cerr << "stdout:\t" << write_stdout << "\n";
@@ -163,6 +178,7 @@ class MoviOptions {
         bool multi_ftab = false;
         bool verify = false;
         bool classify = false;
+        bool filter = false;
         bool generate_null_reads = false;
         size_t bin_width = 150;
 

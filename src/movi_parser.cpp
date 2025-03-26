@@ -45,6 +45,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("kmer-count", "Find the count of every kmer")
         ("sa-entries", "Find the SA entries for each read")
         ("classify", "Classify the reads")
+        ("filter", "Filter the reads based on the matching lengths, output the filtered reads to stdout")
         ("bin-width", "The width of the bin used for classification", cxxopts::value<uint32_t>())
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
         ("i,index", "Index directory", cxxopts::value<std::string>())
@@ -170,6 +171,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("sa-entries") >= 1) { movi_options.set_get_sa_entries(true); std::cerr << "get_sa_entries: " << movi_options.is_get_sa_entries() << "\n"; }
                         if (result.count("rpml") >= 1) { movi_options.set_random_repositioning(true); }
                         if (result.count("classify") >= 1) { movi_options.set_classify(true); }
+                        if (result.count("filter") >= 1) { movi_options.set_filter(true); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
                         if (result.count("ignore-illegal-chars") == 1) {
                             if (!movi_options.set_ignore_illegal_chars(result["ignore-illegal-chars"].as<int>())) {

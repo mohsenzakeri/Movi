@@ -17,8 +17,8 @@
 #include "move_query.hpp"
 #include "movi_options.hpp"
 
-#define my_prefetch_r(address) __builtin_prefetch((void *)address, 0, 1)
-#define my_prefetch_w(address) __builtin_prefetch((void *)address, 1, 2)
+#define my_prefetch_r(address) __builtin_prefetch((void *)address, 0, 3)
+#define my_prefetch_w(address) __builtin_prefetch((void *)address, 1, 3)
 
 #ifndef KSEQ_INIT_READY
 #define KSEQ_INIT_READY
@@ -90,6 +90,8 @@ void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::strin
 void output_counts(bool to_stdout, std::ofstream& count_file, std::string read_id, size_t query_length, int32_t pos_on_r, uint64_t match_count, bool no_output = false);
 
 void output_logs(std::ofstream& costs_file, std::ofstream& scans_file, std::ofstream& fastforwards_file, std::string read_id, MoveQuery& mq, bool no_output = false);
+
+void output_read(std::string& read_id, std::string& read, bool no_output = false);
 
 void output_sa_entries(std::ofstream& sa_entries_file, std::string read_id, MoveQuery& mq, bool no_output = false);
 

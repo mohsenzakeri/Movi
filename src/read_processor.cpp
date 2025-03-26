@@ -18,28 +18,30 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
         fp = gzopen(reads_file_name.c_str(), "r"); // STEP 2: open the file handler
     }
 
-    // seq = kseq_init(fp); // STEP 3: initialize seq
-    std::string index_type = program();
+    if (!mv_.movi_options->is_filter()) {
 
-    if (!mv_.movi_options->is_stdout() and !mv_.movi_options->is_no_output()) {
-        if (mv_.movi_options->is_pml()) {
-            std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
-            mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
-        } else if (mv_.movi_options->is_zml()) {
-            std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
-            mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
-        } else if (mv_.movi_options->is_count()) {
-            std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
-            matches_file = std::ofstream(matches_file_name);
-        }
-        if (mv_.movi_options->is_logs()) {
-            costs_file = std::ofstream(reads_file_name + "." + index_type + ".costs");
-            scans_file = std::ofstream(reads_file_name + "." + index_type + ".scans");
-            fastforwards_file = std::ofstream(reads_file_name + "." + index_type + ".fastforwards");
+        // seq = kseq_init(fp); // STEP 3: initialize seq
+        std::string index_type = program();
+
+        if (!mv_.movi_options->is_stdout() and !mv_.movi_options->is_no_output()) {
+            if (mv_.movi_options->is_pml()) {
+                std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
+                mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
+            } else if (mv_.movi_options->is_zml()) {
+                std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
+                mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
+            } else if (mv_.movi_options->is_count()) {
+                std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
+                matches_file = std::ofstream(matches_file_name);
+            }
+            if (mv_.movi_options->is_logs()) {
+                costs_file = std::ofstream(reads_file_name + "." + index_type + ".costs");
+                scans_file = std::ofstream(reads_file_name + "." + index_type + ".scans");
+                fastforwards_file = std::ofstream(reads_file_name + "." + index_type + ".fastforwards");
+            }
         }
     }
-
-    if (mv_.movi_options->is_classify()) {
+    if (mv_.movi_options->is_classify() or mv_.movi_options->is_filter()) {
         classifier.initialize_report_file(*mv_.movi_options);
     }
 
@@ -408,22 +410,28 @@ void ReadProcessor::find_tally_b(Strand& process) {
 #endif
 
 void ReadProcessor::write_mls(Strand& process) {
-    bool write_stdout = mv.movi_options->is_stdout() and !mv.movi_options->is_classify();
-    bool logs = mv.movi_options->is_logs();
-    if (logs) {
-        auto t2 = std::chrono::high_resolution_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
-        process.mq.add_cost(elapsed);
-        process.mq.add_fastforward(process.ff_count);
-        process.mq.add_scan(process.scan_count);
-        output_logs(costs_file, scans_file, fastforwards_file, process.read_name, process.mq, mv.movi_options->is_no_output());
+    if (mv.movi_options->is_classify() or mv.movi_options->is_filter()) {
+        std::vector<uint16_t>& matching_lens = process.mq.get_matching_lengths();
+        bool found = classifier.classify(process.read_name, matching_lens, *mv.movi_options);
+        if (found and mv.movi_options->is_filter()) {
+            output_read(process.read_name, process.read, mv.movi_options->is_no_output());
+        }
     }
 
-    if (mv.movi_options->is_classify()) {
-        std::vector<uint16_t>& matching_lens = process.mq.get_matching_lengths();
-        classifier.classify(process.read_name, matching_lens, *mv.movi_options);
+    if (!mv.movi_options->is_filter()) {
+        bool write_stdout = mv.movi_options->is_stdout() and !mv.movi_options->is_classify() and !mv.movi_options->is_filter();
+        bool logs = mv.movi_options->is_logs();
+        if (logs) {
+            auto t2 = std::chrono::high_resolution_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
+            process.mq.add_cost(elapsed);
+            process.mq.add_fastforward(process.ff_count);
+            process.mq.add_scan(process.scan_count);
+            output_logs(costs_file, scans_file, fastforwards_file, process.read_name, process.mq, mv.movi_options->is_no_output());
+        }
+
+        output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, mv.movi_options->is_no_output());
     }
-    output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, mv.movi_options->is_no_output());
 }
 
 void ReadProcessor::write_count(Strand& process) {
@@ -447,36 +455,40 @@ void ReadProcessor::compute_match_count(Strand& process) {
 }
 
 void ReadProcessor::end_process() {
-    bool is_pml = mv.movi_options->is_pml();
-    bool is_zml = mv.movi_options->is_zml();
-    bool is_count = mv.movi_options->is_count();
-
-    if (!mv.movi_options->is_stdout()) {
-        if (is_pml or is_zml) {
-            mls_file.close();
-            std::cerr << "Matching lengths file is closed!\n";
-        } else if (is_count) {
-            matches_file.close();
-            std::cerr << "match_file file closed!\n";
-        }
-    }
-
-    if (mv.movi_options->is_classify()) {
-        classifier.close_report_file();
-    }
 
     std::cerr << "no_ftab: " << mv.no_ftab << "\n";
     std::cerr << "all_initializations: " << mv.all_initializations << "\n";
 
-    // kseq_destroy(seq); // STEP 5: destroy seq
-    // std::cerr << "kseq destroyed!\n";
-    // gzclose(fp); // STEP 6: close the file handler
-    // std::cerr << "fp file closed!\n";
 
-    if (mv.movi_options->is_logs()) {
-        costs_file.close();
-        scans_file.close();
-        fastforwards_file.close();
+    if (!mv.movi_options->is_filter()) {
+        bool is_pml = mv.movi_options->is_pml();
+        bool is_zml = mv.movi_options->is_zml();
+        bool is_count = mv.movi_options->is_count();
+
+        if (!mv.movi_options->is_stdout()) {
+            if (is_pml or is_zml) {
+                mls_file.close();
+                std::cerr << "Matching lengths file is closed!\n";
+            } else if (is_count) {
+                matches_file.close();
+                std::cerr << "match_file file closed!\n";
+            }
+        }
+
+        if (mv.movi_options->is_classify()) {
+            classifier.close_report_file();
+        }
+
+        // kseq_destroy(seq); // STEP 5: destroy seq
+        // std::cerr << "kseq destroyed!\n";
+        // gzclose(fp); // STEP 6: close the file handler
+        // std::cerr << "fp file closed!\n";
+
+        if (mv.movi_options->is_logs()) {
+            costs_file.close();
+            scans_file.close();
+            fastforwards_file.close();
+        }
     }
 }
 

@@ -240,6 +240,13 @@ void output_logs(std::ofstream& costs_file, std::ofstream& scans_file, std::ofst
     }
 }
 
+void output_read(std::string& read_id, std::string& read, bool no_output) {
+    if (!no_output) {
+        std::cout << ">" << read_id << "\n";
+        std::cout << read << "\n";
+    }
+}
+
 // Borrowed from spumoni written by Omar Ahmed: https://github.com/oma219/spumoni/tree/main
 std::string parse_null_reads(const char* ref_file, const char* output_path) {
     /* Parses out null reads in the case that we don't use a file-list */
