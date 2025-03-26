@@ -89,6 +89,11 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         // gzFile fp;
         // int l;
         // kseq_t* seq = open_kseq(fp, movi_options.get_read_file());
+
+        std::string index_type = program();
+
+        std::ofstream mls_file;
+        std::ofstream count_file;
         std::ofstream costs_file;
         std::ofstream scans_file;
         std::ofstream fastforwards_file;
