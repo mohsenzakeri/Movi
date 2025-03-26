@@ -22,23 +22,26 @@ size_t Classifier::initialize_report_file(MoviOptions& movi_options) {
     max_value_thr = std::max(null_db.get_percentile_value(), static_cast<size_t>(MIN_MATCHING_LENGTH)) + 1;
 
     // initial the report file
-    std::string report_file_name = "";
-    if (movi_options.get_read_file() != "") {
-        report_file_name = movi_options.get_read_file() + "." + index_type + "." + query_type(movi_options) + ".report";;
-    } else {
-        report_file_name = movi_options.get_mls_file() + ".report";
+    if (!movi_options.is_stdout()) {
+        std::string report_file_name = "";
+        if (movi_options.get_read_file() != "") {
+            report_file_name = movi_options.get_read_file() + "." + index_type + "." + query_type(movi_options) + ".report";;
+        } else {
+            report_file_name = movi_options.get_mls_file() + ".report";
+        }
+        std::cerr << "Report file name: " << report_file_name << "\n";
+        report_file = std::ofstream(report_file_name);
     }
-    std::cerr << "Report file name: " << report_file_name << "\n";
 
-    report_file = std::ofstream(report_file_name);
-    report_file.precision(4);
-    report_file << std::setw(30) << std::left << "read id:"
-                << std::setw(15) << std::left << "status:"
-                << std::setw(19) << std::left << "avg max-value (thr="
-                << std::setw(2) << std::left << max_value_thr
-                << std::setw(5) << std::left << "):"
-                << std::setw(12) << std::left << "above thr:"
-                << std::setw(12) << std::left << "below thr:" << std::endl;
+    std::ostream& out = movi_options.is_stdout() ? std::cout : report_file;
+    out.precision(4);
+    out << std::setw(30) << std::left << "read id:"
+        << std::setw(15) << std::left << "status:"
+        << std::setw(19) << std::left << "avg max-value (thr="
+        << std::setw(2) << std::left << max_value_thr
+        << std::setw(5) << std::left << "):"
+        << std::setw(12) << std::left << "above thr:"
+        << std::setw(12) << std::left << "below thr:" << std::endl;
 
     return max_value_thr;
 }
@@ -79,8 +82,10 @@ void Classifier::classify(std::string read_name, std::vector<uint16_t>& matching
 
     #pragma omp critical
     {
-        report_file.precision(3);
-        report_file << std::setw(30) << std::left << read_name
+
+        std::ostream& out = movi_options.is_stdout() ? std::cout : report_file;
+        out.precision(3);
+        out << std::setw(30) << std::left << read_name
                     << std::setw(15) << std::left << status
                     << std::setw(26) << std::left <<  (sum_max_bin_values+0.0)/bins_max_value.size()
                     << std::setw(12) << std::left <<  bins_above

@@ -56,6 +56,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("s,strands", "Number of strands for query", cxxopts::value<int>())
         ("t,threads", "Number of threads for query", cxxopts::value<int>())
         ("stdout", "Write the output to stdout")
+        ("no-output", "Do not write any output, ignores other options about the output")
         ("ignore-illegal-chars", "In the case of illegal characters (i.e., non-ACGT for genomic data), substitute the character with \'A\'(1) or a random character from the alphabet (2).", cxxopts::value<int>());
 
     auto viewOptions = options.add_options("view")
@@ -194,6 +195,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("stdout")) {
                             // Set global verbose flag
                             movi_options.set_stdout(true);
+                        }
+                        if (result.count("no-output")) {
+                            movi_options.set_no_output(true);
                         }
                     } else {
                         const std::string message = "Please include one index directory and one read file.";
