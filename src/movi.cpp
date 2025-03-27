@@ -127,8 +127,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     valid_batch = reader.loadBatch(input_file, 1000, 1);
                 }
                 if (!valid_batch) break;
-
-
+                
                 Read read_struct;
                 bool valid_read = false;
 
@@ -328,19 +327,25 @@ int main(int argc, char** argv) {
             std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
             begin = std::chrono::system_clock::now();
 
-            mv_.find_all_SA();
             if (movi_options.is_full_color()) {
+                mv_.find_all_SA();
                 mv_.build_doc_pats();
                 mv_.serialize_doc_pats();
             } else {
                 if (!movi_options.is_compressed()) {
+                    mv_.find_all_SA();
                     mv_.build_doc_sets();
                     mv_.serialize_doc_sets("doc_sets.bin");
                 } else {
                     mv_.deserialize_doc_sets("doc_sets.bin");
-                    mv_.compress_doc_sets(false);
-                    //mv_.build_tree_doc_sets();
-                    mv_.serialize_doc_sets("doc_sets_compressed.bin");
+                    //mv_.serialize_doc_sets("doc_sets_sparse.bin");
+                    
+                    //mv_.debug_out.open("../output/48_species/long_reads/tree_compression.txt");
+                    mv_.build_tree_doc_sets();
+                    //mv_.debug_out.close();
+                    //mv_.compress_doc_sets(true);
+
+                    mv_.serialize_doc_sets("tree_doc_sets.bin");
                 }
             }
 
@@ -364,7 +369,7 @@ int main(int argc, char** argv) {
                 if (!movi_options.is_compressed()) {
                     mv_.deserialize_doc_sets("doc_sets.bin");
                 } else {
-                    mv_.deserialize_doc_sets("doc_sets_rand_tree_compressed.bin");
+                    mv_.deserialize_doc_sets("tree_doc_sets.bin");
                 }
                 // mv_.write_doc_set_freqs("../output/48_species/long_reads/doc_set_freqs.txt");
             }   
@@ -374,6 +379,18 @@ int main(int argc, char** argv) {
 
             end = std::chrono::system_clock::now();
             elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+
+            // Output time for benchmarking
+            std::ifstream time_in("../output/48_species/long_reads/time_query.txt");
+            double tot_time = 0;
+            if (!(time_in >> tot_time)) tot_time = 0;
+            tot_time += elapsed.count() * 1e-9;
+            time_in.close();
+
+            std::ofstream time_out("../output/48_species/long_reads/time_query.txt");
+            time_out << tot_time << "\n";
+            time_out.close();
+
             std::fprintf(stderr, "Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);
         } else if (command == "view") {
             view(movi_options);

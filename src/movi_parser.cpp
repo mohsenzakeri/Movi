@@ -39,6 +39,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("kmer", "Search all the kmers")
         ("kmer-count", "Find the count of every kmer")
         ("classify", "Classify the reads")
+        ("thres", "Threshold for classification (only consider PMLs above thres)", cxxopts::value<uint8_t>())
         ("full", "Use full coloring information to compute pseudo-matching lengths (PMLs)")
         ("compress", "Use compressed document sets for classification")
         ("bin-width", "The width of the bin used for classification", cxxopts::value<uint32_t>())
@@ -173,6 +174,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("pml") >= 1) { movi_options.set_pml(); }
                         if (result.count("rpml") >= 1) { movi_options.set_random_repositioning(true); }
                         if (result.count("classify") >= 1) { movi_options.set_classify(true); }
+                        if (result.count("thres")) { movi_options.set_thres(result["thres"].as<uint8_t>()); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
                         if (result.count("pml") || result.count("zml")) {
                             if (result.count("full")) {

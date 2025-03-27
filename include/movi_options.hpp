@@ -38,6 +38,7 @@ class MoviOptions {
         size_t get_strands() { return strands; }
         bool is_full_color() { return full_color; }
         bool is_compressed() { return compress; }
+        int get_thres() {return cl_thres; }
         size_t get_threads() { return threads; }
         uint32_t get_k () { return k; }
         uint32_t get_ftab_k () { return ftab_k; }
@@ -96,6 +97,7 @@ class MoviOptions {
         }
         void set_full_color(bool val) { full_color = val; }
         void set_compress(bool val) { compress = val; }
+        void set_thres(uint8_t val) { cl_thres = val; }
         void set_out_file(std::string out_file_) { out_file = out_file_; }
 
         void set_ref_file(std::string file_address) { ref_file = file_address; }
@@ -169,6 +171,8 @@ class MoviOptions {
         bool logs = false;
         bool full_color = false;
         bool compress = false;
+        // Classification threshold (only consider PMLs with len >= cl_thres)
+        uint8_t cl_thres = 5;
 };
 
 #endif

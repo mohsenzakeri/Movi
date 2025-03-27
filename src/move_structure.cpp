@@ -4,6 +4,8 @@
 
 #include "move_structure.hpp"
 
+uint32_t pow2[ARR_SIZE];
+
 MoveStructure::MoveStructure(MoviOptions* movi_options_) {
     movi_options = movi_options_;
     onebit = false; // This is not used any more as the onebit modes is deprecated
@@ -221,6 +223,7 @@ void MoveStructure::build_doc_sets() {
     // Stores set of documents appearing in rows in each run.
     std::unordered_map<DocSet, uint32_t> unique; 
     doc_set_inds.resize(r);
+    compressed.resize(r);
     int unique_cnt = 0;
     for (uint64_t i = 0; i < r; i++) {
         uint64_t n = rlbwt[i].get_n();
@@ -248,116 +251,245 @@ void MoveStructure::build_doc_sets() {
     }
 }
 
-void MoveStructure::hash_collapse(std::unordered_map<DocSet, uint32_t> &keep_set, int run_ind) {
+uint32_t MoveStructure::hash_collapse(std::unordered_map<DocSet, uint32_t> &keep_set, sdsl::bit_vector &bv) {
     // Remove documents with highest multiplicity one at a time
     // until doc set is one of the kept ones.
-    std::vector<std::pair<uint16_t, uint16_t>> cnts(num_docs);
+    /*std::vector<std::pair<uint16_t, uint16_t>> cnts(num_docs);
     for (size_t i = 0; i < num_docs; i++) {
         cnts[i].second = i;
     }
-    uint64_t n = rlbwt[run_ind].get_n();
-    DocSet cur(num_docs);
-    for (uint64_t i = 0; i < n; i++) {
-        uint64_t row_ind = run_offsets[run_ind] + i;
-        uint16_t doc = find_document(SA_entries[row_ind]);
-        cnts[doc].first++;
-        cur.set(doc);
-    }
-    std::sort(cnts.begin(), cnts.end());
-    //std::random_shuffle(cnts.begin(), cnts.end());
+    
+    DocSet cur(bv);
+    //std::sort(cnts.begin(), cnts.end());
+    std::random_shuffle(cnts.begin(), cnts.end());
     for (size_t i = 0; i <= num_docs; i++) {
         if (keep_set.count(cur)) {
-            doc_set_inds[run_ind] = keep_set[cur];
-            break;
+            return keep_set[cur];
         }
         if (i < num_docs) {
             cur.unset(cnts[i].second);
         }
     }
+    assert(false);*/
+    
+    std::vector<int> min_inds;
+    int min_diff = INT_MAX;
+    for (auto it = keep_set.begin(); it != keep_set.end(); it++) {
+        int diff = 0;
+        for (int i = 0; i < num_docs; i++) {
+            if (bv[i] != it->first.bv[i]) {
+                diff++;
+            }
+        }
+        if (diff <= min_diff) {
+            if (diff < min_diff) min_inds.clear();
+            min_inds.push_back(it->second);
+            min_diff = diff;
+        }
+    }
+    return min_inds[rand() % min_inds.size()];
+}
+
+void MoveStructure::compress_doc_sets(bool hash_compress) {
+    // How many doc sets to keep.
+    int take = (1 << 8);
+
+    // Get doc set counts.
+    doc_set_cnts.resize(unique_doc_sets.size());
+    for (size_t i = 0; i < r; i++) {
+        doc_set_cnts[doc_set_inds[i]]++;
+    }
+
+    // Get number of set bits for each doc set.
+    std::vector<uint16_t> set_cnt(unique_doc_sets.size());
+    for (size_t i = 0; i < unique_doc_sets.size(); i++) {
+        sdsl::bit_vector &bv = unique_doc_sets[i];
+        for (int j = 0; j < num_docs; j++) {
+            if (bv[j]) set_cnt[i]++;
+        }
+    }
+
+    // Sort document sets by their frequency (and ensuring singletons are put first).
+    std::vector<std::tuple<bool, uint64_t, uint32_t>> sorted(doc_set_cnts.size());
+    for (size_t i = 0; i < doc_set_cnts.size(); i++) {
+        sorted[i] = {set_cnt[i] == 1, doc_set_cnts[i], i};
+    }
+    std::sort(sorted.begin(), sorted.end(), std::greater<>());
+    std::cerr << "Sorted document sets by frequency (ensuring singletons first)" << std::endl;
+    
+    // Only keep the most frequent document sets.
+    std::vector<sdsl::bit_vector> keep(take);
+    std::vector<bool> in_keep(unique_doc_sets.size());
+    std::vector<uint32_t> compress_to(unique_doc_sets.size(), take);
+    std::unordered_map<DocSet, uint32_t> keep_set;
+    for (size_t i = 0; i < take; i++) {
+        int ind = std::get<2>(sorted[i]);
+        keep[i] = unique_doc_sets[ind];
+        in_keep[ind] = true;
+        compress_to[ind] = i;
+        keep_set[DocSet(keep[i])] = i;
+    }
+    
+    // Compress doc sets not kept to one that is kept
+    if (hash_compress) {
+        for (size_t i = 0; i < unique_doc_sets.size(); i++) {
+            if (!in_keep[i]) {
+                compress_to[i] = hash_collapse(keep_set, unique_doc_sets[i]);
+            }
+        }
+    }
+    
+    compressed.resize(r);
+    uint64_t missing_cnt = 0;
+    for (size_t i = 0; i < r; i++) {
+        if (!in_keep[doc_set_inds[i]]) {
+            compressed[i] = 1;
+            missing_cnt++;
+        }
+        doc_set_inds[i] = compress_to[doc_set_inds[i]];
+    }
+    unique_doc_sets = keep;
+    std::cerr << "Fraction of runs without doc set: " << (double) missing_cnt / r << std::endl;
+
+    // Only keep the document sets with <= cutoff set bits.
+    /*int cutoff = 5;
+    std::vector<sdsl::bit_vector> keep;
+    std::vector<bool> in_keep(unique_doc_sets.size());
+    std::vector<uint32_t> compress_to(unique_doc_sets.size());
+    for (size_t i = 0; i < unique_doc_sets.size(); i++) {
+        sdsl::bit_vector &bv = unique_doc_sets[i];
+        int set_cnt = 0;
+        for (int j = 0; j < num_docs; j++) {
+            if (bv[j]) set_cnt++;
+        }
+
+        if (set_cnt <= cutoff) {
+            keep.push_back(bv);
+            in_keep[i] = true;
+            compress_to[i] = keep.size() - 1;
+        }
+    }
+    
+    compressed.resize(r);
+    uint64_t missing_cnt = 0;
+    for (size_t i = 0; i < r; i++) {
+        if (!in_keep[doc_set_inds[i]]) {
+            doc_set_inds[i] = keep.size();
+            compressed[i] = 1;
+            missing_cnt++;
+        } else {
+            doc_set_inds[i] = compress_to[doc_set_inds[i]];
+        }
+    }
+    unique_doc_sets = keep;
+    std::cerr << "Fraction of runs without doc set: " << (double) missing_cnt / r << std::endl;*/
+}
+
+// Returns if x is an ancestor of y.
+bool MoveStructure::is_ancestor(uint16_t x, uint16_t y) {
+    return t_in[x] <= t_in[y] && t_out[x] >= t_out[y];
+}
+
+uint16_t MoveStructure::LCA(uint16_t x, uint16_t y) {
+    if (is_ancestor(x, y)) return x;
+    int cur = x;
+    for (int i = 15; i >= 0; i--) {
+        if (!is_ancestor(bin_lift[i][cur], y)) {
+            cur = bin_lift[i][cur];
+        }
+    }
+    return bin_lift[0][cur];
+}
+
+void MoveStructure::dfs_times(uint16_t cur, uint16_t &t) {
+    t_in[cur] = t++;
+    for (int child : tree[cur]) {
+        dfs_times(child, t);
+    }
+    t_out[cur] = t++;
 }
 
 void MoveStructure::build_tree_doc_sets() {
     std::ifstream fin(movi_options->get_index_dir() + "/doc_set_similarities.txt");
     double distmat[num_docs * (num_docs - 1) / 2];
-    double sum = 0;
     int ind = 0;
     for (int i = 0; i < num_docs; i++) {
         for (int j = 0; j < num_docs; j++) {
             double cur;
             fin >> cur;
             if (j > i) {
-                sum += cur;
                 distmat[ind++] = cur;
             }
         }
     }
     for (int i = 0; i < num_docs * (num_docs - 1) / 2; i++) {
-        distmat[i] = 1 - distmat[i] / sum;
+        distmat[i] = 1 - distmat[i] / r;
     }
     fin.close();
+
+    // Set up tree for hierarchical clustering
+    int nodes = num_docs * 2 - 1;
+    tree.resize(nodes);
+    tree_doc_sets.resize(nodes);
+    bin_lift.resize(16, std::vector<uint16_t>(nodes, nodes - 1));
+
+    sdsl::bit_vector singleton;
+    singleton.resize(num_docs);
+    for (int i = 0; i < num_docs; i++) {
+        singleton[i] = 1;
+        tree_doc_sets[i] = singleton;
+        singleton[i] = 0;
+    }
 
     // Cluster documents based on doc set similarities.
     int *merge = new int[2 * (num_docs - 1)];
     double *height = new double[num_docs - 1];
     hclust_fast(num_docs, distmat, HCLUST_METHOD_AVERAGE, merge, height);
 
-    DocSet singleton(num_docs);
-    std::unordered_map<DocSet, uint32_t> keep_set;
-    unique_doc_sets.clear();
-    for (int i = 0; i < num_docs; i++) {
-        singleton.set(i);
-        unique_doc_sets.push_back(singleton.bv);
-        keep_set[singleton] = i;
-        singleton.unset(i);
-    }
-
     // Go through merges in hierarchical clustering, construct doc sets at each node.
     std::vector<int> last_merge(num_docs, 0);
-    for (int k = 1; k < num_docs; k++) {
-        int m1 = merge[k - 1];
-        int m2 = merge[num_docs - 1 + k - 1];
-        if (m1 < 0 && m2 < 0) { // both single observables
-            last_merge[-m1 - 1] = last_merge[-m2 - 1] = k;
-        } else if (m1 < 0 || m2 < 0) { // one is a cluster
-            if (m1 < 0) { 
-                std::swap(m1, m2);
-            }
-            for (int l = 0; l < num_docs; l++) {
-                if (last_merge[l] == m1) {
-                    last_merge[l] = k;
-                }
-            }
-            last_merge[-m2 - 1] = k;
-        } else {
-            for (int l = 0; l < num_docs; l++) {
-                if (last_merge[l] == m1 || last_merge[l] == m2) {
-                    last_merge[l] = k;
-                }
-            }
-        }
-        DocSet cur(num_docs);
-        for (int i = 0; i < num_docs; i++) {
-            if (last_merge[i] == k) {
-                cur.set(i);
+    for (int i = 0; i < num_docs; i++) last_merge[i] = i;
+    for (int i = 0; i < num_docs - 1; i++) {
+        int node1 = merge[i];
+        if (node1 < 0) node1 = -node1 - 1;
+        else node1 += num_docs - 1;
+
+        int node2 = merge[num_docs - 1 + i];
+        if (node2 < 0) node2 = -node2 - 1;
+        else node2 += num_docs - 1;
+        
+        sdsl::bit_vector cur;
+        cur.resize(num_docs);
+        for (int j = 0; j < num_docs; j++) {
+            if (last_merge[j] == node1 || last_merge[j] == node2) {
+                last_merge[j] = num_docs + i;
+                cur[j] = 1;
                 std::cerr << 1;
             } else {
                 std::cerr << 0;
             }
         }
-        std::cerr << std::endl;
-        unique_doc_sets.push_back(cur.bv);
-        keep_set[cur] = num_docs + k - 1;
+        std::cerr << "\n";
+
+        tree_doc_sets[num_docs + i] = cur;
+        tree[num_docs + i].push_back(node1);
+        tree[num_docs + i].push_back(node2);
+        bin_lift[0][node1] = num_docs + i;
+        bin_lift[0][node2] = num_docs + i;
     }
 
-    doc_set_inds.resize(r);
-    for (size_t i = 0; i < r; i++) {
-        hash_collapse(keep_set, i);
+    for (int i = 1; i < 16; i++) {
+        for (int j = 0; j < nodes; j++) {
+            bin_lift[i][j] = bin_lift[i - 1][bin_lift[i - 1][j]];
+        }
     }
-}
+    uint16_t timer = 0;
+    t_in.resize(nodes); t_out.resize(nodes);
+    dfs_times(nodes - 1, timer);
 
-void MoveStructure::compress_doc_sets(bool hash_compress) {
+    /* COMPRESSION */
     // How many doc sets to keep.
-    int take = 256;
+    int take = (1 << 7);
 
     // Get doc set counts.
     doc_set_cnts.resize(unique_doc_sets.size());
@@ -372,38 +504,70 @@ void MoveStructure::compress_doc_sets(bool hash_compress) {
     }
     std::sort(sorted.begin(), sorted.end(), std::greater<>());
     std::cerr << "Sorted document sets by frequency" << std::endl;
-
-    // New doc IDs, so that smaller ID's are doc sets that appear more.
-    std::vector<uint32_t> new_inds(unique_doc_sets.size());
-    for (size_t i = 0; i < sorted.size(); i++) {
-        new_inds[sorted[i].second] = i;
-    }
-    for (size_t i = 0; i < r; i++) {
-        doc_set_inds[i] = new_inds[doc_set_inds[i]];
-    }
-
-    // Only keep the most frequent document sets.
-    std::vector<sdsl::bit_vector> keep(take);
+    
     std::unordered_map<DocSet, uint32_t> keep_set;
-    for (size_t i = 0; i < take; i++) {
-        keep[i] = unique_doc_sets[sorted[i].second];
-        keep_set[DocSet(keep[i])] = i;
+    std::vector<sdsl::bit_vector> keep(take);
+    int keep_ind = 0;
+    for (int i = 0; i < nodes; i++) {
+        DocSet cur_set(tree_doc_sets[i]);
+        keep[keep_ind] = tree_doc_sets[i];
+        keep_set[cur_set] = keep_ind++;
     }
-    unique_doc_sets = keep;
-
-    uint64_t missing_cnt = 0;
-    for (size_t i = 0; i < r; i++) {
-        if (doc_set_inds[i] >= take) {
-            missing_cnt++;
-            if (hash_compress) {
-                hash_collapse(keep_set, i);
+    
+    // Only keep the most frequent document sets.
+    int sort_ind = 0;
+    while (keep_ind < take) {
+        int ind = sorted[sort_ind].second;
+        DocSet cur_set(unique_doc_sets[ind]);
+        if (!keep_set.count(cur_set)) {
+            keep[keep_ind] = unique_doc_sets[ind];
+            keep_set[cur_set] = keep_ind++;
+        }
+        sort_ind++;
+    }
+    
+    // Compress doc sets by LCA in tree
+    std::vector<uint32_t> compress_to(unique_doc_sets.size());
+    std::vector<bool> in_keep(unique_doc_sets.size());
+    for (size_t i = 0; i < unique_doc_sets.size(); i++) {
+        DocSet cur_set(unique_doc_sets[i]);
+        if (keep_set.count(cur_set)) {
+            compress_to[i] = keep_set[cur_set];
+            in_keep[i] = true;
+        } else {
+            int lca = -1;
+            for (int j = 0; j < num_docs; j++) {
+                if (unique_doc_sets[i][j]) {
+                    if (lca == -1) lca = j;
+                    else lca = LCA(lca, j);
+                }
             }
+            assert(lca != -1);
+            compress_to[i] = lca;
+            // debug_out << unique_doc_sets[i] << " " << tree_doc_sets[lca] << "\n";
         }
     }
+    
+    compressed.resize(r);
+    uint64_t missing_cnt = 0;
+    for (size_t i = 0; i < r; i++) {
+        if (!in_keep[doc_set_inds[i]]) {
+            compressed[i] = 1;
+            missing_cnt++;
+        }
+        doc_set_inds[i] = compress_to[doc_set_inds[i]];
+    }
+    unique_doc_sets = keep;
     std::cerr << "Fraction of runs without doc set: " << (double) missing_cnt / r << std::endl;
 }
 
 void MoveStructure::build_doc_set_similarities() {
+    // Get doc set counts.
+    doc_set_cnts.resize(unique_doc_sets.size());
+    for (size_t i = 0; i < r; i++) {
+        doc_set_cnts[doc_set_inds[i]]++;
+    }
+
     std::vector<std::vector<uint64_t>> similarities(num_docs, std::vector<uint64_t>(num_docs));
     for (size_t i = 0; i < unique_doc_sets.size(); i++) {
         std::vector<int> ones;
@@ -435,8 +599,8 @@ void MoveStructure::build_doc_pats() {
 
     for (uint64_t i = 0; i < r; i++) {
         auto &row = rlbwt[i];
-        uint64_t n = row.get_n();
-        for (uint64_t j = 0; j < n; j++) {
+        uint16_t n = row.get_n();
+        for (uint16_t j = 0; j < n; j++) {
             uint64_t row_ind = run_offsets[i] + j;
             uint64_t SA = SA_entries[row_ind];
             uint16_t doc = find_document(SA);
@@ -2446,7 +2610,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     std::vector<uint16_t> &pml_lens = mq.get_matching_lengths();
     std::vector<double> doc_scores(num_docs);
     std::vector<uint32_t> cnts(num_docs);
-    const int thres = 5;
+    uint8_t thres = movi_options->get_thres();
     for (unsigned i = 0; i < indices.size(); i++) {
         //if (pml_lens[i] >= thres && (i == indices.size() - 1 || pml_lens[i] > pml_lens[i + 1])) {
         if (pml_lens[i] >= thres) {
@@ -2455,21 +2619,20 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             doc_scores[cur_doc] += std::min(log_lens[cur_doc] - pml_lens[i] * log4, 0.0);
             cnts[cur_doc]++;*/
 
-            // This run doesn't have a doc set (compressed away).
-            if (doc_set_inds[indices[i]] >= unique_doc_sets.size()) {
-                continue;
-            }
+            // Skip doc sets that weren't saved (thrown away by compresion).
+            if (doc_set_inds[indices[i]] >= unique_doc_sets.size()) continue;
             sdsl::bit_vector &cur_set = unique_doc_sets[doc_set_inds[indices[i]]];
-            int set_cnt = 0;
+            //sdsl::sd_vector<> &cur_set = unique_doc_sets_sparse[doc_set_inds[indices[i]]];
+            /*int set_cnt = 0;
             for (int j = 0; j < num_docs; j++) {
                 if (cur_set[j]) {
                     set_cnt++;
                 }
-            }
+            }*/
             for (int j = 0; j < num_docs; j++) {
                 if (cur_set[j]) {
                     cnts[j]++;
-                    doc_scores[j] += 1.0 / set_cnt;
+                    //doc_scores[j] += (compressed[indices[i]] ? 0.5 : 1);
                     //doc_scores[j] += std::min(log_lens[j] - pml_lens[i] * log4, 0.0);
                     //doc_scores[j] += (double) pml_lens[i] / log(doc_lens[j]);
                     //doc_scores[j] += pml_lens[i] * pml_lens[i];
@@ -2492,10 +2655,10 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     uint16_t best_ind = 0;
     for (int i = 1; i < num_docs; i++) {
     //for (int i = 1; i < num_species; i++) {
-        //if ((abs(doc_scores[i] - doc_scores[best_ind]) < 1e-18 && cnts[i] > cnts[best_ind]) 
-        //            || doc_scores[i] < doc_scores[best_ind]) {
-        // if (cnts[i] > cnts[best_ind]) {
-        if (doc_scores[i] > doc_scores[best_ind]) {
+        //if ((abs(doc_scores[i] - doc_scores[best_ind]) < 1e-18 && cnts[i] > cnts[best_ind])
+        //        || doc_scores[i] < doc_scores[best_ind]) {
+        if (cnts[i] > cnts[best_ind]) {
+        //if (doc_scores[i] > doc_scores[best_ind]) {
         //if (species_scores[i] > species_scores[best_ind]) {
             best_ind = i;
         }
@@ -2771,11 +2934,14 @@ void MoveStructure::serialize_doc_sets(std::string file_suf) {
     std::cerr << "Number of unique document sets: " << unique_cnt << std::endl; 
     fout.write(reinterpret_cast<char*>(&unique_cnt), sizeof(unique_cnt));
     for (size_t i = 0; i < unique_doc_sets.size(); i++) {
-        // sdsl::sd_vector<> sparse = sdsl::sd_vector<>(unique_doc_sets[i]);
-        // sparse.serialize(fout);
+        //sdsl::sd_vector<> sparse = sdsl::sd_vector<>(unique_doc_sets[i]);
+        //sparse.serialize(fout);
         unique_doc_sets[i].serialize(fout);
     }
     fout.write(reinterpret_cast<char*>(&doc_set_inds[0]), r * sizeof(doc_set_inds[0]));
+
+    // Serialize bits indicating whether each doc set has been compressed.
+    //compressed.serialize(fout);
     fout.close();
 }
 
@@ -2787,20 +2953,49 @@ void MoveStructure::deserialize_doc_sets(std::string file_suf) {
     fin.read(reinterpret_cast<char*>(&unique_cnt), sizeof(unique_cnt));
     std::cerr << "Number of unique document sets: " << unique_cnt << std::endl; 
     unique_doc_sets.resize(unique_cnt);
+    //unique_doc_sets_sparse.resize(unique_cnt);
     for (size_t i = 0; i < unique_cnt; i++) {
         unique_doc_sets[i].load(fin);
+        //unique_doc_sets_sparse[i].load(fin);
     }
     doc_set_inds.resize(r);
     fin.read(reinterpret_cast<char*>(&doc_set_inds[0]), r * sizeof(doc_set_inds[0]));
+    // Try to read in bitvector storing if each color set is compressed.
+    // Since some doc sets are not serialized with this information, we use a try catch clause.
+    try {
+        compressed.load(fin);
+    } catch(...) {
+        compressed.resize(r);
+    }
     fin.close();
 
     uint64_t missing_cnt = 0;
     for (size_t i = 0; i < r; i++) {
-        if (doc_set_inds[i] >= unique_cnt) {
+        if (compressed[i]) {
             missing_cnt++;
         }
     }
     std::cerr << "Fraction of runs without doc set: " << (double) missing_cnt / r << std::endl;
+
+    // Get distribution of number of set bits in doc sets.
+    std::vector<uint16_t> set_cnt(unique_doc_sets.size());
+    for (size_t i = 0; i < unique_doc_sets.size(); i++) {
+        sdsl::bit_vector &bv = unique_doc_sets[i];
+        for (int j = 0; j < num_docs; j++) {
+            if (bv[j]) set_cnt[i]++;
+        }
+    }
+    doc_set_cnts.resize(unique_doc_sets.size());
+    for (size_t i = 0; i < r; i++) {
+        doc_set_cnts[doc_set_inds[i]]++;
+    }
+    std::vector<uint64_t> set_dist(num_docs + 1);
+    for (size_t i = 0; i < unique_doc_sets.size(); i++) {
+        set_dist[set_cnt[i]]++; // += doc_set_cnts[i];
+    }
+    for (int i = 1; i <= num_docs; i++) {
+        std::cout << set_dist[i] << "\n";
+    }
 }
 
 void MoveStructure::serialize() {
@@ -3048,7 +3243,14 @@ void MoveStructure::deserialize() {
         cur_offset += rlbwt[i].get_n();
     }
 
-    DocSet::initialize_pow2();
+    // Fill in powers of 2 array.
+    pow2[0] = 1;
+    for (size_t i = 1; i < ARR_SIZE; i++) {
+        pow2[i] = (pow2[i - 1] << 1);
+        if (pow2[i] >= MOD) {
+            pow2[i] -= MOD;
+        }
+    }
 }
 
 void MoveStructure::verify_lfs() {
