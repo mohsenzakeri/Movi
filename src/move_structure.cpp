@@ -178,6 +178,7 @@ void MoveStructure::find_all_SA() {
     uint64_t index = 0;
     uint64_t SA_val = tot_len;
     for (uint64_t i = 0; i < tot_len; i++) {
+        if (i % 1000000000ll == 0) std::cout << "Finding suffix array entries: " << i << std::endl;
         SA_val--;
         uint64_t row_ind = run_offsets[index] + offset;
         SA_entries[row_ind] = SA_val;
@@ -187,7 +188,23 @@ void MoveStructure::find_all_SA() {
 
 // Find which document a given SA entry belongs to.
 uint16_t MoveStructure::find_document(uint64_t SA) {
-    uint16_t l = 0;
+    uint32_t l = 0;
+    uint32_t r = doc_offsets.size() - 1;
+    uint32_t res = -1;
+    // Binary search for smallest x s.t. SA <= doc_offsets[x]
+    while (l <= r) {
+        uint32_t m = (l + r) / 2;
+        if (SA <= doc_offsets[m]) {
+            res = m;
+            r = m - 1;
+        } else {
+            l = m + 1;
+        }
+    }
+    assert(res != -1);
+    return doc_ids[res];
+
+    /*uint16_t l = 0;
     uint16_t r = doc_offsets.size() - 1;
     uint16_t res = -1;
     // Binary search for largest x s.t. doc_offsets[x] <= SA
@@ -200,7 +217,7 @@ uint16_t MoveStructure::find_document(uint64_t SA) {
             r = m - 1;
         }
     }
-    return res;
+    return res;*/
 }
 
 // Prints all SA entries
@@ -226,8 +243,9 @@ void MoveStructure::build_doc_sets() {
     compressed.resize(r);
     int unique_cnt = 0;
     for (uint64_t i = 0; i < r; i++) {
+        if (i % 10000000 == 0) std::cerr << "Building document sets: " << i << std::endl;
         uint64_t n = rlbwt[i].get_n();
-        DocSet cur(num_docs);
+        DocSet cur(num_species);
         for (uint64_t j = 0; j < n; j++) {
             uint64_t row_ind = run_offsets[i] + j;
             uint64_t SA = SA_entries[row_ind];
@@ -3220,7 +3238,9 @@ void MoveStructure::deserialize() {
     fin.close();
 
     // Read in document offsets.
-    std::ifstream doc_offsets_file(movi_options->get_index_dir() + "/ref.fa.doc_offsets");
+    //std::ifstream doc_offsets_file(movi_options->get_index_dir() + "/ref.fa.doc_offsets");
+    // TODO: HARDCODED FOR NOW, WILL FIX LATER
+    std::ifstream doc_offsets_file("/vast/blangme2/mzakeri1/Move/steven/classification_data_pseudomonadota/bacteria_kraken2_library.matching_ids.fasta_with_rv.interval_ends");
     uint64_t doc_offset;
     while ((doc_offsets_file >> doc_offset)) {
         doc_offsets.push_back(doc_offset);
@@ -3228,20 +3248,35 @@ void MoveStructure::deserialize() {
     doc_offsets_file.close();
     num_docs = doc_offsets.size();
     num_species = num_docs;
+
+    // Read in document taxa id
+    // TODO: HARDCODED FOR NOW, WILL FIX LATER
+    std::ifstream doc_ids_file("/vast/blangme2/mzakeri1/Move/steven/classification_data_pseudomonadota/bacteria_kraken2_library.matching_ids.fasta_with_rv.interval_species");
+    uint32_t doc_id;
+    while ((doc_ids_file >> doc_id)) {
+        doc_ids.push_back(doc_id);
+        taxa_id_compress[doc_id] = 0;
+    }
+    doc_ids_file.close();
+
+    std::cerr << "Doc offsets, doc ids, compressed: " << doc_offsets.size() << " " << doc_ids.size() << " " << taxa_id_compress.size() << std::endl;
+
+    // Compress taxa_id to 0...(num_species - 1)
+    num_species = 0;
+    for (auto &[taxa_id, c_id] : taxa_id_compress) {
+        c_id = num_species++;
+    }
+    for (size_t i = 0; i < doc_ids.size(); i++) {
+        doc_ids[i] = taxa_id_compress[doc_ids[i]];
+    }
     
     doc_lens.resize(num_docs);
-    for (int i = 1; i < doc_offsets.size(); i++) {
-        doc_lens[i - 1] = doc_offsets[i] - doc_offsets[i - 1];
+    for (size_t i = 1; i < doc_offsets.size(); i++) {
+        doc_lens[i] = doc_offsets[i] - doc_offsets[i - 1];
     }
-    doc_lens[num_docs - 1] = length - doc_offsets[num_docs - 1];
+    doc_lens[0] = doc_offsets[0];
 
-    // Read in run offsets.
-    uint64_t cur_offset = 0;
-    run_offsets.resize(r);
-    for (uint64_t i = 0; i < r; i++) {
-        run_offsets[i] = cur_offset;
-        cur_offset += rlbwt[i].get_n();
-    }
+    std::cerr << "Finished compressing taxa id" << std::endl;
 
     // Fill in powers of 2 array.
     pow2[0] = 1;

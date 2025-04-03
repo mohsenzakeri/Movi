@@ -294,6 +294,8 @@ class MoveStructure {
         // Sorted vector of the start offsets of each document.  
         std::vector<uint64_t> doc_offsets;
         std::vector<uint64_t> doc_lens;
+        std::vector<uint32_t> doc_ids;
+        std::map<uint32_t, uint32_t> taxa_id_compress;
         uint16_t num_docs;
         uint16_t num_species;
 

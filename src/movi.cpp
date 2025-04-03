@@ -327,6 +327,7 @@ int main(int argc, char** argv) {
             std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
             begin = std::chrono::system_clock::now();
 
+            std::cerr << "Done deserializing" << std::endl;
             if (movi_options.is_full_color()) {
                 mv_.find_all_SA();
                 mv_.build_doc_pats();
@@ -334,7 +335,9 @@ int main(int argc, char** argv) {
             } else {
                 if (!movi_options.is_compressed()) {
                     mv_.find_all_SA();
+                    std::cerr << "Done finding all SA entries" << std::endl;
                     mv_.build_doc_sets();
+                    std::cerr << "Done building document sets" << std::endl;
                     mv_.serialize_doc_sets("doc_sets.bin");
                 } else {
                     mv_.deserialize_doc_sets("doc_sets.bin");
