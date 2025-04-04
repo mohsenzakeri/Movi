@@ -23,9 +23,9 @@
 #include "sequitur.hpp"
 #include "utils.hpp"
 
-const uint32_t MOD = 1000000007;
+const uint64_t MOD = 1000000000000000003ll;
 const uint32_t ARR_SIZE = (1 << 16);
-extern uint32_t pow2[ARR_SIZE];
+extern uint64_t pow2[ARR_SIZE];
 
 class DocSet {
 public:
@@ -82,7 +82,6 @@ public:
 
 template<>
 struct std::hash<DocSet> {
-    const size_t MOD = 1000000007;
     std::size_t operator()(const DocSet &dc) const {
         return dc.hash;
     }
@@ -293,17 +292,16 @@ class MoveStructure {
     private:
         // Sorted vector of the start offsets of each document.  
         std::vector<uint64_t> doc_offsets;
-        std::vector<uint64_t> doc_lens;
         std::vector<uint32_t> doc_ids;
         std::map<uint32_t, uint32_t> taxa_id_compress;
-        uint16_t num_docs;
-        uint16_t num_species;
+        uint32_t num_docs;
+        uint32_t num_species;
 
-        // Offset of run heads in the rlbwt. For experimental purposes.
+        // Offset of run heads in the rlbwt.
         std::vector<uint64_t> run_offsets;
-    
-        // Vector of all SA entries. For experiment purposes.
-        std::vector<uint64_t> SA_entries;
+
+        // Vector of all SA entries (corresponding doc ids).
+        std::vector<uint16_t> SA_entries;
 
         // Document sets.
         std::vector<sdsl::bit_vector> unique_doc_sets;

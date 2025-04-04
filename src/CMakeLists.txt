@@ -1,11 +1,11 @@
 # release
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 # debug:
-# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 
 # compile with address sanitizer
-# add_compile_options(-fsanitize=address)
-# add_link_options(-fsanitize=address)
+add_compile_options(-fsanitize=address)
+add_link_options(-fsanitize=address)
 
 set(MOVI_SOURCES
     movi.cpp

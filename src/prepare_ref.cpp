@@ -6,8 +6,6 @@
 
 #include "kseq.h"
 
-// const uint64_t LENGTH_PER_SPECIES = 20000000; 
-
 // STEP 1: declare the type of file handler and the read() function
 KSEQ_INIT(gzFile, gzread)
 
@@ -99,8 +97,8 @@ int main(int argc, char* argv[]) {
     std::ofstream doc_offsets(static_cast<std::string>(argv[2]) + ".doc_offsets");
     uint64_t cur_ind = 0;
     for (int i = 0; i < doc_lengths.size(); i++) {
-        doc_offsets << cur_ind << "\n";
         cur_ind += doc_lengths[i] * 2;
+        doc_offsets << cur_ind << "\n";
     }
     doc_offsets.close();
     

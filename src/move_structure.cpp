@@ -4,7 +4,7 @@
 
 #include "move_structure.hpp"
 
-uint32_t pow2[ARR_SIZE];
+uint64_t pow2[ARR_SIZE];
 
 MoveStructure::MoveStructure(MoviOptions* movi_options_) {
     movi_options = movi_options_;
@@ -164,24 +164,28 @@ uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i, uint64_t id) {
     return ff_count;
 }
 
-// Finds all SA entries in O(n).
+// Finds all SA entries (corresponding doc_id) in O(n).
 void MoveStructure::find_all_SA() {
-    uint64_t tot_len = 0;
+    uint64_t run_offset = 0;
     run_offsets.resize(r);
     for (uint64_t i = 0; i < r; i++) {
-        run_offsets[i] = tot_len;
-        tot_len += rlbwt[i].get_n();
+        run_offsets[i] = run_offset;
+        run_offset += rlbwt[i].get_n();
     }
-    SA_entries.resize(tot_len);
+    SA_entries.resize(length);
     
     uint64_t offset = 0;
     uint64_t index = 0;
-    uint64_t SA_val = tot_len;
-    for (uint64_t i = 0; i < tot_len; i++) {
+    uint64_t SA_val = length;
+    uint32_t doc_offset_ind = num_docs - 1;
+    for (uint64_t i = 0; i < length; i++) {
         if (i % 1000000000ll == 0) std::cout << "Finding suffix array entries: " << i << std::endl;
         SA_val--;
+        if (doc_offset_ind > 0 && doc_offsets[doc_offset_ind - 1] > SA_val) {
+            doc_offset_ind--;
+        }
         uint64_t row_ind = run_offsets[index] + offset;
-        SA_entries[row_ind] = SA_val;
+        SA_entries[row_ind] = doc_ids[doc_offset_ind];
         LF_move(offset, index);
     }
 }
@@ -191,10 +195,10 @@ uint16_t MoveStructure::find_document(uint64_t SA) {
     uint32_t l = 0;
     uint32_t r = doc_offsets.size() - 1;
     uint32_t res = -1;
-    // Binary search for smallest x s.t. SA <= doc_offsets[x]
+    // Binary search for smallest x s.t. SA < doc_offsets[x]
     while (l <= r) {
         uint32_t m = (l + r) / 2;
-        if (SA <= doc_offsets[m]) {
+        if (SA < doc_offsets[m]) {
             res = m;
             r = m - 1;
         } else {
@@ -203,21 +207,6 @@ uint16_t MoveStructure::find_document(uint64_t SA) {
     }
     assert(res != -1);
     return doc_ids[res];
-
-    /*uint16_t l = 0;
-    uint16_t r = doc_offsets.size() - 1;
-    uint16_t res = -1;
-    // Binary search for largest x s.t. doc_offsets[x] <= SA
-    while (l <= r) {
-        uint16_t m = (l + r) / 2;
-        if (doc_offsets[m] <= SA) {
-            res = m;
-            l = m + 1;
-        } else {
-            r = m - 1;
-        }
-    }
-    return res;*/
 }
 
 // Prints all SA entries
@@ -241,15 +230,16 @@ void MoveStructure::build_doc_sets() {
     std::unordered_map<DocSet, uint32_t> unique; 
     doc_set_inds.resize(r);
     compressed.resize(r);
-    int unique_cnt = 0;
+    uint64_t unique_cnt = 0;
     for (uint64_t i = 0; i < r; i++) {
-        if (i % 10000000 == 0) std::cerr << "Building document sets: " << i << std::endl;
+        if (i % 10000000 == 0) {
+            std::cerr << "Processed " << i << " runs, " << unique_cnt << " unique doc sets so far" << std::endl;
+        }
         uint64_t n = rlbwt[i].get_n();
         DocSet cur(num_species);
         for (uint64_t j = 0; j < n; j++) {
             uint64_t row_ind = run_offsets[i] + j;
-            uint64_t SA = SA_entries[row_ind];
-            uint16_t doc = find_document(SA);
+            uint16_t doc = SA_entries[row_ind];
             cur.set(doc);
         }
 
@@ -620,8 +610,7 @@ void MoveStructure::build_doc_pats() {
         uint16_t n = row.get_n();
         for (uint16_t j = 0; j < n; j++) {
             uint64_t row_ind = run_offsets[i] + j;
-            uint64_t SA = SA_entries[row_ind];
-            uint16_t doc = find_document(SA);
+            uint16_t doc = SA_entries[row_ind];
             doc_pats[row_ind] = doc;
         }
     }
@@ -2622,7 +2611,8 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     std::vector<double> log_lens(num_docs);
     double log4 = log(4);
     for (int i = 0; i < num_docs; i++) {
-        log_lens[i] = log(doc_lens[i]);
+        uint64_t doc_len = doc_offsets[i] - (i == 0 ? 0 : doc_offsets[i - 1]);
+        log_lens[i] = log(doc_len);
     }
     
     std::vector<uint16_t> &pml_lens = mq.get_matching_lengths();
@@ -2652,9 +2642,6 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                     cnts[j]++;
                     //doc_scores[j] += (compressed[indices[i]] ? 0.5 : 1);
                     //doc_scores[j] += std::min(log_lens[j] - pml_lens[i] * log4, 0.0);
-                    //doc_scores[j] += (double) pml_lens[i] / log(doc_lens[j]);
-                    //doc_scores[j] += pml_lens[i] * pml_lens[i];
-                    //streak_cnts[j]++;
                 }
             }
         }
@@ -3238,9 +3225,9 @@ void MoveStructure::deserialize() {
     fin.close();
 
     // Read in document offsets.
-    //std::ifstream doc_offsets_file(movi_options->get_index_dir() + "/ref.fa.doc_offsets");
+    std::ifstream doc_offsets_file(movi_options->get_index_dir() + "/ref.fa.doc_offsets");
     // TODO: HARDCODED FOR NOW, WILL FIX LATER
-    std::ifstream doc_offsets_file("/vast/blangme2/mzakeri1/Move/steven/classification_data_pseudomonadota/bacteria_kraken2_library.matching_ids.fasta_with_rv.interval_ends");
+    //std::ifstream doc_offsets_file("/vast/blangme2/mzakeri1/Move/steven/classification_data_pseudomonadota/bacteria_kraken2_library.matching_ids.fasta_with_rv.interval_ends");
     uint64_t doc_offset;
     while ((doc_offsets_file >> doc_offset)) {
         doc_offsets.push_back(doc_offset);
@@ -3251,15 +3238,13 @@ void MoveStructure::deserialize() {
 
     // Read in document taxa id
     // TODO: HARDCODED FOR NOW, WILL FIX LATER
-    std::ifstream doc_ids_file("/vast/blangme2/mzakeri1/Move/steven/classification_data_pseudomonadota/bacteria_kraken2_library.matching_ids.fasta_with_rv.interval_species");
+    /*std::ifstream doc_ids_file("/vast/blangme2/mzakeri1/Move/steven/classification_data_pseudomonadota/bacteria_kraken2_library.matching_ids.fasta_with_rv.interval_species");
     uint32_t doc_id;
     while ((doc_ids_file >> doc_id)) {
         doc_ids.push_back(doc_id);
         taxa_id_compress[doc_id] = 0;
     }
     doc_ids_file.close();
-
-    std::cerr << "Doc offsets, doc ids, compressed: " << doc_offsets.size() << " " << doc_ids.size() << " " << taxa_id_compress.size() << std::endl;
 
     // Compress taxa_id to 0...(num_species - 1)
     num_species = 0;
@@ -3269,14 +3254,13 @@ void MoveStructure::deserialize() {
     for (size_t i = 0; i < doc_ids.size(); i++) {
         doc_ids[i] = taxa_id_compress[doc_ids[i]];
     }
-    
-    doc_lens.resize(num_docs);
-    for (size_t i = 1; i < doc_offsets.size(); i++) {
-        doc_lens[i] = doc_offsets[i] - doc_offsets[i - 1];
-    }
-    doc_lens[0] = doc_offsets[0];
+    std::cerr << "Finished compressing taxa id" << std::endl;*/
 
-    std::cerr << "Finished compressing taxa id" << std::endl;
+    // If no interval species information:
+    doc_ids.resize(num_docs);
+    for (size_t i = 0; i < num_docs; i++) {
+        doc_ids[i] = i;
+    }
 
     // Fill in powers of 2 array.
     pow2[0] = 1;
