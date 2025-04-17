@@ -16,6 +16,7 @@ class MoviOptions {
         bool is_preprocessed() { return preprocessed; }
         bool is_split() { return split; }
         bool is_thresholds() { return thresholds; }
+        bool is_mmap() { return mmap; }
         bool no_prefetch() { return !prefetch; }
         bool is_no_output() { return no_output; }
         bool is_output_ids() { return output_ids; }
@@ -88,6 +89,7 @@ class MoviOptions {
                 std::srand(time(0));
             return true;
         }
+        void set_mmap(bool mmap_) { mmap = mmap_; }
         void set_prefetch(bool prefetch_) { prefetch = prefetch_; }
         void set_threads(size_t threads_) { threads = threads_; }
         void set_strands(size_t strands_) { strands = strands_; }
@@ -127,6 +129,7 @@ class MoviOptions {
             std::cerr << "kmer_query:\t" << kmer_query << "\n";
             std::cerr << "kmer_count:\t" << kmer_count << "\n";
             std::cerr << "reverse:\t" << reverse << "\n";
+            std::cerr << "mmap:\t" << mmap << "\n";
             std::cerr << "prefetch:\t" << prefetch << "\n";
             std::cerr << "strands:\t" << strands << "\n";
             std::cerr << "threads:\t" << threads << "\n";
@@ -168,6 +171,7 @@ class MoviOptions {
         bool kmer_query = false;
         bool kmer_count = false;
         bool reverse = false;
+        bool mmap = false;
         bool prefetch = true;
         size_t strands = 16;
         size_t threads = 1;

@@ -11,6 +11,12 @@
 #include <vector>
 #include <unordered_map>
 
+#include <span>
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <sdsl/int_vector.hpp>
 #include <sdsl/bit_vectors.hpp>
 
@@ -183,6 +189,7 @@ class MoveStructure {
         uint64_t get_n(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
         uint64_t get_id(uint64_t idx);
+        MoveRow& get_move_row(uint64_t idx);
 #if USE_THRESHOLDS
         void compute_thresholds();
         bool reposition_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
@@ -227,6 +234,7 @@ class MoveStructure {
 
         // The move structure rows
         std::vector<MoveRow> rlbwt;
+        std::span<MoveRow> rlbwt_view;
 #if TALLY_MODE
         uint32_t tally_checkpoints;
         std::vector<std::vector<MoveTally>> tally_ids;

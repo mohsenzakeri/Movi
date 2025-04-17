@@ -50,6 +50,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
+        ("mmap", "Use memory mapping to read the index")
         ("n,no-prefetch", "Disable prefetching for query")
         ("k,k-length", "The length of the kmer", cxxopts::value<uint32_t>())
         ("ftab-k", "The length of the ftba kmer", cxxopts::value<uint32_t>())
@@ -182,6 +183,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (movi_options.is_pml() and movi_options.is_count()) {
                             const std::string message = "Please only specify count or pml as the type of queries.";
                             cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                        }
+                        if (result.count("mmap") == 1) {
+                            movi_options.set_mmap(true);
                         }
                         if (result.count("no-prefetch") == 1) {
                             movi_options.set_prefetch(false);
