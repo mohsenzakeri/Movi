@@ -39,6 +39,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("kmer", "Search all the kmers")
         ("kmer-count", "Find the count of every kmer")
         ("classify", "Classify the reads")
+        ("multi-classify", "Multi-class classification with PMLs")
         ("thres", "Threshold for classification (only consider PMLs above thres)", cxxopts::value<uint8_t>())
         ("full", "Use full coloring information to compute pseudo-matching lengths (PMLs)")
         ("compress", "Use compressed document sets for classification")
@@ -59,7 +60,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     auto colorOptions = options.add_options("color")
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("compress", "Whether or not we compress doc sets (only keep most frequent few)")
-        ("full", "Whether or not to store all document information (or just the sets for each run)");
+        ("full", "Whether or not to store all document information (or just the sets for each run)")
+        ("t,threads", "Number of threads for query", cxxopts::value<int>());
 
     auto viewOptions = options.add_options("view")
         ("mls-file", "The matching lengths (PML or ZML) file in the binary format", cxxopts::value<std::string>());
@@ -154,6 +156,10 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     if (result.count("compress")) {
                         movi_options.set_compress(true);
                     }
+                    if (result.count("threads") == 1) {
+                        std::cerr << "threads: " << result["threads"].as<int>() << "\n";
+                        movi_options.set_threads(static_cast<size_t>(result["threads"].as<int>()));
+                    }
                 } else {
                     const std::string message = "Please include one index directory and one fasta file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
@@ -174,6 +180,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("pml") >= 1) { movi_options.set_pml(); }
                         if (result.count("rpml") >= 1) { movi_options.set_random_repositioning(true); }
                         if (result.count("classify") >= 1) { movi_options.set_classify(true); }
+                        if (result.count("multi-classify") >= 1) { movi_options.set_multi_classify(true); }
                         if (result.count("thres")) { movi_options.set_thres(result["thres"].as<uint8_t>()); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
                         if (result.count("pml") || result.count("zml")) {

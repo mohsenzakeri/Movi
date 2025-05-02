@@ -94,6 +94,7 @@ int main(int argc, char* argv[]) {
     }
     std::cerr << "The clean fasta with the reverse complement is stored at " << static_cast<std::string>(argv[2]) << "\n";
 
+    // doc_offsets file stores the start index of the next run (last index of current run + 1)
     std::ofstream doc_offsets(static_cast<std::string>(argv[2]) + ".doc_offsets");
     uint64_t cur_ind = 0;
     for (int i = 0; i < doc_lengths.size(); i++) {

@@ -47,9 +47,7 @@ void Classifier::close_report_file() {
     report_file.close();
 }
 
-// Borrowed from spumoni written by Omar Ahmed: https://github.com/oma219/spumoni/tree/main
-void Classifier::classify(std::string read_name, std::vector<uint16_t>& matching_lens, MoviOptions& movi_options) {
-
+bool Classifier::is_present(std::vector<uint16_t>& matching_lens, MoviOptions& movi_options) {
     std::vector<size_t> bins_max_value;
     std::string status = "";
     size_t sum_max_bin_values = 0.0;
@@ -75,7 +73,37 @@ void Classifier::classify(std::string read_name, std::vector<uint16_t>& matching
     }
     std::for_each(bins_max_value.begin(), bins_max_value.end(), [&] (double n) {sum_max_bin_values += n;});
     bool read_found = (bins_above/(bins_above+bins_below+0.0) > 0.50);
-    status = (read_found) ? "FOUND" : "NOT_PRESENT";
+    return read_found;
+}
+
+// Borrowed from spumoni written by Omar Ahmed: https://github.com/oma219/spumoni/tree/main
+void Classifier::classify(std::string read_name, std::vector<uint16_t>& matching_lens, MoviOptions& movi_options) {
+    std::vector<size_t> bins_max_value;
+    std::string status = "";
+    size_t sum_max_bin_values = 0.0;
+    size_t bins_above = 0, bins_below = 0;
+    size_t start_pos = 0, end_pos = 0;
+    size_t bin_width = movi_options.get_bin_width();
+
+    while (start_pos < matching_lens.size()) {
+        end_pos = (start_pos + bin_width < matching_lens.size()) ? start_pos + bin_width : matching_lens.size();
+
+        // avoids small regions at the end of read
+        if (matching_lens.size() - end_pos < bin_width)
+            end_pos = matching_lens.size();
+
+        // grab maximum value in this region and update variables
+        auto max_val = *std::max_element(matching_lens.begin()+start_pos, matching_lens.begin()+end_pos);
+        if (max_val >= max_value_thr)
+            bins_above++;
+        else
+            bins_below++;
+        bins_max_value.push_back(max_val);
+        start_pos += (end_pos - start_pos);
+    }
+    std::for_each(bins_max_value.begin(), bins_max_value.end(), [&] (double n) {sum_max_bin_values += n;});
+    bool read_found = (bins_above/(bins_above+bins_below+0.0) > 0.50);
+    status = read_found ? "FOUND" : "NOT_PRESENT";
 
     #pragma omp critical
     {

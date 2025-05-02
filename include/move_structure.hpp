@@ -27,63 +27,32 @@ const uint64_t MOD = 1000000000000000003ll;
 const uint32_t ARR_SIZE = (1 << 16);
 extern uint64_t pow2[ARR_SIZE];
 
+class Classifier;
+
 class DocSet {
 public:
-    int size;
-    uint64_t hash;
-    sdsl::bit_vector bv;
+    std::vector<uint16_t> docs;
 
-    DocSet(int n) : size(n), hash(0) { bv.resize(n); }
-    DocSet(sdsl::bit_vector bits) : size(bits.size()), bv(bits) {
-        calc_hash();
-    }
-
-    void calc_hash() {
-        hash = 0;
-        for (int i = 0; i < size; i++) {
-            if (bv[i]) {
-                hash += pow2[i];
-                if (hash >= MOD) {
-                    hash -= MOD;
-                }
-            }
-        }
-    }
-
-    void set(int ind) {
-        if (!bv[ind]) {
-            bv[ind] = 1;
-            hash += pow2[ind];
-            if (hash >= MOD) {
-                hash -= MOD;
-            }
-        }
-    }
-
-    void unset(int ind) {
-        if (bv[ind]) {
-            bv[ind] = 0;
-            hash -= pow2[ind];
-            if (hash < 0) {
-                hash += MOD;
-            }
-        }
-    }
+    DocSet() {}
+    DocSet(std::vector<uint16_t> &_docs) : docs(_docs) {}
+    DocSet(std::vector<uint16_t> &&_docs) : docs(_docs) {}
 
     bool operator==(const DocSet &o) const {
-        for (int i = 0; i < size; i++) {
-            if (bv[i] != o.bv[i]) {
-                return false;
-            }
-        }
-        return true;
+        return docs == o.docs;
     }
 };
 
 template<>
 struct std::hash<DocSet> {
     std::size_t operator()(const DocSet &dc) const {
-        return dc.hash;
+        size_t hash = 0;
+        for (int doc : dc.docs) {
+            hash += pow2[doc];
+            if (hash >= MOD) {
+                hash -= MOD;
+            }
+        }
+        return hash;
     }
 };
 
@@ -173,6 +142,7 @@ class MoveStructure {
         MoveStructure(MoviOptions* movi_options_, uint16_t splitting, bool constant);
 
         std::ofstream debug_out;
+        std::ofstream out_file;
         
         void build();
         void fill_bits_by_thresholds();
@@ -222,21 +192,21 @@ class MoveStructure {
         void compute_run_lcs();
         void read_ftab();
 
-        // Finds SA entries of all rows in BWT.
-        void find_all_SA();
-        // Find which document a given SA entry belongs to.
-        uint16_t find_document(uint64_t SA);
-        void print_SA();
+        // Fill the run offsets array (used for building colors among other things)
+        void fill_run_offsets();
         // Builds document sets for each run in rlbwt.
         void build_doc_sets();
-        uint32_t hash_collapse(std::unordered_map<DocSet, uint32_t> &keep_set, sdsl::bit_vector &bv);
+        uint32_t hash_collapse(std::unordered_map<DocSet, uint32_t> &keep_set, DocSet &bv);
         void build_tree_doc_sets();
         void build_doc_set_similarities();
         void compress_doc_sets(bool hash_compress);
-        // Builds document information for all rows.
+        // Finds documents corresponding to rows in BWT.
         void build_doc_pats();
         // Writes frequencies of document sets to file.
         void write_doc_set_freqs(std::string fname);
+        // Initialize classify counts
+        void initialize_classify_cnts() { classify_cnts.resize(num_species); }
+        void set_classifier(Classifier *cl) { classifier = cl; }
 
         // Document tree functions
         bool is_ancestor(uint16_t x, uint16_t y);
@@ -250,10 +220,12 @@ class MoveStructure {
         // uint64_t naive_sa(uint64_t bwt_row);
         // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
 
-        void serialize_doc_pats();
-        void deserialize_doc_pats();
-        void serialize_doc_sets(std::string file_suf);
-        void deserialize_doc_sets(std::string file_suf);
+        void serialize_doc_pats(std::string fname);
+        void deserialize_doc_pats(std::string fname);
+        void serialize_doc_sets(std::string fname);
+        void deserialize_doc_sets(std::string fname);
+        void serialize_doc_rows();
+        void deserialize_doc_rows();
         void serialize();
         void deserialize();
         
@@ -267,7 +239,6 @@ class MoveStructure {
         void analyze_rows();
         bool check_alphabet(char& c);
 
-        void set_use_doc_pats(bool val) { use_doc_pats = val; }
         int get_num_docs() { return num_docs; }
         int get_num_species() { return num_species; }
         char get_char(uint64_t idx);
@@ -283,35 +254,34 @@ class MoveStructure {
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
 #endif
-	// Counts of genotype queries outputting each document.
-        std::vector<uint32_t> genotype_cnts;
-    
-        KmerStatistics kmer_stats;
+	    KmerStatistics kmer_stats;
         friend class ReadProcessor;
         std::vector<MoveRow> get_rlbwt();
     private:
         // Sorted vector of the start offsets of each document.  
         std::vector<uint64_t> doc_offsets;
+        // Species ID for each document
         std::vector<uint32_t> doc_ids;
-        std::map<uint32_t, uint32_t> taxa_id_compress;
+        // Map from taxon id to compressed species index
+        std::map<uint32_t, uint32_t> taxon_id_compress;
+        // Compressed species index to taxon id
+        std::vector<uint32_t> to_taxon_id;
+        // log length of each species
+        std::vector<double> log_lens;
         uint32_t num_docs;
         uint32_t num_species;
 
         // Offset of run heads in the rlbwt.
         std::vector<uint64_t> run_offsets;
 
-        // Vector of all SA entries (corresponding doc ids).
-        std::vector<uint16_t> SA_entries;
-
         // Document sets.
-        std::vector<sdsl::bit_vector> unique_doc_sets;
-        std::vector<sdsl::sd_vector<>> unique_doc_sets_sparse;
+        std::vector<std::vector<uint16_t>> unique_doc_sets;
         std::vector<uint32_t> doc_set_inds;
         sdsl::bit_vector compressed;
 
         // Tree over documents
         std::vector<std::vector<uint16_t>> tree;
-        std::vector<sdsl::bit_vector> tree_doc_sets;
+        std::vector<DocSet> tree_doc_sets;
         std::vector<std::vector<uint16_t>> bin_lift;
         std::vector<uint16_t> t_in;
         std::vector<uint16_t> t_out;
@@ -319,11 +289,14 @@ class MoveStructure {
         // Count of how much each doc set appears (by ID).
         std::vector<uint64_t> doc_set_cnts;
 
-        // Document patterns.
-        std::vector<uint8_t> doc_pats;
+        // Document patterns (species that each row in BWT belongs to).
+        std::vector<uint16_t> doc_pats;
 
-        // Flag to determine which document method to use
-        bool use_doc_pats;
+        // Counts for classification
+        std::vector<uint32_t> classify_cnts;
+
+        // Classifier object for binary classification
+        Classifier *classifier;
     
         MoviOptions* movi_options;
 	    bool onebit; // This is not used any more as the onebit modes is deprecated

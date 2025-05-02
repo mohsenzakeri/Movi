@@ -94,7 +94,8 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         }
 
         Classifier classifier;
-        if (movi_options.is_classify()) {
+        mv_.set_classifier(&classifier);
+        if (movi_options.is_multi_classify() || movi_options.is_classify()) {
             classifier.initialize_report_file(movi_options);
         }
 
@@ -104,8 +105,6 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         std::ofstream count_file;
         if (!movi_options.is_stdout()) {
             if (movi_options.is_pml() or movi_options.is_zml()) {
-                // genotype_cnts tracks which documents the genotype queries think each read is from.
-                mv_.genotype_cnts.resize(mv_.get_num_docs()); 
                 mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + "." + query_type(movi_options) + ".bin", std::ios::out | std::ios::binary);
             } else if (movi_options.is_count()) {
                 count_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".matches");
@@ -153,8 +152,10 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                             std::reverse(query_seq.begin(), query_seq.end());
                         mq = MoveQuery(query_seq);
                         if (movi_options.is_pml()) {
+                            mv_.out_file << read_struct.id << ",";
                             total_ff_count += mv_.query_pml(mq);
                         } else if (movi_options.is_zml()) {
+                            mv_.out_file << read_struct.id << ",";
                             total_ff_count += mv_.query_zml(mq);
                         }
 
@@ -194,14 +195,6 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         }
         
         if (movi_options.is_pml() || movi_options.is_zml()) {
-            // Write genotype query results to file.
-            std::ofstream out(movi_options.get_out_file(), std::ofstream::app);
-            for (uint16_t i = 0; i < mv_.get_num_species(); i++) {
-                out << mv_.genotype_cnts[i] << " ";
-            }
-            out << std::endl;
-            out.close();
-
             std::cerr << "all fast forward counts: " << total_ff_count << "\n";
             if (!movi_options.is_stdout()) {
                 mls_file.close();
@@ -329,26 +322,28 @@ int main(int argc, char** argv) {
 
             std::cerr << "Done deserializing" << std::endl;
             if (movi_options.is_full_color()) {
-                mv_.find_all_SA();
+                // Build document patterns (full information) and colors at once.
+                mv_.fill_run_offsets();
                 mv_.build_doc_pats();
-                mv_.serialize_doc_pats();
+                std::cerr << "Done building document info for each BWT row" << std::endl;
+                mv_.serialize_doc_pats(movi_options.get_index_dir() + "/doc_pats.bin");
+                
+                mv_.build_doc_sets();
+                std::cerr << "Done building document sets" << std::endl;
+                mv_.serialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
             } else {
                 if (!movi_options.is_compressed()) {
-                    mv_.find_all_SA();
-                    std::cerr << "Done finding all SA entries" << std::endl;
+                    mv_.fill_run_offsets();
+                    mv_.deserialize_doc_pats(movi_options.get_index_dir() + "/doc_pats.bin");
+                    std::cerr << "Done reading document pattern information" << std::endl;
                     mv_.build_doc_sets();
                     std::cerr << "Done building document sets" << std::endl;
-                    mv_.serialize_doc_sets("doc_sets.bin");
+                    mv_.serialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
                 } else {
-                    mv_.deserialize_doc_sets("doc_sets.bin");
-                    //mv_.serialize_doc_sets("doc_sets_sparse.bin");
+                    mv_.deserialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
                     
-                    //mv_.debug_out.open("../output/48_species/long_reads/tree_compression.txt");
-                    mv_.build_tree_doc_sets();
-                    //mv_.debug_out.close();
-                    //mv_.compress_doc_sets(true);
-
-                    mv_.serialize_doc_sets("tree_doc_sets.bin");
+                    mv_.compress_doc_sets(false);
+                    mv_.serialize_doc_sets(movi_options.get_index_dir() + "/compress_doc_sets.bin");
                 }
             }
 
@@ -362,37 +357,39 @@ int main(int argc, char** argv) {
             auto end = std::chrono::system_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
             std::fprintf(stderr, "Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+            
+            begin = std::chrono::system_clock::now();
+            if (movi_options.is_multi_classify()) {
+                if (movi_options.is_full_color()) {
+                    mv_.fill_run_offsets();
+                    std::string fname = movi_options.get_index_dir() + "/doc_pats.bin";
+                    mv_.deserialize_doc_pats(fname);
+                } else {
+                    if (!movi_options.is_compressed()) {
+                        std::string fname = movi_options.get_index_dir() + "/doc_sets.bin";
+                        mv_.deserialize_doc_sets(fname);
+                    } else {
+                        std::string fname = movi_options.get_index_dir() + "/compress_doc_sets.bin";
+                        mv_.deserialize_doc_sets(fname);
+                    }
+                }
+                mv_.out_file.open(movi_options.get_out_file());
+                mv_.initialize_classify_cnts(); 
+            }
+            end = std::chrono::system_clock::now();
+            elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+            std::fprintf(stderr, "Time measured for loading the document sets: %.3f seconds.\n", elapsed.count() * 1e-9);
+            
             begin = std::chrono::system_clock::now();
             
-            // mv_.debug_out.open("../output/48_species/long_reads/max_desert_lens.txt", std::ofstream::app);  
-            mv_.set_use_doc_pats(movi_options.is_full_color());
-            if (movi_options.is_full_color()) {
-                mv_.deserialize_doc_pats();
-            } else {
-                if (!movi_options.is_compressed()) {
-                    mv_.deserialize_doc_sets("doc_sets.bin");
-                } else {
-                    mv_.deserialize_doc_sets("tree_doc_sets.bin");
-                }
-                // mv_.write_doc_set_freqs("../output/48_species/long_reads/doc_set_freqs.txt");
-            }   
             query(mv_, movi_options);
-            // mv_.debug_out << ">\n";
-            // mv_.debug_out.close();
-
+            
             end = std::chrono::system_clock::now();
             elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
 
-            // Output time for benchmarking
-            std::ifstream time_in("../output/48_species/long_reads/time_query.txt");
-            double tot_time = 0;
-            if (!(time_in >> tot_time)) tot_time = 0;
-            tot_time += elapsed.count() * 1e-9;
-            time_in.close();
-
-            std::ofstream time_out("../output/48_species/long_reads/time_query.txt");
-            time_out << tot_time << "\n";
-            time_out.close();
+            if (movi_options.is_multi_classify()) {
+                mv_.out_file.close();
+            }
 
             std::fprintf(stderr, "Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);
         } else if (command == "view") {

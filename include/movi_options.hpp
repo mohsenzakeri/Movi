@@ -32,6 +32,7 @@ class MoviOptions {
         bool is_reverse() { return reverse; }
         bool is_multi_ftab() { return multi_ftab; }
         bool is_classify() { return classify; }
+        bool is_multi_classify() { return multi_classify; }
         bool is_generate_null_reads() { return generate_null_reads; }
         size_t get_bin_width() { return bin_width; }
         int ignore_illegal_chars_status() { return ilc; }
@@ -74,6 +75,7 @@ class MoviOptions {
         void set_multi_ftab(bool multi_ftab_) { multi_ftab = multi_ftab_; }
         void set_reverse(bool reverse_) { reverse = reverse_; }
         void set_classify(bool classify_) { classify = classify_; }
+        void set_multi_classify(bool multi_classify_) { multi_classify = multi_classify_; }
         void set_generate_null_reads(bool generate_null_reads_) { generate_null_reads = generate_null_reads_; }
         void set_bin_width(size_t bin_width_) { bin_width = bin_width_; }
         bool set_ignore_illegal_chars(int ilc_) {
@@ -161,6 +163,7 @@ class MoviOptions {
         bool multi_ftab = false;
         bool verify = false;
         bool classify = false;
+        bool multi_classify = false;
         bool generate_null_reads = false;
         size_t bin_width = 150;
 
