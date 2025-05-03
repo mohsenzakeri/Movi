@@ -199,7 +199,7 @@ class MoveStructure {
         uint32_t hash_collapse(std::unordered_map<DocSet, uint32_t> &keep_set, DocSet &bv);
         void build_tree_doc_sets();
         void build_doc_set_similarities();
-        void compress_doc_sets(bool hash_compress);
+        void compress_doc_sets();
         // Finds documents corresponding to rows in BWT.
         void build_doc_pats();
         // Writes frequencies of document sets to file.

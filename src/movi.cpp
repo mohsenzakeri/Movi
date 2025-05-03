@@ -95,7 +95,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
         Classifier classifier;
         mv_.set_classifier(&classifier);
-        if (movi_options.is_multi_classify() || movi_options.is_classify()) {
+        if (movi_options.is_classify()) {
             classifier.initialize_report_file(movi_options);
         }
 
@@ -322,7 +322,7 @@ int main(int argc, char** argv) {
 
             std::cerr << "Done deserializing" << std::endl;
             if (movi_options.is_full_color()) {
-                // Build document patterns (full information) and colors at once.
+                // Build document patterns (full information)
                 mv_.fill_run_offsets();
                 mv_.build_doc_pats();
                 std::cerr << "Done building document info for each BWT row" << std::endl;
@@ -342,7 +342,7 @@ int main(int argc, char** argv) {
                 } else {
                     mv_.deserialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
                     
-                    mv_.compress_doc_sets(false);
+                    mv_.compress_doc_sets();
                     mv_.serialize_doc_sets(movi_options.get_index_dir() + "/compress_doc_sets.bin");
                 }
             }
@@ -358,6 +358,8 @@ int main(int argc, char** argv) {
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
             std::fprintf(stderr, "Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
             
+            std::cerr << "RPML: " << movi_options.is_random_repositioning() << std::endl;
+
             begin = std::chrono::system_clock::now();
             if (movi_options.is_multi_classify()) {
                 if (movi_options.is_full_color()) {

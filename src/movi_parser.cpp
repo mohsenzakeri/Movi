@@ -34,6 +34,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
     auto queryOptions = options.add_options("query")
         ("pml", "Compute the pseudo-matching lengths (PMLs)")
+        ("rpml", "Compute the pseudo-matching lengths using random repositioning (RPMLs)")
         ("zml", "Compute the Ziv-Merhav cross parsing length (ZMLs)")
         ("count", "Compute the count queries")
         ("kmer", "Search all the kmers")
@@ -41,6 +42,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("classify", "Classify the reads")
         ("multi-classify", "Multi-class classification with PMLs")
         ("thres", "Threshold for classification (only consider PMLs above thres)", cxxopts::value<uint8_t>())
+        ("scale", "Scale for p-value classification", cxxopts::value<double>())
         ("full", "Use full coloring information to compute pseudo-matching lengths (PMLs)")
         ("compress", "Use compressed document sets for classification")
         ("bin-width", "The width of the bin used for classification", cxxopts::value<uint32_t>())
@@ -182,6 +184,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("classify") >= 1) { movi_options.set_classify(true); }
                         if (result.count("multi-classify") >= 1) { movi_options.set_multi_classify(true); }
                         if (result.count("thres")) { movi_options.set_thres(result["thres"].as<uint8_t>()); }
+                        if (result.count("scale")) { movi_options.set_scale(result["scale"].as<double>()); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
                         if (result.count("pml") || result.count("zml")) {
                             if (result.count("full")) {

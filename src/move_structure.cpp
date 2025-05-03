@@ -284,9 +284,9 @@ uint32_t MoveStructure::hash_collapse(std::unordered_map<DocSet, uint32_t> &keep
     return 0;
 }
 
-void MoveStructure::compress_doc_sets(bool hash_compress) {
+void MoveStructure::compress_doc_sets() {
     // How many doc sets to keep.
-    int take = (1 << 16);
+    int take = (1 << 8);
 
     // Get doc set counts.
     doc_set_cnts.resize(unique_doc_sets.size());
@@ -298,13 +298,7 @@ void MoveStructure::compress_doc_sets(bool hash_compress) {
     for (size_t i = 0; i < unique_doc_sets.size(); i++) {
         set_dist[unique_doc_sets[i].size()] += doc_set_cnts[i];
     }
-
-    std::ofstream set_bit_out("../indices/pseudomonadota/set_bit_dist.txt");
-    for (int i = 1; i <= num_species; i++) {
-        set_bit_out << set_dist[i] << "\n";
-    }
-    set_bit_out.close();
-    std::cerr << "Done computing set bit distribution." << std::endl;*/
+    */
 
     // Sort document sets by their frequency (and ensuring singletons are put first).
     std::vector<std::tuple<bool, uint64_t, uint32_t>> sorted(doc_set_cnts.size());
@@ -2414,6 +2408,9 @@ uint64_t MoveStructure::query_zml(MoveQuery& mq) {
         
         // Document occuring the most is the genotype we think the query is from.
         out_file << to_taxon_id[best_doc] << " ";
+        for (uint16_t i = 0; i < num_species; i++) {
+        //    out_file << classify_cnts[i] << " ";
+        }
         out_file << "\n";
     }
 
@@ -2468,11 +2465,6 @@ bool MoveStructure::look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r,
 }
 
 uint64_t MoveStructure::query_pml(MoveQuery& mq) {
-    if (random) {
-        if (movi_options->is_verbose())
-            std::cerr << "Repositioning randomly - not with thresholds! \n";
-    }
-
     auto& R = mq.query();
     int32_t pos_on_r = R.length() - 1;
     uint64_t idx = r - 1; // or we can start from a random position in the rlbwt std::rand() % r
@@ -2490,12 +2482,16 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     }
 
     // Multi-class classification
+    std::vector<double> doc_scores;
     if (movi_options->is_multi_classify()) {
         for (uint16_t i = 0; i < num_species; i++) {
             classify_cnts[i] = 0;
         }
+        if (movi_options->get_scale() >= 0) {
+            doc_scores.resize(num_species);
+        }
     }
-    
+
     uint64_t iteration_count = 0;
     while (pos_on_r > -1) {
         iteration_count += 1;
@@ -2579,21 +2575,6 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 exit(0);
             }
         }
-
-        if (movi_options->is_multi_classify()) {
-            if (match_len >= movi_options->get_thres()) {
-                /*uint64_t full_ind = run_offsets[idx] + offset;
-                uint16_t cur_doc = doc_pats[full_ind];
-                classify_cnts[cur_doc]++;*/
-
-                // Skip doc sets that weren't saved (thrown away by compression).
-                if (doc_set_inds[idx] >= unique_doc_sets.size()) continue;
-                std::vector<uint16_t> &cur_set = unique_doc_sets[doc_set_inds[idx]];
-                for (int doc : cur_set) {
-                    classify_cnts[doc]++;
-                }
-            }
-        }
     
         mq.add_ml(match_len, movi_options->is_stdout());
         pos_on_r -= 1;
@@ -2610,6 +2591,30 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             mq.add_fastforward(ff_count);
             mq.add_scan(scan_count);
         }
+
+        if (movi_options->is_multi_classify()) {
+            if (movi_options->get_scale() >= 0 || match_len >= movi_options->get_thres()) {
+                /*uint64_t full_ind = run_offsets[idx] + offset;
+                uint16_t cur_doc = doc_pats[full_ind];
+                classify_cnts[cur_doc]++;*/
+
+                // Skip doc sets that weren't saved (thrown away by compression).
+                if (doc_set_inds[idx] >= unique_doc_sets.size()) continue;
+                std::vector<uint16_t> &cur_set = unique_doc_sets[doc_set_inds[idx]];
+                for (int doc : cur_set) {
+                    if (movi_options->get_scale() < 0) {
+                        classify_cnts[doc]++;
+                    } else {
+                        // p value strategy
+                        double val = match_len - (log_lens[doc] / movi_options->get_scale());
+                        if (val >= 0) {
+                            if (val < 1) doc_scores[doc] += val;
+                            else doc_scores[doc]++;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     if (movi_options->is_multi_classify()) {
@@ -2619,10 +2624,14 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
         } else {
             uint32_t best_doc = 0;
             for (uint32_t i = 1; i < num_species; i++) {
-                //if ((abs(doc_scores[i] - doc_scores[best_doc]) < 1e-18 && classify_cnts[i] > classify_cnts[best_doc])
-                //        || doc_scores[i] < doc_scores[best_doc]) {
-                if (classify_cnts[i] > classify_cnts[best_doc]) {
-                    best_doc = i;
+                if (movi_options->get_scale() < 0) {
+                    if (classify_cnts[i] > classify_cnts[best_doc]) {
+                        best_doc = i;
+                    }
+                } else {
+                    if (doc_scores[i] > doc_scores[best_doc]) {
+                        best_doc = i;
+                    }
                 }
             }
     
