@@ -136,6 +136,31 @@ void ReadProcessor::process_char(Strand& process) {
         t1 = process.t1;
     }
 
+    if (mv.movi_options->is_multi_classify()) {
+        if (process.match_len >= mv.movi_options->get_thres()) {
+            // Skip doc sets that weren't saved (thrown away by compression).
+            if (mv.doc_set_inds[process.idx] >= mv.unique_doc_sets.size()) {
+                    std::cerr << "doc_set_inds[idx] >= unique_doc_sets.size()\n";
+                    std::cerr << "This should not happen when compression is not turned on.\n";
+                    std::cerr << "The compressed version of the prefetching mode is not supported yet.\n";
+                    exit(0);
+            } else {
+                std::vector<uint16_t> &cur_set = mv.unique_doc_sets[mv.doc_set_inds[process.idx]];
+                for (int doc : cur_set) {
+                    process.classify_cnts[doc]++;
+                    // if (process.classify_cnts[doc] >= process.classify_cnts[process.best_doc]) {
+                    //     if (process.classify_cnts[doc] == process.classify_cnts[process.best_doc]) {
+                    //         process.multiple_best_docs = true;
+                    //     } else {
+                    //         process.multiple_best_docs = false;
+                    //     }
+                    //     process.best_doc = doc;
+                    // }
+                }
+            }
+        }
+    }
+
     auto& row = mv.rlbwt[process.idx];
     uint64_t row_idx = process.idx;
     char row_c = mv.alphabet[row.get_c()];
@@ -173,31 +198,6 @@ void ReadProcessor::process_char(Strand& process) {
                 std::cerr << "\t idx: " << process.idx << " offset: " << process.offset << "\n";
         } else {
             std::cerr << "\t \t This should not happen!\n";
-        }
-    }
-
-    if (mv.movi_options->is_multi_classify()) {
-        if (process.match_len >= mv.movi_options->get_thres()) {
-            // Skip doc sets that weren't saved (thrown away by compression).
-            if (mv.doc_set_inds[process.idx] >= mv.unique_doc_sets.size()) {
-                    std::cerr << "doc_set_inds[idx] >= unique_doc_sets.size()\n";
-                    std::cerr << "This should not happen when compression is not turned on.\n";
-                    std::cerr << "The compressed version of the prefetching mode is not supported yet.\n";
-                    exit(0);
-            } else {
-                std::vector<uint16_t> &cur_set = mv.unique_doc_sets[mv.doc_set_inds[process.idx]];
-                for (int doc : cur_set) {
-                    process.classify_cnts[doc]++;
-                    // if (process.classify_cnts[doc] >= process.classify_cnts[process.best_doc]) {
-                    //     if (process.classify_cnts[doc] == process.classify_cnts[process.best_doc]) {
-                    //         process.multiple_best_docs = true;
-                    //     } else {
-                    //         process.multiple_best_docs = false;
-                    //     }
-                    //     process.best_doc = doc;
-                    // }
-                }
-            }
         }
     }
 
