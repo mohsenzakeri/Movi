@@ -150,7 +150,7 @@ class MoviOptions {
         bool split = false;
         bool thresholds = false;
         bool random_repositioning = false;
-        bool pml_query = false;
+        bool pml_query = true;
         bool zml_query = false;
         bool count_query = false;
         bool kmer_query = false;
