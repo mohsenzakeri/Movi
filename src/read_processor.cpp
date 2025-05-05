@@ -20,6 +20,9 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
 
     // seq = kseq_init(fp); // STEP 3: initialize seq
     std::string index_type = program();
+    if (mv_.movi_options->is_multi_classify()) {
+        out_file = std::ofstream(mv_.movi_options->get_out_file());
+    }
     if (!mv_.movi_options->is_stdout()) {
         if (mv_.movi_options->is_pml()) {
             std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
@@ -86,6 +89,12 @@ void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
         process.idx = mv.r - 1;
         process.offset = mv.get_n(process.idx) - 1;
 
+        // reset the multi-class classification variables
+        process.best_doc = 0;
+        process.multiple_best_docs = false;
+        if (mv.movi_options->is_multi_classify()) {
+            std::fill(process.classify_cnts.begin(), process.classify_cnts.end(), 0);
+        }
 #if TALLY_MODE
         // This is necessary
         process.tally_state = false;
@@ -166,6 +175,32 @@ void ReadProcessor::process_char(Strand& process) {
             std::cerr << "\t \t This should not happen!\n";
         }
     }
+
+    if (mv.movi_options->is_multi_classify()) {
+        if (process.match_len >= mv.movi_options->get_thres()) {
+            // Skip doc sets that weren't saved (thrown away by compression).
+            if (mv.doc_set_inds[process.idx] >= mv.unique_doc_sets.size()) {
+                    std::cerr << "doc_set_inds[idx] >= unique_doc_sets.size()\n";
+                    std::cerr << "This should not happen when compression is not turned on.\n";
+                    std::cerr << "The compressed version of the prefetching mode is not supported yet.\n";
+                    exit(0);
+            } else {
+                std::vector<uint16_t> &cur_set = mv.unique_doc_sets[mv.doc_set_inds[process.idx]];
+                for (int doc : cur_set) {
+                    process.classify_cnts[doc]++;
+                    // if (process.classify_cnts[doc] >= process.classify_cnts[process.best_doc]) {
+                    //     if (process.classify_cnts[doc] == process.classify_cnts[process.best_doc]) {
+                    //         process.multiple_best_docs = true;
+                    //     } else {
+                    //         process.multiple_best_docs = false;
+                    //     }
+                    //     process.best_doc = doc;
+                    // }
+                }
+            }
+        }
+    }
+
     process.mq.add_ml(process.match_len, mv.movi_options->is_stdout());
     process.pos_on_r -= 1;
     // if (mv.logs)
@@ -413,6 +448,35 @@ void ReadProcessor::write_mls(Strand& process) {
         output_logs(costs_file, scans_file, fastforwards_file, process.read_name, process.mq);
     }
 
+    if (mv.movi_options->is_multi_classify()) {
+        out_file << process.read_name << ",";
+        if (mv.movi_options->is_classify() && !mv.classifier->is_present(process.mq.get_matching_lengths(), *mv.movi_options)) {
+            // Not present
+            out_file << "0\n";
+        } else {
+            uint32_t best_doc = 0;
+            for (uint32_t i = 1; i < mv.num_species; i++) {
+                //if ((abs(doc_scores[i] - doc_scores[best_doc]) < 1e-18 && classify_cnts[i] > classify_cnts[best_doc])
+                //        || doc_scores[i] < doc_scores[best_doc]) {
+                if (process.classify_cnts[i] > process.classify_cnts[best_doc]) {
+                    best_doc = i;
+                    // if (process.classify_cnts[i] == process.classify_cnts[best_doc]) {
+                    //     process.multiple_best_docs = true;
+                    // } else {
+                    //     process.multiple_best_docs = false;
+                    // }
+                }
+            }
+
+            // Document occuring the most is the genotype we think the query is from.
+            out_file << mv.to_taxon_id[best_doc];
+
+            //for (int i = 0; i < num_species; i++) {
+            //    out_file << classify_cnts[i] << " ";
+            //}
+            out_file << "\n";
+        }
+    }
     output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq);
 }
 
@@ -440,6 +504,11 @@ void ReadProcessor::end_process() {
     bool is_pml = mv.movi_options->is_pml();
     bool is_zml = mv.movi_options->is_zml();
     bool is_count = mv.movi_options->is_count();
+
+    if (mv.movi_options->is_multi_classify()) {
+        out_file.close();
+        std::cerr << "out_file file closed!\n";
+    }
 
     if (!mv.movi_options->is_stdout()) {
         if (is_pml or is_zml) {
@@ -665,7 +734,13 @@ void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
 uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes, BatchLoader& reader) {
     uint64_t finished_count = 0;
     uint64_t empty_strands = 0;
-    for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
+    for(int i = 0; i < strands; i++) {
+        processes.emplace_back(Strand());
+        if (mv.movi_options->is_multi_classify()) {
+            processes[i].classify_cnts.resize(mv.get_num_species(), 0);
+        }
+    }
+
     // std::cerr << strands << " processes are created.\n";
     for (uint64_t i = 0; i < strands; i++) {
         if (finished_count == 0) {
