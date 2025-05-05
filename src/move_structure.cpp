@@ -2591,6 +2591,9 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 std::vector<uint16_t> &cur_set = unique_doc_sets[doc_set_inds[idx]];
                 for (int doc : cur_set) {
                     classify_cnts[doc]++;
+                    // if (classify_cnts[doc] > classify_cnts[best_doc]) {
+                    //     best_doc = doc;
+                    // }
                 }
             }
         }
@@ -2627,11 +2630,11 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             }
     
             // Document occuring the most is the genotype we think the query is from.
-            out_file << to_taxon_id[best_doc] << " ";
+            out_file << to_taxon_id[best_doc];
     
-            for (int i = 0; i < num_species; i++) {
+            //for (int i = 0; i < num_species; i++) {
             //    out_file << classify_cnts[i] << " ";
-            }
+            //}
             out_file << "\n";
         }
     }
