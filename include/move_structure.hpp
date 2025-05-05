@@ -281,7 +281,7 @@ class MoveStructure {
 
         // Tree over documents
         std::vector<std::vector<uint16_t>> tree;
-        std::vector<DocSet> tree_doc_sets;
+        std::vector<std::vector<uint16_t>> tree_doc_sets;
         std::vector<std::vector<uint16_t>> bin_lift;
         std::vector<uint16_t> t_in;
         std::vector<uint16_t> t_out;
