@@ -450,7 +450,9 @@ void ReadProcessor::write_mls(Strand& process) {
 
     if (mv.movi_options->is_multi_classify()) {
         out_file << process.read_name << ",";
-        if (mv.movi_options->is_classify() && !mv.classifier->is_present(process.mq.get_matching_lengths(), *mv.movi_options)) {
+        // binary classification in the multi-class classification mode is handled at a different part of the code
+        // if (mv.movi_options->is_classify() && !mv.classifier->is_present(process.mq.get_matching_lengths(), *mv.movi_options)) {
+        if (false) {
             // Not present
             out_file << "0\n";
         } else {
