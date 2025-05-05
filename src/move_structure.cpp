@@ -2492,6 +2492,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
         }
     }
 
+    uint16_t best_doc = 0; // for multi-class classification
     uint64_t iteration_count = 0;
     while (pos_on_r > -1) {
         iteration_count += 1;
@@ -2604,9 +2605,9 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 for (int doc : cur_set) {
                     if (movi_options->get_scale() < 0) {
                         classify_cnts[doc]++;
-                        // if (classify_cnts[doc] > classify_cnts[best_doc]) {
-                        //     best_doc = doc;
-                        // }
+                        if (classify_cnts[doc] > classify_cnts[best_doc]) {
+                            best_doc = doc;
+                        }
                     } else {
                         // p value strategy
                         double val = match_len - (log_lens[doc] / movi_options->get_scale());
@@ -2625,16 +2626,19 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             // Not present
             out_file << "0\n";
         } else {
-            uint32_t best_doc = 0;
-            for (uint32_t i = 1; i < num_species; i++) {
-                if (movi_options->get_scale() < 0) {
-                    if (classify_cnts[i] > classify_cnts[best_doc]) {
-                        best_doc = i;
-                    }
-                } else {
-                    if (doc_scores[i] > doc_scores[best_doc]) {
-                        best_doc = i;
-                    }
+            // the following condition is only for p-value strategy
+            if (movi_options->get_scale() >= 0) {
+                best_doc = 0;
+                for (uint32_t i = 1; i < num_species; i++) {
+                    // if (movi_options->get_scale() < 0) {
+                    //     if (classify_cnts[i] > classify_cnts[best_doc]) {
+                    //         best_doc = i;
+                    //     }
+                    // } else {
+                        if (doc_scores[i] > doc_scores[best_doc]) {
+                            best_doc = i;
+                        }
+                    // }
                 }
             }
     

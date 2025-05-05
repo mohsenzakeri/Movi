@@ -148,14 +148,14 @@ void ReadProcessor::process_char(Strand& process) {
                 std::vector<uint16_t> &cur_set = mv.unique_doc_sets[mv.doc_set_inds[process.idx]];
                 for (int doc : cur_set) {
                     process.classify_cnts[doc]++;
-                    // if (process.classify_cnts[doc] >= process.classify_cnts[process.best_doc]) {
-                    //     if (process.classify_cnts[doc] == process.classify_cnts[process.best_doc]) {
-                    //         process.multiple_best_docs = true;
-                    //     } else {
-                    //         process.multiple_best_docs = false;
-                    //     }
-                    //     process.best_doc = doc;
-                    // }
+                    if (process.classify_cnts[doc] > process.classify_cnts[process.best_doc]) {
+                        // if (process.classify_cnts[doc] == process.classify_cnts[process.best_doc]) {
+                        //     process.multiple_best_docs = true;
+                        // } else {
+                        //     process.multiple_best_docs = false;
+                        // }
+                        process.best_doc = doc;
+                    }
                 }
             }
         }
@@ -456,22 +456,22 @@ void ReadProcessor::write_mls(Strand& process) {
             // Not present
             out_file << "0\n";
         } else {
-            uint32_t best_doc = 0;
-            for (uint32_t i = 1; i < mv.num_species; i++) {
-                //if ((abs(doc_scores[i] - doc_scores[best_doc]) < 1e-18 && classify_cnts[i] > classify_cnts[best_doc])
-                //        || doc_scores[i] < doc_scores[best_doc]) {
-                if (process.classify_cnts[i] > process.classify_cnts[best_doc]) {
-                    best_doc = i;
-                    // if (process.classify_cnts[i] == process.classify_cnts[best_doc]) {
-                    //     process.multiple_best_docs = true;
-                    // } else {
-                    //     process.multiple_best_docs = false;
-                    // }
-                }
-            }
+            // uint32_t best_doc = 0;
+            // for (uint32_t i = 1; i < mv.num_species; i++) {
+            //     //if ((abs(doc_scores[i] - doc_scores[best_doc]) < 1e-18 && classify_cnts[i] > classify_cnts[best_doc])
+            //     //        || doc_scores[i] < doc_scores[best_doc]) {
+            //     if (process.classify_cnts[i] > process.classify_cnts[best_doc]) {
+            //         best_doc = i;
+            //         // if (process.classify_cnts[i] == process.classify_cnts[best_doc]) {
+            //         //     process.multiple_best_docs = true;
+            //         // } else {
+            //         //     process.multiple_best_docs = false;
+            //         // }
+            //     }
+            // }
 
             // Document occuring the most is the genotype we think the query is from.
-            out_file << mv.to_taxon_id[best_doc];
+            out_file << mv.to_taxon_id[process.best_doc];
 
             //for (int i = 0; i < num_species; i++) {
             //    out_file << classify_cnts[i] << " ";
