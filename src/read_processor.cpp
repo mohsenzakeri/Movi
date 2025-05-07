@@ -139,7 +139,11 @@ void ReadProcessor::process_char(Strand& process) {
     if (mv.movi_options->is_multi_classify()) {
         if (process.match_len >= mv.movi_options->get_thres()) {
             // Skip doc sets that weren't saved (thrown away by compression).
+#if COLOR_MODE == 1
+            if (mv.rlbwt[process.idx].color_id >= mv.unique_doc_sets.size()) {
+#else
             if (mv.doc_set_inds[process.idx] >= mv.unique_doc_sets.size()) {
+#endif
                     std::cerr << "doc_set_inds[idx] >= unique_doc_sets.size()\n";
                     std::cerr << "This should not happen when compression is not turned on.\n";
                     std::cerr << "The compressed version of the prefetching mode is not supported yet.\n";

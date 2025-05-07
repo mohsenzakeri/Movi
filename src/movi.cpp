@@ -383,8 +383,15 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "Time measured for loading the document sets: %.3f seconds.\n", elapsed.count() * 1e-9);
             
             begin = std::chrono::system_clock::now();
-            
-            query(mv_, movi_options);
+
+            std::cerr << "COLOR_MODE: " << COLOR_MODE << std::endl;
+
+            if (movi_options.is_color_move_rows()) {
+                mv_.add_colors_to_rlbwt();
+                mv_.serialize();
+            } else {
+                query(mv_, movi_options);
+            }
             
             end = std::chrono::system_clock::now();
             elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);

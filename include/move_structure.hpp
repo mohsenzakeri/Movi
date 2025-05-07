@@ -19,6 +19,7 @@
 
 #include "movi_options.hpp"
 #include "move_row.hpp"
+#include "move_row_colored.hpp"
 #include "move_query.hpp"
 #include "sequitur.hpp"
 #include "utils.hpp"
@@ -219,6 +220,7 @@ class MoveStructure {
         // uint64_t naive_lcp(uint64_t row1, uint64_t row2);
         // uint64_t naive_sa(uint64_t bwt_row);
         // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
+        void add_colors_to_rlbwt();
 
         void serialize_doc_pats(std::string fname);
         void deserialize_doc_pats(std::string fname);
@@ -326,6 +328,7 @@ class MoveStructure {
 
         // The move structure rows
         std::vector<MoveRow> rlbwt;
+        std::vector<MoveRowColored> rlbwt_colored;
 #if TALLY_MODE
         uint32_t tally_checkpoints;
         std::vector<std::vector<MoveTally>> tally_ids;

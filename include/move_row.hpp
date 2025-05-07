@@ -228,7 +228,7 @@ class __attribute__((packed)) MoveRow {
             return 3;
 #endif
         }
-    private:
+    // private:
 #if MODE == 5 or MODE == 7
         uint8_t n; // length of the run
         uint8_t offset; // offset of the bwt row head of the current run in the new run after the LF-jump
@@ -241,11 +241,16 @@ class __attribute__((packed)) MoveRow {
 #if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 3 or MODE == 6
         uint32_t id;        // The least significant bits of the bwt run after the LF-jump
 #endif
+
+#if COLOR_MODE == 1
+        uint32_t color_id; // The color id of the run, only used in the colored-compressed mode
+#endif
+
 #if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4 or MODE == 8 or MODE == 3 or MODE == 6
         uint16_t n;         // length of the run
         uint16_t offset;    // offset of the bwt row head of the current run in the new run after the LF-jump
 #endif
-  
+
 #if MODE == 0 or MODE == 1 or MODE == 4
         uint16_t threshold;
         uint8_t overflow_bits;

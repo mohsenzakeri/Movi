@@ -2464,6 +2464,21 @@ bool MoveStructure::look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r,
     }
 }
 
+void MoveStructure::add_colors_to_rlbwt() {
+#if MODE == 3 or MODE == 6
+    rlbwt_colored.resize(rlbwt.size());
+    for (uint64_t i = 0; i < rlbwt.size(); i++) {
+        if (i % 100000 == 0) {
+            std::cerr << "i: " << i << "\r";
+        }
+        rlbwt_colored[i].id = rlbwt[i].id;
+        rlbwt_colored[i].n = rlbwt[i].n;
+        rlbwt_colored[i].offset = rlbwt[i].offset;
+        rlbwt_colored[i].color_id = doc_set_inds[i];
+    }
+    std::cerr << "\n";
+#endif
+}
 uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     auto& R = mq.query();
     int32_t pos_on_r = R.length() - 1;
@@ -2600,8 +2615,13 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 classify_cnts[cur_doc]++;*/
 
                 // Skip doc sets that weren't saved (thrown away by compression).
+#if COLOR_MODE == 1
+                if (rlbwt[idx].color_id >= unique_doc_sets.size()) continue;
+                std::vector<uint16_t> &cur_set = unique_doc_sets[rlbwt[idx].color_id];
+#else
                 if (doc_set_inds[idx] >= unique_doc_sets.size()) continue;
                 std::vector<uint16_t> &cur_set = unique_doc_sets[doc_set_inds[idx]];
+#endif
                 for (int doc : cur_set) {
                     if (movi_options->get_scale() < 0) {
                         classify_cnts[doc]++;
@@ -2945,8 +2965,13 @@ void MoveStructure::deserialize_doc_sets(std::string fname) {
         cur.resize(doc_cnt);
         fin.read(reinterpret_cast<char*>(&cur[0]), (size_t) doc_cnt * sizeof(cur[0]));
     }
+
+#if COLOR_MODE == 0
+    // The following are now stored in rlbwt_colored (colored move rows)
     doc_set_inds.resize(r);
     fin.read(reinterpret_cast<char*>(&doc_set_inds[0]), r * sizeof(doc_set_inds[0]));
+#endif
+
     // Try to read in bit_vector storing if each color set is compressed.
     // Since some doc sets are not serialized with this information, we use a try catch clause.
     /*try {
@@ -2968,6 +2993,9 @@ void MoveStructure::deserialize_doc_sets(std::string fname) {
 void MoveStructure::serialize() {
     mkdir(movi_options->get_index_dir().c_str(),0777);
     std::string fname = movi_options->get_index_dir() + "/index.movi";
+    if (movi_options->is_color_move_rows()) {
+        fname = movi_options->get_index_dir() + "/index_colored.movi";
+    }
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
     if (!fout) {
         throw std::runtime_error("Failed to open the index file at: " + movi_options->get_index_dir());
@@ -3002,8 +3030,11 @@ void MoveStructure::serialize() {
     // This is not used any more as the onebit modes is deprecated
     fout.write(reinterpret_cast<char*>(&onebit), sizeof(onebit));
 
-    fout.write(reinterpret_cast<char*>(&rlbwt[0]), rlbwt.size()*sizeof(rlbwt[0]));
-
+    if (movi_options->is_color_move_rows()) {
+        fout.write(reinterpret_cast<char*>(&rlbwt_colored[0]), rlbwt_colored.size()*sizeof(rlbwt_colored[0]));
+    } else {
+        fout.write(reinterpret_cast<char*>(&rlbwt[0]), rlbwt.size()*sizeof(rlbwt[0]));
+    }
 #if TALLY_MODE
     fout.write(reinterpret_cast<char*>(&tally_checkpoints), sizeof(tally_checkpoints));
     uint64_t tally_ids_len = tally_ids[0].size();
@@ -3059,7 +3090,11 @@ void MoveStructure::serialize() {
 }
 
 void MoveStructure::deserialize() {
+#if COLOR_MODE == 1
+    std::string fname = movi_options->get_index_dir() + "/index_colored.movi";
+#else
     std::string fname = movi_options->get_index_dir() + "/index.movi";
+#endif
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
     if (!fin) {
         // Attempt to read an index file built with the old index name
@@ -3069,6 +3104,7 @@ void MoveStructure::deserialize() {
             throw std::runtime_error("Failed to open the index file at: " + movi_options->get_index_dir());
         }
     }
+    std::cerr << "fname: " << fname << std::endl;
     fin.seekg(0, std::ios::beg); 
 
     if (!movi_options->is_no_header()) {
@@ -3109,8 +3145,8 @@ void MoveStructure::deserialize() {
     fin.read(reinterpret_cast<char*>(&onebit), sizeof(onebit));
 
     rlbwt.resize(r);
+    std::cerr << "sizeof(MoveRow): " << sizeof(MoveRow) << std::endl;
     fin.read(reinterpret_cast<char*>(&rlbwt[0]), r*sizeof(MoveRow));
-
 #if TALLY_MODE
     fin.read(reinterpret_cast<char*>(&tally_checkpoints), sizeof(tally_checkpoints));
     std::cerr << "Tally mode with tally_checkpoints = " << tally_checkpoints << "\n";

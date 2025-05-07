@@ -45,6 +45,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("scale", "Scale for p-value classification", cxxopts::value<double>())
         ("full", "Use full coloring information to compute pseudo-matching lengths (PMLs)")
         ("compress", "Use compressed document sets for classification")
+        ("color-move-rows", "Color the move rows, query is not performed")
         ("bin-width", "The width of the bin used for classification", cxxopts::value<uint32_t>())
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
         ("i,index", "Index directory", cxxopts::value<std::string>())
@@ -185,6 +186,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("multi-classify") >= 1) { movi_options.set_multi_classify(true); }
                         if (result.count("thres")) { movi_options.set_thres(result["thres"].as<uint8_t>()); }
                         if (result.count("scale")) { movi_options.set_scale(result["scale"].as<double>()); }
+                        if (result.count("color-move-rows") == 1) { movi_options.set_color_move_rows(true); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
                         if (result.count("pml") || result.count("zml")) {
                             if (result.count("full")) {
