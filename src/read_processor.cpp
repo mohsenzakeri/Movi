@@ -493,26 +493,15 @@ void ReadProcessor::write_mls(Strand& process) {
             // Not present
             out_file << "0,0\n";
         } else {
-            // uint32_t best_doc = 0;
-            // for (uint32_t i = 1; i < mv.num_species; i++) {
-            //     //if ((abs(doc_scores[i] - doc_scores[best_doc]) < 1e-18 && classify_cnts[i] > classify_cnts[best_doc])
-            //     //        || doc_scores[i] < doc_scores[best_doc]) {
-            //     if (process.classify_cnts[i] > process.classify_cnts[best_doc]) {
-            //         best_doc = i;
-            //         // if (process.classify_cnts[i] == process.classify_cnts[best_doc]) {
-            //         //     process.multiple_best_docs = true;
-            //         // } else {
-            //         //     process.multiple_best_docs = false;
-            //         // }
-            //     }
-            // }
-
             // If the second most occurring document is more than 95% of the most occurring one,
             // we report the other species as well and classify the read at a higher level.
             // out_file << mv.to_taxon_id[process.best_doc];
             if (process.second_best_doc) {
-                double second_best_doc_frac = static_cast<double>(process.classify_cnts[process.second_best_doc]) / static_cast<double>(process.classify_cnts[process.best_doc]);
-                if (second_best_doc_frac > 0.95) {
+                uint32_t best_doc_cnt = process.classify_cnts[process.best_doc];
+                uint32_t second_best_doc_cnt = process.classify_cnts[process.second_best_doc];
+                // float second_best_doc_frac = static_cast<float>(process.classify_cnts[process.second_best_doc]) / static_cast<float>(process.classify_cnts[process.best_doc]);
+                float second_best_diff = static_cast<float>(best_doc_cnt - second_best_doc_cnt);
+                if (second_best_diff < 0.05 * best_doc_cnt) {
                     out_file << mv.to_taxon_id[process.best_doc] << "," << mv.to_taxon_id[process.second_best_doc];
                 } else {
                     out_file << mv.to_taxon_id[process.best_doc] << ",0";
