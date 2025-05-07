@@ -91,6 +91,7 @@ void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
 
         // reset the multi-class classification variables
         process.best_doc = 0;
+        process.second_best_doc = 0;
         process.multiple_best_docs = false;
         process.sum_matching_lengths = 0;
         if (mv.movi_options->is_multi_classify()) {
@@ -150,16 +151,34 @@ void ReadProcessor::process_char(Strand& process) {
                     std::cerr << "The compressed version of the prefetching mode is not supported yet.\n";
                     exit(0);
             } else {
-                std::vector<uint16_t> &cur_set = mv.unique_doc_sets[mv.doc_set_inds[process.idx]];
-                for (int doc : cur_set) {
-                    process.classify_cnts[doc]++;
-                    if (process.classify_cnts[doc] > process.classify_cnts[process.best_doc]) {
-                        // if (process.classify_cnts[doc] == process.classify_cnts[process.best_doc]) {
-                        //     process.multiple_best_docs = true;
-                        // } else {
-                        //     process.multiple_best_docs = false;
-                        // }
-                        process.best_doc = doc;
+#if COLOR_MODE == 1
+                uint32_t color_id = mv.rlbwt[process.idx].color_id;
+#else
+                uint32_t color_id = mv.doc_set_inds[process.idx];
+#endif
+                std::vector<uint16_t> &cur_set = mv.unique_doc_sets[color_id];
+                if (color_id != process.last_color_id) {
+                    process.last_color_id = color_id;
+                    process.last_color_docs.clear();
+                    for (int doc : cur_set) {
+                        process.last_color_docs.push_back(doc);
+                        process.classify_cnts[doc]++;
+                        if (doc != process.best_doc) {
+                            if (process.classify_cnts[doc] >= process.classify_cnts[process.best_doc]) {
+                                process.second_best_doc = process.best_doc;
+                                process.best_doc = doc;
+                            }
+                        }
+                    }
+                } else {
+                    for (int doc : process.last_color_docs) {
+                        process.classify_cnts[doc]++;
+                        if (doc != process.best_doc) {
+                            if (process.classify_cnts[doc] >= process.classify_cnts[process.best_doc]) {
+                                process.second_best_doc = process.best_doc;
+                                process.best_doc = doc;
+                            }
+                        }
                     }
                 }
             }
@@ -489,16 +508,29 @@ void ReadProcessor::write_mls(Strand& process) {
             //     }
             // }
 
-            // Document occuring the most is the genotype we think the query is from.
-            out_file << mv.to_taxon_id[process.best_doc];
+            // If the second most occurring document is more than 95% of the most occurring one,
+            // we report the other species as well and classify the read at a higher level.
+            // out_file << mv.to_taxon_id[process.best_doc];
+            if (process.second_best_doc) {
+                double second_best_doc_frac = static_cast<double>(process.classify_cnts[process.second_best_doc]) / static_cast<double>(process.classify_cnts[process.best_doc]);
+                if (second_best_doc_frac > 0.95) {
+                    out_file << mv.to_taxon_id[process.best_doc] << "," << mv.to_taxon_id[process.second_best_doc];
+                } else {
+                    out_file << mv.to_taxon_id[process.best_doc] << ",0";
+                }
+            } else {
+                out_file << mv.to_taxon_id[process.best_doc] << ",0";
+            }
 
             //for (int i = 0; i < num_species; i++) {
             //    out_file << classify_cnts[i] << " ";
             //}
             out_file << "\n";
         }
+        // for multi-classify mode, we don't need to write the PMLs
+    } else {
+        output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq);
     }
-    output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq);
 }
 
 void ReadProcessor::write_count(Strand& process) {

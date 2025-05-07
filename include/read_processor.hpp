@@ -49,6 +49,9 @@ struct Strand {
     std::vector<uint32_t> classify_cnts;
     uint32_t best_doc;
     bool multiple_best_docs;
+    uint32_t last_color_id;
+    uint32_t sum_matching_lengths;
+    uint32_t second_best_doc;
 };
 
 class ReadProcessor {
