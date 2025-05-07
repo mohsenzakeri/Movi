@@ -92,6 +92,7 @@ void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
         // reset the multi-class classification variables
         process.best_doc = 0;
         process.multiple_best_docs = false;
+        process.sum_matching_lengths = 0;
         if (mv.movi_options->is_multi_classify()) {
             std::fill(process.classify_cnts.begin(), process.classify_cnts.end(), 0);
         }
@@ -206,6 +207,7 @@ void ReadProcessor::process_char(Strand& process) {
     }
 
     process.mq.add_ml(process.match_len, mv.movi_options->is_stdout());
+    process.sum_matching_lengths += process.match_len;
     process.pos_on_r -= 1;
     // if (mv.logs)
     //     process.t2 = std::chrono::high_resolution_clock::now();
@@ -456,9 +458,10 @@ void ReadProcessor::write_mls(Strand& process) {
         out_file << process.read_name << ",";
         // binary classification in the multi-class classification mode is handled at a different part of the code
         // if (mv.movi_options->is_classify() && !mv.classifier->is_present(process.mq.get_matching_lengths(), *mv.movi_options)) {
-        if (false) {
+        float PML_mean = static_cast<float>(process.sum_matching_lengths) / process.read.length();
+        if (PML_mean < UNCLASSIFIED_THRESHOLD) {
             // Not present
-            out_file << "0\n";
+            out_file << "0,0\n";
         } else {
             // uint32_t best_doc = 0;
             // for (uint32_t i = 1; i < mv.num_species; i++) {
