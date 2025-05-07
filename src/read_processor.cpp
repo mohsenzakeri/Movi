@@ -92,7 +92,6 @@ void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
         // reset the multi-class classification variables
         process.best_doc = 0;
         process.second_best_doc = 0;
-        process.multiple_best_docs = false;
         process.sum_matching_lengths = 0;
         if (mv.movi_options->is_multi_classify()) {
             std::fill(process.classify_cnts.begin(), process.classify_cnts.end(), 0);
