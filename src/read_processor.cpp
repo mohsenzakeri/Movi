@@ -209,6 +209,18 @@ void ReadProcessor::process_char(Strand& process) {
     process.mq.add_ml(process.match_len, mv.movi_options->is_stdout());
     process.sum_matching_lengths += process.match_len;
     process.pos_on_r -= 1;
+
+    // Check for early stopping if the read is unclassified
+    if ( mv.movi_options->is_early_stop() and mv.movi_options->is_multi_classify() ) {
+        if ( process.pos_on_r < process.read.length() / 2 and process.pos_on_r % 100 == 0 ) {
+            float PML_mean = static_cast<float>(process.sum_matching_lengths) / (process.read.length() - process.pos_on_r);
+            if (PML_mean < UNCLASSIFIED_THRESHOLD) {
+                // setting the pos_on_r to -1 will stop the read processing
+                process.pos_on_r = -1;
+            }
+        }
+    }
+
     // if (mv.logs)
     //     process.t2 = std::chrono::high_resolution_clock::now();
     // LF step should happen here in the non-prefetch code
