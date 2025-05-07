@@ -2432,6 +2432,9 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
         }
     }
 
+    uint32_t pml_cnts = 0;
+    double avg_pml = 0;
+
     uint16_t best_doc = 0; // for multi-class classification
     uint64_t iteration_count = 0;
     while (pos_on_r > -1) {
@@ -2519,6 +2522,9 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             }
         }
     
+        avg_pml += match_len;
+        pml_cnts++;
+
         mq.add_ml(match_len, movi_options->is_stdout());
         pos_on_r -= 1;
 
@@ -2563,7 +2569,9 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     }
 
     if (movi_options->is_multi_classify()) {
-        if (movi_options->is_classify() && !classifier->is_present(mq.get_matching_lengths(), *movi_options)) {
+        avg_pml /= pml_cnts;
+        //if (movi_options->is_classify() && !classifier->is_present(mq.get_matching_lengths(), *movi_options)) {
+        if (movi_options->is_classify() && avg_pml < 0.4) {
             // Not present
             out_file << "0\n";
         } else {
@@ -2571,15 +2579,9 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             if (movi_options->get_scale() >= 0) {
                 best_doc = 0;
                 for (uint32_t i = 1; i < num_species; i++) {
-                    // if (movi_options->get_scale() < 0) {
-                    //     if (classify_cnts[i] > classify_cnts[best_doc]) {
-                    //         best_doc = i;
-                    //     }
-                    // } else {
-                        if (doc_scores[i] > doc_scores[best_doc]) {
-                            best_doc = i;
-                        }
-                    // }
+                    if (doc_scores[i] > doc_scores[best_doc]) {
+                        best_doc = i;
+                    }
                 }
             }
     

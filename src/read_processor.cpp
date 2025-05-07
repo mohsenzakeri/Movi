@@ -456,21 +456,6 @@ void ReadProcessor::write_mls(Strand& process) {
             // Not present
             out_file << "0\n";
         } else {
-            // uint32_t best_doc = 0;
-            // for (uint32_t i = 1; i < mv.num_species; i++) {
-            //     //if ((abs(doc_scores[i] - doc_scores[best_doc]) < 1e-18 && classify_cnts[i] > classify_cnts[best_doc])
-            //     //        || doc_scores[i] < doc_scores[best_doc]) {
-            //     if (process.classify_cnts[i] > process.classify_cnts[best_doc]) {
-            //         best_doc = i;
-            //         // if (process.classify_cnts[i] == process.classify_cnts[best_doc]) {
-            //         //     process.multiple_best_docs = true;
-            //         // } else {
-            //         //     process.multiple_best_docs = false;
-            //         // }
-            //     }
-            // }
-
-            // Document occuring the most is the genotype we think the query is from.
             out_file << mv.to_taxon_id[process.best_doc];
 
             //for (int i = 0; i < num_species; i++) {
