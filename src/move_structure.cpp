@@ -2549,11 +2549,11 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             uint64_t idx_before_reposition = idx;
 #if USE_THRESHOLDS
             bool up = movi_options->is_random_repositioning() ?
-                               reposition_randomly(idx, R[pos_on_r], scan_count) :
+                               reposition_randomly(idx, offset, R[pos_on_r], scan_count) :
                                reposition_thresholds(idx, offset, R[pos_on_r], scan_count);
 #else
             // When there is no threshold, reposition randomly
-            bool up = reposition_randomly(idx, R[pos_on_r], scan_count);
+            bool up = reposition_randomly(idx, offset, R[pos_on_r], scan_count);
 #endif
             match_len = 0;
             // scan_count = (!constant) ? std::abs((int)idx - (int)idx_before_reposition) : 0;
@@ -2807,10 +2807,11 @@ bool MoveStructure::reposition_thresholds(uint64_t& idx, uint64_t offset, char r
 }
 #endif
 
-bool MoveStructure::reposition_randomly(uint64_t& idx, char r_char, uint64_t& scan_count) {
+bool MoveStructure::reposition_randomly(uint64_t& idx, uint64_t& offset, char r_char, uint64_t& scan_count) {
     uint64_t saved_idx = idx;
     thread_local ThreadRandom random_generator;
-    uint16_t reposition_direction = random_generator.get_random() % 2;
+    // uint16_t reposition_direction = random_generator.get_random() % 2;
+    uint16_t reposition_direction =  offset * 2 < get_n(idx) ? 1 : 0;
     bool up = false;
     scan_count = 0;
     if (movi_options->is_verbose())

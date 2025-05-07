@@ -233,7 +233,7 @@ class MoveStructure {
         
         uint64_t reposition_up(uint64_t idx, char c, uint64_t& scan_count);
         uint64_t reposition_down(uint64_t idx, char c, uint64_t& scan_count);
-        bool reposition_randomly(uint64_t& idx, char r_char, uint64_t& scan_count);
+        bool reposition_randomly(uint64_t& idx, uint64_t& offset, char r_char, uint64_t& scan_count);
 
         void verify_lfs();
         void print_stats();

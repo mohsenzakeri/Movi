@@ -203,11 +203,11 @@ void ReadProcessor::process_char(Strand& process) {
         bool up = false;
 #if USE_THRESHOLDS
         up = mv.movi_options->is_random_repositioning() ?
-                mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
+                mv.reposition_randomly(process.idx, process.offset, R[process.pos_on_r], process.scan_count) :
                 mv.reposition_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #else
         // When there is no threshold, reposition randomly
-        up = mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count);
+        up = mv.reposition_randomly(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #endif
         process.match_len = 0;
         char c = mv.alphabet[mv.rlbwt[process.idx].get_c()];
@@ -286,11 +286,11 @@ void ReadProcessor::process_char_tally(Strand& process) {
             bool up = false;
 #if USE_THRESHOLDS
             up = mv.movi_options->is_random_repositioning() ?
-                    mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
+                    mv.reposition_randomly(process.idx, process.offset, R[process.pos_on_r], process.scan_count) :
                     mv.reposition_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #else
             // When there is no threshold, reposition randomly
-            up = mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count);
+            up = mv.reposition_randomly(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #endif
             process.match_len = 0;
             char c = mv.alphabet[mv.rlbwt[process.idx].get_c()];
