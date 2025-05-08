@@ -437,7 +437,7 @@ void MoveStructure::build_tree_doc_sets() {
     tree_doc_sets.resize(nodes);
     bin_lift.resize(16, std::vector<uint16_t>(nodes, nodes - 1));
 
-    for (int i = 0; i < num_docs; i++) {
+    for (int i = 0; i < num_species; i++) {
         tree_doc_sets[i].emplace_back(i);
     }
 
@@ -2498,7 +2498,6 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             // When there is no threshold, reposition randomly
             bool up = reposition_randomly(idx, offset, R[pos_on_r], scan_count);
 #endif
-            up = true;
 
             match_len = 0;
             // scan_count = (!constant) ? std::abs((int)idx - (int)idx_before_reposition) : 0;
@@ -2590,7 +2589,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
 
     if (movi_options->is_multi_classify()) {
         avg_PML /= PML_cnt;
-        if (movi_options->is_classify() && avg_PML >= UNCLASSIFIED_THRESHOLD) {
+        if (avg_PML < UNCLASSIFIED_THRESHOLD) {
             // Not present
             out_file << "0\n";
         } else {
