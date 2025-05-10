@@ -2509,6 +2509,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
 
     uint16_t best_doc = 0; // for multi-class classification
     uint64_t iteration_count = 0;
+    uint32_t sum_matching_lengths = 0;
     while (pos_on_r > -1) {
         iteration_count += 1;
         if (movi_options->is_logs() and (iteration_count-1)%200 == 0) {
@@ -2592,6 +2593,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             }
         }
     
+        sum_matching_lengths += match_len;
         mq.add_ml(match_len, movi_options->is_stdout());
         pos_on_r -= 1;
 
@@ -2642,7 +2644,8 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     }
 
     if (movi_options->is_multi_classify()) {
-        if (movi_options->is_classify() && !classifier->is_present(mq.get_matching_lengths(), *movi_options)) {
+        float PML_mean = static_cast<float>(sum_matching_lengths) / mq.query().length();
+        if (PML_mean < UNCLASSIFIED_THRESHOLD) {
             // Not present
             out_file << "0\n";
         } else {
