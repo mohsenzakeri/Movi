@@ -156,30 +156,16 @@ void ReadProcessor::process_char(Strand& process) {
                 uint32_t color_id = mv.doc_set_inds[process.idx];
 #endif
                 std::vector<uint16_t> &cur_set = mv.unique_doc_sets[color_id];
-                if (color_id != process.last_color_id) {
-                    process.last_color_id = color_id;
-                    process.last_color_docs.clear();
-                    for (int doc : cur_set) {
-                        process.last_color_docs.push_back(doc);
-                        process.classify_cnts[doc]++;
-                        if (doc != process.best_doc) {
-                            if (process.classify_cnts[doc] >= process.classify_cnts[process.best_doc]) {
-                                process.second_best_doc = process.best_doc;
-                                process.best_doc = doc;
-                            }
-                        }
-                    }
-                } else {
-                    for (int doc : process.last_color_docs) {
-                        process.classify_cnts[doc]++;
-                        if (doc != process.best_doc) {
-                            if (process.classify_cnts[doc] >= process.classify_cnts[process.best_doc]) {
-                                process.second_best_doc = process.best_doc;
-                                process.best_doc = doc;
-                            }
+                for (int doc : cur_set) {
+                    process.classify_cnts[doc]++;
+                    if (doc != process.best_doc) {
+                        if (process.classify_cnts[doc] >= process.classify_cnts[process.best_doc]) {
+                            process.second_best_doc = process.best_doc;
+                            process.best_doc = doc;
                         }
                     }
                 }
+
             }
         }
     }
