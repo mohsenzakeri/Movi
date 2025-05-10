@@ -43,7 +43,6 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("multi-classify", "Multi-class classification with PMLs")
         ("early-stop", "Early stop the read processing for unclassified reads")
         ("thres", "Threshold for classification (only consider PMLs above thres)", cxxopts::value<uint8_t>())
-        ("scale", "Scale for p-value classification", cxxopts::value<double>())
         ("full", "Use full coloring information to compute pseudo-matching lengths (PMLs)")
         ("compress", "Use compressed document sets for classification")
         ("color-move-rows", "Color the move rows, query is not performed")
@@ -187,7 +186,6 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("multi-classify") >= 1) { movi_options.set_multi_classify(true); }
                         if (result.count("early-stop") >= 1) { movi_options.set_early_stop(true); }
                         if (result.count("thres")) { movi_options.set_thres(result["thres"].as<uint8_t>()); }
-                        if (result.count("scale")) { movi_options.set_scale(result["scale"].as<double>()); }
                         if (result.count("color-move-rows") == 1) { movi_options.set_color_move_rows(true); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
                         if (result.count("pml") || result.count("zml")) {

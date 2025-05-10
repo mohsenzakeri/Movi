@@ -412,12 +412,11 @@ void MoveStructure::dfs_times(uint16_t cur, uint16_t &t) {
 }
 
 void MoveStructure::build_tree_doc_sets() {
-    /*
     std::ifstream fin(movi_options->get_index_dir() + "/doc_set_similarities.txt");
-    double distmat[num_docs * (num_docs - 1) / 2];
+    double distmat[num_species * (num_species - 1) / 2];
     int ind = 0;
-    for (int i = 0; i < num_docs; i++) {
-        for (int j = 0; j < num_docs; j++) {
+    for (int i = 0; i < num_species; i++) {
+        for (int j = 0; j < num_species; j++) {
             double cur;
             fin >> cur;
             if (j > i) {
@@ -425,60 +424,53 @@ void MoveStructure::build_tree_doc_sets() {
             }
         }
     }
-    for (int i = 0; i < num_docs * (num_docs - 1) / 2; i++) {
+    for (int i = 0; i < num_species * (num_species - 1) / 2; i++) {
         distmat[i] = 1 - distmat[i] / r;
     }
     fin.close();
 
+    std::cerr << "Read in similarities matrix" << std::endl;
+
     // Set up tree for hierarchical clustering
-    int nodes = num_docs * 2 - 1;
+    int nodes = num_species * 2 - 1;
     tree.resize(nodes);
     tree_doc_sets.resize(nodes);
     bin_lift.resize(16, std::vector<uint16_t>(nodes, nodes - 1));
 
-    sdsl::bit_vector singleton;
-    singleton.resize(num_docs);
-    for (int i = 0; i < num_docs; i++) {
-        singleton[i] = 1;
-        tree_doc_sets[i] = singleton;
-        singleton[i] = 0;
+    for (int i = 0; i < num_species; i++) {
+        tree_doc_sets[i].emplace_back(i);
     }
 
     // Cluster documents based on doc set similarities.
-    int *merge = new int[2 * (num_docs - 1)];
-    double *height = new double[num_docs - 1];
-    hclust_fast(num_docs, distmat, HCLUST_METHOD_AVERAGE, merge, height);
+    int *merge = new int[2 * (num_species - 1)];
+    double *height = new double[num_species - 1];
+    hclust_fast(num_species, distmat, HCLUST_METHOD_AVERAGE, merge, height);
+
+    std::cerr << "Clustered documents using hierarchical clustering algorithm" << std::endl;
 
     // Go through merges in hierarchical clustering, construct doc sets at each node.
-    std::vector<int> last_merge(num_docs, 0);
-    for (int i = 0; i < num_docs; i++) last_merge[i] = i;
-    for (int i = 0; i < num_docs - 1; i++) {
+    std::vector<int> last_merge(num_species, 0);
+    for (int i = 0; i < num_species; i++) last_merge[i] = i;
+    for (int i = 0; i < num_species - 1; i++) {
         int node1 = merge[i];
         if (node1 < 0) node1 = -node1 - 1;
-        else node1 += num_docs - 1;
+        else node1 += num_species - 1;
 
-        int node2 = merge[num_docs - 1 + i];
+        int node2 = merge[num_species - 1 + i];
         if (node2 < 0) node2 = -node2 - 1;
-        else node2 += num_docs - 1;
+        else node2 += num_species - 1;
         
-        sdsl::bit_vector cur;
-        cur.resize(num_docs);
-        for (int j = 0; j < num_docs; j++) {
+        for (int j = 0; j < num_species; j++) {
             if (last_merge[j] == node1 || last_merge[j] == node2) {
-                last_merge[j] = num_docs + i;
-                cur[j] = 1;
-                std::cerr << 1;
-            } else {
-                std::cerr << 0;
+                last_merge[j] = num_species + i;
+                tree_doc_sets[num_species + i].push_back(j);
             }
         }
-        std::cerr << "\n";
-
-        tree_doc_sets[num_docs + i] = cur;
-        tree[num_docs + i].push_back(node1);
-        tree[num_docs + i].push_back(node2);
-        bin_lift[0][node1] = num_docs + i;
-        bin_lift[0][node2] = num_docs + i;
+        
+        tree[num_species + i].push_back(node1);
+        tree[num_species + i].push_back(node2);
+        bin_lift[0][node1] = num_species + i;
+        bin_lift[0][node2] = num_species + i;
     }
 
     for (int i = 1; i < 16; i++) {
@@ -490,79 +482,27 @@ void MoveStructure::build_tree_doc_sets() {
     t_in.resize(nodes); t_out.resize(nodes);
     dfs_times(nodes - 1, timer);
 
-    // COMPRESSION
-    // How many doc sets to keep.
-    int take = (1 << 7);
+    std::cerr << "Built compression tree" << std::endl;
 
-    // Get doc set counts.
-    doc_set_cnts.resize(unique_doc_sets.size());
-    for (size_t i = 0; i < r; i++) {
-        doc_set_cnts[doc_set_inds[i]]++;
-    }
-
-    // Sort document sets by their frequency.
-    std::vector<std::pair<uint64_t, uint32_t>> sorted(doc_set_cnts.size());
-    for (size_t i = 0; i < doc_set_cnts.size(); i++) {
-        sorted[i] = {doc_set_cnts[i], i};
-    }
-    std::sort(sorted.begin(), sorted.end(), std::greater<>());
-    std::cerr << "Sorted document sets by frequency" << std::endl;
-    
-    std::unordered_map<DocSet, uint32_t> keep_set;
-    std::vector<sdsl::bit_vector> keep(take);
-    int keep_ind = 0;
-    for (int i = 0; i < nodes; i++) {
-        DocSet cur_set(tree_doc_sets[i]);
-        keep[keep_ind] = tree_doc_sets[i];
-        keep_set[cur_set] = keep_ind++;
-    }
-    
-    // Only keep the most frequent document sets.
-    int sort_ind = 0;
-    while (keep_ind < take) {
-        int ind = sorted[sort_ind].second;
-        DocSet cur_set(unique_doc_sets[ind]);
-        if (!keep_set.count(cur_set)) {
-            keep[keep_ind] = unique_doc_sets[ind];
-            keep_set[cur_set] = keep_ind++;
-        }
-        sort_ind++;
-    }
-    
     // Compress doc sets by LCA in tree
     std::vector<uint32_t> compress_to(unique_doc_sets.size());
     std::vector<bool> in_keep(unique_doc_sets.size());
     for (size_t i = 0; i < unique_doc_sets.size(); i++) {
-        DocSet cur_set(unique_doc_sets[i]);
-        if (keep_set.count(cur_set)) {
-            compress_to[i] = keep_set[cur_set];
-            in_keep[i] = true;
-        } else {
-            int lca = -1;
-            for (int j = 0; j < num_docs; j++) {
-                if (unique_doc_sets[i][j]) {
-                    if (lca == -1) lca = j;
-                    else lca = LCA(lca, j);
-                }
-            }
-            assert(lca != -1);
-            compress_to[i] = lca;
-            // debug_out << unique_doc_sets[i] << " " << tree_doc_sets[lca] << "\n";
+        int lca = -1;
+        for (uint16_t doc : unique_doc_sets[i]) {
+            if (lca == -1) lca = doc;
+            else lca = LCA(lca, doc);
         }
+        assert(lca != -1);
+        compress_to[i] = lca;
+        // debug_out << unique_doc_sets[i] << " " << tree_doc_sets[lca] << "\n";
     }
     
-    compressed.resize(r);
-    uint64_t missing_cnt = 0;
     for (size_t i = 0; i < r; i++) {
-        if (!in_keep[doc_set_inds[i]]) {
-            compressed[i] = 1;
-            missing_cnt++;
-        }
         doc_set_inds[i] = compress_to[doc_set_inds[i]];
     }
-    unique_doc_sets = keep;
-    std::cerr << "Fraction of runs without doc set: " << (double) missing_cnt / r << std::endl;
-    */
+    unique_doc_sets = tree_doc_sets;
+    std::cerr << "Completed tree compression of colors" << std::endl;
 }
 
 void MoveStructure::build_doc_set_similarities() {
@@ -572,7 +512,7 @@ void MoveStructure::build_doc_set_similarities() {
         doc_set_cnts[doc_set_inds[i]]++;
     }
 
-    std::vector<std::vector<uint64_t>> similarities(num_docs, std::vector<uint64_t>(num_docs));
+    std::vector<std::vector<uint64_t>> similarities(num_species, std::vector<uint64_t>(num_species));
     for (size_t i = 0; i < unique_doc_sets.size(); i++) {
         std::vector<uint16_t> &docs = unique_doc_sets[i];
         for (size_t j = 0; j < docs.size(); j++) {
@@ -584,8 +524,8 @@ void MoveStructure::build_doc_set_similarities() {
 
     std::string fname = movi_options->get_index_dir() + "/doc_set_similarities.txt";
     std::ofstream fout(fname);
-    for (int i = 0; i < num_docs; i++) {
-        for (int j = 0; j < num_docs; j++) {
+    for (int i = 0; i < num_species; i++) {
+        for (int j = 0; j < num_species; j++) {
             fout << similarities[i][j] << " ";
         }
         fout << "\n";
@@ -2502,7 +2442,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
         for (uint16_t i = 0; i < num_species; i++) {
             classify_cnts[i] = 0;
         }
-        if (movi_options->get_scale() >= 0) {
+        if (movi_options->get_thres() == 0) {
             doc_scores.resize(num_species);
         }
     }
@@ -2556,6 +2496,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             // When there is no threshold, reposition randomly
             bool up = reposition_randomly(idx, offset, R[pos_on_r], scan_count);
 #endif
+
             match_len = 0;
             // scan_count = (!constant) ? std::abs((int)idx - (int)idx_before_reposition) : 0;
 
@@ -2611,7 +2552,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
         }
 
         if (movi_options->is_multi_classify()) {
-            if (movi_options->get_scale() >= 0 || match_len >= movi_options->get_thres()) {
+            if (match_len >= movi_options->get_thres()) {
                 /*uint64_t full_ind = run_offsets[idx] + offset;
                 uint16_t cur_doc = doc_pats[full_ind];
                 classify_cnts[cur_doc]++;*/
@@ -2625,17 +2566,16 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 std::vector<uint16_t> &cur_set = unique_doc_sets[doc_set_inds[idx]];
 #endif
                 for (int doc : cur_set) {
-                    if (movi_options->get_scale() < 0) {
+                    if (movi_options->get_thres() > 0) {
                         classify_cnts[doc]++;
                         if (classify_cnts[doc] >= classify_cnts[best_doc]) {
                             best_doc = doc;
                         }
                     } else {
                         // p value strategy
-                        double val = match_len - (log_lens[doc] / movi_options->get_scale());
+                        double val = match_len - (log_lens[doc] / log(4));
                         if (val >= 0) {
-                            if (val < 1) doc_scores[doc] += val;
-                            else doc_scores[doc]++;
+                            doc_scores[doc] += std::min(val, 1.);
                         }
                     }
                 }
@@ -2650,7 +2590,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             out_file << "0\n";
         } else {
             // the following condition is only for p-value strategy
-            if (movi_options->get_scale() >= 0) {
+            if (movi_options->get_thres() == 0) {
                 best_doc = 0;
                 for (uint32_t i = 1; i < num_species; i++) {
                     if (doc_scores[i] > doc_scores[best_doc]) {
@@ -2661,10 +2601,6 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     
             // Document occuring the most is the genotype we think the query is from.
             out_file << to_taxon_id[best_doc];
-    
-            //for (int i = 0; i < num_species; i++) {
-            //    out_file << classify_cnts[i] << " ";
-            //}
             out_file << "\n";
         }
     }
@@ -3413,17 +3349,26 @@ void MoveStructure::print_stats() {
 }
 
 void MoveStructure::write_doc_set_freqs(std::string fname) {
-    std::ofstream out(fname);
+    // Get doc set counts.
+    doc_set_cnts.resize(unique_doc_sets.size());
+    for (size_t i = 0; i < r; i++) {
+        doc_set_cnts[doc_set_inds[i]]++;
+    }
+    
     std::vector<std::pair<uint64_t, uint32_t>> freqs(unique_doc_sets.size());
     for (size_t i = 0; i < freqs.size(); i++) {
+        freqs[i].first = doc_set_cnts[i];
         freqs[i].second = i;
     }
-    for (uint32_t doc_set_ind : doc_set_inds) {
-        freqs[doc_set_ind].first++;
-    }
-    sort(freqs.begin(), freqs.end());
-    for (int i = freqs.size() - 1; i >= 0; i--) {
-        // out << freqs[i].first << " " << unique_doc_sets[freqs[i].second] << "\n";
+    sort(freqs.begin(), freqs.end(), std::greater<>());
+
+    std::ofstream out(fname);
+    for (size_t i = 0; i < 100000; i++) {
+        out << freqs[i].first << " ";
+        for (int doc : unique_doc_sets[freqs[i].second]) {
+            out << doc << " ";
+        }
+        out << "\n";
     }
     out.close();
 }

@@ -341,15 +341,18 @@ int main(int argc, char** argv) {
                     mv_.serialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
                 } else {
                     mv_.deserialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
-                    
                     mv_.compress_doc_sets();
                     mv_.serialize_doc_sets(movi_options.get_index_dir() + "/compress_doc_sets.bin");
+                    
+                    //mv_.build_doc_set_similarities();
+                    //mv_.build_tree_doc_sets();
+                    //mv_.serialize_doc_sets(movi_options.get_index_dir() + "/tree_doc_sets.bin");
                 }
             }
 
             end = std::chrono::system_clock::now();
             elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-            std::printf("Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);
+            std::printf("Time measured for building colors: %.3f seconds.\n", elapsed.count() * 1e-9);
         } else if (command == "query") {
             MoveStructure mv_(&movi_options);
             auto begin = std::chrono::system_clock::now();
