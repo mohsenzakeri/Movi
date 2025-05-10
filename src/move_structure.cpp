@@ -2625,7 +2625,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 for (int doc : cur_set) {
                     if (movi_options->get_scale() < 0) {
                         classify_cnts[doc]++;
-                        if (classify_cnts[doc] > classify_cnts[best_doc]) {
+                        if (classify_cnts[doc] >= classify_cnts[best_doc]) {
                             best_doc = doc;
                         }
                     } else {
@@ -2650,15 +2650,9 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             if (movi_options->get_scale() >= 0) {
                 best_doc = 0;
                 for (uint32_t i = 1; i < num_species; i++) {
-                    // if (movi_options->get_scale() < 0) {
-                    //     if (classify_cnts[i] > classify_cnts[best_doc]) {
-                    //         best_doc = i;
-                    //     }
-                    // } else {
-                        if (doc_scores[i] > doc_scores[best_doc]) {
-                            best_doc = i;
-                        }
-                    // }
+                    if (doc_scores[i] > doc_scores[best_doc]) {
+                        best_doc = i;
+                    }
                 }
             }
     
