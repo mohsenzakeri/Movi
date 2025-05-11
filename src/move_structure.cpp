@@ -2585,15 +2585,18 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
 
     if (movi_options->is_multi_classify()) {
         float PML_mean = static_cast<float>(sum_matching_lengths) / mq.query().length();
+        uint16_t second_best_doc = std::numeric_limits<uint16_t>::max();
         if (PML_mean < UNCLASSIFIED_THRESHOLD) {
             // Not present
             out_file << "0\n";
         } else {
             // the following condition is only for p-value strategy
             if (movi_options->get_thres() == 0) {
-                best_doc = 0;
+                best_doc = std::numeric_limits<uint16_t>::max();
+                second_best_doc = std::numeric_limits<uint16_t>::max();
                 for (uint32_t i = 1; i < num_species; i++) {
                     if (doc_scores[i] > doc_scores[best_doc]) {
+                        second_best_doc = best_doc;
                         best_doc = i;
                     }
                 }
@@ -2601,6 +2604,10 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     
             // Document occuring the most is the genotype we think the query is from.
             out_file << to_taxon_id[best_doc];
+            if (second_best_doc != std::numeric_limits<uint16_t>::max() and
+                static_cast<float>(doc_scores[best_doc] - doc_scores[second_best_doc]) < 0.05 * static_cast<float>(doc_scores[best_doc])) {
+                out_file << "," << to_taxon_id[second_best_doc];
+            }
             out_file << "\n";
         }
     }
