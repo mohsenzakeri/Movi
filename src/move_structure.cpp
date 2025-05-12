@@ -2414,7 +2414,15 @@ void MoveStructure::add_colors_to_rlbwt() {
         rlbwt_colored[i].id = rlbwt[i].id;
         rlbwt_colored[i].n = rlbwt[i].n;
         rlbwt_colored[i].offset = rlbwt[i].offset;
-        rlbwt_colored[i].color_id = doc_set_inds[i];
+        if (movi_options->is_compressed()) {
+            if (doc_set_inds[i] >= unique_doc_sets.size()) {
+                rlbwt_colored[i].color_id = std::numeric_limits<uint16_t>::max();
+            } else {
+                rlbwt_colored[i].color_id = static_cast<uint16_t>(doc_set_inds[i]);
+            }
+        } else {
+            rlbwt_colored[i].color_id = doc_set_inds[i];
+        }
     }
     std::cerr << "\n";
 #endif
