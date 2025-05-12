@@ -200,7 +200,6 @@ void MoveStructure::build_doc_sets() {
     // Stores set of documents appearing in rows in each run.
     std::unordered_map<DocSet, uint32_t> unique; 
     doc_set_inds.resize(r);
-    compressed.resize(r);
 
     uint64_t unique_cnt = 0;
     uint16_t temp[MAX_RUN_LENGTH];
@@ -286,7 +285,7 @@ uint32_t MoveStructure::hash_collapse(std::unordered_map<DocSet, uint32_t> &keep
 
 void MoveStructure::compress_doc_sets() {
     // How many doc sets to keep.
-    int take = (1 << 8);
+    int take = (1 << 16);
 
     // Get doc set counts.
     doc_set_cnts.resize(unique_doc_sets.size());
@@ -323,68 +322,22 @@ void MoveStructure::compress_doc_sets() {
     std::vector<std::vector<uint16_t>> keep(take);
     std::vector<bool> in_keep(unique_doc_sets.size());
     std::vector<uint32_t> compress_to(unique_doc_sets.size(), take);
-    std::unordered_map<DocSet, uint32_t> keep_set;
     for (size_t i = 0; i < take; i++) {
         int ind = std::get<2>(sorted[i]);
         keep[i] = unique_doc_sets[ind];
         in_keep[ind] = true;
         compress_to[ind] = i;
-        keep_set[DocSet(keep[i])] = i;
     }
     
-    // Compress doc sets not kept to one that is kept
-    /*if (hash_compress) {
-        for (size_t i = 0; i < unique_doc_sets.size(); i++) {
-            if (!in_keep[i]) {
-                compress_to[i] = hash_collapse(keep_set, unique_doc_sets[i]);
-            }
-        }
-    }*/
-    
-    compressed.resize(r);
     uint64_t missing_cnt = 0;
     for (size_t i = 0; i < r; i++) {
         if (!in_keep[doc_set_inds[i]]) {
-            compressed[i] = 1;
             missing_cnt++;
         }
         doc_set_inds[i] = compress_to[doc_set_inds[i]];
     }
     unique_doc_sets = keep;
     std::cerr << "Fraction of runs without doc set: " << (double) missing_cnt / r << std::endl;
-
-    // Only keep the document sets with <= cutoff set bits.
-    /*int cutoff = 5;
-    std::vector<sdsl::bit_vector> keep;
-    std::vector<bool> in_keep(unique_doc_sets.size());
-    std::vector<uint32_t> compress_to(unique_doc_sets.size());
-    for (size_t i = 0; i < unique_doc_sets.size(); i++) {
-        sdsl::bit_vector &bv = unique_doc_sets[i];
-        int set_cnt = 0;
-        for (int j = 0; j < num_docs; j++) {
-            if (bv[j]) set_cnt++;
-        }
-
-        if (set_cnt <= cutoff) {
-            keep.push_back(bv);
-            in_keep[i] = true;
-            compress_to[i] = keep.size() - 1;
-        }
-    }
-    
-    compressed.resize(r);
-    uint64_t missing_cnt = 0;
-    for (size_t i = 0; i < r; i++) {
-        if (!in_keep[doc_set_inds[i]]) {
-            doc_set_inds[i] = keep.size();
-            compressed[i] = 1;
-            missing_cnt++;
-        } else {
-            doc_set_inds[i] = compress_to[doc_set_inds[i]];
-        }
-    }
-    unique_doc_sets = keep;
-    std::cerr << "Fraction of runs without doc set: " << (double) missing_cnt / r << std::endl;*/
 }
 
 // Returns if x is an ancestor of y.
@@ -2555,7 +2508,10 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             if (match_len >= movi_options->get_thres()) {
                 /*uint64_t full_ind = run_offsets[idx] + offset;
                 uint16_t cur_doc = doc_pats[full_ind];
-                classify_cnts[cur_doc]++;*/
+                classify_cnts[cur_doc]++;
+                if (classify_cnts[cur_doc] >= classify_cnts[best_doc]) {
+                    best_doc = cur_doc;
+                }*/ 
 
                 // Skip doc sets that weren't saved (thrown away by compression).
 #if COLOR_MODE == 1
@@ -2879,9 +2835,6 @@ void MoveStructure::serialize_doc_sets(std::string fname) {
         fout.write(reinterpret_cast<char*>(&cur[0]), cur.size() * sizeof(cur[0]));
     }
     fout.write(reinterpret_cast<char*>(&doc_set_inds[0]), r * sizeof(doc_set_inds[0]));
-
-    // Serialize bits indicating whether each doc set has been compressed.
-    //compressed.serialize(fout);
     fout.close();
 }
 
@@ -2905,23 +2858,15 @@ void MoveStructure::deserialize_doc_sets(std::string fname) {
     doc_set_inds.resize(r);
     fin.read(reinterpret_cast<char*>(&doc_set_inds[0]), r * sizeof(doc_set_inds[0]));
 #endif
-
-    // Try to read in bit_vector storing if each color set is compressed.
-    // Since some doc sets are not serialized with this information, we use a try catch clause.
-    /*try {
-        compressed.load(fin);
-    } catch(...) {
-        compressed.resize(r);
-    }*/
     fin.close();
 
     /*uint64_t missing_cnt = 0;
     for (size_t i = 0; i < r; i++) {
-        if (compressed[i]) {
+        if (doc_set_inds[i] >= unique_doc_sets.size()) {
             missing_cnt++;
         }
     }
-    std::cerr << "Fraction of runs without doc set: " << (double) missing_cnt / r << std::endl;*/
+    std::cerr << "Fraction of runs without color: " << (double) missing_cnt / r << std::endl;*/
 }
 
 void MoveStructure::serialize() {
