@@ -404,6 +404,9 @@ int main(int argc, char** argv) {
             }
 
             std::fprintf(stderr, "Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);
+
+            // Avoid taking too long for dealloction of large data structures at the end of the program
+            std::quick_exit(0);
         } else if (command == "view") {
             view(movi_options);
         } else if (command == "rlbwt") {
