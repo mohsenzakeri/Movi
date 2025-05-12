@@ -162,6 +162,8 @@ void ReadProcessor::process_char(Strand& process) {
                         if (process.classify_cnts[doc] >= process.classify_cnts[process.best_doc]) {
                             process.second_best_doc = process.best_doc;
                             process.best_doc = doc;
+                        } else if (process.classify_cnts[doc] > process.classify_cnts[process.second_best_doc]) {
+                            process.second_best_doc = doc;
                         }
                     }
                 }

@@ -2559,9 +2559,11 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 best_doc = std::numeric_limits<uint16_t>::max();
                 second_best_doc = std::numeric_limits<uint16_t>::max();
                 for (uint32_t i = 1; i < num_species; i++) {
-                    if (doc_scores[i] > doc_scores[best_doc]) {
+                    if (doc_scores[i] >= doc_scores[best_doc]) {
                         second_best_doc = best_doc;
                         best_doc = i;
+                    } else if (doc_scores[i] > doc_scores[second_best_doc]) {
+                        second_best_doc = i;
                     }
                 }
             }
