@@ -2584,6 +2584,11 @@ void MoveStructure::deserialize() {
     } else {
         rlbwt.resize(r);
         fin.read(reinterpret_cast<char*>(&rlbwt[0]), r*sizeof(MoveRow));
+        // Store rlbwt in a file in the index directory
+        // std::string rlbwt_fname = movi_options->get_index_dir() + "/rlbwt.movi";
+        // std::ofstream rlbwt_file(rlbwt_fname, std::ios::out | std::ios::binary);
+        // rlbwt_file.write(reinterpret_cast<char*>(&rlbwt[0]), r*sizeof(MoveRow));
+        // rlbwt_file.close();
     }
 
 #if TALLY_MODE
