@@ -297,6 +297,16 @@ void view(MoviOptions& movi_options) {
 }
 
 int main(int argc, char** argv) {
+
+    const int bufferSize = 65; // Example: 64KB buffer
+    char buffer[bufferSize];
+
+    // Set the buffer for stdin
+    if (std::setvbuf(stdin, buffer, _IOFBF, bufferSize) != 0) {
+        std::cerr << "Failed to set buffer for stdin." << std::endl;
+        return 1;
+    }
+
     try {
 
         MoviOptions movi_options;

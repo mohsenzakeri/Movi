@@ -16,6 +16,7 @@
   */
 
 #include <batch_loader.hpp>
+#include <iostream>
 
 BatchLoader::BatchLoader() {
     /* Main constructor for BatchLoader */
@@ -25,6 +26,17 @@ BatchLoader::BatchLoader() {
 
 bool BatchLoader::loadBatch(std::ifstream& input, size_t num_bases, size_t min_number_of_reads) {
     /* Attempts to load a batch of reads that have at least num_bases in them */
+
+    // Set buffer size if not already set (use static to only allocate once)
+    static char buffer[131072];  // 128KB buffer
+    static bool buffer_set = false;
+
+    if (!buffer_set && input.rdbuf() == std::cin.rdbuf()) {
+        std::cin.rdbuf()->pubsetbuf(buffer, sizeof(buffer));
+        // Alternative using setvbuf:
+        // setvbuf(stdin, buffer, _IOFBF, sizeof(buffer));
+        buffer_set = true;
+    }
 
     // figure out the type of input file (if needed)
     if (input_format == NOT_CLEAR) {
