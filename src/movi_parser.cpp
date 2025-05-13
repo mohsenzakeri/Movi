@@ -46,6 +46,13 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("sa-entries", "Find the SA entries for each read")
         ("classify", "Classify the reads")
         ("filter", "Filter the reads based on the matching lengths, output the filtered reads to stdout")
+        ("multi-classify", "Multi-class classification with PMLs")
+        ("early-stop", "Early stop the read processing for unclassified reads")
+        ("report-all", "Report all the taxon ids for each read")
+        ("thres", "Threshold for classification (only consider PMLs above thres)", cxxopts::value<uint8_t>())
+        ("full", "Use full coloring information to compute pseudo-matching lengths (PMLs)")
+        ("compress", "Use compressed document sets for classification")
+        ("color-move-rows", "Color the move rows, query is not performed")
         ("bin-width", "The width of the bin used for classification", cxxopts::value<uint32_t>())
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
         ("i,index", "Index directory", cxxopts::value<std::string>())
@@ -59,7 +66,14 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("t,threads", "Number of threads for query", cxxopts::value<int>())
         ("stdout", "Write the output to stdout, writes the matching lengths by default, or the report of classification if --classify is passed")
         ("no-output", "Do not write any output, ignores other options about the output")
+        ("out_file", "Output file if computing PMLs for classification", cxxopts::value<std::string>())
         ("ignore-illegal-chars", "In the case of illegal characters (i.e., non-ACGT for genomic data), substitute the character with \'A\'(1) or a random character from the alphabet (2).", cxxopts::value<int>());
+
+    auto colorOptions = options.add_options("color")
+        ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("compress", "Whether or not we compress doc sets (only keep most frequent few)")
+        ("full", "Whether or not to store all document information (or just the sets for each run)")
+        ("t,threads", "Number of threads for query", cxxopts::value<int>());
 
     auto viewOptions = options.add_options("view")
         ("mls-file", "The matching lengths (PML or ZML) file in the binary format", cxxopts::value<std::string>());
@@ -155,6 +169,23 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     const std::string message = "Please specify the index directory file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
+            } else if (command == "color") { 
+                if (result.count("index") == 1) {
+                    movi_options.set_index_dir(result["index"].as<std::string>());
+                    if (result.count("full")) {
+                        movi_options.set_full_color(true);
+                    }
+                    if (result.count("compress")) {
+                        movi_options.set_compress(true);
+                    }
+                    if (result.count("threads") == 1) {
+                        std::cerr << "threads: " << result["threads"].as<int>() << "\n";
+                        movi_options.set_threads(static_cast<size_t>(result["threads"].as<int>()));
+                    }
+                } else {
+                    const std::string message = "Please include one index directory and one fasta file.";
+                    cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                }
             } else if (command == "query") {
                 try {
                     if (result.count("index") == 1 and result.count("read") == 1) {
@@ -173,7 +204,23 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("rpml") >= 1) { movi_options.set_random_repositioning(true); }
                         if (result.count("classify") >= 1) { movi_options.set_classify(true); }
                         if (result.count("filter") >= 1) { movi_options.set_filter(true); }
+                        if (result.count("multi-classify") >= 1) { movi_options.set_multi_classify(true); }
+                        if (result.count("early-stop") >= 1) { movi_options.set_early_stop(true); }
+                        if (result.count("report-all") >= 1) { movi_options.set_report_all(true); }
+                        if (result.count("thres")) { movi_options.set_thres(result["thres"].as<uint8_t>()); }
+                        if (result.count("color-move-rows") == 1) { movi_options.set_color_move_rows(true); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
+                        if (result.count("pml") || result.count("zml")) {
+                            if (result.count("full")) {
+                                movi_options.set_full_color(true);
+                            }
+                            if (result.count("compress")) {
+                                movi_options.set_compress(true);
+                            }
+                            if (result.count("out_file")) {
+                                movi_options.set_out_file(result["out_file"].as<std::string>());
+                            }
+                        }
                         if (result.count("ignore-illegal-chars") == 1) {
                             if (!movi_options.set_ignore_illegal_chars(result["ignore-illegal-chars"].as<int>())) {
                                 const std::string message = "ignore-illegal-chars should be either 1 (set illegal chars to \'A\') or 2 (set illegal chars to a random char).";

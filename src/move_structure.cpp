@@ -1,6 +1,12 @@
 #include <sys/stat.h> 
+#include <map>
+#include <sstream>
+#include <filesystem>
 
 #include "move_structure.hpp"
+#include "classifier.hpp"
+
+uint64_t pow2[ARR_SIZE];
 
 MoveStructure::MoveStructure(MoviOptions* movi_options_) {
     movi_options = movi_options_;
@@ -216,6 +222,326 @@ uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i, uint64_t id) {
     }
     i = idx;
     return ff_count;
+}
+
+// Finds documents corresponding to rows in BWT
+void MoveStructure::build_doc_pats() {
+    doc_pats.resize(length);
+    uint64_t offset = 0;
+    uint64_t index = 0;
+    uint64_t SA_val = length;
+    uint32_t doc_offset_ind = num_docs - 1;
+    for (uint64_t i = 0; i < length; i++) {
+        if (i % 1000000000ll == 0) std::cout << "Finding suffix array entries: " << i << std::endl;
+        SA_val--;
+        if (doc_offset_ind > 0 && SA_val < doc_offsets[doc_offset_ind - 1]) {
+            doc_offset_ind--;
+        }
+        uint64_t row_ind = run_offsets[index] + offset;
+        doc_pats[row_ind] = doc_ids[doc_offset_ind];
+        LF_move(offset, index);
+    }
+}
+
+void MoveStructure::fill_run_offsets() {
+    // Fill run offset information for finding all SA entries                                
+    uint64_t run_offset = 0;
+    run_offsets.resize(r);
+    for (uint64_t i = 0; i < r; i++) {
+        run_offsets[i] = run_offset;
+        run_offset += rlbwt[i].get_n();
+    }
+}
+
+// Finds document sets for each run in the rlbwt.
+void MoveStructure::build_doc_sets() {
+    // Stores set of documents appearing in rows in each run.
+    std::unordered_map<DocSet, uint32_t> unique; 
+    doc_set_inds.resize(r);
+
+    uint64_t unique_cnt = 0;
+    uint16_t temp[MAX_RUN_LENGTH];
+    for (uint64_t i = 0; i < r; i++) {
+        if (i % 100000000 == 0) {
+            std::cerr << "Processed " << i << " runs, " << unique_cnt << " unique doc sets so far\r";
+        }
+
+        uint64_t n = rlbwt[i].get_n();
+        uint16_t ptr = 0;
+        for (uint64_t j = 0; j < n; j++) {
+            uint64_t row_ind = run_offsets[i] + j;
+            uint16_t doc = doc_pats[row_ind];
+            temp[ptr++] = doc;
+        }
+
+        // Sort documents and initialize unique elements as DocSet
+        std::sort(temp, temp + ptr);
+        std::vector<uint16_t> docs;
+        for (size_t j = 0; j < ptr; j++) {
+            if (j == 0 || temp[j] != temp[j - 1]) {
+                docs.push_back(temp[j]);
+            }
+        }
+        DocSet cur(std::move(docs));
+
+        auto it = unique.find(cur);
+        if (it != unique.end()) {
+            doc_set_inds[i] = it->second;
+        } else {
+            doc_set_inds[i] = unique_cnt;
+            unique[cur] = unique_cnt++;
+        }    
+    }
+
+    std::cerr << std::endl;
+    std::cerr << "Done building and hashing doc sets" << std::endl;
+    unique_doc_sets.resize(unique.size());
+    for (auto it = unique.begin(); it != unique.end(); it++) {
+        unique_doc_sets[it->second] = it->first.docs;
+    }
+}
+
+uint32_t MoveStructure::hash_collapse(std::unordered_map<DocSet, uint32_t> &keep_set, DocSet &bv) {
+    // Remove documents with highest multiplicity one at a time
+    // until doc set is one of the kept ones.
+    /*std::vector<std::pair<uint16_t, uint16_t>> cnts(num_docs);
+    for (size_t i = 0; i < num_docs; i++) {
+        cnts[i].second = i;
+    }
+    
+    DocSet cur(bv);
+    //std::sort(cnts.begin(), cnts.end());
+    std::random_shuffle(cnts.begin(), cnts.end());
+    for (size_t i = 0; i <= num_docs; i++) {
+        if (keep_set.count(cur)) {
+            return keep_set[cur];
+        }
+        if (i < num_docs) {
+            cur.unset(cnts[i].second);
+        }
+    }
+    assert(false);*/
+    
+    /*std::vector<int> min_inds;
+    int min_diff = INT_MAX;
+    for (auto it = keep_set.begin(); it != keep_set.end(); it++) {
+        int diff = 0;
+        for (int i = 0; i < num_docs; i++) {
+            if (bv[i] != it->first.bv[i]) {
+                diff++;
+            }
+        }
+        if (diff <= min_diff) {
+            if (diff < min_diff) min_inds.clear();
+            min_inds.push_back(it->second);
+            min_diff = diff;
+        }
+    }
+    return min_inds[rand() % min_inds.size()];*/
+    return 0;
+}
+
+void MoveStructure::compress_doc_sets() {
+    // How many doc sets to keep.
+    int take = (1 << 16);
+
+    // Get doc set counts.
+    doc_set_cnts.resize(unique_doc_sets.size());
+    for (size_t i = 0; i < r; i++) {
+        doc_set_cnts[doc_set_inds[i]]++;
+    }
+
+    /*std::vector<uint64_t> set_dist(num_species + 1);
+    for (size_t i = 0; i < unique_doc_sets.size(); i++) {
+        set_dist[unique_doc_sets[i].size()] += doc_set_cnts[i];
+    }
+    */
+
+    // Sort document sets by their frequency (and ensuring singletons are put first).
+    std::vector<std::tuple<bool, uint64_t, uint32_t>> sorted(doc_set_cnts.size());
+    for (size_t i = 0; i < doc_set_cnts.size(); i++) {
+        sorted[i] = {unique_doc_sets[i].size() == 1, doc_set_cnts[i], i};
+    }
+    std::sort(sorted.begin(), sorted.end(), std::greater<>());
+    std::cerr << "Sorted document sets by frequency (ensuring singletons first)" << std::endl;
+
+    /*std::ofstream sort_freq_out("../indices/pseudomonadota/sort_freq_out.txt");
+    for (size_t i = 0; i < sorted.size(); i++) {
+        auto [singleton, freq, ind] = sorted[i];
+        sort_freq_out << freq << " ";
+        for (uint16_t doc : unique_doc_sets[ind]) {
+            sort_freq_out << doc << " ";
+        }
+        sort_freq_out << "\n";
+    }
+    sort_freq_out.close();*/
+    
+    // Only keep the most frequent document sets.
+    std::vector<std::vector<uint16_t>> keep(take);
+    std::vector<bool> in_keep(unique_doc_sets.size());
+    std::vector<uint32_t> compress_to(unique_doc_sets.size(), take);
+    for (size_t i = 0; i < take; i++) {
+        int ind = std::get<2>(sorted[i]);
+        keep[i] = unique_doc_sets[ind];
+        in_keep[ind] = true;
+        compress_to[ind] = i;
+    }
+    
+    uint64_t missing_cnt = 0;
+    for (size_t i = 0; i < r; i++) {
+        if (!in_keep[doc_set_inds[i]]) {
+            missing_cnt++;
+        }
+        doc_set_inds[i] = compress_to[doc_set_inds[i]];
+    }
+    unique_doc_sets = keep;
+    std::cerr << "Fraction of runs without doc set: " << (double) missing_cnt / r << std::endl;
+}
+
+// Returns if x is an ancestor of y.
+bool MoveStructure::is_ancestor(uint16_t x, uint16_t y) {
+    return t_in[x] <= t_in[y] && t_out[x] >= t_out[y];
+}
+
+uint16_t MoveStructure::LCA(uint16_t x, uint16_t y) {
+    if (is_ancestor(x, y)) return x;
+    int cur = x;
+    for (int i = 15; i >= 0; i--) {
+        if (!is_ancestor(bin_lift[i][cur], y)) {
+            cur = bin_lift[i][cur];
+        }
+    }
+    return bin_lift[0][cur];
+}
+
+void MoveStructure::dfs_times(uint16_t cur, uint16_t &t) {
+    t_in[cur] = t++;
+    for (int child : tree[cur]) {
+        dfs_times(child, t);
+    }
+    t_out[cur] = t++;
+}
+
+void MoveStructure::build_tree_doc_sets() {
+    std::ifstream fin(movi_options->get_index_dir() + "/doc_set_similarities.txt");
+    double distmat[num_species * (num_species - 1) / 2];
+    int ind = 0;
+    for (int i = 0; i < num_species; i++) {
+        for (int j = 0; j < num_species; j++) {
+            double cur;
+            fin >> cur;
+            if (j > i) {
+                distmat[ind++] = cur;
+            }
+        }
+    }
+    for (int i = 0; i < num_species * (num_species - 1) / 2; i++) {
+        distmat[i] = 1 - distmat[i] / r;
+    }
+    fin.close();
+
+    std::cerr << "Read in similarities matrix" << std::endl;
+
+    // Set up tree for hierarchical clustering
+    int nodes = num_species * 2 - 1;
+    tree.resize(nodes);
+    tree_doc_sets.resize(nodes);
+    bin_lift.resize(16, std::vector<uint16_t>(nodes, nodes - 1));
+
+    for (int i = 0; i < num_species; i++) {
+        tree_doc_sets[i].emplace_back(i);
+    }
+
+    // Cluster documents based on doc set similarities.
+    int *merge = new int[2 * (num_species - 1)];
+    double *height = new double[num_species - 1];
+    hclust_fast(num_species, distmat, HCLUST_METHOD_AVERAGE, merge, height);
+
+    std::cerr << "Clustered documents using hierarchical clustering algorithm" << std::endl;
+
+    // Go through merges in hierarchical clustering, construct doc sets at each node.
+    std::vector<int> last_merge(num_species, 0);
+    for (int i = 0; i < num_species; i++) last_merge[i] = i;
+    for (int i = 0; i < num_species - 1; i++) {
+        int node1 = merge[i];
+        if (node1 < 0) node1 = -node1 - 1;
+        else node1 += num_species - 1;
+
+        int node2 = merge[num_species - 1 + i];
+        if (node2 < 0) node2 = -node2 - 1;
+        else node2 += num_species - 1;
+        
+        for (int j = 0; j < num_species; j++) {
+            if (last_merge[j] == node1 || last_merge[j] == node2) {
+                last_merge[j] = num_species + i;
+                tree_doc_sets[num_species + i].push_back(j);
+            }
+        }
+        
+        tree[num_species + i].push_back(node1);
+        tree[num_species + i].push_back(node2);
+        bin_lift[0][node1] = num_species + i;
+        bin_lift[0][node2] = num_species + i;
+    }
+
+    for (int i = 1; i < 16; i++) {
+        for (int j = 0; j < nodes; j++) {
+            bin_lift[i][j] = bin_lift[i - 1][bin_lift[i - 1][j]];
+        }
+    }
+    uint16_t timer = 0;
+    t_in.resize(nodes); t_out.resize(nodes);
+    dfs_times(nodes - 1, timer);
+
+    std::cerr << "Built compression tree" << std::endl;
+
+    // Compress doc sets by LCA in tree
+    std::vector<uint32_t> compress_to(unique_doc_sets.size());
+    std::vector<bool> in_keep(unique_doc_sets.size());
+    for (size_t i = 0; i < unique_doc_sets.size(); i++) {
+        int lca = -1;
+        for (uint16_t doc : unique_doc_sets[i]) {
+            if (lca == -1) lca = doc;
+            else lca = LCA(lca, doc);
+        }
+        assert(lca != -1);
+        compress_to[i] = lca;
+        // debug_out << unique_doc_sets[i] << " " << tree_doc_sets[lca] << "\n";
+    }
+    
+    for (size_t i = 0; i < r; i++) {
+        doc_set_inds[i] = compress_to[doc_set_inds[i]];
+    }
+    unique_doc_sets = tree_doc_sets;
+    std::cerr << "Completed tree compression of colors" << std::endl;
+}
+
+void MoveStructure::build_doc_set_similarities() {
+    // Get doc set counts.
+    doc_set_cnts.resize(unique_doc_sets.size());
+    for (size_t i = 0; i < r; i++) {
+        doc_set_cnts[doc_set_inds[i]]++;
+    }
+
+    std::vector<std::vector<uint64_t>> similarities(num_species, std::vector<uint64_t>(num_species));
+    for (size_t i = 0; i < unique_doc_sets.size(); i++) {
+        std::vector<uint16_t> &docs = unique_doc_sets[i];
+        for (size_t j = 0; j < docs.size(); j++) {
+            for (size_t k = j + 1; k < docs.size(); k++) {
+                similarities[docs[j]][docs[k]] += doc_set_cnts[i];
+            }
+        }
+    }
+
+    std::string fname = movi_options->get_index_dir() + "/doc_set_similarities.txt";
+    std::ofstream fout(fname);
+    for (int i = 0; i < num_species; i++) {
+        for (int j = 0; j < num_species; j++) {
+            fout << similarities[i][j] << " ";
+        }
+        fout << "\n";
+    }
+    fout.close();
 }
 
 std::string MoveStructure::reconstruct_lf() {
@@ -1960,15 +2286,51 @@ uint64_t MoveStructure::query_zml(MoveQuery& mq) {
         return 0;
     }
 
-    MoveInterval interval = initialize_backward_search(mq, pos_on_r, match_len);
+    // Multi-class classification
+    if (movi_options->is_multi_classify()) {
+        for (uint16_t i = 0; i < num_species; i++) {
+            classify_cnts[i] = 0;
+        }
+    }
 
+    MoveInterval interval = initialize_backward_search(mq, pos_on_r, match_len);
     while (pos_on_r > 0) {
+        MoveInterval prev_interval = interval;
         ff_count_tot += backward_search_step(query_seq, pos_on_r, interval);
         if (!interval.is_empty()) {
             mq.add_ml(match_len, movi_options->is_stdout());
             pos_on_r -= 1;
             match_len += 1;
         } else {
+            // Classification based on maximal matching
+            if (movi_options->is_multi_classify() && match_len >= movi_options->get_thres()) {
+                if (prev_interval.run_start == prev_interval.run_end) {
+                    for (uint64_t i = prev_interval.offset_start; i <= prev_interval.offset_end; i++) {
+                        uint64_t full_ind = run_offsets[prev_interval.run_start] + i;
+                        uint16_t cur_doc = doc_pats[full_ind];
+                        classify_cnts[cur_doc] += match_len;
+                    }   
+                } else {
+                    for (uint64_t i = prev_interval.offset_start; i < get_n(prev_interval.run_start); i++) {
+                        uint64_t full_ind = run_offsets[prev_interval.run_start] + i;
+                        uint16_t cur_doc = doc_pats[full_ind];
+                        classify_cnts[cur_doc] += match_len;
+                    }    
+                    for (uint64_t r_ind = prev_interval.run_start + 1; r_ind < prev_interval.run_end; r_ind++) {
+                        for (uint64_t i = 0; i < get_n(r_ind); i++) {
+                            uint64_t full_ind = run_offsets[r_ind] + i;
+                            uint16_t cur_doc = doc_pats[full_ind];
+                            classify_cnts[cur_doc] += match_len;
+                        }  
+                    } 
+                    for (uint64_t i = 0; i <= prev_interval.offset_end; i++) {
+                        uint64_t full_ind = run_offsets[prev_interval.run_end] + i;
+                        uint16_t cur_doc = doc_pats[full_ind];
+                        classify_cnts[cur_doc] += match_len;
+                    }           
+                }
+            }
+
             mq.add_ml(match_len, movi_options->is_stdout());
             pos_on_r -= 1;
             match_len = 0;
@@ -1985,6 +2347,23 @@ uint64_t MoveStructure::query_zml(MoveQuery& mq) {
         match_len = 0;
     }
     mq.add_ml(match_len, movi_options->is_stdout());
+
+    // Document occuring the most is the genotype we think the query is from.
+    if (movi_options->is_multi_classify()) {
+        uint16_t best_doc = 0;
+        for (uint16_t i = 1; i < num_species; i++) {
+            if (classify_cnts[i] > classify_cnts[best_doc]) {
+                best_doc = i;
+            }
+        }
+        
+        // Document occuring the most is the genotype we think the query is from.
+        out_file << to_taxon_id[best_doc] << " ";
+        for (uint16_t i = 0; i < num_species; i++) {
+        //    out_file << classify_cnts[i] << " ";
+        }
+        out_file << "\n";
+    }
 
     return ff_count_tot;
 }
@@ -2036,12 +2415,30 @@ bool MoveStructure::look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r,
     }
 }
 
-uint64_t MoveStructure::query_pml(MoveQuery& mq) {
-    if (random) {
-        if (movi_options->is_verbose())
-            std::cerr << "Repositioning randomly - not with thresholds! \n";
+void MoveStructure::add_colors_to_rlbwt() {
+#if MODE == 3 or MODE == 6
+    rlbwt_colored.resize(rlbwt.size());
+    for (uint64_t i = 0; i < rlbwt.size(); i++) {
+        if (i % 100000 == 0) {
+            std::cerr << "i: " << i << "\r";
+        }
+        rlbwt_colored[i].id = rlbwt[i].id;
+        rlbwt_colored[i].n = rlbwt[i].n;
+        rlbwt_colored[i].offset = rlbwt[i].offset;
+        if (movi_options->is_compressed()) {
+            if (doc_set_inds[i] >= unique_doc_sets.size()) {
+                rlbwt_colored[i].color_id = std::numeric_limits<uint16_t>::max();
+            } else {
+                rlbwt_colored[i].color_id = static_cast<uint16_t>(doc_set_inds[i]);
+            }
+        } else {
+            rlbwt_colored[i].color_id = doc_set_inds[i];
+        }
     }
-
+    std::cerr << "\n";
+#endif
+}
+uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     auto& R = mq.query();
     int32_t pos_on_r = R.length() - 1;
     uint64_t idx = r - 1; // or we can start from a random position in the rlbwt std::rand() % r
@@ -2058,7 +2455,20 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
         std::cerr << "and on BWT, idx(r-1): " << idx << " offset: " << offset << "\n";
     }
 
+    // Multi-class classification
+    std::vector<double> doc_scores;
+    if (movi_options->is_multi_classify()) {
+        for (uint16_t i = 0; i < num_species; i++) {
+            classify_cnts[i] = 0;
+        }
+        if (movi_options->get_thres() == 0) {
+            doc_scores.resize(num_species);
+        }
+    }
+
+    uint16_t best_doc = 0; // for multi-class classification
     uint64_t iteration_count = 0;
+    uint32_t sum_matching_lengths = 0;
     while (pos_on_r > -1) {
         iteration_count += 1;
         if (movi_options->is_logs() and (iteration_count-1)%200 == 0) {
@@ -2099,12 +2509,13 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             uint64_t idx_before_reposition = idx;
 #if USE_THRESHOLDS
             bool up = movi_options->is_random_repositioning() ?
-                               reposition_randomly(idx, R[pos_on_r], scan_count) :
+                               reposition_randomly(idx, offset, R[pos_on_r], scan_count) :
                                reposition_thresholds(idx, offset, R[pos_on_r], scan_count);
 #else
             // When there is no threshold, reposition randomly
-            bool up = reposition_randomly(idx, R[pos_on_r], scan_count);
+            bool up = reposition_randomly(idx, offset, R[pos_on_r], scan_count);
 #endif
+
             match_len = 0;
             // scan_count = (!constant) ? std::abs((int)idx - (int)idx_before_reposition) : 0;
 
@@ -2141,7 +2552,8 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 exit(0);
             }
         }
-
+    
+        sum_matching_lengths += match_len;
         mq.add_ml(match_len, movi_options->is_stdout());
         if (movi_options->is_get_sa_entries()) {
             uint64_t sa_entry = get_SA_entries(idx, offset);
@@ -2161,7 +2573,73 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             mq.add_fastforward(ff_count);
             mq.add_scan(scan_count);
         }
+
+        if (movi_options->is_multi_classify()) {
+            if (match_len >= movi_options->get_thres()) {
+                /*uint64_t full_ind = run_offsets[idx] + offset;
+                uint16_t cur_doc = doc_pats[full_ind];
+                classify_cnts[cur_doc]++;
+                if (classify_cnts[cur_doc] >= classify_cnts[best_doc]) {
+                    best_doc = cur_doc;
+                }*/ 
+
+                // Skip doc sets that weren't saved (thrown away by compression).
+#if COLOR_MODE == 1
+                if (rlbwt[idx].color_id >= unique_doc_sets.size()) continue;
+                std::vector<uint16_t> &cur_set = unique_doc_sets[rlbwt[idx].color_id];
+#else
+                if (doc_set_inds[idx] >= unique_doc_sets.size()) continue;
+                std::vector<uint16_t> &cur_set = unique_doc_sets[doc_set_inds[idx]];
+#endif
+                for (int doc : cur_set) {
+                    if (movi_options->get_thres() > 0) {
+                        classify_cnts[doc]++;
+                        if (classify_cnts[doc] >= classify_cnts[best_doc]) {
+                            best_doc = doc;
+                        }
+                    } else {
+                        // p value strategy
+                        double val = match_len - (log_lens[doc] / log(4));
+                        if (val >= 0) {
+                            doc_scores[doc] += std::min(val, 1.);
+                        }
+                    }
+                }
+            }
+        }
     }
+
+    if (movi_options->is_multi_classify()) {
+        float PML_mean = static_cast<float>(sum_matching_lengths) / mq.query().length();
+        uint16_t second_best_doc = std::numeric_limits<uint16_t>::max();
+        if (PML_mean < UNCLASSIFIED_THRESHOLD) {
+            // Not present
+            out_file << "0\n";
+        } else {
+            // the following condition is only for p-value strategy
+            if (movi_options->get_thres() == 0) {
+                best_doc = std::numeric_limits<uint16_t>::max();
+                second_best_doc = std::numeric_limits<uint16_t>::max();
+                for (uint32_t i = 1; i < num_species; i++) {
+                    if (doc_scores[i] >= doc_scores[best_doc]) {
+                        second_best_doc = best_doc;
+                        best_doc = i;
+                    } else if (doc_scores[i] > doc_scores[second_best_doc]) {
+                        second_best_doc = i;
+                    }
+                }
+            }
+    
+            // Document occuring the most is the genotype we think the query is from.
+            out_file << to_taxon_id[best_doc];
+            if (second_best_doc != std::numeric_limits<uint16_t>::max() and
+                static_cast<float>(doc_scores[best_doc] - doc_scores[second_best_doc]) < 0.05 * static_cast<float>(doc_scores[best_doc])) {
+                out_file << "," << to_taxon_id[second_best_doc];
+            }
+            out_file << "\n";
+        }
+    }
+
     return ff_count_tot;
 }
 
@@ -2297,10 +2775,11 @@ bool MoveStructure::reposition_thresholds(uint64_t& idx, uint64_t offset, char r
 }
 #endif
 
-bool MoveStructure::reposition_randomly(uint64_t& idx, char r_char, uint64_t& scan_count) {
+bool MoveStructure::reposition_randomly(uint64_t& idx, uint64_t& offset, char r_char, uint64_t& scan_count) {
     uint64_t saved_idx = idx;
     thread_local ThreadRandom random_generator;
-    uint16_t reposition_direction = random_generator.get_random() % 2;
+    // uint16_t reposition_direction = random_generator.get_random() % 2;
+    uint16_t reposition_direction =  offset * 2 < get_n(idx) ? 1 : 0;
     bool up = false;
     scan_count = 0;
     if (movi_options->is_verbose())
@@ -2404,9 +2883,77 @@ bool MoveStructure::check_alphabet(char& c) {
     return alphamap[static_cast<uint64_t>(c)] != alphamap.size();
 }
 
+void MoveStructure::serialize_doc_pats(std::string fname) {
+    std::ofstream fout(fname, std::ios::out | std::ios::binary);
+    std::cerr << "Writing doc pats to: " << fname << std::endl;
+
+    fout.write(reinterpret_cast<char*>(&doc_pats[0]), length * sizeof(doc_pats[0]));
+    fout.close();
+}
+
+void MoveStructure::deserialize_doc_pats(std::string fname) {
+    std::ifstream fin(fname, std::ios::in | std::ios::binary);
+    
+    doc_pats.resize(length);
+    fin.read(reinterpret_cast<char*>(&doc_pats[0]), length * sizeof(doc_pats[0]));
+    fin.close();
+    
+    std::cerr << "Finished deserializing document patterns" << std::endl;
+}
+
+void MoveStructure::serialize_doc_sets(std::string fname) {
+    std::ofstream fout(fname, std::ios::out | std::ios::binary);
+
+    size_t unique_cnt = unique_doc_sets.size();
+    std::cerr << "Number of unique document sets: " << unique_cnt << std::endl; 
+    fout.write(reinterpret_cast<char*>(&unique_cnt), sizeof(unique_cnt));
+    for (size_t i = 0; i < unique_doc_sets.size(); i++) {
+        std::vector<uint16_t> &cur = unique_doc_sets[i];
+        uint16_t doc_cnt = cur.size();
+        fout.write(reinterpret_cast<char*>(&doc_cnt), sizeof(doc_cnt));
+        fout.write(reinterpret_cast<char*>(&cur[0]), cur.size() * sizeof(cur[0]));
+    }
+    fout.write(reinterpret_cast<char*>(&doc_set_inds[0]), r * sizeof(doc_set_inds[0]));
+    fout.close();
+}
+
+void MoveStructure::deserialize_doc_sets(std::string fname) {
+    std::ifstream fin(fname, std::ios::in | std::ios::binary);
+    
+    size_t unique_cnt = 0;
+    fin.read(reinterpret_cast<char*>(&unique_cnt), sizeof(unique_cnt));
+    std::cerr << "Number of unique document sets: " << unique_cnt << std::endl; 
+    unique_doc_sets.resize(unique_cnt);
+    for (size_t i = 0; i < unique_cnt; i++) {
+        std::vector<uint16_t> &cur = unique_doc_sets[i];
+        uint16_t doc_cnt = 0;
+        fin.read(reinterpret_cast<char*>(&doc_cnt), sizeof(doc_cnt));
+        cur.resize(doc_cnt);
+        fin.read(reinterpret_cast<char*>(&cur[0]), (size_t) doc_cnt * sizeof(cur[0]));
+    }
+
+#if COLOR_MODE == 0
+    // The following are now stored in rlbwt_colored (colored move rows)
+    doc_set_inds.resize(r);
+    fin.read(reinterpret_cast<char*>(&doc_set_inds[0]), r * sizeof(doc_set_inds[0]));
+#endif
+    fin.close();
+
+    /*uint64_t missing_cnt = 0;
+    for (size_t i = 0; i < r; i++) {
+        if (doc_set_inds[i] >= unique_doc_sets.size()) {
+            missing_cnt++;
+        }
+    }
+    std::cerr << "Fraction of runs without color: " << (double) missing_cnt / r << std::endl;*/
+}
+
 void MoveStructure::serialize() {
     mkdir(movi_options->get_index_dir().c_str(),0777);
     std::string fname = movi_options->get_index_dir() + "/index.movi";
+    if (movi_options->is_color_move_rows()) {
+        fname = movi_options->get_index_dir() + "/index_colored.movi";
+    }
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
     if (!fout) {
         throw std::runtime_error("Failed to open the index file at: " + movi_options->get_index_dir());
@@ -2441,8 +2988,11 @@ void MoveStructure::serialize() {
     // This is not used any more as the onebit modes is deprecated
     fout.write(reinterpret_cast<char*>(&onebit), sizeof(onebit));
 
-    fout.write(reinterpret_cast<char*>(&rlbwt[0]), rlbwt.size()*sizeof(rlbwt[0]));
-
+    if (movi_options->is_color_move_rows()) {
+        fout.write(reinterpret_cast<char*>(&rlbwt_colored[0]), rlbwt_colored.size()*sizeof(rlbwt_colored[0]));
+    } else {
+        fout.write(reinterpret_cast<char*>(&rlbwt[0]), rlbwt.size()*sizeof(rlbwt[0]));
+    }
 #if TALLY_MODE
     fout.write(reinterpret_cast<char*>(&tally_checkpoints), sizeof(tally_checkpoints));
     uint64_t tally_ids_len = tally_ids[0].size();
@@ -2498,7 +3048,11 @@ void MoveStructure::serialize() {
 }
 
 void MoveStructure::deserialize() {
+#if COLOR_MODE == 1
+    std::string fname = movi_options->get_index_dir() + "/index_colored.movi";
+#else
     std::string fname = movi_options->get_index_dir() + "/index.movi";
+#endif
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
     if (!fin) {
         // Attempt to read an index file built with the old index name
@@ -2508,7 +3062,8 @@ void MoveStructure::deserialize() {
             throw std::runtime_error("Failed to open the index file at: " + movi_options->get_index_dir());
         }
     }
-    fin.seekg(0, std::ios::beg);
+    std::cerr << "fname: " << fname << std::endl;
+    fin.seekg(0, std::ios::beg); 
 
     if (!movi_options->is_no_header()) {
         char index_type;
@@ -2583,6 +3138,7 @@ void MoveStructure::deserialize() {
         fin.seekg(rlbwt_offset + rlbwt_size, std::ios::beg);
     } else {
         rlbwt.resize(r);
+        std::cerr << "sizeof(MoveRow): " << sizeof(MoveRow) << std::endl;
         fin.read(reinterpret_cast<char*>(&rlbwt[0]), r*sizeof(MoveRow));
         // Store rlbwt in a file in the index directory
         // std::string rlbwt_fname = movi_options->get_index_dir() + "/rlbwt.movi";
@@ -2665,6 +3221,62 @@ void MoveStructure::deserialize() {
     }
 
     fin.close();
+
+    // Read in document offsets.
+    std::ifstream doc_offsets_file(movi_options->get_index_dir() + "/ref.fa.doc_offsets");
+    uint64_t doc_offset;
+    while ((doc_offsets_file >> doc_offset)) {
+        doc_offsets.push_back(doc_offset);
+    }
+    doc_offsets_file.close();
+    num_docs = doc_offsets.size();
+    num_species = num_docs;
+
+    // Read in document taxon id
+    std::ifstream doc_ids_file(movi_options->get_index_dir() + "/ref.fa.doc_ids");
+    if (doc_ids_file.good()) {
+        uint32_t doc_id;
+        while ((doc_ids_file >> doc_id)) {
+            doc_ids.push_back(doc_id);
+            taxon_id_compress[doc_id] = 0;
+        }
+        doc_ids_file.close();
+    } else {
+        // No doc ids information
+        doc_ids.resize(num_docs);
+        for (size_t i = 0; i < num_docs; i++) {
+            doc_ids[i] = i + 1;
+            taxon_id_compress[i + 1] = 0;
+        }
+    }
+
+    // Compress taxon id to 0...(num_species - 1)
+    num_species = 0;
+    for (auto &[taxon_id, c_id] : taxon_id_compress) {
+        to_taxon_id.push_back(taxon_id);
+        c_id = num_species++;
+    }
+    for (size_t i = 0; i < doc_ids.size(); i++) {
+        doc_ids[i] = taxon_id_compress[doc_ids[i]];
+    }
+
+    log_lens.resize(num_species);
+    for (int i = 0; i < num_docs; i++) {
+        uint64_t doc_len = doc_offsets[i] - (i == 0 ? 0 : doc_offsets[i - 1]);
+        log_lens[doc_ids[i]] += doc_len;
+    }
+    for (int i = 0; i < num_species; i++) {
+        log_lens[i] = log(log_lens[i]);
+    }
+    
+    // Fill in powers of 2 array.
+    pow2[0] = 1;
+    for (size_t i = 1; i < ARR_SIZE; i++) {
+        pow2[i] = (pow2[i - 1] << 1);
+        if (pow2[i] >= MOD) {
+            pow2[i] -= MOD;
+        }
+    }
 }
 
 void MoveStructure::serialize_sampled_SA() {
@@ -2831,6 +3443,31 @@ void MoveStructure::print_stats() {
     if (movi_options->is_output_ids()) {
         print_ids();
     }
+}
+
+void MoveStructure::write_doc_set_freqs(std::string fname) {
+    // Get doc set counts.
+    doc_set_cnts.resize(unique_doc_sets.size());
+    for (size_t i = 0; i < r; i++) {
+        doc_set_cnts[doc_set_inds[i]]++;
+    }
+    
+    std::vector<std::pair<uint64_t, uint32_t>> freqs(unique_doc_sets.size());
+    for (size_t i = 0; i < freqs.size(); i++) {
+        freqs[i].first = doc_set_cnts[i];
+        freqs[i].second = i;
+    }
+    sort(freqs.begin(), freqs.end(), std::greater<>());
+
+    std::ofstream out(fname);
+    for (size_t i = 0; i < 100000; i++) {
+        out << freqs[i].first << " ";
+        for (int doc : unique_doc_sets[freqs[i].second]) {
+            out << doc << " ";
+        }
+        out << "\n";
+    }
+    out.close();
 }
 
 void MoveStructure::print_ids() {

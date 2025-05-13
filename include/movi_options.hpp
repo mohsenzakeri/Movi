@@ -36,10 +36,17 @@ class MoviOptions {
         bool is_multi_ftab() { return multi_ftab; }
         bool is_classify() { return classify; }
         bool is_filter() { return filter; }
+        bool is_early_stop() { return early_stop; }
+        bool is_report_all() { return report_all; }
+        bool is_multi_classify() { return multi_classify; }
         bool is_generate_null_reads() { return generate_null_reads; }
         size_t get_bin_width() { return bin_width; }
         int ignore_illegal_chars_status() { return ilc; }
         size_t get_strands() { return strands; }
+        bool is_full_color() { return full_color; }
+        bool is_compressed() { return compress; }
+        bool is_color_move_rows() { return color_move_rows; }
+        int get_thres() { return cl_thres; }
         size_t get_threads() { return threads; }
         uint32_t get_k () { return k; }
         uint32_t get_ftab_k () { return ftab_k; }
@@ -53,6 +60,7 @@ class MoviOptions {
         std::string get_read_file() { return read_file; }
         std::string get_mls_file() { return mls_file; }
         std::string get_index_dir() { return index_dir; }
+        std::string get_out_file() { return out_file; }
 
         void set_no_header(bool no_header_) { no_header = no_header_; }
         void set_preprocessed(bool preprocessed_) { preprocessed = preprocessed_; }
@@ -79,6 +87,9 @@ class MoviOptions {
         void set_reverse(bool reverse_) { reverse = reverse_; }
         void set_classify(bool classify_) { classify = classify_; }
         void set_filter(bool filter_) { filter = filter_; }
+        void set_multi_classify(bool multi_classify_) { multi_classify = multi_classify_; }
+        void set_early_stop(bool val) { early_stop = val; }
+        void set_report_all(bool report_all_) { report_all = report_all_; }
         void set_generate_null_reads(bool generate_null_reads_) { generate_null_reads = generate_null_reads_; }
         void set_bin_width(size_t bin_width_) { bin_width = bin_width_; }
         bool set_ignore_illegal_chars(int ilc_) {
@@ -101,6 +112,11 @@ class MoviOptions {
                 return false;
             return true;
         }
+        void set_full_color(bool val) { full_color = val; }
+        void set_compress(bool val) { compress = val; }
+        void set_color_move_rows(bool val) { color_move_rows = val; }
+        void set_thres(uint8_t val) { cl_thres = val; }
+        void set_out_file(std::string out_file_) { out_file = out_file_; }
 
         void set_ref_file(std::string file_address) { ref_file = file_address; }
         void set_bwt_file(std::string file_address) { bwt_file = file_address; }
@@ -158,6 +174,7 @@ class MoviOptions {
         std::string mls_file;
         std::string index_dir;
         std::string LF_type;
+        std::string out_file;
         bool no_header = false;
         bool preprocessed = false;
         int ilc = 0;
@@ -165,7 +182,7 @@ class MoviOptions {
         bool thresholds = false;
         bool random_repositioning = false;
         bool get_sa_entries = false;
-        bool pml_query = false;
+        bool pml_query = true;
         bool zml_query = false;
         bool count_query = false;
         bool kmer_query = false;
@@ -183,6 +200,9 @@ class MoviOptions {
         bool verify = false;
         bool classify = false;
         bool filter = false;
+        bool multi_classify = false;
+        bool early_stop = false;
+        bool report_all = false;
         bool generate_null_reads = false;
         size_t bin_width = 150;
 
@@ -192,6 +212,11 @@ class MoviOptions {
         bool debug = false;
         bool verbose = false;
         bool logs = false;
+        bool full_color = false;
+        bool compress = false;
+        bool color_move_rows = false;
+        // Classification threshold (only consider PMLs with len >= cl_thres)
+        uint8_t cl_thres = 5;
 };
 
 #endif

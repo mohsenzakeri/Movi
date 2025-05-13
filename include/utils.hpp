@@ -52,6 +52,8 @@ extern uint32_t alphamap_3[4][4];
 #define NUM_NULL_READS 800 // 150,000 = 150 bp * 1000 reads
 #define NULL_READ_BOUND 1000
 
+#define UNCLASSIFIED_THRESHOLD 0.4
+
 // To be used for generating random numbers for each thread
 struct ThreadRandom {
     std::mt19937 generator;

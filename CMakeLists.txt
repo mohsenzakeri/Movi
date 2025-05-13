@@ -51,6 +51,14 @@ include(ExternalProject)
 set(EXTERNAL_REPOS_DIR ${CMAKE_BINARY_DIR}/external_repos)
 
 #----------------------------------------
+# Add hclust
+#----------------------------------------
+add_library(hclust
+  hclust-cpp/fastcluster.cpp
+)
+target_include_directories(hclust PUBLIC hclust-cpp)
+
+#----------------------------------------
 # Add pfp-thresholds
 #----------------------------------------
 if (NOT EXISTS ${EXTERNAL_REPOS_DIR}/pfp-thresholds-build/pfp_thresholds)
@@ -72,20 +80,20 @@ endif()
 #----------------------------------------
 # Add r-permute
 #----------------------------------------
-if (NOT EXISTS ${EXTERNAL_REPOS_DIR}/r-permute-build/test/src/run_constructor)
-  ExternalProject_Add(
-    r-permute
-    GIT_REPOSITORY https://github.com/drnatebrown/r-permute
-    GIT_TAG main
-    PREFIX ${EXTERNAL_REPOS_DIR}
-    SOURCE_DIR ${EXTERNAL_REPOS_DIR}/r-permute
-    BINARY_DIR ${EXTERNAL_REPOS_DIR}/r-permute-build
-    STAMP_DIR ${EXTERNAL_REPOS_DIR}/r-permute-stamp
-    TMP_DIR ${EXTERNAL_REPOS_DIR}/r-permute-tmp
-    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_REPOS_DIR}/r-permute/install
-    BUILD_ALWAYS OFF
-    INSTALL_COMMAND make install
-  )
-endif()
+#if (NOT EXISTS ${EXTERNAL_REPOS_DIR}/r-permute-build/test/src/run_constructor)
+#  ExternalProject_Add(
+#    r-permute
+#    GIT_REPOSITORY https://github.com/drnatebrown/r-permute
+#    GIT_TAG main
+#    PREFIX ${EXTERNAL_REPOS_DIR}
+#    SOURCE_DIR ${EXTERNAL_REPOS_DIR}/r-permute
+#    BINARY_DIR ${EXTERNAL_REPOS_DIR}/r-permute-build
+#    STAMP_DIR ${EXTERNAL_REPOS_DIR}/r-permute-stamp
+#    TMP_DIR ${EXTERNAL_REPOS_DIR}/r-permute-tmp
+#    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_REPOS_DIR}/r-permute/install
+#    BUILD_ALWAYS OFF
+#    INSTALL_COMMAND make install
+#  )
+#endif()
 
 add_subdirectory(src)

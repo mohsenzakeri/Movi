@@ -45,6 +45,12 @@ struct Strand {
     std::chrono::time_point<std::chrono::high_resolution_clock> t1;
     std::chrono::time_point<std::chrono::high_resolution_clock> t2;
     std::chrono::time_point<std::chrono::high_resolution_clock> t3;
+
+    // Counts for classification
+    std::vector<uint32_t> classify_cnts;
+    uint32_t best_doc;
+    uint32_t sum_matching_lengths;
+    uint32_t second_best_doc;
 };
 
 class ReadProcessor {
@@ -87,6 +93,7 @@ class ReadProcessor {
         int l;
         std::ofstream mls_file;
         std::ofstream matches_file;
+        std::ofstream out_file;
         int strands;
         uint32_t k;
         bool verbose = false;

@@ -22,6 +22,9 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
 
         // seq = kseq_init(fp); // STEP 3: initialize seq
         std::string index_type = program();
+        if (mv_.movi_options->is_multi_classify()) {
+            out_file = std::ofstream(mv_.movi_options->get_out_file());
+        }
 
         if (!mv_.movi_options->is_stdout() and !mv_.movi_options->is_no_output()) {
             if (mv_.movi_options->is_pml()) {
@@ -94,6 +97,13 @@ void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
         process.idx = mv.r - 1;
         process.offset = mv.get_n(process.idx) - 1;
 
+        // reset the multi-class classification variables
+        process.best_doc = 0;
+        process.second_best_doc = 0;
+        process.sum_matching_lengths = 0;
+        if (mv.movi_options->is_multi_classify()) {
+            std::fill(process.classify_cnts.begin(), process.classify_cnts.end(), 0);
+        }
 #if TALLY_MODE
         // This is necessary
         process.tally_state = false;
@@ -135,6 +145,41 @@ void ReadProcessor::process_char(Strand& process) {
         t1 = process.t1;
     }
 
+    if (mv.movi_options->is_multi_classify()) {
+        if (process.match_len >= mv.movi_options->get_thres()) {
+            // Skip doc sets that weren't saved (thrown away by compression).
+#if COLOR_MODE == 1
+            if (mv.rlbwt[process.idx].color_id >= mv.unique_doc_sets.size()) {
+#else
+            if (mv.doc_set_inds[process.idx] >= mv.unique_doc_sets.size()) {
+#endif
+                // std::cerr << "doc_set_inds[idx] >= unique_doc_sets.size()\n";
+                // std::cerr << "This should not happen when compression is not turned on.\n";
+                // std::cerr << "The compressed version of the prefetching mode is not supported yet.\n";
+                // exit(0);
+            } else {
+#if COLOR_MODE == 1
+                uint32_t color_id = mv.rlbwt[process.idx].color_id;
+#else
+                uint32_t color_id = mv.doc_set_inds[process.idx];
+#endif
+                std::vector<uint16_t> &cur_set = mv.unique_doc_sets[color_id];
+                for (int doc : cur_set) {
+                    process.classify_cnts[doc]++;
+                    if (doc != process.best_doc) {
+                        if (process.classify_cnts[doc] >= process.classify_cnts[process.best_doc]) {
+                            process.second_best_doc = process.best_doc;
+                            process.best_doc = doc;
+                        } else if (process.classify_cnts[doc] > process.classify_cnts[process.second_best_doc]) {
+                            process.second_best_doc = doc;
+                        }
+                    }
+                }
+
+            }
+        }
+    }
+
     auto& row = mv.get_move_row(process.idx);
     uint64_t row_idx = process.idx;
     char row_c = mv.alphabet[row.get_c()];
@@ -153,11 +198,11 @@ void ReadProcessor::process_char(Strand& process) {
         bool up = false;
 #if USE_THRESHOLDS
         up = mv.movi_options->is_random_repositioning() ?
-                mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
+                mv.reposition_randomly(process.idx, process.offset, R[process.pos_on_r], process.scan_count) :
                 mv.reposition_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #else
         // When there is no threshold, reposition randomly
-        up = mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count);
+        up = mv.reposition_randomly(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #endif
         process.match_len = 0;
         char c = mv.alphabet[mv.get_move_row(process.idx).get_c()];
@@ -174,8 +219,22 @@ void ReadProcessor::process_char(Strand& process) {
             std::cerr << "\t \t This should not happen!\n";
         }
     }
+
     process.mq.add_ml(process.match_len, mv.movi_options->is_stdout());
+    process.sum_matching_lengths += process.match_len;
     process.pos_on_r -= 1;
+
+    // Check for early stopping if the read is unclassified
+    if ( mv.movi_options->is_early_stop() and mv.movi_options->is_multi_classify() ) {
+        if ( process.pos_on_r < process.read.length() / 2 and process.pos_on_r % 100 == 0 ) {
+            float PML_mean = static_cast<float>(process.sum_matching_lengths) / (process.read.length() - process.pos_on_r);
+            if (PML_mean < UNCLASSIFIED_THRESHOLD) {
+                // setting the pos_on_r to -1 will stop the read processing
+                process.pos_on_r = -1;
+            }
+        }
+    }
+
     // if (mv.logs)
     //     process.t2 = std::chrono::high_resolution_clock::now();
     // LF step should happen here in the non-prefetch code
@@ -222,11 +281,11 @@ void ReadProcessor::process_char_tally(Strand& process) {
             bool up = false;
 #if USE_THRESHOLDS
             up = mv.movi_options->is_random_repositioning() ?
-                    mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
+                    mv.reposition_randomly(process.idx, process.offset, R[process.pos_on_r], process.scan_count) :
                     mv.reposition_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #else
             // When there is no threshold, reposition randomly
-            up = mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count);
+            up = mv.reposition_randomly(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #endif
             process.match_len = 0;
             char c = mv.alphabet[mv.get_move_row(process.idx).get_c()];
@@ -418,19 +477,70 @@ void ReadProcessor::write_mls(Strand& process) {
         }
     }
 
-    if (!mv.movi_options->is_filter()) {
-        bool write_stdout = mv.movi_options->is_stdout() and !mv.movi_options->is_classify() and !mv.movi_options->is_filter();
-        bool logs = mv.movi_options->is_logs();
-        if (logs) {
-            auto t2 = std::chrono::high_resolution_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
-            process.mq.add_cost(elapsed);
-            process.mq.add_fastforward(process.ff_count);
-            process.mq.add_scan(process.scan_count);
-            output_logs(costs_file, scans_file, fastforwards_file, process.read_name, process.mq, mv.movi_options->is_no_output());
-        }
+    if (mv.movi_options->is_multi_classify()) {
+        out_file << process.read_name << ",";
+        // binary classification in the multi-class classification mode is handled at a different part of the code
+        // if (mv.movi_options->is_classify() && !mv.classifier->is_present(process.mq.get_matching_lengths(), *mv.movi_options)) {
+        float PML_mean = static_cast<float>(process.sum_matching_lengths) / process.read.length();
+        if (PML_mean < UNCLASSIFIED_THRESHOLD) {
+            // Not present
+            if (mv.movi_options->is_report_all()) {
+                out_file << "0\n";
+            } else {
+                out_file << "0,0\n";
+            }
+        } else {
+            // If the second most occurring document is more than 95% of the most occurring one,
+            // we report the other species as well and classify the read at a higher level.
+            // out_file << mv.to_taxon_id[process.best_doc];
+            if (mv.movi_options->is_report_all()) {
+                out_file << mv.to_taxon_id[process.best_doc];
+                uint32_t best_doc_cnt = process.classify_cnts[process.best_doc];
+                for (int i = 0; i < process.classify_cnts.size(); i++) {
+                    float diff_best = static_cast<float>(best_doc_cnt - process.classify_cnts[i]);
+                    // if (i!= process.best_doc and
+                    //     process.classify_cnts[i] > 0.95*static_cast<float>(process.classify_cnts[process.best_doc])) {
+                    if (i!= process.best_doc and diff_best < 0.05 * best_doc_cnt) {
+                            out_file << "," << mv.to_taxon_id[i];
+                    }
+                }
+            } else {
+                if (process.second_best_doc) {
+                    uint32_t best_doc_cnt = process.classify_cnts[process.best_doc];
+                    uint32_t second_best_doc_cnt = process.classify_cnts[process.second_best_doc];
+                    // float second_best_doc_frac = static_cast<float>(process.classify_cnts[process.second_best_doc]) / static_cast<float>(process.classify_cnts[process.best_doc]);
+                    float second_best_diff = static_cast<float>(best_doc_cnt - second_best_doc_cnt);
+                    if (second_best_diff < 0.05 * best_doc_cnt) {
+                        out_file << mv.to_taxon_id[process.best_doc] << "," << mv.to_taxon_id[process.second_best_doc];
+                    } else {
+                        out_file << mv.to_taxon_id[process.best_doc] << ",0";
+                    }
+                } else {
+                    out_file << mv.to_taxon_id[process.best_doc] << ",0";
+                }
+            }
 
-        output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, mv.movi_options->is_no_output());
+            //for (int i = 0; i < num_species; i++) {
+            //    out_file << classify_cnts[i] << " ";
+            //}
+            out_file << "\n";
+        }
+        // for multi-classify mode, we don't need to write the PMLs
+    } else {
+        if (!mv.movi_options->is_filter()) {
+            bool write_stdout = mv.movi_options->is_stdout() and !mv.movi_options->is_classify() and !mv.movi_options->is_filter();
+            bool logs = mv.movi_options->is_logs();
+            if (logs) {
+                auto t2 = std::chrono::high_resolution_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
+                process.mq.add_cost(elapsed);
+                process.mq.add_fastforward(process.ff_count);
+                process.mq.add_scan(process.scan_count);
+                output_logs(costs_file, scans_file, fastforwards_file, process.read_name, process.mq, mv.movi_options->is_no_output());
+            }
+
+            output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, mv.movi_options->is_no_output());
+        }
     }
 }
 
@@ -691,7 +801,13 @@ void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
 uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes, BatchLoader& reader) {
     uint64_t finished_count = 0;
     uint64_t empty_strands = 0;
-    for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
+    for(int i = 0; i < strands; i++) {
+        processes.emplace_back(Strand());
+        if (mv.movi_options->is_multi_classify()) {
+            processes[i].classify_cnts.resize(mv.get_num_species(), 0);
+        }
+    }
+
     // std::cerr << strands << " processes are created.\n";
     for (uint64_t i = 0; i < strands; i++) {
         if (finished_count == 0) {
