@@ -1,3 +1,12 @@
+/*
+ * This file is based on:
+ * https://github.com/oma219/spumoni/
+ *
+ * Original author: Omar Ahmed
+ * License: GPL-3.0
+ * Minor modifications made by Mohsen Zakeri
+ */
+
 #ifndef CLASSIFIER_HPP
 #define CLASSIFIER_HPP
 

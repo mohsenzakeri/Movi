@@ -1,3 +1,12 @@
+/*
+ * This file is based on:
+ * https://github.com/oma219/spumoni/blob/main/src/emp_null_database.cpp
+ *
+ * Original author: Omar Ahmed
+ * License: GPL-3.0
+ * Minor modifications made by Mohsen Zakeri
+ */
+
 #include "emperical_null_database.hpp"
 
 size_t EmpNullDatabase::get_percentile_value() {

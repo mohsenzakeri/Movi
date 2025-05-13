@@ -1,3 +1,12 @@
+/*
+ * This file is based on:
+ * https://github.com/oma219/spumoni/blob/main/include/emp_null_database.hpp
+ *
+ * Original author: Omar Ahmed
+ * License: GPL-3.0
+ * Minor modifications made by Mohsen Zakeri
+ */
+
 #ifndef EMPERICAL_NULL_DATABASE_HPP
 #define EMPERICAL_NULL_DATABASE_HPP
 
@@ -5,7 +14,6 @@
 #include "movi_options.hpp"
 #include "utils.hpp"
 
-// Borrowed from spumoni written by Omar Ahmed: https://github.com/oma219/spumoni/tree/main
 class EmpNullDatabase {
 private:
     std::vector<size_t> ml_stats;
