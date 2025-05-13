@@ -119,7 +119,10 @@ void MoveStructure::find_sampled_SA_entries() {
     uint64_t tot_len = 0;
     all_p.resize(r);
     std::cerr << "r: " << r << "\n";
+    std::cerr << "Finding the BWT offset of run starts (the p array)..\n";
     for (uint64_t i = 0; i < r; i++) {
+        if (i % 10000 == 0)
+            std::cerr << i << "\r";
         all_p[i] = tot_len;
         tot_len += get_move_row(i).get_n();
     }
@@ -133,7 +136,10 @@ void MoveStructure::find_sampled_SA_entries() {
     uint64_t offset = 0;
     uint64_t index = 0;
     uint64_t SA_val = tot_len;
+    std::cerr << "Finding the sampled SA entries..\n";
     for (uint64_t i = 0; i < tot_len; i++) {
+        if (i % 10000 == 0)
+            std::cerr << i << "\r";
         SA_val--;
         uint64_t row_ind = all_p[index] + offset;
         if (row_ind % SA_sample_rate == 0) {

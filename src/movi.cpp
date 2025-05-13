@@ -107,6 +107,10 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 fastforwards_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".fastforwards");
             }
 
+            if (movi_options.is_get_sa_entries()) {
+                sa_entries_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".sa_entries");
+            }
+
             if (movi_options.is_pml() or movi_options.is_zml())
                 mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + "." + query_type(movi_options) + ".bin", std::ios::out | std::ios::binary);
             else if (movi_options.is_count())
@@ -225,6 +229,9 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 std::cerr << "all fast forward counts: " << total_ff_count << "\n";
                 if (!movi_options.is_stdout()) {
                     mls_file.close();
+                }
+                if (movi_options.is_get_sa_entries()) {
+                    sa_entries_file.close();
                 }
                 std::cerr << "The output file for the matching lengths closed.\n";
             } else if (movi_options.is_count()) {
