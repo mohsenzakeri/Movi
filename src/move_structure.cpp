@@ -2398,17 +2398,18 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     }
 
     // Multi-class classification
-    std::vector<double> doc_scores;
     if (movi_options->is_multi_classify()) {
         for (uint16_t i = 0; i < num_species; i++) {
-            classify_cnts[i] = 0;
-        }
-        if (movi_options->get_thres() == 0) {
-            doc_scores.resize(num_species);
+            if (movi_options->get_thres() > 0) {
+                classify_cnts[i] = 0;
+            } else {
+                doc_scores[i] = 0;
+            }
         }
     }
 
-    uint16_t best_doc = 0; // for multi-class classification
+    uint16_t best_doc = std::numeric_limits<uint16_t>::max(); // for multi-class classification
+    uint16_t second_best_doc = std::numeric_limits<uint16_t>::max();
     uint64_t iteration_count = 0;
     uint32_t sum_matching_lengths = 0;
     while (pos_on_r > -1) {
@@ -2532,14 +2533,27 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 for (int doc : cur_set) {
                     if (movi_options->get_thres() > 0) {
                         classify_cnts[doc]++;
-                        if (classify_cnts[doc] >= classify_cnts[best_doc]) {
-                            best_doc = doc;
+                        if (doc != best_doc) {
+                            if (best_doc == std::numeric_limits<uint16_t>::max() || classify_cnts[doc] > classify_cnts[best_doc]) {
+                                second_best_doc = best_doc;
+                                best_doc = doc;
+                            } else if (second_best_doc == std::numeric_limits<uint16_t>::max() || classify_cnts[doc] > classify_cnts[second_best_doc]) {
+                                second_best_doc = doc;
+                            }
                         }
                     } else {
                         // p value strategy
-                        double val = match_len - (log_lens[doc] / log(4));
+                        double val = match_len - (log_lens[doc] / log4);
                         if (val >= 0) {
                             doc_scores[doc] += std::min(val, 1.);
+                            if (doc != best_doc) {
+                                if (best_doc == std::numeric_limits<uint16_t>::max() || doc_scores[doc] > doc_scores[best_doc]) {
+                                    second_best_doc = best_doc;
+                                    best_doc = doc;
+                                } else if (second_best_doc == std::numeric_limits<uint16_t>::max() || doc_scores[doc] > doc_scores[second_best_doc]) {
+                                    second_best_doc = doc;
+                                }
+                            }
                         }
                     }
                 }
@@ -2549,30 +2563,29 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
 
     if (movi_options->is_multi_classify()) {
         float PML_mean = static_cast<float>(sum_matching_lengths) / mq.query().length();
-        uint16_t second_best_doc = std::numeric_limits<uint16_t>::max();
         if (PML_mean < UNCLASSIFIED_THRESHOLD) {
             // Not present
-            out_file << "0\n";
+            out_file << "0,0\n";
         } else {
-            // the following condition is only for p-value strategy
-            if (movi_options->get_thres() == 0) {
-                best_doc = std::numeric_limits<uint16_t>::max();
-                second_best_doc = std::numeric_limits<uint16_t>::max();
-                for (uint32_t i = 1; i < num_species; i++) {
-                    if (doc_scores[i] >= doc_scores[best_doc]) {
-                        second_best_doc = best_doc;
-                        best_doc = i;
-                    } else if (doc_scores[i] > doc_scores[second_best_doc]) {
-                        second_best_doc = i;
-                    }
+            if (second_best_doc == std::numeric_limits<uint16_t>::max()) {
+                out_file << to_taxon_id[best_doc] << ",0";
+            } else {
+                float best_doc_cnt, second_best_doc_cnt, second_best_diff;
+                if (movi_options->get_thres() > 0) {
+                    best_doc_cnt = classify_cnts[best_doc];
+                    second_best_doc_cnt = classify_cnts[second_best_doc];
+                    second_best_diff = (best_doc_cnt - second_best_doc_cnt);
+                } else {
+                    // p-value strategy
+                    best_doc_cnt = doc_scores[best_doc];
+                    second_best_doc_cnt = doc_scores[second_best_doc];
+                    second_best_diff = (best_doc_cnt - second_best_doc_cnt);
                 }
-            }
-    
-            // Document occuring the most is the genotype we think the query is from.
-            out_file << to_taxon_id[best_doc];
-            if (second_best_doc != std::numeric_limits<uint16_t>::max() and
-                static_cast<float>(doc_scores[best_doc] - doc_scores[second_best_doc]) < 0.05 * static_cast<float>(doc_scores[best_doc])) {
-                out_file << "," << to_taxon_id[second_best_doc];
+                if (second_best_diff < 0.05 * best_doc_cnt) {
+                    out_file << to_taxon_id[best_doc] << "," << to_taxon_id[second_best_doc];
+                } else {
+                    out_file << to_taxon_id[best_doc] << ",0";
+                }
             }
             out_file << "\n";
         }

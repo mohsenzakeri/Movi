@@ -90,8 +90,8 @@ void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
         process.offset = mv.get_n(process.idx) - 1;
 
         // reset the multi-class classification variables
-        process.best_doc = 0;
-        process.second_best_doc = 0;
+        process.best_doc = std::numeric_limits<uint16_t>::max();
+        process.second_best_doc = std::numeric_limits<uint16_t>::max();
         process.sum_matching_lengths = 0;
         if (mv.movi_options->is_multi_classify()) {
             std::fill(process.classify_cnts.begin(), process.classify_cnts.end(), 0);
@@ -159,15 +159,14 @@ void ReadProcessor::process_char(Strand& process) {
                 for (int doc : cur_set) {
                     process.classify_cnts[doc]++;
                     if (doc != process.best_doc) {
-                        if (process.classify_cnts[doc] >= process.classify_cnts[process.best_doc]) {
+                        if (process.best_doc == std::numeric_limits<uint16_t>::max() || process.classify_cnts[doc] > process.classify_cnts[process.best_doc]) {
                             process.second_best_doc = process.best_doc;
                             process.best_doc = doc;
-                        } else if (process.classify_cnts[doc] > process.classify_cnts[process.second_best_doc]) {
+                        } else if (process.second_best_doc == std::numeric_limits<uint16_t>::max() || process.classify_cnts[doc] > process.classify_cnts[process.second_best_doc]) {
                             process.second_best_doc = doc;
                         }
                     }
                 }
-
             }
         }
     }
@@ -500,9 +499,11 @@ void ReadProcessor::write_mls(Strand& process) {
                     }
                 }
             } else {
-                if (process.second_best_doc) {
+                if (process.second_best_doc == std::numeric_limits<uint16_t>::max()) {
+                    out_file << mv.to_taxon_id[process.best_doc] << ",0";
+                } else {
                     uint32_t best_doc_cnt = process.classify_cnts[process.best_doc];
-                    uint32_t second_best_doc_cnt = process.classify_cnts[process.second_best_doc];
+                    uint32_t second_best_doc_cnt = process.classify_cnts[process.second_best_doc];    
                     // float second_best_doc_frac = static_cast<float>(process.classify_cnts[process.second_best_doc]) / static_cast<float>(process.classify_cnts[process.best_doc]);
                     float second_best_diff = static_cast<float>(best_doc_cnt - second_best_doc_cnt);
                     if (second_best_diff < 0.05 * best_doc_cnt) {
@@ -510,17 +511,10 @@ void ReadProcessor::write_mls(Strand& process) {
                     } else {
                         out_file << mv.to_taxon_id[process.best_doc] << ",0";
                     }
-                } else {
-                    out_file << mv.to_taxon_id[process.best_doc] << ",0";
                 }
             }
-
-            //for (int i = 0; i < num_species; i++) {
-            //    out_file << classify_cnts[i] << " ";
-            //}
             out_file << "\n";
         }
-        // for multi-classify mode, we don't need to write the PMLs
     } else {
         output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq);
     }
