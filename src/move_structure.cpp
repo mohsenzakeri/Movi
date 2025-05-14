@@ -2563,7 +2563,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
 
     if (movi_options->is_multi_classify()) {
         float PML_mean = static_cast<float>(sum_matching_lengths) / mq.query().length();
-        if (PML_mean < UNCLASSIFIED_THRESHOLD) {
+        if (PML_mean < UNCLASSIFIED_THRESHOLD || best_doc == std::numeric_limits<uint16_t>::max()) {
             // Not present
             out_file << "0,0\n";
         } else {

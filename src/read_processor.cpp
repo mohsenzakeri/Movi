@@ -476,7 +476,7 @@ void ReadProcessor::write_mls(Strand& process) {
         // binary classification in the multi-class classification mode is handled at a different part of the code
         // if (mv.movi_options->is_classify() && !mv.classifier->is_present(process.mq.get_matching_lengths(), *mv.movi_options)) {
         float PML_mean = static_cast<float>(process.sum_matching_lengths) / process.read.length();
-        if (PML_mean < UNCLASSIFIED_THRESHOLD) {
+        if (PML_mean < UNCLASSIFIED_THRESHOLD || process.best_doc == std::numeric_limits<uint16_t>::max()) {
             // Not present
             if (mv.movi_options->is_report_all()) {
                 out_file << "0\n";
