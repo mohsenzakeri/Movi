@@ -215,7 +215,7 @@ class MoveStructure {
         // Writes frequencies of document sets to file.
         void write_doc_set_freqs(std::string fname);
         // Initialize classify counts
-        void initialize_classify_cnts() { classify_cnts.resize(num_species); }
+        void initialize_classify_cnts() { classify_cnts.resize(num_species); doc_scores.resize(num_species); }
         void set_classifier(Classifier *cl) { classifier = cl; }
 
         // Document tree functions
@@ -309,6 +309,8 @@ class MoveStructure {
 
         // Counts for classification
         std::vector<uint32_t> classify_cnts;
+        std::vector<double> doc_scores;
+        const double log4 = log(4);
 
         // Classifier object for binary classification
         Classifier *classifier;
