@@ -407,8 +407,6 @@ int main(int argc, char** argv) {
             auto end = std::chrono::system_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
             std::fprintf(stderr, "Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
-            
-            std::cerr << "RPML: " << movi_options.is_random_repositioning() << std::endl;
 
             begin = std::chrono::system_clock::now();
             if (movi_options.is_multi_classify()) {
@@ -417,11 +415,14 @@ int main(int argc, char** argv) {
                     std::string fname = movi_options.get_index_dir() + "/doc_pats.bin";
                     mv_.deserialize_doc_pats(fname);
                 } else {
-                    if (!movi_options.is_compressed()) {
+                    if (!movi_options.is_freq_compressed() and !movi_options.is_tree_compressed()) {
                         std::string fname = movi_options.get_index_dir() + "/doc_sets.bin";
                         mv_.deserialize_doc_sets(fname);
-                    } else {
+                    } else if (movi_options.is_freq_compressed()) {
                         std::string fname = movi_options.get_index_dir() + "/compress_doc_sets.bin";
+                        mv_.deserialize_doc_sets(fname);
+                    } else if (movi_options.is_tree_compressed()) {
+                        std::string fname = movi_options.get_index_dir() + "/tree_doc_sets.bin";
                         mv_.deserialize_doc_sets(fname);
                     }
                 }

@@ -52,6 +52,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("thres", "Threshold for classification (only consider PMLs above thres)", cxxopts::value<uint8_t>())
         ("full", "Use full coloring information to compute pseudo-matching lengths (PMLs)")
         ("compress", "Use compressed document sets for classification")
+        ("freq-compress", "Use frequency compressed document sets for classification")
+        ("tree-compress", "Use tree compressed document sets for classification")
         ("color-move-rows", "Color the move rows, query is not performed")
         ("bin-width", "The width of the bin used for classification", cxxopts::value<uint32_t>())
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
@@ -176,7 +178,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         movi_options.set_full_color(true);
                     }
                     if (result.count("compress")) {
-                        movi_options.set_compress(true);
+                        movi_options.set_compressed(true);
                     }
                     if (result.count("threads") == 1) {
                         std::cerr << "threads: " << result["threads"].as<int>() << "\n";
@@ -214,8 +216,13 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                             if (result.count("full")) {
                                 movi_options.set_full_color(true);
                             }
-                            if (result.count("compress")) {
-                                movi_options.set_compress(true);
+                            if (result.count("freq-compress")) {
+                                movi_options.set_freq_compressed(true);
+                                movi_options.set_tree_compressed(false);
+                            }
+                            if (result.count("tree-compress")) {
+                                movi_options.set_tree_compressed(true);
+                                movi_options.set_freq_compressed(false);
                             }
                             if (result.count("out_file")) {
                                 movi_options.set_out_file(result["out_file"].as<std::string>());
