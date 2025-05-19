@@ -46,17 +46,29 @@ if(NOT sdsl_POPULATED)
   add_subdirectory(${sdsl_SOURCE_DIR} ${sdsl_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
-# External repositories
-include(ExternalProject)
-set(EXTERNAL_REPOS_DIR ${CMAKE_BINARY_DIR}/external_repos)
-
 #----------------------------------------
 # Add hclust
 #----------------------------------------
-add_library(hclust
-  hclust-cpp/fastcluster.cpp
+FetchContent_Declare(
+  hclust
+  GIT_REPOSITORY https://github.com/cdalitz/hclust-cpp.git
 )
-target_include_directories(hclust PUBLIC hclust-cpp)
+
+FetchContent_GetProperties(hclust)
+if(NOT hclust_POPULATED)
+  FetchContent_Populate(hclust)
+endif()
+
+add_library(hclust
+  ${hclust_SOURCE_DIR}/fastcluster.cpp
+)
+target_include_directories(hclust PUBLIC ${hclust_SOURCE_DIR})
+
+
+
+# External repositories
+include(ExternalProject)
+set(EXTERNAL_REPOS_DIR ${CMAKE_BINARY_DIR}/external_repos)
 
 #----------------------------------------
 # Add pfp-thresholds
@@ -76,6 +88,7 @@ if (NOT EXISTS ${EXTERNAL_REPOS_DIR}/pfp-thresholds-build/pfp_thresholds)
     INSTALL_COMMAND make install
   )
 endif()
+
 
 #----------------------------------------
 # Add r-permute
