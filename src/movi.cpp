@@ -34,6 +34,58 @@ void build_ftab(MoveStructure& mv_, MoviOptions& movi_options) {
     }
 }
 
+void color(MoveStructure& mv_, MoviOptions& movi_options) {
+    mv_.load_document_info();
+
+    auto begin = std::chrono::system_clock::now();
+    if (movi_options.is_full_color()) {
+        // Build document patterns (full information)
+        mv_.fill_run_offsets();
+        mv_.build_doc_pats();
+        std::cerr << "Done building document info for each BWT row" << std::endl;
+        mv_.serialize_doc_pats(movi_options.get_index_dir() + "/doc_pats.bin");
+
+        mv_.build_doc_sets();
+        std::cerr << "Done building document sets" << std::endl;
+        mv_.serialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
+    } else {
+        if (!movi_options.is_compressed()) {
+            mv_.fill_run_offsets();
+
+            std::string doc_pats_name = movi_options.get_index_dir() + "/doc_pats.bin";
+            std::ifstream doc_pats_file(doc_pats_name);
+            if (doc_pats_file.good()) {
+                mv_.deserialize_doc_pats(doc_pats_name);
+            } else {
+                std::cerr << "Doc patterns are not available, building .. \n";
+
+                auto begin = std::chrono::system_clock::now();
+                mv_.build_doc_pats();
+                auto end = std::chrono::system_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+                std::printf("Time measured for building the document patterns: %.3f seconds.\n", elapsed.count() * 1e-9);
+                mv_.serialize_doc_pats(movi_options.get_index_dir() + "/doc_pats.bin");
+            }
+            std::cerr << "Done reading document pattern information" << std::endl;
+            mv_.build_doc_sets();
+            std::cerr << "Done building document sets" << std::endl;
+            mv_.serialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
+        } else {
+            mv_.deserialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
+            mv_.compress_doc_sets();
+            mv_.serialize_doc_sets(movi_options.get_index_dir() + "/compress_doc_sets.bin");
+
+            //mv_.build_doc_set_similarities();
+            //mv_.build_tree_doc_sets();
+            //mv_.serialize_doc_sets(movi_options.get_index_dir() + "/tree_doc_sets.bin");
+        }
+    }
+
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+    std::printf("Time measured for building colors: %.3f seconds.\n", elapsed.count() * 1e-9);
+}
+
 void query(MoveStructure& mv_, MoviOptions& movi_options) {
     if (movi_options.get_ftab_k() != 0) {
         mv_.read_ftab();
@@ -310,49 +362,19 @@ int main(int argc, char** argv) {
             movi_options.set_zml();
             movi_options.set_generate_null_reads(false); // do not regenerate the null reads
             classifier.generate_null_statistics(mv_, movi_options);
+
+            if (movi_options.is_color()) {
+                color(mv_, movi_options);
+            }
         } else if (command == "color") {
             MoveStructure mv_(&movi_options);
             auto begin = std::chrono::system_clock::now();
-
             mv_.deserialize();
             auto end = std::chrono::system_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
             std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
-            begin = std::chrono::system_clock::now();
 
-            std::cerr << "Done deserializing" << std::endl;
-            if (movi_options.is_full_color()) {
-                // Build document patterns (full information)
-                mv_.fill_run_offsets();
-                mv_.build_doc_pats();
-                std::cerr << "Done building document info for each BWT row" << std::endl;
-                mv_.serialize_doc_pats(movi_options.get_index_dir() + "/doc_pats.bin");
-                
-                mv_.build_doc_sets();
-                std::cerr << "Done building document sets" << std::endl;
-                mv_.serialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
-            } else {
-                if (!movi_options.is_compressed()) {
-                    mv_.fill_run_offsets();
-                    mv_.deserialize_doc_pats(movi_options.get_index_dir() + "/doc_pats.bin");
-                    std::cerr << "Done reading document pattern information" << std::endl;
-                    mv_.build_doc_sets();
-                    std::cerr << "Done building document sets" << std::endl;
-                    mv_.serialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
-                } else {
-                    mv_.deserialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
-                    mv_.compress_doc_sets();
-                    mv_.serialize_doc_sets(movi_options.get_index_dir() + "/compress_doc_sets.bin");
-                    
-                    //mv_.build_doc_set_similarities();
-                    //mv_.build_tree_doc_sets();
-                    //mv_.serialize_doc_sets(movi_options.get_index_dir() + "/tree_doc_sets.bin");
-                }
-            }
-
-            end = std::chrono::system_clock::now();
-            elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-            std::printf("Time measured for building colors: %.3f seconds.\n", elapsed.count() * 1e-9);
+            color(mv_, movi_options);
         } else if (command == "query") {
             MoveStructure mv_(&movi_options);
             auto begin = std::chrono::system_clock::now();
@@ -378,9 +400,10 @@ int main(int argc, char** argv) {
                         std::string fname = movi_options.get_index_dir() + "/tree_doc_sets.bin";
                         mv_.deserialize_doc_sets(fname);
                     }
+                    mv_.load_document_info();
                 }
                 mv_.out_file.open(movi_options.get_out_file());
-                mv_.initialize_classify_cnts(); 
+                mv_.initialize_classify_cnts();
             }
             end = std::chrono::system_clock::now();
             elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);

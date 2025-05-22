@@ -44,6 +44,7 @@ class MoviOptions {
         bool is_freq_compressed() { return freq_compressed; }
         bool is_tree_compressed() { return tree_compressed; }
         bool is_color_move_rows() { return color_move_rows; }
+        bool is_color() { return color; }
         int get_thres() { return cl_thres; }
         size_t get_threads() { return threads; }
         uint32_t get_k () { return k; }
@@ -109,6 +110,7 @@ class MoviOptions {
         void set_freq_compressed(bool val) { freq_compressed = val; }
         void set_tree_compressed(bool val) { tree_compressed = val; }
         void set_color_move_rows(bool val) { color_move_rows = val; }
+        void set_color(bool val) { color = val; }
         void set_thres(uint8_t val) { cl_thres = val; }
         void set_out_file(std::string out_file_) { out_file = out_file_; }
 
@@ -189,6 +191,7 @@ class MoviOptions {
         bool freq_compressed = false;
         bool tree_compressed = false;
         bool color_move_rows = false;
+        bool color = false;
         // Classification threshold (only consider PMLs with len >= cl_thres)
         uint8_t cl_thres = 5;
 };

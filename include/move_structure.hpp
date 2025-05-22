@@ -10,6 +10,10 @@
 #include <sys/stat.h>
 #include <vector>
 #include <unordered_map>
+#include <map>
+#include <sstream>
+#include <filesystem>
+
 
 #include "kseq.h"
 #include "fastcluster.h"
@@ -206,7 +210,7 @@ class MoveStructure {
         // Writes frequencies of document sets to file.
         void write_doc_set_freqs(std::string fname);
         // Initialize classify counts
-        void initialize_classify_cnts() { classify_cnts.resize(num_species); doc_scores.resize(num_species); }
+        void initialize_classify_cnts();
         void set_classifier(Classifier *cl) { classifier = cl; }
 
         // Document tree functions
@@ -228,6 +232,7 @@ class MoveStructure {
         void deserialize_doc_sets(std::string fname);
         void serialize_doc_rows();
         void deserialize_doc_rows();
+        void load_document_info();
         void serialize();
         void deserialize();
         

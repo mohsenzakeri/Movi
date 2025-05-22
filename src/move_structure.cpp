@@ -1,8 +1,3 @@
-#include <sys/stat.h> 
-#include <map>
-#include <sstream>
-#include <filesystem>
-
 #include "move_structure.hpp"
 #include "classifier.hpp"
 
@@ -174,7 +169,8 @@ void MoveStructure::build_doc_pats() {
     uint64_t SA_val = length;
     uint32_t doc_offset_ind = num_docs - 1;
     for (uint64_t i = 0; i < length; i++) {
-        if (i % 1000000000ll == 0) std::cout << "Finding suffix array entries: " << i << std::endl;
+        if (i % 1000000 == 0)
+            std::cerr << "Finding suffix array entries: " << i << "\r";
         SA_val--;
         if (doc_offset_ind > 0 && SA_val < doc_offsets[doc_offset_ind - 1]) {
             doc_offset_ind--;
@@ -183,6 +179,7 @@ void MoveStructure::build_doc_pats() {
         doc_pats[row_ind] = doc_ids[doc_offset_ind];
         LF_move(offset, index);
     }
+    std::cerr << "\n";
 }
 
 void MoveStructure::fill_run_offsets() {
@@ -3130,15 +3127,23 @@ void MoveStructure::deserialize() {
     }
 
     fin.close();
+}
 
+void MoveStructure::load_document_info() {
     // Read in document offsets.
     std::ifstream doc_offsets_file(movi_options->get_index_dir() + "/ref.fa.doc_offsets");
+    if (!doc_offsets_file.good()) {
+        std::cerr << "Error: doc_offsets file not found at \""
+                  << movi_options->get_index_dir() << "/ref.fa.doc_offsets\"" << std::endl;
+        exit(0);
+    }
     uint64_t doc_offset;
     while ((doc_offsets_file >> doc_offset)) {
         doc_offsets.push_back(doc_offset);
     }
     doc_offsets_file.close();
     num_docs = doc_offsets.size();
+    std::cerr << "num_docs: " << num_docs << std::endl;
     num_species = num_docs;
 
     // Read in document taxon id
@@ -3177,7 +3182,7 @@ void MoveStructure::deserialize() {
     for (int i = 0; i < num_species; i++) {
         log_lens[i] = log(log_lens[i]);
     }
-    
+
     // Fill in powers of 2 array.
     pow2[0] = 1;
     for (size_t i = 1; i < ARR_SIZE; i++) {
@@ -3186,6 +3191,11 @@ void MoveStructure::deserialize() {
             pow2[i] -= MOD;
         }
     }
+}
+
+void MoveStructure::initialize_classify_cnts() {
+    classify_cnts.resize(num_species, 0);
+    doc_scores.resize(num_species, 0);
 }
 
 void MoveStructure::verify_lfs() {
