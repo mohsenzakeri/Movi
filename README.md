@@ -1,5 +1,7 @@
 # Movi ![GitHub](https://img.shields.io/github/license/mohsenzakeri/movi?color=green)
 
+## To access Movi Color, please use version [v1.2.0](https://github.com/mohsenzakeri/Movi/releases/tag/v1.2.0) or later or switch to the [movi-color](https://github.com/mohsenzakeri/Movi/tree/movi-color) branch.
+
 Movi is a full text index for pangenomes. It takes advantage of the move data structure (by Nishimoto and Tabei). Movi works with genomic file formats. The high locality of the reference and latency hiding in Movi results in low and predictabile query latencies. These properties make Movi ideal for real time applications like Nanopore Adaptive sampling.
 
 >[Zakeri, Mohsen, Brown, Nathaniel K., Ahmed, Omar Y., Gagie, Travis, and Langmead, Ben. "Movi: a fast and cache-efficient full-text pangenome index". iScience (2024)](https://www.cell.com/iscience/fulltext/S2589-0042(24)02691-9)
