@@ -59,7 +59,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
         ("s,strands", "Number of strands for query", cxxopts::value<int>())
         ("t,threads", "Number of threads for query", cxxopts::value<int>())
-        ("out_file", "Output file if computing PMLs for classification", cxxopts::value<std::string>())
+        ("out-file", "Output file if computing PMLs for classification", cxxopts::value<std::string>())
         ("stdout", "Write the output to stdout")
         ("ignore-illegal-chars", "In the case of illegal characters (i.e., non-ACGT for genomic data), substitute the character with \'A\'(1) or a random character from the alphabet (2).", cxxopts::value<int>());
 
@@ -192,7 +192,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("thres")) { movi_options.set_thres(result["thres"].as<uint8_t>()); }
                         if (result.count("color-move-rows") == 1) { movi_options.set_color_move_rows(true); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
-                        if (result.count("pml") || result.count("zml")) {
+                        if (result.count("multi-classify")) {
                             if (result.count("full")) {
                                 movi_options.set_full_color(true);
                             }
@@ -204,8 +204,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                                 movi_options.set_tree_compressed(true);
                                 movi_options.set_freq_compressed(false);
                             }
-                            if (result.count("out_file")) {
-                                movi_options.set_out_file(result["out_file"].as<std::string>());
+                            if (result.count("out-file")) {
+                                movi_options.set_out_file(result["out-file"].as<std::string>());
                             }
                         }
                         if (result.count("ignore-illegal-chars") == 1) {
