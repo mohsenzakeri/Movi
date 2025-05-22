@@ -2242,7 +2242,7 @@ uint64_t MoveStructure::query_zml(MoveQuery& mq) {
             match_len += 1;
         } else {
             // Classification based on maximal matching
-            if (movi_options->is_multi_classify() && match_len >= movi_options->get_thres()) {
+            if (movi_options->is_multi_classify() && match_len >= movi_options->get_min_match_len()) {
                 if (prev_interval.run_start == prev_interval.run_end) {
                     for (uint64_t i = prev_interval.offset_start; i <= prev_interval.offset_end; i++) {
                         uint64_t full_ind = run_offsets[prev_interval.run_start] + i;
@@ -2397,7 +2397,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     // Multi-class classification
     if (movi_options->is_multi_classify()) {
         for (uint16_t i = 0; i < num_species; i++) {
-            if (movi_options->get_thres() > 0) {
+            if (!movi_options->is_pvalue_scoring()) {
                 classify_cnts[i] = 0;
             } else {
                 doc_scores[i] = 0;
@@ -2511,7 +2511,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
         }
 
         if (movi_options->is_multi_classify()) {
-            if (match_len >= movi_options->get_thres()) {
+            if (match_len >= movi_options->get_min_match_len()) {
                 /*uint64_t full_ind = run_offsets[idx] + offset;
                 uint16_t cur_doc = doc_pats[full_ind];
                 classify_cnts[cur_doc]++;
@@ -2528,7 +2528,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 std::vector<uint16_t> &cur_set = unique_doc_sets[doc_set_inds[idx]];
 #endif
                 for (int doc : cur_set) {
-                    if (movi_options->get_thres() > 0) {
+                    if (!movi_options->is_pvalue_scoring()) {
                         classify_cnts[doc]++;
                         if (doc != best_doc) {
                             if (best_doc == std::numeric_limits<uint16_t>::max() || classify_cnts[doc] > classify_cnts[best_doc]) {
@@ -2568,7 +2568,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 out_file << to_taxon_id[best_doc] << ",0";
             } else {
                 float best_doc_cnt, second_best_doc_cnt, second_best_diff;
-                if (movi_options->get_thres() > 0) {
+                if (movi_options->get_min_match_len() > 0) {
                     best_doc_cnt = classify_cnts[best_doc];
                     second_best_doc_cnt = classify_cnts[second_best_doc];
                     second_best_diff = (best_doc_cnt - second_best_doc_cnt);
@@ -2578,6 +2578,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                     second_best_doc_cnt = doc_scores[second_best_doc];
                     second_best_diff = (best_doc_cnt - second_best_doc_cnt);
                 }
+
                 if (second_best_diff < 0.05 * best_doc_cnt) {
                     out_file << to_taxon_id[best_doc] << "," << to_taxon_id[second_best_doc];
                 } else {

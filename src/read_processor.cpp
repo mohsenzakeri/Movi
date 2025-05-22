@@ -138,7 +138,7 @@ void ReadProcessor::process_char(Strand& process) {
     }
 
     if (mv.movi_options->is_multi_classify()) {
-        if (process.match_len >= mv.movi_options->get_thres()) {
+        if (process.match_len >= mv.movi_options->get_min_match_len()) {
             // Skip doc sets that weren't saved (thrown away by compression).
 #if COLOR_MODE == 1
             if (mv.rlbwt[process.idx].color_id >= mv.unique_doc_sets.size()) {
