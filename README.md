@@ -14,6 +14,7 @@ Required dependences: `sdsl`, `zlib`, `cmake`, and `gcc`
 To build from source:
 ```
 git clone https://github.com/mohsenzakeri/Movi
+git checkout movi-color
 cd Movi
 mkdir build
 cd build
