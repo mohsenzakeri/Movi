@@ -15,8 +15,9 @@ To build from source:
 ```
 git clone https://github.com/mohsenzakeri/Movi
 cd Movi
-mkdir build
-cd build
+git checkout movi-color
+mkdir build-movi-color
+cd build-movi-color
 cmake ..
 make
 ```
