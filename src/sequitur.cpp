@@ -351,12 +351,13 @@ void MoveStructure::query_all_kmers(MoveQuery& mq, bool kmer_counts) {
             pos_on_r = pos_on_r - step - 1;
         } else {
             if (kmer_counts) {
-                if (pos_on_r <= 2*k) {
+                // Let's get rid of the special case for count queries -- commented below for now
+                /* if (pos_on_r <= 2*k) {
                     uint64_t kmers_found = query_kmers_from(mq, pos_on_r, true);
                     #pragma omp atomic
                     kmer_stats.positive_kmers += kmers_found;
                     // kmer_stats.positive_kmers += query_kmers_from_bidirectional(mq, pos_on_r);
-                } else {
+                } else { */
                     uint64_t kmers_found = query_kmers_from_bidirectional(mq, pos_on_r);
                     #pragma omp atomic
                     kmer_stats.positive_kmers += kmers_found;
@@ -397,7 +398,7 @@ void MoveStructure::query_all_kmers(MoveQuery& mq, bool kmer_counts) {
                             std::cerr << dbg.str() << std::endl;
                         }
                     }
-                }
+                // }
             } else {
                 uint64_t kmers_found = query_kmers_from(mq, pos_on_r);
                 #pragma omp atomic
