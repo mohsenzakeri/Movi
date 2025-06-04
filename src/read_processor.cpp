@@ -144,6 +144,7 @@ void ReadProcessor::process_char(Strand& process) {
             if (mv.rlbwt[process.idx].color_id >= mv.unique_doc_sets.size()) {
 #else
             if (mv.doc_set_inds[process.idx] >= mv.unique_doc_sets.size()) {
+            // if (mv.doc_set_flat_inds[process.idx].get() >= mv.flat_colors.size()) {
 #endif
                 // std::cerr << "doc_set_inds[idx] >= unique_doc_sets.size()\n";
                 // std::cerr << "This should not happen when compression is not turned on.\n";
@@ -154,8 +155,18 @@ void ReadProcessor::process_char(Strand& process) {
                 uint32_t color_id = mv.rlbwt[process.idx].color_id;
 #else
                 uint32_t color_id = mv.doc_set_inds[process.idx];
+                // uint64_t color_id = mv.doc_set_flat_inds[process.idx].get();
 #endif
                 std::vector<uint16_t> &cur_set = mv.unique_doc_sets[color_id];
+                // uint32_t cur_set_size = mv.flat_colors[color_id];
+                // std::span<uint16_t> cur_set(mv.flat_colors.data() + color_id + 1, mv.flat_colors.data() + color_id + 1 + cur_set_size);
+                // if (cur_set.size() == 0) {
+                //     std::cerr << "color_id: " << color_id << "\n";
+                //     std::cerr << "cur_set_size: " << cur_set_size << "\n";
+                //     std::cerr << "cur_set.size(): " << cur_set.size() << "\n";
+                //     exit(0);
+                // }
+
                 for (int doc : cur_set) {
                     process.classify_cnts[doc]++;
                     if (doc != process.best_doc) {

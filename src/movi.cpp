@@ -390,6 +390,7 @@ int main(int argc, char** argv) {
                     std::string fname = movi_options.get_index_dir() + "/doc_pats.bin";
                     mv_.deserialize_doc_pats(fname);
                 } else {
+                    // mv_.deserialize_doc_sets_flat();
                     if (!movi_options.is_freq_compressed() and !movi_options.is_tree_compressed()) {
                         std::string fname = movi_options.get_index_dir() + "/doc_sets.bin";
                         mv_.deserialize_doc_sets(fname);
@@ -414,8 +415,9 @@ int main(int argc, char** argv) {
             std::cerr << "COLOR_MODE: " << COLOR_MODE << std::endl;
 
             if (movi_options.is_color_move_rows()) {
-                mv_.add_colors_to_rlbwt();
-                mv_.serialize();
+                mv_.flat_colors_vectors();
+                // mv_.add_colors_to_rlbwt();
+                // mv_.serialize();
             } else {
                 query(mv_, movi_options);
             }

@@ -2354,6 +2354,43 @@ bool MoveStructure::look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r,
     }
 }
 
+void MoveStructure::flat_colors_vectors() {
+    std::unordered_map<uint32_t, uint64_t> flat_index;
+    for (uint64_t i = 0; i < unique_doc_sets.size(); i++) {
+        if (i % 100000 == 0) {
+            std::cerr << "i: " << i << "\r";
+        }
+        flat_index[i] = flat_colors.size();
+        flat_colors.push_back(unique_doc_sets[i].size());
+        for (uint64_t j = 0; j < unique_doc_sets[i].size(); j++) {
+            flat_colors.push_back(unique_doc_sets[i][j]);
+        }
+    }
+    std::cerr << "\n";
+
+    doc_set_flat_inds.resize(doc_set_inds.size());
+    for (uint64_t i = 0; i < doc_set_inds.size(); i++) {
+        if (i % 100000 == 0) {
+            std::cerr << "i: " << i << "\r";
+        }
+        doc_set_flat_inds[i].set_value(flat_index[doc_set_inds[i]]);
+    }
+    std::cerr << "\n";
+
+    std::cerr << "flat_colors.size(): " << flat_colors.size() << "\n";
+
+    std::string fname = movi_options->get_index_dir() + "/doc_sets_flat.bin";
+    std::ofstream fout(fname, std::ios::out | std::ios::binary);
+    if (!fout) {
+        throw std::runtime_error("Failed to open the index file at: " + movi_options->get_index_dir());
+    }
+    uint64_t flat_colors_size = flat_colors.size();
+    fout.write(reinterpret_cast<char*>(&flat_colors_size), sizeof(uint64_t));
+    fout.write(reinterpret_cast<char*>(&flat_colors[0]), flat_colors.size() * sizeof(uint16_t));
+    fout.write(reinterpret_cast<char*>(&doc_set_flat_inds[0]), doc_set_flat_inds.size() * sizeof(doc_set_flat_inds[0]));
+    fout.close();
+}
+
 void MoveStructure::add_colors_to_rlbwt() {
 #if MODE == 3 or MODE == 6
     rlbwt_colored.resize(rlbwt.size());
@@ -2526,6 +2563,11 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
 #else
                 if (doc_set_inds[idx] >= unique_doc_sets.size()) continue;
                 std::vector<uint16_t> &cur_set = unique_doc_sets[doc_set_inds[idx]];
+
+                // uint64_t color_id = doc_set_flat_inds[idx].get();
+                // if (color_id >= flat_colors.size()) continue;
+                // uint32_t cur_set_size = flat_colors[color_id];
+                // std::span<uint16_t> cur_set(flat_colors.data() + color_id + 1, flat_colors.data() + color_id + 1 + cur_set_size);
 #endif
                 for (int doc : cur_set) {
                     if (!movi_options->is_pvalue_scoring()) {
@@ -2866,9 +2908,24 @@ void MoveStructure::serialize_doc_sets(std::string fname) {
     fout.close();
 }
 
+void MoveStructure::deserialize_doc_sets_flat() {
+    std::string fname = movi_options->get_index_dir() + "/doc_sets_flat.bin";
+    std::ifstream fin(fname, std::ios::in | std::ios::binary);
+    uint64_t flat_colors_size = 0;
+    fin.read(reinterpret_cast<char*>(&flat_colors_size), sizeof(uint64_t));
+    std::cerr << "flat_colors_size: " << flat_colors_size << "\n";
+    flat_colors.resize(flat_colors_size);
+    fin.read(reinterpret_cast<char*>(&flat_colors[0]), flat_colors_size * sizeof(flat_colors[0]));
+    std::cerr << "Read flat_colors\n";
+    doc_set_flat_inds.resize(r);
+    fin.read(reinterpret_cast<char*>(&doc_set_flat_inds[0]), r * sizeof(doc_set_flat_inds[0]));
+    std::cerr << "Read doc_set_flat_inds\n";
+    fin.close();
+}
+
 void MoveStructure::deserialize_doc_sets(std::string fname) {
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
-    
+
     size_t unique_cnt = 0;
     fin.read(reinterpret_cast<char*>(&unique_cnt), sizeof(unique_cnt));
     std::cerr << "Number of unique document sets: " << unique_cnt << std::endl; 
@@ -3340,7 +3397,7 @@ void MoveStructure::write_doc_set_freqs(std::string fname) {
     for (size_t i = 0; i < r; i++) {
         doc_set_cnts[doc_set_inds[i]]++;
     }
-    
+
     std::vector<std::pair<uint64_t, uint32_t>> freqs(unique_doc_sets.size());
     for (size_t i = 0; i < freqs.size(); i++) {
         freqs[i].first = doc_set_cnts[i];

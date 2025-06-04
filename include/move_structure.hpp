@@ -13,7 +13,7 @@
 #include <map>
 #include <sstream>
 #include <filesystem>
-
+#include <span>
 
 #include "kseq.h"
 #include "fastcluster.h"
@@ -225,6 +225,8 @@ class MoveStructure {
         // uint64_t naive_sa(uint64_t bwt_row);
         // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
         void add_colors_to_rlbwt();
+        void flat_colors_vectors();
+        void deserialize_doc_sets_flat();
 
         void serialize_doc_pats(std::string fname);
         void deserialize_doc_pats(std::string fname);
@@ -282,8 +284,10 @@ class MoveStructure {
         std::vector<uint64_t> run_offsets;
 
         // Document sets.
+        std::vector<uint16_t> flat_colors;
         std::vector<std::vector<uint16_t>> unique_doc_sets;
         std::vector<uint32_t> doc_set_inds;
+        std::vector<MoveTally> doc_set_flat_inds;
         sdsl::bit_vector compressed;
 
         // Tree over documents
