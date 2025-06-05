@@ -69,7 +69,11 @@ void color(MoveStructure& mv_, MoviOptions& movi_options) {
             std::cerr << "Done reading document pattern information" << std::endl;
             mv_.build_doc_sets();
             std::cerr << "Done building document sets" << std::endl;
-            mv_.serialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
+            if (movi_options.is_doc_sets_vector_of_vectors()) {
+                mv_.serialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
+            } else {
+                mv_.flat_and_serialize_colors_vectors();
+            }
         } else {
             mv_.deserialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
             mv_.compress_doc_sets();
@@ -390,16 +394,19 @@ int main(int argc, char** argv) {
                     std::string fname = movi_options.get_index_dir() + "/doc_pats.bin";
                     mv_.deserialize_doc_pats(fname);
                 } else {
-                    // mv_.deserialize_doc_sets_flat();
-                    if (!movi_options.is_freq_compressed() and !movi_options.is_tree_compressed()) {
-                        std::string fname = movi_options.get_index_dir() + "/doc_sets.bin";
-                        mv_.deserialize_doc_sets(fname);
-                    } else if (movi_options.is_freq_compressed()) {
-                        std::string fname = movi_options.get_index_dir() + "/compress_doc_sets.bin";
-                        mv_.deserialize_doc_sets(fname);
-                    } else if (movi_options.is_tree_compressed()) {
-                        std::string fname = movi_options.get_index_dir() + "/tree_doc_sets.bin";
-                        mv_.deserialize_doc_sets(fname);
+                    if (movi_options.is_doc_sets_vector_of_vectors() or movi_options.is_flat_color_vectors()) {
+                        if (!movi_options.is_freq_compressed() and !movi_options.is_tree_compressed()) {
+                            std::string fname = movi_options.get_index_dir() + "/doc_sets.bin";
+                            mv_.deserialize_doc_sets(fname);
+                        } else if (movi_options.is_freq_compressed()) {
+                            std::string fname = movi_options.get_index_dir() + "/compress_doc_sets.bin";
+                            mv_.deserialize_doc_sets(fname);
+                        } else if (movi_options.is_tree_compressed()) {
+                            std::string fname = movi_options.get_index_dir() + "/tree_doc_sets.bin";
+                            mv_.deserialize_doc_sets(fname);
+                        }
+                    } else {
+                        mv_.deserialize_doc_sets_flat();
                     }
                     mv_.load_document_info();
                 }
@@ -414,10 +421,11 @@ int main(int argc, char** argv) {
 
             std::cerr << "COLOR_MODE: " << COLOR_MODE << std::endl;
 
-            if (movi_options.is_color_move_rows()) {
-                mv_.flat_colors_vectors();
-                // mv_.add_colors_to_rlbwt();
-                // mv_.serialize();
+            if (movi_options.is_flat_color_vectors()) {
+                mv_.flat_and_serialize_colors_vectors();
+            } else if (movi_options.is_color_move_rows()) {
+                mv_.add_colors_to_rlbwt();
+                mv_.serialize();
             } else {
                 query(mv_, movi_options);
             }

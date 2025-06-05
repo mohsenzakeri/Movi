@@ -20,6 +20,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("f,fasta", "Reference file", cxxopts::value<std::string>())
         ("l,list", "List of fasta files, only works with 'movi' binary", cxxopts::value<std::string>())
         ("color", "Add colors to the index for multi-class classification")
+        ("color-vectors", "Build a vector of vectors for colors (builds \"ref.fa.doc_sets.bin\")")
         ("thresholds", "Store the threshold values in the compact mode by splitting the runs at threshold boundaries")
         ("preprocessed", "The BWT is preprocessed into heads and lens files")
         ("verify", "Verify if all the LF_move operations are correct")
@@ -51,6 +52,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("freq-compress", "Use frequency compressed document sets for classification")
         ("tree-compress", "Use tree compressed document sets for classification")
         ("color-move-rows", "Color the move rows, query is not performed")
+        ("flat-color-vectors", "Flat and serialize the colors vectors")
+        ("color-vectors", "Use vector of vectors for colors (requires \"ref.fa.doc_sets.bin\")")
         ("bin-width", "The width of the bin used for classification", cxxopts::value<uint32_t>())
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
         ("i,index", "Index directory", cxxopts::value<std::string>())
@@ -67,6 +70,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
     auto colorOptions = options.add_options("color")
         ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("color-vectors", "Build a vector of vectors for colors (builds \"ref.fa.doc_sets.bin\")")
         ("compress", "Whether or not we compress doc sets (only keep most frequent few)")
         ("full", "Whether or not to store all document information (or just the sets for each run)")
         ("t,threads", "Number of threads for query", cxxopts::value<int>());
@@ -131,6 +135,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
                     movi_options.set_ref_file(result["fasta"].as<std::string>());
                     if (result.count("color")) { movi_options.set_color(true); }
+                    if (result.count("color-vectors") == 1) { movi_options.set_doc_sets_vector_of_vectors(true); }
                     if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
                     if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
                     if (result.count("output-ids") >= 1) { movi_options.set_output_ids(true); }
@@ -159,6 +164,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
             } else if (command == "color") { 
                 if (result.count("index") == 1) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
+                    if (result.count("color-vectors") == 1) {
+                        movi_options.set_doc_sets_vector_of_vectors(true);
+                    }
                     if (result.count("full")) {
                         movi_options.set_full_color(true);
                     }
@@ -195,6 +203,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("min-len")) { movi_options.set_min_match_len(result["min-len"].as<uint8_t>()); }
                         if (result.count("pvalue-scoring") == 1) { movi_options.set_pvalue_scoring(true); }
                         if (result.count("color-move-rows") == 1) { movi_options.set_color_move_rows(true); }
+                        if (result.count("flat-color-vectors") == 1) { movi_options.set_flat_color_vectors(true); }
+                        if (result.count("color-vectors") == 1) { movi_options.set_doc_sets_vector_of_vectors(true); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
                         if (result.count("multi-classify")) {
                             if (result.count("full")) {

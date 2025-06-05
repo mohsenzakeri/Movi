@@ -225,7 +225,7 @@ class MoveStructure {
         // uint64_t naive_sa(uint64_t bwt_row);
         // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
         void add_colors_to_rlbwt();
-        void flat_colors_vectors();
+        void flat_and_serialize_colors_vectors();
         void deserialize_doc_sets_flat();
 
         void serialize_doc_pats(std::string fname);

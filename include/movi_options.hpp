@@ -44,7 +44,9 @@ class MoviOptions {
         bool is_freq_compressed() { return freq_compressed; }
         bool is_tree_compressed() { return tree_compressed; }
         bool is_color_move_rows() { return color_move_rows; }
+        bool is_flat_color_vectors() { return flat_color_vectors; }
         bool is_color() { return color; }
+        bool is_doc_sets_vector_of_vectors() { return doc_sets_vector_of_vectors; }
         int get_min_match_len() { return min_match_len; }
         bool is_pvalue_scoring() { return pvalue_scoring; }
         size_t get_threads() { return threads; }
@@ -111,6 +113,8 @@ class MoviOptions {
         void set_freq_compressed(bool val) { freq_compressed = val; }
         void set_tree_compressed(bool val) { tree_compressed = val; }
         void set_color_move_rows(bool val) { color_move_rows = val; }
+        void set_flat_color_vectors(bool val) { flat_color_vectors = val; }
+        void set_doc_sets_vector_of_vectors(bool val) { doc_sets_vector_of_vectors = val; }
         void set_color(bool val) { color = val; }
         void set_min_match_len(uint8_t val) { min_match_len = val; }
         void set_pvalue_scoring(bool val) { pvalue_scoring = val; }
@@ -193,6 +197,8 @@ class MoviOptions {
         bool tree_compressed = false;
         bool color_move_rows = false;
         bool color = false;
+        bool doc_sets_vector_of_vectors = false;
+        bool flat_color_vectors = false;
         uint8_t min_match_len = 1;
         bool pvalue_scoring = false;
 };

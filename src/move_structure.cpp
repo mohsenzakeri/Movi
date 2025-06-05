@@ -2354,7 +2354,7 @@ bool MoveStructure::look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r,
     }
 }
 
-void MoveStructure::flat_colors_vectors() {
+void MoveStructure::flat_and_serialize_colors_vectors() {
     std::unordered_map<uint32_t, uint64_t> flat_index;
     for (uint64_t i = 0; i < unique_doc_sets.size(); i++) {
         if (i % 100000 == 0) {
@@ -2556,19 +2556,32 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                     best_doc = cur_doc;
                 }*/ 
 
-                // Skip doc sets that weren't saved (thrown away by compression).
+                uint64_t color_id;
 #if COLOR_MODE == 1
-                if (rlbwt[idx].color_id >= unique_doc_sets.size()) continue;
-                std::vector<uint16_t> &cur_set = unique_doc_sets[rlbwt[idx].color_id];
+                color_id = static_cast<uint64_t>(rlbwt[idx].color_id);
+                // Skip doc sets that weren't saved (thrown away by compression).
+                if (color_id >= unique_doc_sets.size()) continue;
 #else
-                if (doc_set_inds[idx] >= unique_doc_sets.size()) continue;
-                std::vector<uint16_t> &cur_set = unique_doc_sets[doc_set_inds[idx]];
-
-                // uint64_t color_id = doc_set_flat_inds[idx].get();
-                // if (color_id >= flat_colors.size()) continue;
-                // uint32_t cur_set_size = flat_colors[color_id];
-                // std::span<uint16_t> cur_set(flat_colors.data() + color_id + 1, flat_colors.data() + color_id + 1 + cur_set_size);
+                if (movi_options->is_doc_sets_vector_of_vectors()) {
+                    color_id = static_cast<uint64_t>(doc_set_inds[idx]);
+                    // Skip doc sets that weren't saved (thrown away by compression).
+                    if (color_id >= unique_doc_sets.size()) continue;
+                } else {
+                    color_id = doc_set_flat_inds[idx].get();
+                    // Skip doc sets that weren't saved (thrown away by compression).
+                    if (color_id >= flat_colors.size()) continue;
+                }
 #endif
+                std::span<uint16_t> cur_set;
+                if (movi_options->is_doc_sets_vector_of_vectors()) {
+                    std::vector<uint16_t> &cur_set_vec = unique_doc_sets[color_id];
+                    cur_set = std::span<uint16_t>(cur_set_vec.data(), cur_set_vec.size());
+                } else {
+                    uint32_t cur_set_size = flat_colors[color_id];
+                    cur_set = std::span<uint16_t>(flat_colors.data() + color_id + 1,
+                                                  flat_colors.data() + color_id + 1 + cur_set_size);
+                }
+
                 for (int doc : cur_set) {
                     if (!movi_options->is_pvalue_scoring()) {
                         classify_cnts[doc]++;
