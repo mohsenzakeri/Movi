@@ -52,7 +52,6 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("freq-compress", "Use frequency compressed document sets for classification")
         ("tree-compress", "Use tree compressed document sets for classification")
         ("color-move-rows", "Color the move rows, query is not performed")
-        ("flat-color-vectors", "Flat and serialize the colors vectors")
         ("color-vectors", "Use vector of vectors for colors (requires \"ref.fa.doc_sets.bin\")")
         ("bin-width", "The width of the bin used for classification", cxxopts::value<uint32_t>())
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
@@ -87,7 +86,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
     auto inspectOptions = options.add_options("inspect")
         ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
-        ("i,index", "Index directory", cxxopts::value<std::string>());
+        ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("flat-color-vectors", "Flat and serialize the colors vectors");
 
     auto ftabOptions = options.add_options("ftab")
         ("i,index", "Index directory", cxxopts::value<std::string>())
@@ -203,7 +203,6 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("min-len")) { movi_options.set_min_match_len(result["min-len"].as<uint8_t>()); }
                         if (result.count("pvalue-scoring") == 1) { movi_options.set_pvalue_scoring(true); }
                         if (result.count("color-move-rows") == 1) { movi_options.set_color_move_rows(true); }
-                        if (result.count("flat-color-vectors") == 1) { movi_options.set_flat_color_vectors(true); }
                         if (result.count("color-vectors") == 1) { movi_options.set_doc_sets_vector_of_vectors(true); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
                         if (result.count("multi-classify")) {
@@ -305,6 +304,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                 if (result.count("index")) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
                     if (result.count("output-ids") >= 1) { movi_options.set_output_ids(true); }
+                    if (result.count("flat-color-vectors") == 1) { movi_options.set_flat_color_vectors(true); }
                 } else {
                     const std::string message = "Please specify the index directory file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);

@@ -394,7 +394,7 @@ int main(int argc, char** argv) {
                     std::string fname = movi_options.get_index_dir() + "/doc_pats.bin";
                     mv_.deserialize_doc_pats(fname);
                 } else {
-                    if (movi_options.is_doc_sets_vector_of_vectors() or movi_options.is_flat_color_vectors()) {
+                    if (movi_options.is_doc_sets_vector_of_vectors()) {
                         if (!movi_options.is_freq_compressed() and !movi_options.is_tree_compressed()) {
                             std::string fname = movi_options.get_index_dir() + "/doc_sets.bin";
                             mv_.deserialize_doc_sets(fname);
@@ -421,9 +421,7 @@ int main(int argc, char** argv) {
 
             std::cerr << "COLOR_MODE: " << COLOR_MODE << std::endl;
 
-            if (movi_options.is_flat_color_vectors()) {
-                mv_.flat_and_serialize_colors_vectors();
-            } else if (movi_options.is_color_move_rows()) {
+            if (movi_options.is_color_move_rows()) {
                 mv_.add_colors_to_rlbwt();
                 mv_.serialize();
             } else {
@@ -461,6 +459,14 @@ int main(int argc, char** argv) {
             MoveStructure mv_(&movi_options);
             mv_.deserialize();
             mv_.print_stats();
+            if (movi_options.is_flat_color_vectors()) {
+                std::string fname = movi_options.get_index_dir() + "/doc_sets.bin";
+                mv_.deserialize_doc_sets(fname);
+                mv_.load_document_info();
+                std::cerr << "The color table is read successfully.\n";
+                mv_.flat_and_serialize_colors_vectors();
+                std::cerr << "The flat color table is serialized successfully in the index directory (doc_sets_flat.bin).\n";
+            }
             // mv_.compute_run_lcs();
             // mv_.analyze_rows();
         } else if (command == "ftab") {
