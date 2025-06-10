@@ -2813,7 +2813,11 @@ void MoveStructure::print_stats() {
     std::cerr << "end_bwt_idx:\t" << end_bwt_idx << "\n";
 
     for (int i = 0; i < first_runs.size(); i++) {
-        std::cerr << alphabet[i] << "\t" << i << "\t" << first_runs[i] << "\t" << last_runs[i] << "\n";
+        std::cerr << std::string(1, i == 0 ? '$' : alphabet[i-1])
+                  << "\t" << i
+                  << "\t" << first_runs[i] << ":" << first_offsets[i]
+                  << "\t" << last_runs[i]  << ":" << last_offsets[i]
+                  << "\n";
     }
 
     if (original_r != 0) {
