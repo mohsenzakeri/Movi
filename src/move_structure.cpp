@@ -1,4 +1,4 @@
-#include <sys/stat.h> 
+#include <sys/stat.h>
 
 #include "move_structure.hpp"
 
@@ -65,6 +65,16 @@ uint64_t MoveStructure::LF(uint64_t row_number, uint64_t alphabet_index) {
     }
     auto& occ_rank = *occs_rank[alphabet_index];
     lf += static_cast<uint64_t>(occ_rank(row_number));
+    return lf;
+}
+
+uint64_t MoveStructure::LF_heads(uint64_t run_number, uint64_t alphabet_index) {
+    uint64_t lf = 0;
+    lf += 1;
+    for (uint64_t i = 0; i < alphabet_index; i++) {
+        lf += counts[i];
+    }
+    lf += heads_rank[run_number];
     return lf;
 }
 
@@ -620,6 +630,27 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
 }
 #endif // for all the threshold related functions
 
+
+void MoveStructure::build_alphabet(std::vector<uint64_t>& all_possible_chars) {
+    uint64_t alphabet_index = 0;
+    for (uint64_t i = 1; i < all_possible_chars.size(); i++) {
+        if (all_possible_chars[i] != 0) {
+            auto current_char = static_cast<unsigned char>(i);
+            if (movi_options->is_verbose())
+                std::cerr << "(" << i << ")"
+                          << "\t" << current_char
+                          << "\t index:" << alphabet_index
+                          << "\t count:" << all_possible_chars[i] << "\n";
+
+            alphabet.push_back(current_char);
+            counts.push_back(all_possible_chars[i]);
+            alphamap[i] = alphabet_index;
+            alphabet_index += 1;
+        }
+    }
+    std::cerr << "All the characters are indexed.\n";
+}
+
 void MoveStructure::build_rlbwt() {
     std::ifstream bwt_file(movi_options->get_bwt_file());
     bwt_file.clear();
@@ -661,35 +692,51 @@ void MoveStructure::build_rlbwt() {
 }
 
 void MoveStructure::build() {
+
 #if TALLY_MODE
     tally_checkpoints = movi_options->get_tally_checkpoints();
 #endif
+
     std::string bwt_filename = movi_options->get_ref_file() + std::string(".bwt");
     std::ifstream bwt_file(bwt_filename);
     uint64_t end_pos = 0;
+
+    // The following finds the length of the BWT (n or end_pos)
+    // We need to know n to initialize the main bitvector (bits)
+    // The main bitvector is used to find the positions of the runs after any splitting
     if (movi_options->is_preprocessed()) {
         std::ifstream heads_file(bwt_filename + ".heads", std::ios::in | std::ios::binary);
-        std::vector<char> heads_((std::istreambuf_iterator<char>(heads_file)), std::istreambuf_iterator<char>());
-        std::cerr << "Number of BWT runs: " << heads_.size() << "\n";
-        original_r  = heads_.size();
+        original_run_heads = std::vector<char>((std::istreambuf_iterator<char>(heads_file)), std::istreambuf_iterator<char>());
+
+        original_r  = original_run_heads.size();
+        std::cerr << "Number of BWT runs: " << original_r << "\n";
+
         std::ifstream len_file(bwt_filename + ".len", std::ios::in | std::ios::binary);
         for (uint64_t i = 0; i < original_r; i++) {
             if (i>0 && i % 100000 == 0)
-                std::cerr << "original_r: " << i << "\r";
+                std::cerr << "Computing total length of the BWT: " << i << "/" << original_r << "\r";
+
             size_t len = 0;
             len_file.read(reinterpret_cast<char*>(&len), 5);
             end_pos += len;
         }
+        std::cerr << "\n";
     } else {
         bwt_file.clear();
+
         bwt_file.seekg(0, std::ios_base::end);
         std::streampos end_pos_ = bwt_file.tellg();
-        if (movi_options->is_verbose())
-            std::cerr << "end_pos: " << end_pos_ << "\n";
-        bwt_file.seekg(0);
         end_pos = static_cast<uint64_t>(end_pos_);
+        if (movi_options->is_verbose())
+            std::cerr << "end_pos: " << end_pos << "\n";
+
+        bwt_file.seekg(0);
     }
-    std::cerr << "building.. \n";
+    length = static_cast<uint64_t>(end_pos);
+    std::cerr << "The total length of the BWT is: " << length << "\n";
+
+    std::cerr << "\nBuilding starts...\n";
+
     if (splitting) {
         std::string splitting_filename = movi_options->get_ref_file() + std::string(".d_col");
         std::ifstream splitting_file(splitting_filename);
@@ -699,144 +746,187 @@ void MoveStructure::build() {
         rbits = sdsl::rank_support_v<>(&bits);
         std::cerr << "The main bit vector (bits) is loaded from the d_col file.\n";
     } else {
-        bits = sdsl::bit_vector(static_cast<uint64_t>(end_pos) + 1, 0); // 5137858051
+        bits = sdsl::bit_vector(length + 1, 0);
         bits[0] = 1;
         std::cerr << "The main bit vector (bits) is initialized.\n";
     }
-    bwt_string = "";
-    bwt_string.resize(static_cast<uint64_t>(end_pos) + 1);
+
+    // Assume all the characters in the alphabet might exist in the BWT
     uint64_t all_chars_count = 256;
+
+    // Map from the character ASCII code to the index in the alphabet
     alphamap.resize(all_chars_count);
     std::fill(alphamap.begin(), alphamap.end(), alphamap.size());
-    std::vector<uint64_t> all_chars(all_chars_count, 0);
-    uint64_t bwt_curr_length = 0;
-    // if (!splitting)
-    r = 1;
-    original_r = 1;
-    // TODO Use a size based on the input size
 
+    // Counter for the number of occurrences of each character in the BWT
+    std::vector<uint64_t> all_possible_chars(all_chars_count, 0);
+
+    // Tracks how many characters in the BWT have been processed
+    uint64_t scanned_bwt_length = 0;
+
+#if SPLIT_THRESHOLDS_TRUE
+    // If thresholds splitting is enabled, bits will track the splitting points
+    if (movi_options->is_thresholds()) {
+        fill_bits_by_thresholds();
+    }
+#endif
+
+    // Counters for the number of runs split by MAX_RUN_LENGTH and by thresholds
     uint64_t split_by_max_run = 0;
     uint64_t split_by_thresholds = 0;
 
-    // A any mode with splitting (modes 1 and 4) does not work with the preprocessed build
+    // Any mode with pre-built splitting bitvector (modes 1 and 4) does not work with the preprocessed build
     if (movi_options->is_preprocessed()) {
-        length = static_cast<uint64_t>(end_pos);
-        // We know only 4 characters (A, C, G, T) exists in the alphabet:
-        char chars[4] = {'A', 'C', 'G', 'T'};
-        for (size_t i = 0; i < 4; i++) {
-            alphabet.push_back(chars[i]);
-            alphamap[static_cast<size_t>(chars[i])] = i;
-            sdsl::bit_vector* new_bit_vector = new sdsl::bit_vector(length, 0);
-            occs.emplace_back(std::unique_ptr<sdsl::bit_vector>(new_bit_vector));
-            std::cerr << i + 1 << " alphabet bitvectors " << (i==0 ? "is" : "are") << " built.\r";
-        }
-        std::cerr << "\n";
 
         std::ifstream len_file(bwt_filename + ".len", std::ios::in | std::ios::binary);
-        std::ifstream heads_file(bwt_filename + ".heads", std::ios::in | std::ios::binary);
-        std::vector<char> heads_((std::istreambuf_iterator<char>(heads_file)), std::istreambuf_iterator<char>());
-        std::cerr << "Number of BWT runs: " << heads_.size() << "\n";
-        /* heads_file.clear();
-        heads_file.seekg(0, std::ios_base::end);
-        std::streampos heads_end_pos = heads_file.tellg();
-        std::cerr << "heads_end_pos:\t" << heads_end_pos << "\n"; */
-        original_r  = heads_.size();
         std::vector<size_t> lens;
-        // std::vector<char> heads;
+
+        uint64_t bwt_offset = 0;
+
+#if SPLIT_THRESHOLDS_TRUE
+        if (movi_options->is_thresholds()) {
+            rbits = sdsl::rank_support_v<>(&bits);
+        }
+#endif
+
         for (uint64_t i = 0; i < original_r; i++) {
             if (i>0 && i % 100000 == 0)
-                std::cerr << "original_r: " << i << "\r";
+                std::cerr << "Iterating over original_r: " << i << "/" << original_r << "\r";
+
             size_t len = 0;
             len_file.read(reinterpret_cast<char*>(&len), 5);
+
+            if (original_run_heads[i] != END_CHARACTER) {
+                all_possible_chars[static_cast<size_t>(original_run_heads[i])] += len;
+            }
+
 #if SPLIT_MAX_RUN
             size_t remaining_length = len;
+
+            // First attempt to split the run by thresholds
+            if (movi_options->is_thresholds() and
+                    rbits(bwt_offset + len) != rbits(bwt_offset)) {
+                uint64_t run_head = bwt_offset;
+                for (uint64_t j = bwt_offset + 1; j < bwt_offset + len; j++) {
+                    if (bits[j]) {
+                        size_t current_run_length = j - run_head;
+                        remaining_length -= current_run_length;
+                        split_by_thresholds += 1;
+
+                        // Check if the run length is greater than MAX_RUN_LENGTH
+                        while (current_run_length > MAX_RUN_LENGTH) {
+                            split_by_max_run += 1;
+                            heads.push_back(original_run_heads[i]);
+                            lens.push_back(MAX_RUN_LENGTH);
+                            current_run_length -= MAX_RUN_LENGTH;
+                        }
+
+                        if (current_run_length > 0) {
+                            heads.push_back(original_run_heads[i]);
+                            lens.push_back(current_run_length);
+                        }
+                        run_head = j;
+                    }
+                }
+            }
+            bwt_offset += len;
+
+            // Split the remaining length by MAX_RUN_LENGTH
             while (remaining_length > MAX_RUN_LENGTH) {
                 split_by_max_run += 1;
                 lens.push_back(MAX_RUN_LENGTH);
-                heads.push_back(heads_[i]);
+                heads.push_back(original_run_heads[i]);
                 remaining_length -= MAX_RUN_LENGTH;
             }
-            lens.push_back(remaining_length);
-            heads.push_back(heads_[i]);
+
+            // Anything remaining will be added as a separate run
+            if (remaining_length > 0) {
+                lens.push_back(remaining_length);
+                heads.push_back(original_run_heads[i]);
+            }
 #endif
 #if NO_SPLIT
             lens.push_back(len);
-            heads.push_back(heads_[i]);
+            heads.push_back(original_run_heads[i]);
 #endif
         }
-        original_r  = heads.size();
+        std::cerr << "\n";
 
-        uint64_t all_bits_size = splitting ? rbits(length) + 1 : original_r + 1;
-        r =  splitting ? rbits(length) : 1;
+        build_alphabet(all_possible_chars);
 
-        std::cerr << "all_bits_size: " << all_bits_size << "\n";
-        if (splitting)
-            std::cerr << "rbits(length): " << rbits(length) << "\n";
-        all_p.resize(all_bits_size);
-        all_p[all_bits_size - 1] = length;
-        bwt_curr_length = 0;
-        for (uint64_t i = 0; i < original_r; i++) {
-            if (!splitting) bits[bwt_curr_length] = 1;
+        std::vector<uint64_t> bwt_character_counts(alphabet.size(), 0);
+
+        r =  splitting ? rbits(length) : heads.size();
+
+        all_p.resize(r + 1);
+        all_p[r] = length;
+
+        heads_rank.resize(r);
+        heads_rank[0] = 0;
+
+        scanned_bwt_length = 0;
+
+        for (uint64_t i = 0; i < r; i++) {
+            // The following line is important to tag the run boundaries in the main bitvector
+            // Required for computing the id field of the rlbwt rows
+            if (!splitting) bits[scanned_bwt_length] = 1;
+
             if (i>0 && i % 100000 == 0) {
-                std::cerr << "original_r: " << i << "\t";
-                std::cerr << "bwt_curr_length: " << bwt_curr_length << "\r";
+                std::cerr << "processed runs: " << i << "/" << r << "\t";
+                std::cerr << "scanned_bwt_length: " << scanned_bwt_length << "\r";
             }
-            // We know only 4 characters (A, C, G, T) exists in the alphabet:
-            if (heads[i] != 'A' and heads[i] != 'C' and heads[i] != 'G' and heads[i] != 'T' and heads[i] != END_CHARACTER) {
-                std::cerr << "The preprocessed file includes non A/C/G/T character.\n";
-                exit(0);
-            }
-            size_t len = lens[i];
-            /* size_t len = 0;
-            len_file.read(reinterpret_cast<char*>(&len), 5); */
-            all_p[i] = bwt_curr_length;
-            if (heads[i] == END_CHARACTER) {
-                end_bwt_idx = i;
 
-                bwt_string[bwt_curr_length] = heads[i];
-                bwt_curr_length++;
-            } else {
-                all_chars[static_cast<size_t>(heads[i])] += len;
-                auto& bit_vec = *occs[alphamap[static_cast<uint64_t>(heads[i])]];
-                for (size_t j = 0; j < len; j ++) {
-                    /* if (splitting && bwt_curr_length > 0 && bits[bwt_curr_length]) {
-                        r += 1;
-                    } */
-                    bwt_string[bwt_curr_length] = heads[i];
-                    bit_vec[bwt_curr_length] = 1;
-                    bwt_curr_length++;
+            size_t len = lens[i];
+            if (heads[i] != END_CHARACTER) {
+                bwt_character_counts[alphamap[static_cast<size_t>(heads[i])]] += len;
+            } else{
+                end_bwt_idx = i;
+            }
+
+            if (i < r - 1) {
+                if (heads[i + 1] != END_CHARACTER) {
+                    uint64_t next_head_rank = bwt_character_counts[alphamap[static_cast<uint64_t>(heads[i + 1])]];
+                    heads_rank[i + 1] = next_head_rank;
+                } else{
+                    heads_rank[i + 1] = 0;
                 }
             }
+
+            all_p[i] = scanned_bwt_length;
+            scanned_bwt_length += len;
         }
-        for (size_t i = 0; i < 4; i++) {
-            counts.push_back(all_chars[static_cast<size_t>(alphabet[i])]);
-        }
-        if (!splitting) r = original_r;
+        std::cerr << "\n\n";
+
+        // if (!splitting) r = original_r;
     } else {
-        if (movi_options->is_thresholds() and (SPLIT_THRESHOLDS_TRUE))
-            fill_bits_by_thresholds();
+        bwt_string = "";
+        bwt_string.resize(length + 1);
+
         // Reading the BWT from the file
         uint64_t current_char = bwt_file.get();
         uint16_t run_length = 0;
+        original_r = 1;
+        r = 1;
+        std::cerr << "Reading over the uncompressed BWT...\n";
         while (current_char != EOF) { // && current_char != 10
             uint64_t current_char_ = static_cast<uint64_t>(current_char); // Is this line important?!
             run_length += 1;
             // if (current_char != 'A' and current_char != 'C' and current_char != 'G' and current_char != 'T')
             //    std::cerr << "\ncurrent_char:" << current_char << "---" << static_cast<uint64_t>(current_char) << "---\n";
             if (original_r % 100000 == 0) {
-                std::cerr << "r: " << r << "\t";
                 std::cerr << "original_r: " << original_r << "\t";
-                std::cerr << "bwt_curr_length: " << bwt_curr_length << "\r";
+                std::cerr << "r: " << r << "\t";
+                std::cerr << "scanned_bwt_length: " << scanned_bwt_length << "/" << length << "\r";
             }
 #if SPLIT_MAX_RUN
             // The first row is already set and accounted for, so we skip
-            if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
+            if (scanned_bwt_length > 0 && current_char != bwt_string[scanned_bwt_length - 1]) {
                 // 1) A new run is detected if the next character is different
                 original_r += 1;
                 r += 1;
                 run_length = 0;
-                bits[bwt_curr_length] = 1;
-            } else if (movi_options->is_thresholds() and bwt_curr_length > 0 and bits[bwt_curr_length] == 1) {
+                bits[scanned_bwt_length] = 1;
+            } else if (movi_options->is_thresholds() and scanned_bwt_length > 0 and bits[scanned_bwt_length] == 1) {
                 // 2) A new run is detected if there is a non-trivial threshold at the next offset
                 // The bit was already set by one of the threshold values
                 // So, we have found a new run, and reset the run length
@@ -848,22 +938,22 @@ void MoveStructure::build() {
                 r += 1;
                 run_length = 0;
                 split_by_max_run += 1;
-                bits[bwt_curr_length] = 1;
+                bits[scanned_bwt_length] = 1;
             }
 #endif
 #if SPLIT_THRESHOLDS_FALSE
-            if (bwt_curr_length > 0 && current_char != bwt_string[bwt_curr_length - 1]) {
+            if (scanned_bwt_length > 0 && current_char != bwt_string[scanned_bwt_length - 1]) {
                 // 1) A new run is detected if the next character is different
                 original_r += 1;
                 r += 1;
                 run_length = 0;
-                if (splitting and !bits[bwt_curr_length]) {
+                if (splitting and !bits[scanned_bwt_length]) {
                     std::cerr << "There is something wrong with the splitting vector.\n";
                     std::cerr << "The run boundaries should have been set to 1 since a new character was detected.\n";
                     exit(0);
                 }
-                bits[bwt_curr_length] = 1;
-            } else if (splitting && bwt_curr_length > 0 && bits[bwt_curr_length]) {
+                bits[scanned_bwt_length] = 1;
+            } else if (splitting && scanned_bwt_length > 0 && bits[scanned_bwt_length]) {
                 // 2) A new run is detected based on Nishimoto-Tabei splitting
                 r += 1;
                 run_length = 0;
@@ -872,105 +962,112 @@ void MoveStructure::build() {
                 split_by_max_run += 1;
                 r += 1;
                 run_length = 0;
-                bits[bwt_curr_length] = 1;
+                bits[scanned_bwt_length] = 1;
             }
 #endif
-            bwt_string[bwt_curr_length] = current_char;
-            bwt_curr_length++;
-            all_chars[current_char] += 1;
+            bwt_string[scanned_bwt_length] = current_char;
+            scanned_bwt_length++;
+            all_possible_chars[current_char] += 1;
 
             current_char = bwt_file.get();
         }
-// #if SPLIT_THRESHOLDS_FALSE
-// r is laready set to r' which might be larger than r because of the length splitting
-// so, we don't have to set it back to original_r anymore (the next line is commented)
-//         if (!splitting) r = original_r;
-// #endif
-        length = bwt_curr_length; // bwt_string.length();
         std::cerr << "\n";
 
-        // Building the auxilary structures
-        uint64_t alphabet_index = 0;
-        // END_CHARACTER in the bwt created by pfp is 0
-        for (uint64_t i = 1; i < all_chars_count; i++) {
-            if (all_chars[i] != 0) {
-                auto current_char = static_cast<unsigned char>(i);
-                if (movi_options->is_verbose())
-                    std::cerr << "i is " << i << "\t" << current_char
-                            << "\t" << all_chars[i] << " alphabet_index: " << alphabet_index << "\n";
-
-                alphabet.push_back(current_char);
-                counts.push_back(all_chars[i]);
-                alphamap[i] = alphabet_index;
-                alphabet_index += 1;
-
-                sdsl::bit_vector* new_bit_vector = new sdsl::bit_vector(length, 0);
-                occs.emplace_back(std::unique_ptr<sdsl::bit_vector>(new_bit_vector));
-            }
+        if (length != scanned_bwt_length) {
+            std::cerr << "The length of the BWT is not consistent.\n";
+            std::cerr << "length: " << length << "\n";
+            std::cerr << "scanned_bwt_length: " << scanned_bwt_length << "\n";
+            exit(0);
         }
-        std::cerr << "All the characters are indexed.\n";
+
+        build_alphabet(all_possible_chars);
+
+        std::vector<uint64_t> bwt_character_counts(alphabet.size(), 0);
 
         all_p.resize(r + 1);
         all_p[0] = 0;
         heads.resize(r);
         heads[0] = bwt_string[0];
+        heads_rank.resize(r);
+        heads_rank[0] = 0;
 
         uint64_t r_idx = 0;
         for (uint64_t i = 0; i < length; i++) {
             if (i % 10000 == 0)
-                std::cerr <<"length processed: " << i << "\r";
+                std::cerr <<"length processed: " << i << "/" << length << "\r";
+
+            if (bwt_string[i] != END_CHARACTER) {
+                bwt_character_counts[alphamap[static_cast<uint64_t>(bwt_string[i])]] += 1;
+            } else {
+                end_bwt_idx = r_idx;
+            }
+
             if (i == length - 1 or bwt_string[i] != bwt_string[i+1] or bits[i+1]) {
                 all_p[r_idx + 1] = i + 1;
-                heads[r_idx + 1] = bwt_string[i + 1];
+                if (r_idx < r - 1) {
+                    heads[r_idx + 1] = bwt_string[i + 1];
+                    if (bwt_string[i + 1] != END_CHARACTER) {
+                        uint64_t next_head_rank = bwt_character_counts[alphamap[static_cast<uint64_t>(bwt_string[i + 1])]];
+                        heads_rank[r_idx + 1] = next_head_rank;
+                    } else{
+                        heads_rank[r_idx + 1] = 0;
+                    }
+                } else {
+                    break;
+                }
                 r_idx += 1;
             }
-            if (static_cast<uint64_t>(bwt_string[i]) == END_CHARACTER) {
-                end_bwt_idx = r_idx - 1;
-                continue;
-            }
-            auto& bit_vec = *occs[alphamap[static_cast<uint64_t>(bwt_string[i])]];
-            bit_vec[i] = 1;
-        }
-        std::cerr << "\nAll the Occ bit vectors are built.\n";
-    }
-    // We don't need the original BWT anymore, the run-head characters are stored in heads.
-    bwt_string.clear();
-    bwt_string.shrink_to_fit();
 
-    std::cerr << "\nsplit_by_max_run: " << split_by_max_run << "\n";
-    std::cerr << "split_by_thresholds: " << split_by_thresholds << "\n";
+            // auto& bit_vec = *occs[alphamap[static_cast<uint64_t>(bwt_string[i])]];
+            // bit_vec[i] = 1;
+        }
+        std::cerr << "\n\n";
+
+        // std::cerr << "\nAll the Occ bit vectors are built.\n";
+        // We don't need the original BWT anymore, the run-head characters are stored in heads.
+        bwt_string.clear();
+        bwt_string.shrink_to_fit();
+    }
+
+    std::cerr << "Number of runs added by run length splitting: " << split_by_max_run << "\n";
+    if (movi_options->is_thresholds()) {
+        std::cerr << "Number of runs added by thresholds splitting: " << split_by_thresholds << "\n";
+    }
     std::cerr << "n: " << length << "\n";
     std::cerr << "r: " << r << "\n";
+    std::cerr << "n/r:\t" << static_cast<double>(length)/r << "\n";
     std::cerr << "original_r: " << original_r << "\n";
+
     rlbwt.resize(r);
 
     if (movi_options->is_verbose() and bits.size() < 1000)
         std::cerr << "bits: " << bits << "\n";
+
     if (!splitting) // The rank vector is already built if it was the splitting mode
         rbits = sdsl::rank_support_v<>(&bits);
 
     if (alphabet.size() > 4) {
-        std::cerr << "Warning: There are more than 4 characters, the index expexts only A, C, T and G in the reference.\n";
+        std::cerr << "Warning: There are more than 4 characters in the reference:\n";
+        for (uint64_t i = 0; i < alphabet.size(); i++) {
+            std::cerr << "(" << i << ")" << "\t" << alphabet[i] << "\t" << counts[i] << "\n";
+        }
+        std::cerr << "\n";
     }
 
-    for (auto& occ: occs) {
-        std::cerr << occs_rank.size() << "\n";
-        if (movi_options->is_verbose() and (*occ).size() < 1000)
-            std::cerr << *occ << "\n";
-        occs_rank.emplace_back(std::unique_ptr<sdsl::rank_support_v<> >(new sdsl::rank_support_v<>(occ.get())));
-    }
-    if (movi_options->is_verbose()) {
-        std::cerr << "size occs_rank:" << occs_rank.size() << "\n";
-        std::cerr << "All Occ rank vectors are built.\n";
-    }
-
+    // for (auto& occ: occs) {
+    //     std::cerr << occs_rank.size() << "\n";
+    //     if (movi_options->is_verbose() and (*occ).size() < 1000)
+    //         std::cerr << *occ << "\n";
+    //     occs_rank.emplace_back(std::unique_ptr<sdsl::rank_support_v<> >(new sdsl::rank_support_v<>(occ.get())));
+    // }
 
     // Building the move structure rows with O(r) loop
     uint64_t offset = 0;
     uint64_t max_len = 0;
     if (movi_options->is_verbose()) {
         std::cerr << "bits.size(): " << bits.size() << "\n";
-        std::cerr << "rank_support_v<>(&bits)(bits.size()): " << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
+        std::cerr << "rank_support_v<>(&bits)(bits.size()): "
+                  << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
     }
 
 #if TALLY_MODE
@@ -983,55 +1080,57 @@ void MoveStructure::build() {
     }
 #endif
 
-    //if (splitting)
-    //    sbits = sdsl::select_support_mcl<>(&bits);
+#if BLOCKED_MODE
     std::vector<uint64_t> raw_ids;
     raw_ids.resize(r);
-    std::cerr << r << "\t" << rlbwt.size() << "\t" << all_p.size() << "\n";
+#endif
+
+    if (movi_options->is_verbose()) {
+        std::cerr << "r: " << r << "\t"
+                  << "rlbwt.size(): " << rlbwt.size() << "\t"
+                  << "all_p.size(): " << all_p.size() << "\n";
+        std::cerr << "end_bwt_idx: " << end_bwt_idx << "\n\n";
+    }
+
     for (uint64_t r_idx = 0; r_idx < r; r_idx++) {
         if (r_idx % 10000 == 0)
-            std::cerr << r_idx << "\r";
+            std::cerr << "Building Movi rows: " << r_idx << "/" << r << "\r";
+
         uint64_t lf  = 0;
         if (r_idx != end_bwt_idx) {
             uint64_t alphabet_index = alphamap[static_cast<uint64_t>(heads[r_idx])];
-            lf = LF(all_p[r_idx], alphabet_index);
-        }
-        else
+            // lf = LF(all_p[r_idx], alphabet_index);
+            lf = LF_heads(r_idx, alphabet_index);
+        } else {
             lf = 0;
+        }
+
         uint64_t pp_id = rbits(lf) - 1;
         if (bits[lf] == 1)
             pp_id += 1;
         uint64_t len = all_p[r_idx + 1] - all_p[r_idx];
+
         // check the boundaries before performing select
         if (pp_id >= r) {
             std::cerr << "pp_id: " << pp_id << " r: " << r << " r_idx: " << r_idx << " lf: " << lf << "\n";
-            exit(0); // TODO: add error handling
+            exit(0);
         }
-        //TODO: Can we really not use sbits?
-        // sbits(pp_id + 1) is replaced by all_p[pp_id]
-        // if (lf < sbits(pp_id + 1)) {
-        if (lf < all_p[pp_id]) {
-            // std::cerr << lf << " " << sbits(pp_id + 1);
-            std::cerr << pp_id << " " << lf << " " << all_p[pp_id] << "\n";
-            exit(0); // TODO: add error handling
-        }
-        // if (splitting)
-        //     offset = lf - sbits(pp_id + 1);
-        // else
-        offset = lf - all_p[pp_id];
-        /* if (sbits(pp_id + 1) != all_p[pp_id])
-            exit(0); */
 
-        if (movi_options->is_verbose() and r_idx == 0) // or any run to be inspected
+        if (lf < all_p[pp_id]) {
+            std::cerr << pp_id << " " << lf << " " << all_p[pp_id] << "\n";
+            exit(0);
+        }
+
+        offset = lf - all_p[pp_id];
+
+        if (movi_options->is_verbose() and r_idx == 0) { // 0 or any run to be inspected
             std::cerr << "r_idx: " << r_idx
                         << " len: " << len
                         << " lf: " << lf
                         << " offset: " << offset
                         << " pp_id: " << pp_id
-                        /*<< " sbits(pp_id): " << all_p[pp_id - 1]
-                        << " sbits(pp_id + 1): " << all_p[pp_id]
-                        << " sbits(pp_id - 1): " << all_p[pp_id - 2]*/
                         << "\n";
+        }
 
 #if TALLY_MODE
         rlbwt[r_idx].init(len, offset);
@@ -1061,8 +1160,9 @@ void MoveStructure::build() {
         // rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
         rlbwt[r_idx].init(len, offset, pp_id);
 #endif
-
+#if BLOCKED_MODE
         raw_ids[r_idx] = pp_id;
+#endif
         // To take care of cases where length of the run
         // does not fit in uint16_t
 #if SPLIT_MAX_RUN
@@ -1105,9 +1205,7 @@ void MoveStructure::build() {
             else
                 run_lengths[len] = 1;
         }
-        // rlbwt[r_idx].set_c(bwt_string[all_p[r_idx]], alphamap);
         rlbwt[r_idx].set_c(heads[r_idx], alphamap);
-        // bit1_after_eof = alphamap[bwt_string[i+1]];
     }
 #if TALLY_MODE
     // Set the last tally_id using the current_tally_ids
@@ -1117,8 +1215,9 @@ void MoveStructure::build() {
     }
 #endif
 
-    std::cerr << "All the move rows are built.\n";
-    std::cerr << "Max run length: " << max_len << "\n";
+    std::cerr << "Max run length (after splitting if enabled): " << max_len << "\n\n";
+
+    std::cerr << "\nAll the move rows are built.\n";
 
 #if USE_THRESHOLDS
     // compute the thresholds
@@ -1248,7 +1347,7 @@ void MoveStructure::fill_bits_by_thresholds() {
     for (int i = 0; i < thresholds.size(); i++) {
         bits[thresholds[i]] = 1;
     }
-    std::cerr << "The bits vector is updated by thresholds.\n";
+    std::cerr << "The bits vector is updated by thresholds.\n\n";
 }
 
 void MoveStructure::compute_run_lcs() {
@@ -1426,7 +1525,9 @@ void MoveStructure::compute_thresholds() {
                     // get_move_row(i).thresholds[j] = get_n(i);
                     if (i == end_bwt_idx) {
                         end_bwt_idx_thresholds[j] = get_n(i);
-                        std::cerr << "condition 1: end_bwt_idx_thresholds[" << j << "]:" << end_bwt_idx_thresholds[j] << "\n";
+                        if (movi_options->is_verbose()) {
+                            std::cerr << "condition 1: end_bwt_idx_thresholds[" << j << "]:" << end_bwt_idx_thresholds[j] << "\n";
+                        }
                         continue;
                     }
 #if SPLIT_THRESHOLDS_FALSE
@@ -1439,7 +1540,9 @@ void MoveStructure::compute_thresholds() {
                 } else if (alphabet_thresholds[j] <= all_p[i]) {
                     if (i == end_bwt_idx) {
                         end_bwt_idx_thresholds[j] = 0;
-                        std::cerr << "condition 2: end_bwt_idx_thresholds[" << j << "]:" << end_bwt_idx_thresholds[j] << "\n";
+                        if (movi_options->is_verbose()) {
+                            std::cerr << "condition 2: end_bwt_idx_thresholds[" << j << "]:" << end_bwt_idx_thresholds[j] << "\n";
+                        }
                         continue;
                     }
 #if SPLIT_THRESHOLDS_FALSE
@@ -1452,7 +1555,9 @@ void MoveStructure::compute_thresholds() {
                 } else {
                     if (i == end_bwt_idx) {
                         end_bwt_idx_thresholds[j] = alphabet_thresholds[j] - all_p[i];
-                        std::cerr << "condition 3: end_bwt_idx_thresholds[" << j << "]:" << end_bwt_idx_thresholds[j] << "\n";
+                        if (movi_options->is_verbose()) {
+                            std::cerr << "condition 3: end_bwt_idx_thresholds[" << j << "]:" << end_bwt_idx_thresholds[j] << "\n";
+                        }
                         continue;
                     }
 #if SPLIT_THRESHOLDS_FALSE
@@ -2534,6 +2639,7 @@ void MoveStructure::deserialize() {
     fin.read(reinterpret_cast<char*>(&alphamap[0]), alphamap_size*sizeof(alphamap[0]));
     uint64_t alphabet_size;
     fin.read(reinterpret_cast<char*>(&alphabet_size), sizeof(alphabet_size));
+    std::cerr << "alphabet_size: " << alphabet_size << "\n";
     alphabet.resize(alphabet_size);
     fin.read(reinterpret_cast<char*>(&alphabet[0]), alphabet_size*sizeof(alphabet[0]));
     std::cerr << "alphabet_size: " << alphabet_size << "\n";
@@ -2699,6 +2805,9 @@ void MoveStructure::deserialize_sampled_SA() {
 }
 
 void MoveStructure::verify_lfs() {
+    // This function only works if the LF function works correctly and
+    // that depends on populating the occs bitvector correctly.
+    // This function is only used for debugging purposes.
     uint64_t not_matched = 0;
     for (uint64_t i = 0; i < all_p.size(); i++) {
         std::uint64_t end_ = (i < all_p.size() - 1) ? all_p[i + 1] : length;
@@ -2818,6 +2927,10 @@ void MoveStructure::print_stats() {
                   << "\t" << first_runs[i] << ":" << first_offsets[i]
                   << "\t" << last_runs[i]  << ":" << last_offsets[i]
                   << "\n";
+    }
+
+    for (int i = 0; i < counts.size(); i++) {
+        std::cerr << "counts[" << i << "]: " << counts[i] << "\n";
     }
 
     if (original_r != 0) {

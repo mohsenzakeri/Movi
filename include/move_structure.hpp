@@ -143,10 +143,12 @@ class MoveStructure {
         std::string reconstruct_lf();
 
         uint64_t LF(uint64_t row_number, uint64_t alphabet_index);
+        uint64_t LF_heads(uint64_t run_number, uint64_t alphabet_index);
         // The 3rd argument of LF_move is used in the latency_hiding_tally mode
         uint16_t LF_move(uint64_t& pointer, uint64_t& i, uint64_t id = std::numeric_limits<uint64_t>::max());
         uint64_t fast_forward(uint64_t& offset, uint64_t index, uint64_t x);
 
+        void build_alphabet(std::vector<uint64_t>& all_possible_chars);
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
         uint32_t compute_index(char row_char, char lookup_char);
 
@@ -268,8 +270,10 @@ class MoveStructure {
         sdsl::int_vector<> thresholds;
         std::vector<uint64_t> all_p;
         std::vector<char> heads;
+        std::vector<char> original_run_heads;
         std::vector<std::unique_ptr<sdsl::bit_vector> > occs;
         std::vector<std::unique_ptr<sdsl::rank_support_v<> > > occs_rank;
+        std::vector<uint64_t> heads_rank;
         sdsl::bit_vector bits;
         sdsl::rank_support_v<> rbits;
         // sdsl::select_support_mcl<> sbits;
