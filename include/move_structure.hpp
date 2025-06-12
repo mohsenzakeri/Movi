@@ -10,6 +10,10 @@
 #include <sys/stat.h>
 #include <vector>
 #include <unordered_map>
+#include <map>
+#include <sstream>
+#include <filesystem>
+#include <span>
 
 #include <span>
 #include <sys/mman.h>
@@ -215,7 +219,7 @@ class MoveStructure {
         // Writes frequencies of document sets to file.
         void write_doc_set_freqs(std::string fname);
         // Initialize classify counts
-        void initialize_classify_cnts() { classify_cnts.resize(num_species); doc_scores.resize(num_species); }
+        void initialize_classify_cnts();
         void set_classifier(Classifier *cl) { classifier = cl; }
 
         // Document tree functions
@@ -230,6 +234,8 @@ class MoveStructure {
         // uint64_t naive_sa(uint64_t bwt_row);
         // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
         void add_colors_to_rlbwt();
+        void flat_and_serialize_colors_vectors();
+        void deserialize_doc_sets_flat();
 
         void serialize_doc_pats(std::string fname);
         void deserialize_doc_pats(std::string fname);
@@ -237,6 +243,7 @@ class MoveStructure {
         void deserialize_doc_sets(std::string fname);
         void serialize_doc_rows();
         void deserialize_doc_rows();
+        void load_document_info();
         void serialize();
         void deserialize();
         
@@ -290,8 +297,10 @@ class MoveStructure {
         std::vector<uint64_t> run_offsets;
 
         // Document sets.
+        std::vector<uint16_t> flat_colors;
         std::vector<std::vector<uint16_t>> unique_doc_sets;
         std::vector<uint32_t> doc_set_inds;
+        std::vector<MoveTally> doc_set_flat_inds;
         sdsl::bit_vector compressed;
 
         // Tree over documents

@@ -146,33 +146,48 @@ void ReadProcessor::process_char(Strand& process) {
     }
 
     if (mv.movi_options->is_multi_classify()) {
-        if (process.match_len >= mv.movi_options->get_thres()) {
+        if (process.match_len >= mv.movi_options->get_min_match_len()) {
+
+            uint64_t color_id;
+#if COLOR_MODE == 1
+            color_id = static_cast<uint64_t>(mv.rlbwt[process.idx].color_id);
             // Skip doc sets that weren't saved (thrown away by compression).
-#if COLOR_MODE == 1
-            if (mv.rlbwt[process.idx].color_id >= mv.unique_doc_sets.size()) {
+            if (color_id >= mv.unique_doc_sets.size()) return;
 #else
-            if (mv.doc_set_inds[process.idx] >= mv.unique_doc_sets.size()) {
-#endif
-                // std::cerr << "doc_set_inds[idx] >= unique_doc_sets.size()\n";
-                // std::cerr << "This should not happen when compression is not turned on.\n";
-                // std::cerr << "The compressed version of the prefetching mode is not supported yet.\n";
-                // exit(0);
+            if (mv.movi_options->is_doc_sets_vector_of_vectors()) {
+                color_id = static_cast<uint64_t>(mv.doc_set_inds[process.idx]);
+                // Skip doc sets that weren't saved (thrown away by compression).
+                if (color_id >= mv.unique_doc_sets.size()) {
+                    // std::cerr << "doc_set_inds[idx] >= unique_doc_sets.size()\n";
+                    // std::cerr << "This should not happen when compression is not turned on.\n";
+                    // std::cerr << "The compressed version of the prefetching mode is not supported yet.\n";
+                    // exit(0);
+                    return;
+                }
             } else {
-#if COLOR_MODE == 1
-                uint32_t color_id = mv.rlbwt[process.idx].color_id;
-#else
-                uint32_t color_id = mv.doc_set_inds[process.idx];
+                color_id = mv.doc_set_flat_inds[process.idx].get();
+                // Skip doc sets that weren't saved (thrown away by compression).
+                if (color_id >= mv.flat_colors.size()) return;
+            }
 #endif
-                std::vector<uint16_t> &cur_set = mv.unique_doc_sets[color_id];
-                for (int doc : cur_set) {
-                    process.classify_cnts[doc]++;
-                    if (doc != process.best_doc) {
-                        if (process.best_doc == std::numeric_limits<uint16_t>::max() || process.classify_cnts[doc] > process.classify_cnts[process.best_doc]) {
-                            process.second_best_doc = process.best_doc;
-                            process.best_doc = doc;
-                        } else if (process.second_best_doc == std::numeric_limits<uint16_t>::max() || process.classify_cnts[doc] > process.classify_cnts[process.second_best_doc]) {
-                            process.second_best_doc = doc;
-                        }
+            std::span<uint16_t> cur_set;
+            if (mv.movi_options->is_doc_sets_vector_of_vectors()) {
+                std::vector<uint16_t> &cur_set_vec = mv.unique_doc_sets[color_id];
+                cur_set = std::span<uint16_t>(cur_set_vec.data(), cur_set_vec.size());
+            } else {
+                uint32_t cur_set_size = mv.flat_colors[color_id];
+                cur_set = std::span<uint16_t>(mv.flat_colors.data() + color_id + 1,
+                                              mv.flat_colors.data() + color_id + 1 + cur_set_size);
+            }
+
+            for (int doc : cur_set) {
+                process.classify_cnts[doc]++;
+                if (doc != process.best_doc) {
+                    if (process.best_doc == std::numeric_limits<uint16_t>::max() || process.classify_cnts[doc] > process.classify_cnts[process.best_doc]) {
+                        process.second_best_doc = process.best_doc;
+                        process.best_doc = doc;
+                    } else if (process.second_best_doc == std::numeric_limits<uint16_t>::max() || process.classify_cnts[doc] > process.classify_cnts[process.second_best_doc]) {
+                        process.second_best_doc = doc;
                     }
                 }
             }

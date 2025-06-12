@@ -120,7 +120,7 @@ const uint8_t mask_thresholds3 = static_cast<uint8_t>(~(((1U << 1) - 1) << 7)); 
 #define MAX_RUN_LENGTH 511 // 2^9-1
 #endif
 
-#if MODE == 5 or MODE == 7
+// #if MODE == 5 or MODE == 7
 struct __attribute__((packed)) MoveTally {
     uint32_t right;
     uint8_t left;
@@ -150,7 +150,7 @@ struct __attribute__((packed)) MoveTally {
         }
     }
 };
-#endif
+// #endif
 
 class __attribute__((packed)) MoveRow {
     public:

@@ -1,8 +1,3 @@
-#include <sys/stat.h> 
-#include <map>
-#include <sstream>
-#include <filesystem>
-
 #include "move_structure.hpp"
 #include "classifier.hpp"
 
@@ -232,7 +227,8 @@ void MoveStructure::build_doc_pats() {
     uint64_t SA_val = length;
     uint32_t doc_offset_ind = num_docs - 1;
     for (uint64_t i = 0; i < length; i++) {
-        if (i % 1000000000ll == 0) std::cout << "Finding suffix array entries: " << i << std::endl;
+        if (i % 1000000 == 0)
+            std::cerr << "Finding suffix array entries: " << i << "\r";
         SA_val--;
         if (doc_offset_ind > 0 && SA_val < doc_offsets[doc_offset_ind - 1]) {
             doc_offset_ind--;
@@ -241,6 +237,7 @@ void MoveStructure::build_doc_pats() {
         doc_pats[row_ind] = doc_ids[doc_offset_ind];
         LF_move(offset, index);
     }
+    std::cerr << "\n";
 }
 
 void MoveStructure::fill_run_offsets() {
@@ -2303,7 +2300,7 @@ uint64_t MoveStructure::query_zml(MoveQuery& mq) {
             match_len += 1;
         } else {
             // Classification based on maximal matching
-            if (movi_options->is_multi_classify() && match_len >= movi_options->get_thres()) {
+            if (movi_options->is_multi_classify() && match_len >= movi_options->get_min_match_len()) {
                 if (prev_interval.run_start == prev_interval.run_end) {
                     for (uint64_t i = prev_interval.offset_start; i <= prev_interval.offset_end; i++) {
                         uint64_t full_ind = run_offsets[prev_interval.run_start] + i;
@@ -2415,6 +2412,43 @@ bool MoveStructure::look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r,
     }
 }
 
+void MoveStructure::flat_and_serialize_colors_vectors() {
+    std::unordered_map<uint32_t, uint64_t> flat_index;
+    for (uint64_t i = 0; i < unique_doc_sets.size(); i++) {
+        if (i % 100000 == 0) {
+            std::cerr << "i: " << i << "\r";
+        }
+        flat_index[i] = flat_colors.size();
+        flat_colors.push_back(unique_doc_sets[i].size());
+        for (uint64_t j = 0; j < unique_doc_sets[i].size(); j++) {
+            flat_colors.push_back(unique_doc_sets[i][j]);
+        }
+    }
+    std::cerr << "\n";
+
+    doc_set_flat_inds.resize(doc_set_inds.size());
+    for (uint64_t i = 0; i < doc_set_inds.size(); i++) {
+        if (i % 100000 == 0) {
+            std::cerr << "i: " << i << "\r";
+        }
+        doc_set_flat_inds[i].set_value(flat_index[doc_set_inds[i]]);
+    }
+    std::cerr << "\n";
+
+    std::cerr << "flat_colors.size(): " << flat_colors.size() << "\n";
+
+    std::string fname = movi_options->get_index_dir() + "/doc_sets_flat.bin";
+    std::ofstream fout(fname, std::ios::out | std::ios::binary);
+    if (!fout) {
+        throw std::runtime_error("Failed to open the index file at: " + movi_options->get_index_dir());
+    }
+    uint64_t flat_colors_size = flat_colors.size();
+    fout.write(reinterpret_cast<char*>(&flat_colors_size), sizeof(uint64_t));
+    fout.write(reinterpret_cast<char*>(&flat_colors[0]), flat_colors.size() * sizeof(uint16_t));
+    fout.write(reinterpret_cast<char*>(&doc_set_flat_inds[0]), doc_set_flat_inds.size() * sizeof(doc_set_flat_inds[0]));
+    fout.close();
+}
+
 void MoveStructure::add_colors_to_rlbwt() {
 #if MODE == 3 or MODE == 6
     rlbwt_colored.resize(rlbwt.size());
@@ -2458,7 +2492,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     // Multi-class classification
     if (movi_options->is_multi_classify()) {
         for (uint16_t i = 0; i < num_species; i++) {
-            if (movi_options->get_thres() > 0) {
+            if (!movi_options->is_pvalue_scoring()) {
                 classify_cnts[i] = 0;
             } else {
                 doc_scores[i] = 0;
@@ -2576,7 +2610,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
         }
 
         if (movi_options->is_multi_classify()) {
-            if (match_len >= movi_options->get_thres()) {
+            if (match_len >= movi_options->get_min_match_len()) {
                 /*uint64_t full_ind = run_offsets[idx] + offset;
                 uint16_t cur_doc = doc_pats[full_ind];
                 classify_cnts[cur_doc]++;
@@ -2584,16 +2618,34 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                     best_doc = cur_doc;
                 }*/ 
 
-                // Skip doc sets that weren't saved (thrown away by compression).
+                uint64_t color_id;
 #if COLOR_MODE == 1
-                if (rlbwt[idx].color_id >= unique_doc_sets.size()) continue;
-                std::vector<uint16_t> &cur_set = unique_doc_sets[rlbwt[idx].color_id];
+                color_id = static_cast<uint64_t>(rlbwt[idx].color_id);
+                // Skip doc sets that weren't saved (thrown away by compression).
+                if (color_id >= unique_doc_sets.size()) continue;
 #else
-                if (doc_set_inds[idx] >= unique_doc_sets.size()) continue;
-                std::vector<uint16_t> &cur_set = unique_doc_sets[doc_set_inds[idx]];
+                if (movi_options->is_doc_sets_vector_of_vectors()) {
+                    color_id = static_cast<uint64_t>(doc_set_inds[idx]);
+                    // Skip doc sets that weren't saved (thrown away by compression).
+                    if (color_id >= unique_doc_sets.size()) continue;
+                } else {
+                    color_id = doc_set_flat_inds[idx].get();
+                    // Skip doc sets that weren't saved (thrown away by compression).
+                    if (color_id >= flat_colors.size()) continue;
+                }
 #endif
+                std::span<uint16_t> cur_set;
+                if (movi_options->is_doc_sets_vector_of_vectors()) {
+                    std::vector<uint16_t> &cur_set_vec = unique_doc_sets[color_id];
+                    cur_set = std::span<uint16_t>(cur_set_vec.data(), cur_set_vec.size());
+                } else {
+                    uint32_t cur_set_size = flat_colors[color_id];
+                    cur_set = std::span<uint16_t>(flat_colors.data() + color_id + 1,
+                                                  flat_colors.data() + color_id + 1 + cur_set_size);
+                }
+
                 for (int doc : cur_set) {
-                    if (movi_options->get_thres() > 0) {
+                    if (!movi_options->is_pvalue_scoring()) {
                         classify_cnts[doc]++;
                         if (doc != best_doc) {
                             if (best_doc == std::numeric_limits<uint16_t>::max() || classify_cnts[doc] > classify_cnts[best_doc]) {
@@ -2633,7 +2685,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 out_file << to_taxon_id[best_doc] << ",0";
             } else {
                 float best_doc_cnt, second_best_doc_cnt, second_best_diff;
-                if (movi_options->get_thres() > 0) {
+                if (movi_options->get_min_match_len() > 0) {
                     best_doc_cnt = classify_cnts[best_doc];
                     second_best_doc_cnt = classify_cnts[second_best_doc];
                     second_best_diff = (best_doc_cnt - second_best_doc_cnt);
@@ -2643,6 +2695,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                     second_best_doc_cnt = doc_scores[second_best_doc];
                     second_best_diff = (best_doc_cnt - second_best_doc_cnt);
                 }
+
                 if (second_best_diff < 0.05 * best_doc_cnt) {
                     out_file << to_taxon_id[best_doc] << "," << to_taxon_id[second_best_doc];
                 } else {
@@ -2930,9 +2983,24 @@ void MoveStructure::serialize_doc_sets(std::string fname) {
     fout.close();
 }
 
+void MoveStructure::deserialize_doc_sets_flat() {
+    std::string fname = movi_options->get_index_dir() + "/doc_sets_flat.bin";
+    std::ifstream fin(fname, std::ios::in | std::ios::binary);
+    uint64_t flat_colors_size = 0;
+    fin.read(reinterpret_cast<char*>(&flat_colors_size), sizeof(uint64_t));
+    std::cerr << "flat_colors_size: " << flat_colors_size << "\n";
+    flat_colors.resize(flat_colors_size);
+    fin.read(reinterpret_cast<char*>(&flat_colors[0]), flat_colors_size * sizeof(flat_colors[0]));
+    std::cerr << "Read flat_colors\n";
+    doc_set_flat_inds.resize(r);
+    fin.read(reinterpret_cast<char*>(&doc_set_flat_inds[0]), r * sizeof(doc_set_flat_inds[0]));
+    std::cerr << "Read doc_set_flat_inds\n";
+    fin.close();
+}
+
 void MoveStructure::deserialize_doc_sets(std::string fname) {
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
-    
+
     size_t unique_cnt = 0;
     fin.read(reinterpret_cast<char*>(&unique_cnt), sizeof(unique_cnt));
     std::cerr << "Number of unique document sets: " << unique_cnt << std::endl; 
@@ -3234,15 +3302,23 @@ void MoveStructure::deserialize() {
     }
 
     fin.close();
+}
 
+void MoveStructure::load_document_info() {
     // Read in document offsets.
     std::ifstream doc_offsets_file(movi_options->get_index_dir() + "/ref.fa.doc_offsets");
+    if (!doc_offsets_file.good()) {
+        std::cerr << "Error: doc_offsets file not found at \""
+                  << movi_options->get_index_dir() << "/ref.fa.doc_offsets\"" << std::endl;
+        exit(0);
+    }
     uint64_t doc_offset;
     while ((doc_offsets_file >> doc_offset)) {
         doc_offsets.push_back(doc_offset);
     }
     doc_offsets_file.close();
     num_docs = doc_offsets.size();
+    std::cerr << "num_docs: " << num_docs << std::endl;
     num_species = num_docs;
 
     // Read in document taxon id
@@ -3281,7 +3357,7 @@ void MoveStructure::deserialize() {
     for (int i = 0; i < num_species; i++) {
         log_lens[i] = log(log_lens[i]);
     }
-    
+
     // Fill in powers of 2 array.
     pow2[0] = 1;
     for (size_t i = 1; i < ARR_SIZE; i++) {
@@ -3321,6 +3397,11 @@ void MoveStructure::deserialize_sampled_SA() {
     all_p.resize(all_p_size);
     fin.read(reinterpret_cast<char*>(&all_p[0]), all_p_size*sizeof(all_p[0]));
     fin.close();
+}
+
+void MoveStructure::initialize_classify_cnts() {
+    classify_cnts.resize(num_species, 0);
+    doc_scores.resize(num_species, 0);
 }
 
 void MoveStructure::verify_lfs() {
@@ -3464,7 +3545,7 @@ void MoveStructure::write_doc_set_freqs(std::string fname) {
     for (size_t i = 0; i < r; i++) {
         doc_set_cnts[doc_set_inds[i]]++;
     }
-    
+
     std::vector<std::pair<uint64_t, uint32_t>> freqs(unique_doc_sets.size());
     for (size_t i = 0; i < freqs.size(); i++) {
         freqs[i].first = doc_set_cnts[i];

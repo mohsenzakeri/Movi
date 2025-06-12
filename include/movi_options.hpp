@@ -48,7 +48,11 @@ class MoviOptions {
         bool is_freq_compressed() { return freq_compressed; }
         bool is_tree_compressed() { return tree_compressed; }
         bool is_color_move_rows() { return color_move_rows; }
-        int get_thres() { return cl_thres; }
+        bool is_flat_color_vectors() { return flat_color_vectors; }
+        bool is_color() { return color; }
+        bool is_doc_sets_vector_of_vectors() { return doc_sets_vector_of_vectors; }
+        int get_min_match_len() { return min_match_len; }
+        bool is_pvalue_scoring() { return pvalue_scoring; }
         size_t get_threads() { return threads; }
         uint32_t get_k () { return k; }
         uint32_t get_ftab_k () { return ftab_k; }
@@ -119,9 +123,12 @@ class MoviOptions {
         void set_freq_compressed(bool val) { freq_compressed = val; }
         void set_tree_compressed(bool val) { tree_compressed = val; }
         void set_color_move_rows(bool val) { color_move_rows = val; }
-        void set_thres(uint8_t val) { cl_thres = val; }
+        void set_flat_color_vectors(bool val) { flat_color_vectors = val; }
+        void set_doc_sets_vector_of_vectors(bool val) { doc_sets_vector_of_vectors = val; }
+        void set_color(bool val) { color = val; }
+        void set_min_match_len(uint8_t val) { min_match_len = val; }
+        void set_pvalue_scoring(bool val) { pvalue_scoring = val; }
         void set_out_file(std::string out_file_) { out_file = out_file_; }
-
         void set_ref_file(std::string file_address) { ref_file = file_address; }
         void set_bwt_file(std::string file_address) { bwt_file = file_address; }
         void set_read_file(std::string file_address) { read_file = file_address; }
@@ -221,8 +228,11 @@ class MoviOptions {
         bool freq_compressed = false;
         bool tree_compressed = false;
         bool color_move_rows = false;
-        // Classification threshold (only consider PMLs with len >= cl_thres)
-        uint8_t cl_thres = 5;
+        bool color = false;
+        bool doc_sets_vector_of_vectors = false;
+        bool flat_color_vectors = false;
+        uint8_t min_match_len = 1;
+        bool pvalue_scoring = false;
 };
 
 #endif
