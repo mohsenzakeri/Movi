@@ -41,6 +41,7 @@ uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& p
     if (match_len == 0 and ftab_k > 1) {
         // If the ftab-k-mer at the end of the read is not found,
         // we can skip all the kmers until ftab_right - 1
+        #pragma omp atomic
         kmer_stats.initialize_skipped += (pos_on_r - ftab_right + 1);
         pos_on_r = ftab_right - 1;
         return 0;
@@ -81,6 +82,7 @@ uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& p
 
         if (!extend_right_res) {
             // The kmer was not found, we can skip kmers until kmer_right
+            #pragma omp atomic
             kmer_stats.right_extension_failed += pos_on_r_saved - kmer_right; // b += pos_on_r_saved - kmer_right;
             pos_on_r = kmer_right;
             last_kmer_looked_at = next_pos;
@@ -135,7 +137,9 @@ uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& p
     if (kmer_right == pos_on_r_saved) {
         // The kmer at pos_on_r was found by k bidirectional backward search
         kmers_found += 1; // a += 1;
-        kmer_stats.total_counts += bi_interval.fw_interval.count(rlbwt);
+        uint64_t kmers_count = bi_interval.fw_interval.count(rlbwt);
+        #pragma omp atomic
+        kmer_stats.total_counts += kmers_count;
         if (pos_on_r != pos_on_r_saved) {
             // pos_on_r should be equal to pos_on_r_saved at this point
             std::cerr << "pos_on_r: " << pos_on_r << "\tpos_on_r_saved" << pos_on_r_saved << "\n";
@@ -198,16 +202,21 @@ uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& p
             if (partial_match_interval.match_len == k) {
                 // The kmer was found by extending the partial match to left
                 kmers_found += 1;
-                kmer_stats.total_counts += partial_match_interval.fw_interval.count(rlbwt);
                 partial_found += 1;
 
+                uint64_t kmers_count = partial_match_interval.fw_interval.count(rlbwt);
+                #pragma omp atomic
+                kmer_stats.total_counts += kmers_count;
+                #pragma omp atomic
                 kmer_stats.positive_skipped += 1; // c += 1;
+
                 if (movi_options->is_debug()) {
                     std::cerr << "kmer at " << kmer_left_ext + k - 1 << " was found.\n";
                     dbg << "1";
                 }
             } else {
                 skip_kmers = 0;
+                #pragma omp atomic
                 kmer_stats.backward_search_failed += skip_kmers + 1; // d += skip_kmers + 1;
                 if (movi_options->is_debug()) {
                     dbg << "0";
@@ -259,6 +268,7 @@ uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool 
     do {
         initial_interval = initialize_backward_search(mq, pos_on_r, match_len);
         if (match_len == 0 and ftab_k > 1) {
+            #pragma omp atomic
             kmer_stats.initialize_skipped += 1;
             pos_on_r -= 1;
             pos_on_r_saved = pos_on_r;
@@ -271,12 +281,14 @@ uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool 
     if (backward_search_result.is_empty()) {
         // We get here when there is an illegal character at pos_on_r, just skip the current position
         pos_on_r = pos_on_r_saved - 1;
+        #pragma omp atomic
         kmer_stats.backward_search_empty += 1;
         return 0;
     } else {
         if (pos_on_r_saved - pos_on_r >= k - 1) {
             // At leat one kmer was found, update the postion and return the count
             uint64_t kmers_found = pos_on_r_saved - pos_on_r - k + 2;
+            #pragma omp atomic
             kmer_stats.positive_skipped += kmers_found - 1;
 
             if (movi_options->is_debug()) {
@@ -294,6 +306,7 @@ uint64_t MoveStructure::query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool 
 	        return kmers_found;
         } else {
             // No kmer was found, update the postion
+            #pragma omp atomic
             kmer_stats.backward_search_failed += 1;
             pos_on_r = pos_on_r_saved - 1;
             return 0;
@@ -311,9 +324,11 @@ void MoveStructure::query_all_kmers(MoveQuery& mq, bool kmer_counts) {
     if (k == 1) {
         uint64_t kmers_found = 0;
         while (pos_on_r >= 0) {
+            #pragma omp atomic
             kmers_found += check_alphabet(query_seq[pos_on_r]) ? 1 : 0;
             pos_on_r -= 1;
         }
+        #pragma omp atomic
         kmer_stats.positive_kmers += kmers_found;
         return;
     }
@@ -331,15 +346,21 @@ void MoveStructure::query_all_kmers(MoveQuery& mq, bool kmer_counts) {
 
     while (pos_on_r >= k - 1) {
         if (pos_on_r >= k -1 + step and !look_ahead_backward_search(mq, pos_on_r, step)) {
+            #pragma omp atomic
             kmer_stats.look_ahead_skipped += step + 1;
             pos_on_r = pos_on_r - step - 1;
         } else {
             if (kmer_counts) {
-                if (pos_on_r <= 2*k) {
-                    kmer_stats.positive_kmers += query_kmers_from(mq, pos_on_r, true);
+                // Let's get rid of the special case for count queries -- commented below for now
+                /* if (pos_on_r <= 2*k) {
+                    uint64_t kmers_found = query_kmers_from(mq, pos_on_r, true);
+                    #pragma omp atomic
+                    kmer_stats.positive_kmers += kmers_found;
                     // kmer_stats.positive_kmers += query_kmers_from_bidirectional(mq, pos_on_r);
-                } else {
-                    kmer_stats.positive_kmers += query_kmers_from_bidirectional(mq, pos_on_r);
+                } else { */
+                    uint64_t kmers_found = query_kmers_from_bidirectional(mq, pos_on_r);
+                    #pragma omp atomic
+                    kmer_stats.positive_kmers += kmers_found;
 
                     if (movi_options->is_debug()) {
                         dbg.str("");
@@ -369,6 +390,7 @@ void MoveStructure::query_all_kmers(MoveQuery& mq, bool kmer_counts) {
                         int pos = pos_on_r_before;
                         int found_bidirectional = query_kmers_from_bidirectional(mq, pos);
                         dbg << "\n";
+                        #pragma omp atomic
                         kmer_stats.positive_kmers += found_bidirectional;
                         if (found_regular != found_bidirectional) {
                             std::cerr << "pos_on_r_before:" << pos_on_r_before << " pos_on_r:" << pos_on_r
@@ -376,9 +398,11 @@ void MoveStructure::query_all_kmers(MoveQuery& mq, bool kmer_counts) {
                             std::cerr << dbg.str() << std::endl;
                         }
                     }
-                }
+                // }
             } else {
-                kmer_stats.positive_kmers += query_kmers_from(mq, pos_on_r);
+                uint64_t kmers_found = query_kmers_from(mq, pos_on_r);
+                #pragma omp atomic
+                kmer_stats.positive_kmers += kmers_found;
             }
         }
 

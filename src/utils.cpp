@@ -68,9 +68,9 @@ kseq_t* open_kseq(gzFile& fp, std::string file_address) {
 
 void close_kseq(kseq_t *seq, gzFile& fp) {
     kseq_destroy(seq); // STEP 5: destroy seq
-    std::cerr << "kseq destroyed!\n";
+    // std::cerr << "kseq destroyed!\n";
     gzclose(fp); // STEP 6: close the file handler
-    std::cerr << "fp file closed!\n";
+    // std::cerr << "fp file closed!\n";
 }
 
 char complement(char c) {

@@ -392,16 +392,22 @@ int main(int argc, char** argv) {
             }
             mv_.serialize();
             build_ftab(mv_, movi_options);
-            std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n";
+            std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n\n";
             if (movi_options.is_output_ids()) {
                 mv_.print_ids();
             }
+
+            std::cerr << "Generating the null statistics...\n\n";
             Classifier classifier;
+
             // generate pml null database
+            std::cerr << "With PML:\n";
             movi_options.set_pml();
             movi_options.set_generate_null_reads(true);
             classifier.generate_null_statistics(mv_, movi_options);
+
             // generate zml null database
+            std::cerr << "\nWith ZML:\n";
             movi_options.set_zml();
             movi_options.set_generate_null_reads(false); // do not regenerate the null reads
             classifier.generate_null_statistics(mv_, movi_options);
