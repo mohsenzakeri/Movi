@@ -701,17 +701,16 @@ void MoveStructure::find_run_heads_information() {
     heads_rank.resize(r);
     heads_rank[0] = 0;
 
-    // Tracks how many characters in the BWT have been processed
-    uint64_t scanned_bwt_length = 0;
+    uint64_t bwt_offset = 0;
 
     for (uint64_t i = 0; i < r; i++) {
         // The following line is important to tag the run boundaries in the main bitvector
         // Required for computing the id field of the rlbwt rows
-        if (!splitting) bits[scanned_bwt_length] = 1;
+        bits[bwt_offset] = 1;
 
         if (i>0 && i % 100000 == 0) {
             std::cerr << "processed runs: " << i << "/" << r << "\t";
-            std::cerr << "scanned_bwt_length: " << scanned_bwt_length << "\r";
+            std::cerr << "bwt_offset: " << bwt_offset << "\r";
         }
 
         uint64_t len = lens[i];
@@ -730,8 +729,8 @@ void MoveStructure::find_run_heads_information() {
             }
         }
 
-        all_p[i] = scanned_bwt_length;
-        scanned_bwt_length += len;
+        all_p[i] = bwt_offset;
+        bwt_offset += len;
     }
 
     std::cerr << "\n\n";
@@ -837,10 +836,8 @@ void MoveStructure::build() {
 
         uint64_t bwt_offset = 0;
 
-#if SPLIT_THRESHOLDS_TRUE
-        if (movi_options->is_thresholds()) {
-            rbits = sdsl::rank_support_v<>(&bits);
-        }
+#if SPLIT_THRESHOLDS_TRUE or SPLIT_ARRAY
+        rbits = sdsl::rank_support_v<>(&bits);
 #endif
 
         for (uint64_t i = 0; i < original_r; i++) {
@@ -854,18 +851,22 @@ void MoveStructure::build() {
                 all_possible_chars[static_cast<size_t>(original_run_heads[i])] += len;
             }
 
-#if SPLIT_MAX_RUN
             size_t remaining_length = len;
 
+#if ANY_SPLITTING
             // First attempt to split the run by thresholds
-            if (movi_options->is_thresholds() and
+            if ((splitting or movi_options->is_thresholds()) and
                     rbits(bwt_offset + len) != rbits(bwt_offset)) {
+
                 uint64_t run_head = bwt_offset;
+
                 for (uint64_t j = bwt_offset + 1; j < bwt_offset + len; j++) {
                     if (bits[j]) {
                         size_t current_run_length = j - run_head;
                         remaining_length -= current_run_length;
+#if SPLIT_THRESHOLDS_TRUE
                         split_by_thresholds += 1;
+#endif
 
                         // Check if the run length is greater than MAX_RUN_LENGTH
                         while (current_run_length > MAX_RUN_LENGTH) {
@@ -875,6 +876,7 @@ void MoveStructure::build() {
                             current_run_length -= MAX_RUN_LENGTH;
                         }
 
+                        // Anything remaining will be added as a separate run
                         if (current_run_length > 0) {
                             heads.push_back(original_run_heads[i]);
                             lens.push_back(current_run_length);
@@ -882,6 +884,7 @@ void MoveStructure::build() {
                         run_head = j;
                     }
                 }
+
             }
             bwt_offset += len;
 
@@ -906,10 +909,9 @@ void MoveStructure::build() {
         }
         std::cerr << "\n";
 
+        r = heads.size();
+
         build_alphabet(all_possible_chars);
-
-
-        r =  splitting ? rbits(length) : heads.size();
 
         find_run_heads_information();
 
@@ -928,12 +930,12 @@ void MoveStructure::build() {
         heads.push_back(current_char);
         heads_rank.push_back(0);
 
-        // Tracks how many characters in the BWT have been processed
-        uint64_t scanned_bwt_length = 0;
-
         uint16_t run_length = 0;
         original_r = 1;
         r = 1;
+
+        // Tracks how many characters in the BWT have been processed
+        uint64_t scanned_bwt_length = 0;
 
         std::cerr << "Reading over the uncompressed BWT...\n";
         while (next_char != EOF) { // && current_char != 10
@@ -947,30 +949,8 @@ void MoveStructure::build() {
                 std::cerr << "r: " << r << "\t";
                 std::cerr << "scanned_bwt_length: " << scanned_bwt_length << "/" << length << "\r";
             }
-#if SPLIT_MAX_RUN
+#if ANY_SPLITTING
             // The first row is already set and accounted for, so we skip
-            if (current_char != next_char) {
-                // 1) A new run is detected if the next character is different
-                original_r += 1;
-
-                add_detected_run(scanned_bwt_length, current_char, next_char, run_length);
-
-            } else if (movi_options->is_thresholds() and scanned_bwt_length > 0 and bits[scanned_bwt_length + 1] == 1) {
-                // 2) A new run is detected if there is a non-trivial threshold at the next offset
-                // The bit was already set by one of the threshold values
-                // So, we have found a new run, and reset the run length
-
-                add_detected_run(scanned_bwt_length, current_char, next_char, run_length);
-                split_by_thresholds += 1;
-
-            } else if (run_length == MAX_RUN_LENGTH) {
-                // 3) A new run is detected if the length of the run is greater than MAX_RUN_LENGTH
-
-                add_detected_run(scanned_bwt_length, current_char, next_char, run_length);
-                split_by_max_run += 1;
-            }
-#endif
-#if SPLIT_THRESHOLDS_FALSE
             if (current_char != next_char) {
                 // 1) A new run is detected if the next character is different
                 original_r += 1;
@@ -983,17 +963,27 @@ void MoveStructure::build() {
 
                 add_detected_run(scanned_bwt_length, current_char, next_char, run_length);
 
-            } else if (splitting && bits[scanned_bwt_length + 1]) {
-                // 2) A new run is detected based on Nishimoto-Tabei splitting
+            } else if ((movi_options->is_thresholds() or splitting) and bits[scanned_bwt_length + 1] == 1) {
+                // 2) A new run is detected based on a non-trivial threshold or the Nishimoto-Tabei splitting bitvector
+                // The bit was already set by one of the threshold values or the splitting bitvector
+                // So, we have found a new run, and reset the run length
 
                 add_detected_run(scanned_bwt_length, current_char, next_char, run_length);
 
+#if SPLIT_THRESHOLDS_TRUE
+                split_by_thresholds += 1;
+#endif
             } else if (run_length == MAX_RUN_LENGTH) {
                 // 3) A new run is detected if the length of the run is greater than MAX_RUN_LENGTH
 
                 add_detected_run(scanned_bwt_length, current_char, next_char, run_length);
-
                 split_by_max_run += 1;
+            }
+#endif
+#if NO_SPLIT
+            if (current_char != next_char) {
+                original_r += 1;
+                add_detected_run(scanned_bwt_length, current_char, next_char, run_length);
             }
 #endif
             current_char = next_char;
@@ -1001,6 +991,12 @@ void MoveStructure::build() {
             scanned_bwt_length += 1;
         }
         std::cerr << "\n";
+
+        if (r != heads.size()) {
+            std::cerr << "r: " << r << " heads.size(): " << heads.size() << "\n";
+            std::cerr << "The number of runs is not consistent.\n";
+            exit(0);
+        }
 
         if (length != scanned_bwt_length + 1) {
             std::cerr << "The length of the BWT is not consistent.\n";
@@ -1040,14 +1036,6 @@ void MoveStructure::build() {
         std::cerr << "\n";
     }
 
-    // for (auto& occ: occs) {
-    //     std::cerr << occs_rank.size() << "\n";
-    //     if (movi_options->is_verbose() and (*occ).size() < 1000)
-    //         std::cerr << *occ << "\n";
-    //     occs_rank.emplace_back(std::unique_ptr<sdsl::rank_support_v<> >(new sdsl::rank_support_v<>(occ.get())));
-    // }
-
-    // Building the move structure rows with O(r) loop
     uint64_t offset = 0;
     uint64_t max_len = 0;
     if (movi_options->is_verbose()) {
@@ -1078,6 +1066,7 @@ void MoveStructure::build() {
         std::cerr << "end_bwt_idx: " << end_bwt_idx << "\n\n";
     }
 
+    // Building the move structure rows with O(r) loop
     for (uint64_t r_idx = 0; r_idx < r; r_idx++) {
         if (r_idx % 10000 == 0)
             std::cerr << "Building Movi rows: " << r_idx << "/" << r << "\r";
@@ -1468,30 +1457,34 @@ void MoveStructure::read_ftab() {
 void MoveStructure::compute_thresholds() {
     // initialize the start threshold at the last row
     std::vector<uint64_t> alphabet_thresholds(alphabet.size(), length);
+
     uint64_t thr_i = original_r - 1;
     uint64_t run_p = 0;
+
     if (movi_options->is_verbose()) {
         std::cerr << "thresholds.size():" << thresholds.size() << " length: "
                   << length << " r: " << r <<  " original_r: " << original_r << "\n";
         std::cerr << "thresholds[r]: " << thresholds[original_r-1] << " r-1: "
                   << thresholds[original_r - 2] << " r-2: " << thresholds[original_r - 3] << "\n";
     }
+
     for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
         if (i % 10000 == 0)
-            std::cerr << "i: " << i << "\r";
+            std::cerr << "Updating the thresholds per run: " << (rlbwt.size() - i) << "/" << rlbwt.size() << "\r";
+
         char rlbwt_c = alphabet[get_move_row(i).get_c()];
-        /* if (thr_i != i) {
-            std::cerr << "thr_i: " << thr_i << " i: " << i << "\n";
-            exit(0);
-        } */
-        if (movi_options->is_verbose() and i >= rlbwt.size() - 10)
+
+        if (movi_options->is_verbose() and i >= rlbwt.size() - 10) {
             std::cerr << "i: " << i << "\n"
                 << "get_move_row(i).get_offset(): " << get_offset(i) << "\n "
                 << "get_n(i): " << get_n(i) << "\n"
                 << "thresholds[thr_i]: " << thresholds[thr_i] << " "
                 << "rlbwt_c: " << rlbwt_c << "\n";
+        }
+
         std::vector<uint64_t> current_thresholds;
         current_thresholds.resize(alphabet.size() - 1);
+
         for (uint64_t j = 0; j < alphabet.size(); j++) {
             if (alphabet[j] == rlbwt_c) {
                 if (thr_i >= thresholds.size()) {
@@ -1592,7 +1585,9 @@ void MoveStructure::compute_thresholds() {
         }
 #endif
         run_p += get_n(i);
-    } // end of the main for
+    }
+    std::cerr << "\n";
+
     // since the thresholds for the first run was not calculated in the for
     for (uint64_t j = 0; j < alphabet.size() - 1; j++) {
 #if SPLIT_THRESHOLDS_FALSE
