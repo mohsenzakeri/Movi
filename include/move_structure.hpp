@@ -113,6 +113,10 @@ class MoveStructure {
 
         void build();
         void fill_bits_by_thresholds();
+        void find_run_heads_information();
+        void add_detected_run(uint64_t scanned_bwt_length,
+                             uint64_t current_char, uint64_t next_char,
+                             uint16_t& run_length);
         void build_rlbwt();
         uint64_t query_pml(MoveQuery& mq);
         uint64_t query_backward_search(MoveQuery& mq, int32_t& pos_on_r);
@@ -274,6 +278,8 @@ class MoveStructure {
         std::vector<std::unique_ptr<sdsl::bit_vector> > occs;
         std::vector<std::unique_ptr<sdsl::rank_support_v<> > > occs_rank;
         std::vector<uint64_t> heads_rank;
+        std::vector<uint64_t> lens;
+
         sdsl::bit_vector bits;
         sdsl::rank_support_v<> rbits;
         // sdsl::select_support_mcl<> sbits;
