@@ -80,6 +80,8 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 #endif
                 } else if (movi_options.is_kmer()) {
                     rp.kmer_search_latency_hiding(movi_options.get_k(), reader);
+                } else if (movi_options.is_mem()) {
+                    std::cerr << "MEM finding does not support prefetching.\n";
                 }
             }
         }
@@ -96,6 +98,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         std::ofstream count_file;
         std::ofstream costs_file;
         std::ofstream scans_file;
+        std::ofstream mems_file;
         std::ofstream fastforwards_file;
         std::ofstream report_file;
         std::ofstream sa_entries_file;
@@ -115,6 +118,8 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + "." + query_type(movi_options) + ".bin", std::ios::out | std::ios::binary);
             else if (movi_options.is_count())
                 count_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".matches");
+            else if (movi_options.is_mem())
+                mems_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".mems");
         }
 
         Classifier classifier;
@@ -212,6 +217,13 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     } else if (movi_options.is_kmer()) {
                         mq = MoveQuery(query_seq);
                         mv_.query_all_kmers(mq, movi_options.is_kmer_count());
+                    } else if (movi_options.is_mem()) {
+                        mq = MoveQuery(query_seq);
+                        mv_.query_mems(mq);
+                        #pragma omp critical
+                        {
+                            output_mems(movi_options.is_stdout() and !movi_options.is_classify(), mems_file, read_struct.id, mq, movi_options.is_no_output());
+                        }
                     }
 
                     if (movi_options.is_logs()) {

@@ -1730,6 +1730,7 @@ bool MoveStructure::extend_bidirectional(char c_, MoveInterval& fw_interval, Mov
     } else {
         return false;
     }
+    // return backward_search_step(c_, fw_interval) && forward_search_step(c_, rc_interval);
 }
 
 bool MoveStructure::extend_left(char c, MoveBiInterval& bi_interval) {
@@ -1827,7 +1828,8 @@ MoveInterval MoveStructure::try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t&
                         mq.add_ml(i, movi_options->is_stdout());
                     }
                 }
-                if (movi_options->is_zml() or movi_options->is_kmer()) {
+                // Shoudn't we always set this?
+                if (movi_options->is_zml() or movi_options->is_kmer() or movi_options->is_mem()) {
                     match_len = ftab_k - 1;
                 }
                 pos_on_r = pos_on_r - ftab_k + 1;
@@ -1917,6 +1919,11 @@ bool MoveStructure::backward_search_step(char c, MoveInterval& interval) {
     } else {
         return false;
     }
+}
+
+// Must be called using reverse interval
+bool MoveStructure::forward_search_step(char c, MoveInterval& rc_interval) {
+    return backward_search_step(complement(c), rc_interval);
 }
 
 uint64_t MoveStructure::backward_search_step(std::string& R, int32_t& pos_on_r, MoveInterval& interval) {

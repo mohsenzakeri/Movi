@@ -204,6 +204,20 @@ void output_sa_entries(std::ofstream& sa_entries_file, std::string read_id, Move
     }
 }
 
+void output_mems(bool to_stdout, std::ofstream& mems_file, std::string read_id, MoveQuery& mq, bool no_output) {
+    if (!no_output) {
+        if (to_stdout) {
+            for (auto& mem : mq.get_mems()) {
+                std::cout << read_id << "\t" << mem.start << "\t" << mem.end << "\t" << mem.count << "\n";
+            }
+        } else {
+            for (auto& mem : mq.get_mems()) {
+                mems_file << read_id << "\t" << mem.start << "\t" << mem.end << "\t" << mem.count << "\n";
+            }
+        }
+    }
+}
+
 void output_counts(bool to_stdout, std::ofstream& count_file, std::string read_id, size_t query_length, int32_t pos_on_r, uint64_t match_count, bool no_output) {
     if (!no_output) {
         if (to_stdout) {

@@ -122,6 +122,10 @@ class MoveStructure {
         uint64_t query_kmers_from_bidirectional(MoveQuery& mq, int32_t& pos_on_r);
         uint64_t query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool single = false);
 
+        uint64_t query_mems(MoveQuery& mq);
+        bool query_mem_bml(MoveQuery& mq, int32_t& min_mem_length, std::string& query_seq, size_t& ftab_k, int32_t& pos_on_r);
+        uint64_t query_all_mems(MoveQuery& mq);
+
         MoveInterval try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k, bool rc = false);
         bool look_ahead_ftab(MoveQuery& mq, uint32_t pos_on_r, int32_t& step);
         bool look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r, int32_t step);
@@ -133,6 +137,7 @@ class MoveStructure {
         MoveBiInterval initialize_bidirectional_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len);
 
         bool backward_search_step(char c, MoveInterval& interval);
+        bool forward_search_step(char c, MoveInterval& rc_interval);
         uint64_t backward_search_step(std::string& R, int32_t& pos_on_r, MoveInterval& interval);
         MoveInterval backward_search(std::string& R, int32_t& pos_on_r, MoveInterval interval, int32_t max_length);
         MoveInterval initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, bool rc = false);

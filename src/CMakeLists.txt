@@ -14,6 +14,7 @@ set(MOVI_SOURCES
     read_processor.cpp
     utils.cpp
     sequitur.cpp
+    mem_finder.cpp
     emperical_null_database.cpp
     movi_parser.cpp
     classifier.cpp

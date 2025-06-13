@@ -32,6 +32,7 @@ class MoviOptions {
         bool is_count() { return count_query; }
         bool is_kmer() { return kmer_query; }
         bool is_kmer_count() { return kmer_count; }
+        bool is_mem() { return mem_query; }
         bool is_reverse() { return reverse; }
         bool is_multi_ftab() { return multi_ftab; }
         bool is_classify() { return classify; }
@@ -42,6 +43,7 @@ class MoviOptions {
         size_t get_strands() { return strands; }
         size_t get_threads() { return threads; }
         uint32_t get_k () { return k; }
+        uint32_t get_min_mem_length() { return min_mem_length; }
         uint32_t get_ftab_k () { return ftab_k; }
         uint32_t get_tally_checkpoints () { return tally_checkpoints; }
         uint64_t get_SA_sample_rate() { return SA_sample_rate; }
@@ -66,12 +68,14 @@ class MoviOptions {
         void set_verify(bool verify_) { verify = verify_; }
         void set_random_repositioning(bool random_repositioning_) { random_repositioning = random_repositioning_; }
         void set_get_sa_entries(bool get_sa_entries_) { get_sa_entries = get_sa_entries_; }
-        void set_pml()   { pml_query = true; count_query = false; kmer_query = false; zml_query = false; }
-        void set_zml()   { zml_query = true; pml_query = false; count_query = false; kmer_query = false; }
-        void set_count() { count_query = true; pml_query = false; kmer_query = false; zml_query = false; }
-        void set_kmer()  { kmer_query = true; pml_query = false; count_query = false; zml_query = false; }
+        void set_pml()   { pml_query = true; count_query = false; kmer_query = false; zml_query = false; mem_query = false; }
+        void set_zml()   { zml_query = true; pml_query = false; count_query = false; kmer_query = false; mem_query = false; }
+        void set_count() { count_query = true; pml_query = false; kmer_query = false; zml_query = false; mem_query = false; }
+        void set_kmer()  { kmer_query = true; pml_query = false; count_query = false; zml_query = false; mem_query = false; }
         void set_kmer_count(bool kmer_count_) { kmer_count = kmer_count_; }
+        void set_mem() { mem_query = true; pml_query = false; count_query = false; kmer_query = false; zml_query = false; }
         void set_k(uint32_t k_) { k = k_; }
+        void set_min_mem_length(uint32_t min_mem_length_) { min_mem_length = min_mem_length_; }
         void set_ftab_k(uint32_t ftab_k_) { ftab_k = ftab_k_; }
         void set_tally_checkpoints(uint32_t tally_checkpoints_) { tally_checkpoints = tally_checkpoints_; }
         void set_SA_sample_rate(uint64_t SA_sample_rate_) { SA_sample_rate = SA_sample_rate_; }
@@ -128,12 +132,14 @@ class MoviOptions {
             std::cerr << "count_query:\t" << count_query << "\n";
             std::cerr << "kmer_query:\t" << kmer_query << "\n";
             std::cerr << "kmer_count:\t" << kmer_count << "\n";
+            std::cerr << "mem_query:\t" << mem_query << "\n";
             std::cerr << "reverse:\t" << reverse << "\n";
             std::cerr << "mmap:\t" << mmap << "\n";
             std::cerr << "prefetch:\t" << prefetch << "\n";
             std::cerr << "strands:\t" << strands << "\n";
             std::cerr << "threads:\t" << threads << "\n";
             std::cerr << "k:\t" << k << "\n";
+            std::cerr << "min_mem_length:\t" << min_mem_length << "\n";
             std::cerr << "ftab_k:\t" << ftab_k << "\n";
             std::cerr << "tally_checkpoints:\t" << tally_checkpoints << "\n";
             std::cerr << "SA_sample_rate:\t" << SA_sample_rate << "\n";
@@ -170,12 +176,14 @@ class MoviOptions {
         bool count_query = false;
         bool kmer_query = false;
         bool kmer_count = false;
+        bool mem_query = false;
         bool reverse = false;
         bool mmap = false;
         bool prefetch = true;
         size_t strands = 16;
         size_t threads = 1;
         uint32_t k = 31;
+        uint32_t min_mem_length = 25;
         uint32_t ftab_k = 0;
         uint32_t tally_checkpoints = 20;
         uint64_t SA_sample_rate = 100;
