@@ -216,6 +216,12 @@ void output_mems(bool to_stdout, std::ofstream& mems_file, std::string read_id, 
             }
         }
     }
+    // size_t mem_count = 1;
+    // for (auto& mem : mq.get_mems()) {
+    //     mems_file << ">" << read_id << "." << mem_count << "\n";
+    //     mems_file << mq.query().substr(mem.start, mem.end - mem.start) << "\n";
+    //     ++mem_count;
+    // }
 }
 
 void output_counts(bool to_stdout, std::ofstream& count_file, std::string read_id, size_t query_length, int32_t pos_on_r, uint64_t match_count, bool no_output) {

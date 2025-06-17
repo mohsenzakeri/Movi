@@ -1851,7 +1851,10 @@ MoveBiInterval MoveStructure::initialize_bidirectional_search(MoveQuery& mq, int
     // Without the following condition, the match_len will be increamented in the following line
     if (match_len == 0) {
         bi_interval.match_len = match_len;
-        return bi_interval;
+        // For MEM we still need to initialize the rc interval
+        if (!movi_options->is_mem()) {
+            return bi_interval;
+        }
     }
     // This is needed because of the way match_len is off by one
     match_len += 1;
