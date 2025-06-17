@@ -1730,7 +1730,6 @@ bool MoveStructure::extend_bidirectional(char c_, MoveInterval& fw_interval, Mov
     } else {
         return false;
     }
-    // return backward_search_step(c_, fw_interval) && forward_search_step(c_, rc_interval);
 }
 
 bool MoveStructure::extend_left(char c, MoveBiInterval& bi_interval) {

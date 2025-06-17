@@ -44,6 +44,11 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
     omp_set_nested(0);
 
     if (!movi_options.no_prefetch()) {
+        if (movi_options.is_mem()) {
+            std::cerr << "MEM finding does not support prefetching.\n";
+            exit(1);
+        }
+
         ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
 
         std::ifstream input_file;
@@ -80,8 +85,6 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 #endif
                 } else if (movi_options.is_kmer()) {
                     rp.kmer_search_latency_hiding(movi_options.get_k(), reader);
-                } else if (movi_options.is_mem()) {
-                    std::cerr << "MEM finding does not support prefetching.\n";
                 }
             }
         }

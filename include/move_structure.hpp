@@ -123,7 +123,7 @@ class MoveStructure {
         uint64_t query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool single = false);
 
         uint64_t query_mems(MoveQuery& mq);
-        bool query_mem_bml(MoveQuery& mq, int32_t& min_mem_length, std::string& query_seq, size_t& ftab_k, int32_t& pos_on_r);
+        bool query_mem_bml(MoveQuery& mq, int32_t& pos_on_r,int32_t& min_mem_length, std::string& query_seq, size_t& ftab_k);
         uint64_t query_all_mems(MoveQuery& mq);
 
         MoveInterval try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k, bool rc = false);

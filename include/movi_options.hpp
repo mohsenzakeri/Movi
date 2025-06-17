@@ -72,8 +72,8 @@ class MoviOptions {
         void set_zml()   { zml_query = true; pml_query = false; count_query = false; kmer_query = false; mem_query = false; }
         void set_count() { count_query = true; pml_query = false; kmer_query = false; zml_query = false; mem_query = false; }
         void set_kmer()  { kmer_query = true; pml_query = false; count_query = false; zml_query = false; mem_query = false; }
-        void set_kmer_count(bool kmer_count_) { kmer_count = kmer_count_; }
         void set_mem() { mem_query = true; pml_query = false; count_query = false; kmer_query = false; zml_query = false; }
+        void set_kmer_count(bool kmer_count_) { kmer_count = kmer_count_; }
         void set_k(uint32_t k_) { k = k_; }
         void set_min_mem_length(uint32_t min_mem_length_) { min_mem_length = min_mem_length_; }
         void set_ftab_k(uint32_t ftab_k_) { ftab_k = ftab_k_; }
