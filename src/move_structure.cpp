@@ -1698,6 +1698,9 @@ bool MoveStructure::extend_bidirectional(char c_, MoveInterval& fw_interval, Mov
             }
             current_run += 1;
             current_offset = 0;
+            if (movi_options->is_mem()) {
+                ++mem_stats.bidirectional_count_scans;
+            }
         }
 
         while (skip != 0) {

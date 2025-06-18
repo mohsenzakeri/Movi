@@ -13,7 +13,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("no-header", "Header information in not stored")
         ("d,dbg", "Enable debug mode")
         ("v,verbose", "Enable verbose mode")
-        ("l,logs", "Enable logs");
+        ("logs", "Enable logs");
 
     auto buildOptions = options.add_options("build")
         ("i,index", "Index directory", cxxopts::value<std::string>())
@@ -54,7 +54,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("mmap", "Use memory mapping to read the index")
         ("n,no-prefetch", "Disable prefetching for query")
         ("k,k-length", "The length of the kmer", cxxopts::value<uint32_t>())
-        ("L,min-mem-length", "The minimum length of the MEMs", cxxopts::value<uint32_t>())
+        ("l,min-mem-length", "The minimum length of the MEMs", cxxopts::value<uint32_t>())
         ("ftab-k", "The length of the ftba kmer", cxxopts::value<uint32_t>())
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
         ("s,strands", "Number of strands for query", cxxopts::value<int>())

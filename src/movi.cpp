@@ -39,15 +39,15 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         mv_.read_ftab();
         std::cerr<<"Ftab was read!\n";
     }
+    if (movi_options.is_mem() and !movi_options.no_prefetch()) {
+        movi_options.set_prefetch(false);
+        std::cerr << "MEM finding does not support prefetching.\n";
+    }
 
     omp_set_num_threads(movi_options.get_threads());
     omp_set_nested(0);
 
     if (!movi_options.no_prefetch()) {
-        if (movi_options.is_mem()) {
-            std::cerr << "MEM finding does not support prefetching.\n";
-            exit(1);
-        }
 
         ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
 
@@ -256,6 +256,9 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 std::cerr << "The count file is closed.\n";
             } else if (movi_options.is_kmer()) {
                 mv_.kmer_stats.print(movi_options.is_kmer_count());
+            }
+            else if (movi_options.is_mem()) {
+                mv_.mem_stats.print();
             }
             if (movi_options.is_classify()) {
                 classifier.close_report_file();
