@@ -47,7 +47,7 @@ If the thresholds are note available, please pass `--type regular` to build an i
 
 ## Add colors to an existing Movi index
 
-**Note: The following step is note required if the index was built using the `--color` flag.**
+**Note: The following step is not required if the index was built using the `--color` flag.**
 
 ```
 ./movi color --index <index directory>
