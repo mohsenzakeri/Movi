@@ -93,6 +93,7 @@ void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
         process.best_doc = std::numeric_limits<uint16_t>::max();
         process.second_best_doc = std::numeric_limits<uint16_t>::max();
         process.sum_matching_lengths = 0;
+        process.colors_count = 0;
         if (mv.movi_options->is_multi_classify()) {
             std::fill(process.classify_cnts.begin(), process.classify_cnts.end(), 0);
         }
@@ -139,6 +140,8 @@ void ReadProcessor::process_char(Strand& process) {
 
     if (mv.movi_options->is_multi_classify()) {
         if (process.match_len >= mv.movi_options->get_min_match_len()) {
+
+            process.colors_count += 1;
 
             uint64_t color_id;
 #if COLOR_MODE == 1
@@ -503,24 +506,44 @@ void ReadProcessor::write_mls(Strand& process) {
             // we report the other species as well and classify the read at a higher level.
             // out_file << mv.to_taxon_id[process.best_doc];
             if (mv.movi_options->is_report_all()) {
-                out_file << mv.to_taxon_id[process.best_doc];
+
+                if (mv.movi_options->get_min_score_frac() == 0) {
+                    // For the min_diff_frac mode, we write the best document no matter what
+                    // For the min_score_frac mode, the best document is outputed only if its score is high enough
+                    out_file << mv.to_taxon_id[process.best_doc];
+                }
+
+                uint32_t output_document_count = 0;
                 uint32_t best_doc_cnt = process.classify_cnts[process.best_doc];
                 for (int i = 0; i < process.classify_cnts.size(); i++) {
-                    float diff_best = static_cast<float>(best_doc_cnt - process.classify_cnts[i]);
-                    // if (i!= process.best_doc and
-                    //     process.classify_cnts[i] > 0.95*static_cast<float>(process.classify_cnts[process.best_doc])) {
-                    if (i!= process.best_doc and diff_best < 0.05 * best_doc_cnt) {
-                            out_file << "," << mv.to_taxon_id[i];
+                    if (mv.movi_options->get_min_score_frac() == 0) {
+
+                        float diff_best = static_cast<float>(best_doc_cnt - process.classify_cnts[i]);
+
+                        if (i!= process.best_doc and diff_best < mv.movi_options->get_min_diff_frac() * best_doc_cnt) {
+                                out_file << "," << mv.to_taxon_id[i];
+                        }
+                    } else {
+
+                        if (static_cast<float>(process.classify_cnts[i]) >= mv.movi_options->get_min_score_frac() * process.colors_count) {
+                            out_file << "," << mv.to_taxon_id[i]; // << ":" << process.classify_cnts[i] << "/" << process.colors_count << "/" << process.read.length();
+                            output_document_count += 1;
+                        }
                     }
+                }
+
+                if (mv.movi_options->get_min_score_frac() != 0 and output_document_count == 0) {
+                    out_file << "0";
                 }
             } else {
                 if (process.second_best_doc == std::numeric_limits<uint16_t>::max()) {
                     out_file << mv.to_taxon_id[process.best_doc] << ",0";
                 } else {
+
                     uint32_t best_doc_cnt = process.classify_cnts[process.best_doc];
-                    uint32_t second_best_doc_cnt = process.classify_cnts[process.second_best_doc];    
-                    // float second_best_doc_frac = static_cast<float>(process.classify_cnts[process.second_best_doc]) / static_cast<float>(process.classify_cnts[process.best_doc]);
+                    uint32_t second_best_doc_cnt = process.classify_cnts[process.second_best_doc];
                     float second_best_diff = static_cast<float>(best_doc_cnt - second_best_doc_cnt);
+
                     if (second_best_diff < 0.05 * best_doc_cnt) {
                         out_file << mv.to_taxon_id[process.best_doc] << "," << mv.to_taxon_id[process.second_best_doc];
                     } else {

@@ -50,6 +50,7 @@ struct Strand {
     uint32_t best_doc;
     uint32_t sum_matching_lengths;
     uint32_t second_best_doc;
+    uint32_t colors_count;
 };
 
 class ReadProcessor {

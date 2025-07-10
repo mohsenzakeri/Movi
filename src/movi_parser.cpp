@@ -44,7 +44,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("classify", "Classify the reads")
         ("multi-classify", "Multi-class classification with PMLs")
         ("early-stop", "Early stop the read processing for unclassified reads")
-        ("report-all", "Report all the taxon ids for each read")
+        ("report-all", "Report all the taxon ids for each read (default: min-diff-frac = 0.05), not available in no-prefetch mode")
+        ("min-diff-frac", "Report all the taxon ids which have score close to the best document by this fraction", cxxopts::value<float>())
+        ("min-score-frac", "Report all the taxon ids which have score >= min-score-frac * read-length. If set, min-diff-frac mode is turned off.", cxxopts::value<float>())
         ("min-len", "Minimum matching length for classification (only consider PMLs >= min-len), default is 1", cxxopts::value<uint8_t>())
         ("pvalue-scoring", "Use p-value scoring for classification")
         ("full", "Use full coloring information to compute pseudo-matching lengths (PMLs)")
@@ -200,6 +202,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("multi-classify") >= 1) { movi_options.set_multi_classify(true); }
                         if (result.count("early-stop") >= 1) { movi_options.set_early_stop(true); }
                         if (result.count("report-all") >= 1) { movi_options.set_report_all(true); }
+                        if (result.count("min-diff-frac") >= 1) { movi_options.set_min_diff_frac(static_cast<float>(result["min-diff-frac"].as<float>())); }
+                        if (result.count("min-score-frac") >= 1) { movi_options.set_min_score_frac(static_cast<float>(result["min-score-frac"].as<float>())); }
                         if (result.count("min-len")) { movi_options.set_min_match_len(result["min-len"].as<uint8_t>()); }
                         if (result.count("pvalue-scoring") == 1) { movi_options.set_pvalue_scoring(true); }
                         if (result.count("color-move-rows") == 1) { movi_options.set_color_move_rows(true); }
