@@ -2921,18 +2921,35 @@ void MoveStructure::serialize_doc_sets(std::string fname) {
     fout.close();
 }
 
+void MoveStructure::compute_color_ids_from_flat() {
+
+    for (uint64_t color_offset = 0; color_offset < flat_colors.size(); ) {
+
+        uint32_t color_id = color_offset_to_id.size();
+        color_offset_to_id[color_offset] = color_id;
+
+        uint32_t next_color =  color_offset + flat_colors[color_offset] + 1;
+        color_offset = next_color;
+
+    }
+}
+
 void MoveStructure::deserialize_doc_sets_flat() {
     std::string fname = movi_options->get_index_dir() + "/doc_sets_flat.bin";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
+
     uint64_t flat_colors_size = 0;
     fin.read(reinterpret_cast<char*>(&flat_colors_size), sizeof(uint64_t));
     std::cerr << "flat_colors_size: " << flat_colors_size << "\n";
+
     flat_colors.resize(flat_colors_size);
     fin.read(reinterpret_cast<char*>(&flat_colors[0]), flat_colors_size * sizeof(flat_colors[0]));
     std::cerr << "Read flat_colors\n";
+
     doc_set_flat_inds.resize(r);
     fin.read(reinterpret_cast<char*>(&doc_set_flat_inds[0]), r * sizeof(doc_set_flat_inds[0]));
     std::cerr << "Read doc_set_flat_inds\n";
+
     fin.close();
 }
 

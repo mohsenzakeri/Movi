@@ -24,6 +24,17 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
         out_file = std::ofstream(mv_.movi_options->get_out_file());
     }
     if (!mv_.movi_options->is_stdout()) {
+
+        if (mv_.movi_options->is_report_colors()) {
+            std::string colors_file_name = reads_file_name + "." + index_type + ".colors.bin";
+            colors_file = std::ofstream(colors_file_name, std::ios::out | std::ios::binary);
+
+            // Copmuter color ids for the output
+            mv.compute_color_ids_from_flat();
+            std::cerr << "Color offset to color id table is created.\n";
+
+        }
+
         if (mv_.movi_options->is_pml()) {
             std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
             mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
@@ -186,6 +197,10 @@ void ReadProcessor::process_char(Strand& process) {
                     }
                 }
             }
+
+            process.mq.add_color(mv.color_offset_to_id[color_id]);
+        } else {
+            process.mq.add_color(mv.color_offset_to_id.size());
         }
     }
 
@@ -502,6 +517,14 @@ void ReadProcessor::write_mls(Strand& process) {
                 out_file << "0,0\n";
             }
         } else {
+            if (mv.movi_options->is_report_colors()) {
+                // Writing the PMLs
+                output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq);
+
+                // Writing the colors
+                output_matching_lengths(write_stdout, colors_file, process.read_name, process.mq, true);
+            }
+
             // If the second most occurring document is more than 95% of the most occurring one,
             // we report the other species as well and classify the read at a higher level.
             // out_file << mv.to_taxon_id[process.best_doc];

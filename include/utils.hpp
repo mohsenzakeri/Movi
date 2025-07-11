@@ -87,7 +87,7 @@ uint8_t F_char(std::vector<uint64_t>& first_runs, uint64_t run);
 
 void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds);
 
-void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::string read_id, MoveQuery& mq);
+void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::string read_id, MoveQuery& mq, bool color = false);
 
 void output_counts(bool to_stdout, std::ofstream& count_file, std::string read_id, size_t query_length, int32_t pos_on_r, uint64_t match_count);
 

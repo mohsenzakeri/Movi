@@ -93,6 +93,7 @@ class ReadProcessor {
         std::ofstream mls_file;
         std::ofstream matches_file;
         std::ofstream out_file;
+        std::ofstream colors_file;
         int strands;
         uint32_t k;
         bool verbose = false;

@@ -34,6 +34,7 @@ class MoviOptions {
         bool is_multi_ftab() { return multi_ftab; }
         bool is_classify() { return classify; }
         bool is_early_stop() { return early_stop; }
+        bool is_report_colors() { return report_colors; }
         bool is_report_all() { return report_all; }
         float get_min_diff_frac() { return min_diff_frac; }
         float get_min_score_frac() { return min_score_frac; }
@@ -90,6 +91,7 @@ class MoviOptions {
         void set_classify(bool classify_) { classify = classify_; }
         void set_multi_classify(bool multi_classify_) { multi_classify = multi_classify_; }
         void set_early_stop(bool val) { early_stop = val; }
+        void set_report_colors(bool report_colors_) { report_colors = report_colors_; }
         void set_report_all(bool report_all_) { report_all = report_all_; }
         void set_min_diff_frac(float min_diff_frac_) { min_diff_frac = min_diff_frac_; }
         void set_min_score_frac(float min_score_frac_) { min_score_frac = min_score_frac_; }
@@ -189,6 +191,7 @@ class MoviOptions {
         bool classify = false;
         bool multi_classify = false;
         bool early_stop = false;
+        bool report_colors = false;
         bool report_all = false;
         float min_diff_frac = 0.05;
         float min_score_frac = 0;
