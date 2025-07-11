@@ -271,7 +271,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                 if (result.count("mls-file") == 1) {
                     movi_options.set_mls_file(result["mls-file"].as<std::string>());
                     if (result.count("small-pml") >= 1) {
-                        movi_options.set_small_pml_lens();
+                        movi_options.set_small_pml_lens(true);
                     }
 
                     if (result.count("classify") >= 1) {
