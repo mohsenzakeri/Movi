@@ -19,6 +19,7 @@ class MoviOptions {
         bool is_mmap() { return mmap; }
         bool no_prefetch() { return !prefetch; }
         bool is_no_output() { return no_output; }
+        bool is_small_pml_lens() { return small_pml_lens; }
         bool is_output_ids() { return output_ids; }
         bool is_stdout() { return write_stdout; }
         bool is_verbose() { return verbose; }
@@ -58,6 +59,7 @@ class MoviOptions {
         void set_preprocessed(bool preprocessed_) { preprocessed = preprocessed_; }
         void set_thresholds(bool thresholds_) { thresholds = thresholds_; }
         void set_no_output(bool no_output_) { no_output = no_output_; }
+        void set_small_pml_lens(bool small_pml_lens_) { small_pml_lens = small_pml_lens_; }
         void set_output_ids(bool output_ids_) { output_ids = output_ids_; }
         void set_stdout(bool write_stdout_) { write_stdout = write_stdout_; }
         void set_verbose(bool verbose_) { verbose = verbose_; }
@@ -144,6 +146,7 @@ class MoviOptions {
             std::cerr << "generate_null_reads:\t" << generate_null_reads << "\n";
             std::cerr << "bin_width:\t" << bin_width << "\n";
             std::cerr << "no_output:\t" << no_output << "\n";
+            std::cerr << "small_pml_lens:\t" << small_pml_lens << "\n";
             std::cerr << "output_ids:\t" << output_ids << "\n";
             std::cerr << "stdout:\t" << write_stdout << "\n";
             std::cerr << "debug:\t" << debug << "\n";
@@ -187,6 +190,7 @@ class MoviOptions {
         size_t bin_width = 150;
 
         bool no_output = false;
+        bool small_pml_lens = false;
         bool output_ids = false;
         bool write_stdout = false;
         bool debug = false;

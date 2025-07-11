@@ -411,7 +411,16 @@ void ReadProcessor::find_tally_b(Strand& process) {
 
 void ReadProcessor::write_mls(Strand& process) {
     if (mv.movi_options->is_classify() or mv.movi_options->is_filter()) {
-        std::vector<uint16_t>& matching_lens = process.mq.get_matching_lengths();
+
+        std::vector<uint16_t> matching_lens;
+
+        // TODO: Classify for the large pml lens is not supported yet.
+        if (mv.movi_options->is_small_pml_lens()) {
+            for (uint32_t i = 0;  i < process.mq.get_matching_lengths().size(); i++) {
+                matching_lens.push_back(static_cast<uint16_t>(process.mq.get_matching_lengths()[i]));
+            }
+        }
+
         bool found = classifier.classify(process.read_name, matching_lens, *mv.movi_options);
         if (found and mv.movi_options->is_filter()) {
             output_read(process.read_name, process.read, mv.movi_options->is_no_output());
