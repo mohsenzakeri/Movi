@@ -194,7 +194,7 @@ void ReadProcessor::process_char(Strand& process) {
         }
     }
 
-    auto& row = mv.get_move_row(process.idx);
+    auto& row = mv.rlbwt[process.idx];
     uint64_t row_idx = process.idx;
     char row_c = mv.alphabet[row.get_c()];
     std::string& R = process.mq.query();
@@ -219,7 +219,7 @@ void ReadProcessor::process_char(Strand& process) {
         up = mv.reposition_randomly(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #endif
         process.match_len = 0;
-        char c = mv.alphabet[mv.get_move_row(process.idx).get_c()];
+        char c = mv.alphabet[mv.rlbwt[process.idx].get_c()];
         // sanity check
         if (c == R[process.pos_on_r]) {
             // Observing a match after the repositioning
@@ -277,7 +277,7 @@ void ReadProcessor::process_char_tally(Strand& process) {
         }
 
         // After LF is performed, calculate PML based on case1/case2
-        auto& row = mv.get_move_row(process.idx);
+        auto& row = mv.rlbwt[process.idx];
         uint64_t row_idx = process.idx;
         char row_c = mv.alphabet[row.get_c()];
         std::string& R = process.mq.query();
@@ -302,7 +302,7 @@ void ReadProcessor::process_char_tally(Strand& process) {
             up = mv.reposition_randomly(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #endif
             process.match_len = 0;
-            char c = mv.alphabet[mv.get_move_row(process.idx).get_c()];
+            char c = mv.alphabet[mv.rlbwt[process.idx].get_c()];
             // sanity check
             if (c == R[process.pos_on_r]) {
                 // Observing a match after the repositioning
@@ -446,7 +446,7 @@ void ReadProcessor::find_tally_b(Strand& process) {
         return;
     }
 
-    process.char_index = mv.get_move_row(process.idx).get_c();
+    process.char_index = mv.rlbwt[process.idx].get_c();
 
     // The id of the last run is always stored at the last tally_id row
     if (process.idx == mv.r - 1) {
@@ -484,7 +484,16 @@ void ReadProcessor::find_tally_b(Strand& process) {
 
 void ReadProcessor::write_mls(Strand& process) {
     if (mv.movi_options->is_classify() or mv.movi_options->is_filter()) {
-        std::vector<uint16_t>& matching_lens = process.mq.get_matching_lengths();
+
+        std::vector<uint16_t> matching_lens;
+
+        // TODO: Classify for the large pml lens is not supported yet.
+        if (mv.movi_options->is_small_pml_lens()) {
+            for (uint32_t i = 0;  i < process.mq.get_matching_lengths().size(); i++) {
+                matching_lens.push_back(static_cast<uint16_t>(process.mq.get_matching_lengths()[i]));
+            }
+        }
+
         bool found = classifier.classify(process.read_name, matching_lens, *mv.movi_options);
         if (found and mv.movi_options->is_filter()) {
             output_read(process.read_name, process.read, mv.movi_options->is_no_output());
@@ -681,10 +690,10 @@ void ReadProcessor::process_latency_hiding(BatchLoader& reader) {
                 } else {
                     // 4: big jump with prefetch
                     if (is_pml) {
-                        my_prefetch_r((void*)(&(mv.get_move_row(0)) + mv.get_id(processes[i].idx)));
+                        my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.get_id(processes[i].idx)));
                     } else if (is_count or is_zml) {
-                        my_prefetch_r((void*)(&(mv.get_move_row(0)) + mv.get_id(processes[i].range.run_start)));
-                        my_prefetch_r((void*)(&(mv.get_move_row(0)) + mv.get_id(processes[i].range.run_end)));
+                        my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.get_id(processes[i].range.run_start)));
+                        my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.get_id(processes[i].range.run_end)));
                     }
                 }
             }
@@ -722,11 +731,11 @@ void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
                         // prefetch following rows until the checkpoint
                         // Every prefetch loads 64 bytes which is about 20 move rows
                         for (uint64_t tally = processes[i].idx; tally <= processes[i].next_check_point; tally += prefetch_step)
-                            my_prefetch_r((void*)(&(mv.get_move_row(0)) + tally));
+                            my_prefetch_r((void*)(&(mv.rlbwt[0]) + tally));
                     } else {
                         // prefetch tally.id
                         for (uint64_t tally = 0; tally <= mv.tally_checkpoints; tally += prefetch_step)
-                            my_prefetch_r((void*)(&(mv.get_move_row(0)) + processes[i].run_id - tally));
+                            my_prefetch_r((void*)(&(mv.rlbwt[0]) + processes[i].run_id - tally));
                     }
                 }
             }
@@ -789,8 +798,8 @@ void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
                         processes[i].mq.add_ml(processes[i].match_len);
                         processes[i].match_len += 1;
                     }
-                    my_prefetch_r((void*)(&(mv.get_move_row(0)) + mv.get_move_row(processes[i].range.run_start).get_id()));
-                    my_prefetch_r((void*)(&(mv.get_move_row(0)) + mv.get_move_row(processes[i].range.run_end).get_id()));
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_start].get_id()));
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_end].get_id()));
                 }
             }
         }
@@ -934,8 +943,8 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k_, BatchLoader& reader)
                     }
                 } else {
                     // 4: big jump with prefetch
-                    my_prefetch_r((void*)(&(mv.get_move_row(0)) + mv.get_id(processes[i].range.run_start)));
-                    my_prefetch_r((void*)(&(mv.get_move_row(0)) + mv.get_id(processes[i].range.run_end)));
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.get_id(processes[i].range.run_start)));
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.get_id(processes[i].range.run_end)));
                 }
             }
         }
@@ -1069,8 +1078,8 @@ bool ReadProcessor::backward_search(Strand& process, uint64_t end_pos) {
     if (verbose)
         std::cerr << "backward search begins:\n" << process.pos_on_r << " "
                     << R[process.pos_on_r] << " "
-                    << mv.alphabet[mv.get_move_row(process.range.run_start).get_c()] << " "
-                    << mv.alphabet[mv.get_move_row(process.range.run_end).get_c()] << "\n";
+                    << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
+                    << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
     bool first_iteration = process.pos_on_r == end_pos;
     if (first_iteration) {
         if (process.range.is_empty()) {
@@ -1125,14 +1134,14 @@ bool ReadProcessor::backward_search(Strand& process, uint64_t end_pos) {
     process.range_prev = process.range;
     if (verbose)
         std::cerr << "before: " << process.range.run_start << " " << process.range.run_end << " "
-                    << static_cast<uint64_t>(mv.get_move_row(process.range.run_start).get_c()) << " "
-                    << mv.alphabet[mv.get_move_row(process.range.run_end).get_c()] << "\n";
+                    << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
+                    << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
     mv.update_interval(process.range, R[process.pos_on_r - 1]);
     if (verbose)
         std::cerr << "after: " << process.range.run_start << " " << process.range.run_end << " "
-                    << static_cast<uint64_t>(mv.get_move_row(process.range.run_start).get_c()) << " "
-                    << mv.alphabet[mv.get_move_row(process.range.run_start).get_c()] << " "
-                    << mv.alphabet[mv.get_move_row(process.range.run_end).get_c()] << "\n";
+                    << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
+                    << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
+                    << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
 
     return false;
 }

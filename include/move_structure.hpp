@@ -272,7 +272,7 @@ class MoveStructure {
         uint64_t get_n(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
         uint64_t get_id(uint64_t idx);
-        MoveRow& get_move_row(uint64_t idx);
+        // MoveRow& get_move_row(uint64_t idx);
 #if USE_THRESHOLDS
         void compute_thresholds();
         bool reposition_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
