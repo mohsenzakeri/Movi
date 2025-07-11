@@ -45,13 +45,13 @@ If the thresholds are note available, please pass `--type regular` to build an i
 
 ## Add colors to an existing Movi index
 
-**Note: The following step is note required if the index was built using the `--color` flag.**
+**Note: The following step is not required if the index was built using the `--color` flag.**
 
 ```
 ./movi color --index <index directory>
 ```
 This step requires the file `ref.fa.doc_offsets` to be available in the index directory. Every line in the `ref.fa.doc_offsets` should specify the offset in the concatenated text corresponding to the rigth most end of a document + 1.
-It will avoid rebuilding the index from the scratch and only adds the color information to an index. Every line in the 
+It will avoid rebuilding the index from the scratch and only adds the color information to an index.
 
 ## Multi-class classification with Movi Color
 ```

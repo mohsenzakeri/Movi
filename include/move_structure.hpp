@@ -220,6 +220,7 @@ class MoveStructure {
         void build_tree_doc_sets();
         void build_doc_set_similarities();
         void compress_doc_sets();
+        void compute_color_ids_from_flat();
         // Finds documents corresponding to rows in BWT.
         void build_doc_pats();
         // Writes frequencies of document sets to file.
@@ -304,6 +305,7 @@ class MoveStructure {
 
         // Document sets.
         std::vector<uint16_t> flat_colors;
+        std::unordered_map<uint64_t, uint32_t> color_offset_to_id;
         std::vector<std::vector<uint16_t>> unique_doc_sets;
         std::vector<uint32_t> doc_set_inds;
         std::vector<MoveTally> doc_set_flat_inds;

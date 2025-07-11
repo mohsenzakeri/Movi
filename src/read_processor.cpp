@@ -27,6 +27,28 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
         }
 
         if (!mv_.movi_options->is_stdout() and !mv_.movi_options->is_no_output()) {
+
+            if (mv_.movi_options->is_report_colors()) {
+                std::string colors_file_name = reads_file_name + "." + index_type + ".colors.bin";
+                colors_file = std::ofstream(colors_file_name, std::ios::out | std::ios::binary);
+
+                // Copmuter color ids for the output
+                mv.compute_color_ids_from_flat();
+                std::cerr << "Color offset to color id table is created.\n";
+
+            }
+
+            if (mv_.movi_options->is_pml()) {
+                std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
+                mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
+            } else if (mv_.movi_options->is_zml()) {
+                std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
+                mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
+            } else if (mv_.movi_options->is_count()) {
+                std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
+                matches_file = std::ofstream(matches_file_name);
+            }
+
             if (mv_.movi_options->is_pml()) {
                 std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
                 mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
@@ -101,6 +123,7 @@ void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
         process.best_doc = std::numeric_limits<uint16_t>::max();
         process.second_best_doc = std::numeric_limits<uint16_t>::max();
         process.sum_matching_lengths = 0;
+        process.colors_count = 0;
         if (mv.movi_options->is_multi_classify()) {
             std::fill(process.classify_cnts.begin(), process.classify_cnts.end(), 0);
         }
@@ -148,6 +171,8 @@ void ReadProcessor::process_char(Strand& process) {
     if (mv.movi_options->is_multi_classify()) {
         if (process.match_len >= mv.movi_options->get_min_match_len()) {
 
+            process.colors_count += 1;
+
             uint64_t color_id;
 #if COLOR_MODE == 1
             color_id = static_cast<uint64_t>(mv.rlbwt[process.idx].color_id);
@@ -191,6 +216,10 @@ void ReadProcessor::process_char(Strand& process) {
                     }
                 }
             }
+
+            process.mq.add_color(mv.color_offset_to_id[color_id]);
+        } else {
+            process.mq.add_color(mv.color_offset_to_id.size());
         }
     }
 
@@ -483,6 +512,7 @@ void ReadProcessor::find_tally_b(Strand& process) {
 #endif
 
 void ReadProcessor::write_mls(Strand& process) {
+    bool write_stdout = mv.movi_options->is_stdout();
     if (mv.movi_options->is_classify() or mv.movi_options->is_filter()) {
 
         std::vector<uint16_t> matching_lens;
@@ -513,28 +543,56 @@ void ReadProcessor::write_mls(Strand& process) {
                 out_file << "0,0\n";
             }
         } else {
+            if (mv.movi_options->is_report_colors()) {
+                // Writing the PMLs
+                output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, false, false);
+
+                // Writing the colors
+                output_matching_lengths(write_stdout, colors_file, process.read_name, process.mq, true, false);
+            }
+
             // If the second most occurring document is more than 95% of the most occurring one,
             // we report the other species as well and classify the read at a higher level.
             // out_file << mv.to_taxon_id[process.best_doc];
             if (mv.movi_options->is_report_all()) {
-                out_file << mv.to_taxon_id[process.best_doc];
+
+                if (mv.movi_options->get_min_score_frac() == 0) {
+                    // For the min_diff_frac mode, we write the best document no matter what
+                    // For the min_score_frac mode, the best document is outputed only if its score is high enough
+                    out_file << mv.to_taxon_id[process.best_doc];
+                }
+
+                uint32_t output_document_count = 0;
                 uint32_t best_doc_cnt = process.classify_cnts[process.best_doc];
                 for (int i = 0; i < process.classify_cnts.size(); i++) {
-                    float diff_best = static_cast<float>(best_doc_cnt - process.classify_cnts[i]);
-                    // if (i!= process.best_doc and
-                    //     process.classify_cnts[i] > 0.95*static_cast<float>(process.classify_cnts[process.best_doc])) {
-                    if (i!= process.best_doc and diff_best < 0.05 * best_doc_cnt) {
-                            out_file << "," << mv.to_taxon_id[i];
+                    if (mv.movi_options->get_min_score_frac() == 0) {
+
+                        float diff_best = static_cast<float>(best_doc_cnt - process.classify_cnts[i]);
+
+                        if (i!= process.best_doc and diff_best < mv.movi_options->get_min_diff_frac() * best_doc_cnt) {
+                                out_file << "," << mv.to_taxon_id[i];
+                        }
+                    } else {
+
+                        if (static_cast<float>(process.classify_cnts[i]) >= mv.movi_options->get_min_score_frac() * process.colors_count) {
+                            out_file << "," << mv.to_taxon_id[i]; // << ":" << process.classify_cnts[i] << "/" << process.colors_count << "/" << process.read.length();
+                            output_document_count += 1;
+                        }
                     }
+                }
+
+                if (mv.movi_options->get_min_score_frac() != 0 and output_document_count == 0) {
+                    out_file << "0";
                 }
             } else {
                 if (process.second_best_doc == std::numeric_limits<uint16_t>::max()) {
                     out_file << mv.to_taxon_id[process.best_doc] << ",0";
                 } else {
+
                     uint32_t best_doc_cnt = process.classify_cnts[process.best_doc];
-                    uint32_t second_best_doc_cnt = process.classify_cnts[process.second_best_doc];    
-                    // float second_best_doc_frac = static_cast<float>(process.classify_cnts[process.second_best_doc]) / static_cast<float>(process.classify_cnts[process.best_doc]);
+                    uint32_t second_best_doc_cnt = process.classify_cnts[process.second_best_doc];
                     float second_best_diff = static_cast<float>(best_doc_cnt - second_best_doc_cnt);
+
                     if (second_best_diff < 0.05 * best_doc_cnt) {
                         out_file << mv.to_taxon_id[process.best_doc] << "," << mv.to_taxon_id[process.second_best_doc];
                     } else {
@@ -557,7 +615,7 @@ void ReadProcessor::write_mls(Strand& process) {
                 output_logs(costs_file, scans_file, fastforwards_file, process.read_name, process.mq, mv.movi_options->is_no_output());
             }
 
-            output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, mv.movi_options->is_no_output());
+            output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, false, mv.movi_options->is_no_output());
         }
     }
 }

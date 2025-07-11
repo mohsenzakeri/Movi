@@ -9,6 +9,12 @@ class MoveQuery {
         std::string& query() { return query_string; }
         uint64_t length() { return query_string.length(); }
 
+        void add_color(uint32_t color_id) {
+            // Check if the color id is ever larger than 2^32?
+
+            matching_colors.push_back(color_id);
+        }
+
         void add_ml(uint64_t len_, bool to_stdout) {
             uint32_t len = static_cast<uint32_t>(len_);
             if (len_ > std::numeric_limits<uint32_t>::max()) {
@@ -30,6 +36,7 @@ class MoveQuery {
         void add_scan(uint64_t scan) { scans.push_back(scan); }
         void add_fastforward(uint64_t fastforward) { fastforwards.push_back(fastforward); }
         std::vector<uint32_t>& get_matching_lengths() { return matching_lens; }
+        std::vector<uint32_t>& get_matching_colors() { return matching_colors; }
         std::string& get_matching_lengths_string() { return matching_lengths_string; }
         std::vector<uint64_t>& get_sa_entries() { return sa_entries; }
         std::vector<uint16_t>& get_scans() { return scans; }
@@ -49,6 +56,7 @@ class MoveQuery {
         std::string matching_lengths_string = "";
         std::vector<uint64_t> sa_entries;
         std::vector<uint32_t> matching_lens;
+        std::vector<uint32_t> matching_colors;
         std::vector<uint16_t> scans;
         std::vector<uint16_t> fastforwards;
         std::vector<std::chrono::nanoseconds> costs;

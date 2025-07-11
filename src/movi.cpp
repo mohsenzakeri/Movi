@@ -259,7 +259,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                             }
 
                             if (!movi_options.is_filter()) {
-                                output_matching_lengths(movi_options.is_stdout() and !movi_options.is_classify(), mls_file, read_struct.id, mq, movi_options.is_no_output());
+                                output_matching_lengths(movi_options.is_stdout() and !movi_options.is_classify(), mls_file, read_struct.id, mq, false, movi_options.is_no_output());
                                 if (movi_options.is_get_sa_entries()) {
                                     output_sa_entries(sa_entries_file, read_struct.id, mq, movi_options.is_no_output());
                                 }

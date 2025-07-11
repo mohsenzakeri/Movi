@@ -51,6 +51,7 @@ struct Strand {
     uint32_t best_doc;
     uint32_t sum_matching_lengths;
     uint32_t second_best_doc;
+    uint32_t colors_count;
 };
 
 class ReadProcessor {
@@ -94,6 +95,7 @@ class ReadProcessor {
         std::ofstream mls_file;
         std::ofstream matches_file;
         std::ofstream out_file;
+        std::ofstream colors_file;
         int strands;
         uint32_t k;
         bool verbose = false;
