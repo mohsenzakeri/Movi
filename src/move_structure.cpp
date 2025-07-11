@@ -2420,7 +2420,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     uint64_t idx = r - 1; // or we can start from a random position in the rlbwt std::rand() % r
     uint64_t offset = get_n(idx) - 1;
 
-    uint16_t match_len = 0;
+    uint64_t match_len = 0;
     uint16_t ff_count = 0;
     uint64_t ff_count_tot = 0;
     uint64_t scan_count = 0;

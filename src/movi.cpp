@@ -215,11 +215,19 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                             total_ff_count += mv_.query_zml(mq);
                         }
 
-                        std::vector<uint16_t> matching_lens = mq.get_matching_lengths();
                         if (movi_options.is_classify()) {
-                            // classifier.classify(seq->name.s, matching_lens, movi_options);
-                            classifier.classify(read_struct.id, matching_lens, movi_options);
+                            // TODO: Classify for the large pml lens is not supported.
+                            if (movi_options.is_small_pml_lens()) {
+                                std::vector<uint16_t> matching_lens;
+                                for (uint32_t i = 0;  i < mq.get_matching_lengths().size(); i++) {
+                                    matching_lens.push_back(static_cast<uint16_t>(mq.get_matching_lengths()[i]));
+                                }
+
+                                // classifier.classify(seq->name.s, matching_lens, movi_options);
+                                classifier.classify(read_struct.id, matching_lens, movi_options);
+                            }
                         }
+
                         #pragma omp critical
                         {
                             output_matching_lengths(movi_options.is_stdout(), mls_file, read_struct.id, mq);
@@ -298,16 +306,38 @@ void view(MoviOptions& movi_options) {
         std::cout << ">" << read_name << " \n";
         uint64_t mq_pml_lens_size = 0;
         mls_file.read(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
-        std::vector<uint16_t> pml_lens;
-        pml_lens.resize(mq_pml_lens_size);
-        mls_file.read(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
-        for (int64_t i = mq_pml_lens_size - 1; i >= 0; i--) {
-            std::cout << pml_lens[i] << " ";
-        }
-        std::cout << "\n";
 
-        if (movi_options.is_classify()) {
-            classifier.classify(read_name, pml_lens, movi_options);
+
+
+        // TODO: There is a lot of duplicate code here to handle 16 and 32 bits pml variations.
+        std::vector<uint32_t> pmls;
+        if (movi_options.is_small_pml_lens()) {
+            std::vector<uint16_t> pml_lens;
+            pml_lens.resize(mq_pml_lens_size);
+            mls_file.read(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+
+            for (int64_t i = mq_pml_lens_size - 1; i >= 0; i--) {
+                std::cout << pml_lens[i] << " ";
+            }
+
+            std::cout << "\n";
+
+            if (movi_options.is_classify()) {
+                classifier.classify(read_name, pml_lens, movi_options);
+            }
+
+        } else {
+            std::vector<uint32_t> pml_lens;
+            pml_lens.resize(mq_pml_lens_size);
+            mls_file.read(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+
+            for (int64_t i = mq_pml_lens_size - 1; i >= 0; i--) {
+                std::cout << pml_lens[i] << " ";
+            }
+
+            std::cout << "\n";
+
+            // TODO: Classification with 32 bits pmls is not supported.
         }
 
     }
