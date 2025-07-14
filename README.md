@@ -27,14 +27,12 @@ So, Movi clones and installs this repository during build. Furthermore, for the 
 ## Build the Movi index
 
 ```
-./movi build --fasta <fasta file> --index <index directory> --type <index type> --color
+./movi build --fasta <fasta file> --index <index directory> --type <index type>
 ```
 
 `<fasta file>` is a file including the reference genomes to be indexed.
 
 `<index directory>` is the directory where you want the Movi index to be located.
-
-The flag `--color` specifies building the Movi Color idnex.
 
 Note: The flag `--type <index type>` determines the strategy to build the main table of the Movi index. If no value is passed, the `regular-thresholds` index is built.
 Possible index types: `large` `constant` `split` `regular` `regular-thresholds` `blocked` `blocked-thresholds` `tally` `tally-thresholds`
@@ -100,6 +98,8 @@ Movi Color augments the Movi index with information about the origin of sequence
 ```
 This step requires the file `ref.fa.doc_offsets` to be available in the index directory. Every line in the `ref.fa.doc_offsets` should specify the offset in the concatenated text corresponding to the rigth most end of a document + 1.
 It will avoid rebuilding the index from the scratch and only adds the color information to an index.
+
+Alternatively, you can pass the --color flag to the build command to construct the color table during index building.
 
 ### Perform Multi-class classification
 ```
