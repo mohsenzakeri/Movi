@@ -3074,15 +3074,27 @@ void MoveStructure::serialize_doc_sets(std::string fname) {
 
 void MoveStructure::compute_color_ids_from_flat() {
 
+    uint64_t color_count = 0;
+
+    std::cerr << "Start computing the color id table from offsets...\n";
+
     for (uint64_t color_offset = 0; color_offset < flat_colors.size(); ) {
 
         uint32_t color_id = color_offset_to_id.size();
         color_offset_to_id[color_offset] = color_id;
 
-        uint32_t next_color =  color_offset + flat_colors[color_offset] + 1;
+        uint64_t next_color =  color_offset + flat_colors[color_offset] + 1;
         color_offset = next_color;
 
+        if (color_count % 1000000 == 0)
+            std::cerr << color_offset << "/" << flat_colors.size()
+                      << " (" << std::round(static_cast<double>(color_offset)/static_cast<double>(flat_colors.size()) * 100.0) << "%)\r";
+        color_count += 1;
+
     }
+
+    std::cerr << "\n";
+    std::cerr << "Number of colors: " << color_count << "\n";
 }
 
 void MoveStructure::deserialize_doc_sets_flat() {

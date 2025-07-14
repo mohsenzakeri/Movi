@@ -502,7 +502,13 @@ int main(int argc, char** argv) {
             end = std::chrono::system_clock::now();
             elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
             std::fprintf(stderr, "Time measured for loading the document sets: %.3f seconds.\n", elapsed.count() * 1e-9);
-            
+
+            if (movi_options.is_report_colors()) {
+                // Copmuter color ids for the output
+                mv_.compute_color_ids_from_flat();
+                std::cerr << "Color offset to color id table is created.\n";
+            }
+
             begin = std::chrono::system_clock::now();
 
             std::cerr << "COLOR_MODE: " << COLOR_MODE << std::endl;

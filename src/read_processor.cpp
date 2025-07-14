@@ -31,11 +31,6 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
             if (mv_.movi_options->is_report_colors()) {
                 std::string colors_file_name = reads_file_name + "." + index_type + ".colors.bin";
                 colors_file = std::ofstream(colors_file_name, std::ios::out | std::ios::binary);
-
-                // Copmuter color ids for the output
-                mv.compute_color_ids_from_flat();
-                std::cerr << "Color offset to color id table is created.\n";
-
             }
 
             if (mv_.movi_options->is_pml()) {
