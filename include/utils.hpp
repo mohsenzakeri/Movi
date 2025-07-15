@@ -88,6 +88,12 @@ uint8_t F_char(std::vector<uint64_t>& first_runs, uint64_t run);
 
 void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds);
 
+// template <typename T>
+// void output_lens(const std::vector<T>& matching_lengths, std::ofstream& mls_file);
+// // --- Explicit instantiations ---
+// template void output_lens<uint32_t>(const std::vector<uint32_t>&, std::ofstream&);
+// template void output_lens<uint64_t>(const std::vector<uint64_t>&, std::ofstream&);
+
 void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::string read_id, MoveQuery& mq, bool color, bool no_output);
 
 void output_counts(bool to_stdout, std::ofstream& count_file, std::string read_id, size_t query_length, int32_t pos_on_r, uint64_t match_count, bool no_output = false);

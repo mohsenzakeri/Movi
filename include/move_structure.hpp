@@ -299,6 +299,7 @@ class MoveStructure {
         std::vector<double> log_lens;
         uint32_t num_docs;
         uint32_t num_species;
+        uint64_t num_colors = 0;
 
         // Offset of run heads in the rlbwt.
         std::vector<uint64_t> run_offsets;

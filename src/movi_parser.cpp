@@ -51,7 +51,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("multi-classify", "Multi-class classification with PMLs")
         ("early-stop", "Early stop the read processing for unclassified reads")
         ("report-all", "Report all the taxon ids for each read (default: min-diff-frac = 0.05), not available in no-prefetch mode")
-        ("report-colors", "Report the colors for each PML")
+        ("report-colors", "Report the colors (as offsets in the flat color table) for each PML")
+        ("report-color-ids", "Report the color ids for each PML")
         ("min-diff-frac", "Report all the taxon ids which have score close to the best document by this fraction", cxxopts::value<float>())
         ("min-score-frac", "Report all the taxon ids which have score >= min-score-frac * read-length. If set, min-diff-frac mode is turned off.", cxxopts::value<float>())
         ("min-len", "Minimum matching length for classification (only consider PMLs >= min-len), default is 1", cxxopts::value<uint8_t>())
@@ -87,7 +88,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
     auto viewOptions = options.add_options("view")
         ("mls-file", "The matching lengths (PML or ZML) file in the binary format", cxxopts::value<std::string>())
-        ("small-pml", "Read the binary file with PMLs stored as uint16_t.");
+        ("small-pml", "Read the binary file with PMLs stored as uint16_t.")
+        ("large-pml", "Read the binary file with PMLs stored as uint64_t.");
 
     auto rlbwtOptions = options.add_options("rlbwt")
         ("bwt-file", "BWT file", cxxopts::value<std::string>());
@@ -225,6 +227,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("early-stop") >= 1) { movi_options.set_early_stop(true); }
                         if (result.count("report-all") >= 1) { movi_options.set_report_all(true); }
                         if (result.count("report-colors") >= 1) { movi_options.set_report_colors(true); }
+                        if (result.count("report-color-ids") >= 1) { movi_options.set_report_color_ids(true); }
                         if (result.count("min-diff-frac") >= 1) { movi_options.set_min_diff_frac(static_cast<float>(result["min-diff-frac"].as<float>())); }
                         if (result.count("min-score-frac") >= 1) { movi_options.set_min_score_frac(static_cast<float>(result["min-score-frac"].as<float>())); }
                         if (result.count("min-len")) { movi_options.set_min_match_len(result["min-len"].as<uint8_t>()); }
@@ -300,6 +303,10 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     movi_options.set_mls_file(result["mls-file"].as<std::string>());
                     if (result.count("small-pml") >= 1) {
                         movi_options.set_small_pml_lens(true);
+                    }
+
+                    if (result.count("large-pml") >= 1) {
+                        movi_options.set_large_pml_lens(true);
                     }
 
                     if (result.count("classify") >= 1) {

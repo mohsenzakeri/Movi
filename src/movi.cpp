@@ -351,7 +351,6 @@ void view(MoviOptions& movi_options) {
 
 
         // TODO: There is a lot of duplicate code here to handle 16 and 32 bits pml variations.
-        std::vector<uint32_t> pmls;
         if (movi_options.is_small_pml_lens()) {
             std::vector<uint16_t> pml_lens;
             pml_lens.resize(mq_pml_lens_size);
@@ -366,6 +365,20 @@ void view(MoviOptions& movi_options) {
             if (movi_options.is_classify()) {
                 classifier.classify(read_name, pml_lens, movi_options);
             }
+
+        } else if (movi_options.is_large_pml_lens()) {
+
+            std::vector<uint64_t> pml_lens;
+            pml_lens.resize(mq_pml_lens_size);
+            mls_file.read(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
+
+            for (int64_t i = mq_pml_lens_size - 1; i >= 0; i--) {
+                std::cout << pml_lens[i] << " ";
+            }
+
+            std::cout << "\n";
+
+            // TODO: used for color offsets (instad of color ids)
 
         } else {
             std::vector<uint32_t> pml_lens;
@@ -503,10 +516,9 @@ int main(int argc, char** argv) {
             elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
             std::fprintf(stderr, "Time measured for loading the document sets: %.3f seconds.\n", elapsed.count() * 1e-9);
 
-            if (movi_options.is_report_colors()) {
+            if (movi_options.is_report_colors() or movi_options.is_report_color_ids()) {
                 // Copmuter color ids for the output
                 mv_.compute_color_ids_from_flat();
-                std::cerr << "Color offset to color id table is created.\n";
             }
 
             begin = std::chrono::system_clock::now();

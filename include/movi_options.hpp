@@ -20,6 +20,7 @@ class MoviOptions {
         bool no_prefetch() { return !prefetch; }
         bool is_no_output() { return no_output; }
         bool is_small_pml_lens() { return small_pml_lens; }
+        bool is_large_pml_lens() { return large_pml_lens; }
         bool is_output_ids() { return output_ids; }
         bool is_stdout() { return write_stdout; }
         bool is_verbose() { return verbose; }
@@ -39,6 +40,7 @@ class MoviOptions {
         bool is_filter() { return filter; }
         bool is_early_stop() { return early_stop; }
         bool is_report_colors() { return report_colors; }
+        bool is_report_color_ids() { return report_color_ids; }
         bool is_report_all() { return report_all; }
         float get_min_diff_frac() { return min_diff_frac; }
         float get_min_score_frac() { return min_score_frac; }
@@ -77,6 +79,7 @@ class MoviOptions {
         void set_thresholds(bool thresholds_) { thresholds = thresholds_; }
         void set_no_output(bool no_output_) { no_output = no_output_; }
         void set_small_pml_lens(bool small_pml_lens_) { small_pml_lens = small_pml_lens_; }
+        void set_large_pml_lens(bool large_pml_lens_) { large_pml_lens = large_pml_lens_; }
         void set_output_ids(bool output_ids_) { output_ids = output_ids_; }
         void set_stdout(bool write_stdout_) { write_stdout = write_stdout_; }
         void set_verbose(bool verbose_) { verbose = verbose_; }
@@ -101,6 +104,7 @@ class MoviOptions {
         void set_multi_classify(bool multi_classify_) { multi_classify = multi_classify_; }
         void set_early_stop(bool val) { early_stop = val; }
         void set_report_colors(bool report_colors_) { report_colors = report_colors_; }
+        void set_report_color_ids(bool report_color_ids_) { report_color_ids = report_color_ids_; }
         void set_report_all(bool report_all_) { report_all = report_all_; }
         void set_min_diff_frac(float min_diff_frac_) { min_diff_frac = min_diff_frac_; }
         void set_min_score_frac(float min_score_frac_) { min_score_frac = min_score_frac_; }
@@ -180,6 +184,7 @@ class MoviOptions {
             std::cerr << "bin_width:\t" << bin_width << "\n";
             std::cerr << "no_output:\t" << no_output << "\n";
             std::cerr << "small_pml_lens:\t" << small_pml_lens << "\n";
+            std::cerr << "large_pml_lens:\t" << large_pml_lens << "\n";
             std::cerr << "output_ids:\t" << output_ids << "\n";
             std::cerr << "stdout:\t" << write_stdout << "\n";
             std::cerr << "debug:\t" << debug << "\n";
@@ -223,6 +228,7 @@ class MoviOptions {
         bool multi_classify = false;
         bool early_stop = false;
         bool report_colors = false;
+        bool report_color_ids = false;
         bool report_all = false;
         float min_diff_frac = 0.05;
         float min_score_frac = 0;
@@ -231,6 +237,7 @@ class MoviOptions {
 
         bool no_output = false;
         bool small_pml_lens = false;
+        bool large_pml_lens = false;
         bool output_ids = false;
         bool write_stdout = false;
         bool debug = false;

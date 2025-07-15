@@ -31,6 +31,9 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
             if (mv_.movi_options->is_report_colors()) {
                 std::string colors_file_name = reads_file_name + "." + index_type + ".colors.bin";
                 colors_file = std::ofstream(colors_file_name, std::ios::out | std::ios::binary);
+            } else if (mv_.movi_options->is_report_color_ids()) {
+                std::string colors_file_name = reads_file_name + "." + index_type + ".color_ids.bin";
+                colors_file = std::ofstream(colors_file_name, std::ios::out | std::ios::binary);
             }
 
             if (mv_.movi_options->is_pml()) {
@@ -212,9 +215,20 @@ void ReadProcessor::process_char(Strand& process) {
                 }
             }
 
-            process.mq.add_color(mv.color_offset_to_id[color_id]);
+            if (mv.movi_options->is_report_color_ids()) {
+                process.mq.add_color(mv.color_offset_to_id[color_id]);
+            } else if (mv.movi_options->is_report_colors()) {
+                process.mq.add_color(color_id);
+            }
+
         } else {
-            process.mq.add_color(mv.color_offset_to_id.size());
+
+            if (mv.movi_options->is_report_color_ids()) {
+                process.mq.add_color(mv.num_colors);
+            } else if (mv.movi_options->is_report_colors()) {
+                process.mq.add_color(mv.flat_colors.size());
+            }
+
         }
     }
 
@@ -538,7 +552,7 @@ void ReadProcessor::write_mls(Strand& process) {
                 out_file << "0,0\n";
             }
         } else {
-            if (mv.movi_options->is_report_colors()) {
+            if (mv.movi_options->is_report_colors() or mv.movi_options->is_report_color_ids()) {
                 // Writing the PMLs
                 output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, false, false);
 

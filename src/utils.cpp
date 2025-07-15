@@ -173,28 +173,46 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
     std::cerr << "Finished reading " << i << " thresholds.\n";
 }
 
+template <typename T>
+void output_lens(const std::vector<T>& matching_lengths, std::ofstream& mls_file) {
+
+    uint64_t matching_lengths_size = matching_lengths.size();
+    mls_file.write(reinterpret_cast<const char*>(&matching_lengths_size), sizeof(matching_lengths_size));
+
+    mls_file.write(reinterpret_cast<const char*>(&matching_lengths[0]), matching_lengths_size * sizeof(T));
+
+}
 
 void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::string read_id, MoveQuery& mq, bool color, bool no_output) {
 
     if (to_stdout) {
+
         std::cout << ">" << read_id << " \n";
         std::reverse(mq.get_matching_lengths_string().begin(), mq.get_matching_lengths_string().end());
         std::cout << mq.get_matching_lengths_string();
         std::cout << "\n";
-    } else {
-        auto& matching_lengths = mq.get_matching_lengths();
-        if (color) {
-            matching_lengths = mq.get_matching_colors();
-        }
 
-        uint64_t matching_lengths_size = matching_lengths.size();
-        // uint16_t st_length = seq->name.m;
+    } else {
+
         uint16_t st_length = read_id.length();
+        // uint16_t st_length = seq->name.m;
+
         mls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
         // mls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
+
         mls_file.write(reinterpret_cast<char*>(&read_id[0]), st_length);
-        mls_file.write(reinterpret_cast<char*>(&matching_lengths_size), sizeof(matching_lengths_size));
-        mls_file.write(reinterpret_cast<char*>(&matching_lengths[0]), matching_lengths_size * sizeof(matching_lengths[0]));
+
+        if (color) {
+
+            std::vector<uint64_t>& matching_lengths = mq.get_matching_colors();
+            output_lens(matching_lengths, mls_file);
+
+        } else {
+
+            std::vector<uint32_t>& matching_lengths = mq.get_matching_lengths();
+            output_lens(matching_lengths, mls_file);
+
+        }
     }
 }
 
