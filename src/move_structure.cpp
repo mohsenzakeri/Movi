@@ -1409,6 +1409,8 @@ void MoveStructure::build() {
         uint64_t pp_id = rbits(lf) - 1;
         if (bits[lf] == 1)
             pp_id += 1;
+
+        // TODO: can we use lens instead? or use it to confirm the following computation
         uint64_t len = all_p[r_idx + 1] - all_p[r_idx];
 
         // check the boundaries before performing select
@@ -1888,7 +1890,10 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
             uint64_t block_boundary = (block_size) * block_count; // BLOCK_SIZE = 1 << 22 - 1
 
             if (i >= block_boundary) {
-                std::cout << "\n\n" << block_count << "\t";
+
+                if (movi_options->is_verbose())
+                    std::cerr << "\n\n" << block_count << "\t";
+
                 // A new block is being initiated
                 block_count += 1;
 
@@ -1896,11 +1901,17 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
                 for (uint64_t j = 0; j < alphabet.size(); j++) {
 
                     id_blocks[j].push_back(block_start_id[j]);
-                    std::cout << id_blocks[j][block_count - 1] << "\t";
+
+                    if (movi_options->is_verbose())
+                        std::cerr << id_blocks[j][block_count - 1] << "\t";
+
                     if (block_count > 1)
                         max_diff = std::max(max_diff, id_blocks[j][block_count - 1] - id_blocks[j][block_count - 2] );
                 }
-                std::cout << "\n";
+
+                if (movi_options->is_verbose())
+                    std::cerr << "\n";
+
             }
 
             // Check for potential errors in blocked id computation
@@ -3365,7 +3376,6 @@ void MoveStructure::deserialize() {
     std::cerr << "alphabet_size: " << alphabet_size << "\n";
     alphabet.resize(alphabet_size);
     fin.read(reinterpret_cast<char*>(&alphabet[0]), alphabet_size*sizeof(alphabet[0]));
-    std::cerr << "alphabet_size: " << alphabet_size << "\n";
     if (alphabet.size() > 4) {
         std::cerr << "Warning: There are more than 4 characters, the index expects only A, C, T and G in the reference.\n";
     }

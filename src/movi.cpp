@@ -486,8 +486,9 @@ int main(int argc, char** argv) {
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
             std::fprintf(stderr, "Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
 
-            begin = std::chrono::system_clock::now();
             if (movi_options.is_multi_classify()) {
+                begin = std::chrono::system_clock::now();
+
                 if (movi_options.is_full_color()) {
                     mv_.fill_run_offsets();
                     std::string fname = movi_options.get_index_dir() + "/doc_pats.bin";
@@ -511,10 +512,11 @@ int main(int argc, char** argv) {
                 }
                 mv_.out_file.open(movi_options.get_out_file());
                 mv_.initialize_classify_cnts();
+
+                end = std::chrono::system_clock::now();
+                elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+                std::fprintf(stderr, "Time measured for loading the document sets: %.3f seconds.\n", elapsed.count() * 1e-9);
             }
-            end = std::chrono::system_clock::now();
-            elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-            std::fprintf(stderr, "Time measured for loading the document sets: %.3f seconds.\n", elapsed.count() * 1e-9);
 
             if (movi_options.is_report_colors() or movi_options.is_report_color_ids()) {
                 // Copmuter color ids for the output
@@ -523,7 +525,7 @@ int main(int argc, char** argv) {
 
             begin = std::chrono::system_clock::now();
 
-            std::cerr << "COLOR_MODE: " << COLOR_MODE << std::endl;
+            // std::cerr << "COLOR_MODE: " << COLOR_MODE << std::endl;
 
             if (movi_options.is_color_move_rows()) {
                 mv_.add_colors_to_rlbwt();
