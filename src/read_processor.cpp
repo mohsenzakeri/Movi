@@ -773,8 +773,12 @@ void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
     bool is_pml = mv.movi_options->is_pml();
 
     std::vector<Strand> processes;
-    uint64_t finished_count = initialize_strands(processes, reader);
-    std::cerr << strands << " processes are initiated.\n";
+    uint64_t finished_count = 0;
+    #pragma omp critical
+    {
+        finished_count = initialize_strands(processes, reader);
+        // std::cerr << strands << " processes are initiated.\n";
+    }
 
     while (finished_count != strands) {
         for (uint64_t i = 0; i < strands; i++) {
@@ -784,8 +788,14 @@ void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
                 }
                 // 2: if the read is done -> Write the pmls and go to next read
                 if (is_pml and processes[i].pos_on_r <= -1) {
-                    write_mls(processes[i]);
-                    reset_process(processes[i], reader);
+                    #pragma omp critical
+                    {
+                        if (read_processed % 1000 == 0)
+                            std::cerr << read_processed << "\r";
+
+                        write_mls(processes[i]);
+                        reset_process(processes[i], reader);
+                    }
                 }
                 // 3: -- check if it was the last read in the file -> finished_count++
                 if (processes[i].finished) {
