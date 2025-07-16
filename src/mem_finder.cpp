@@ -10,8 +10,8 @@ uint64_t MoveStructure::query_mems(MoveQuery& mq) {
 
     int32_t pos_on_r = 0; // MEM finding goes left to right
     std::string& query_seq = mq.query();
-    #pragma omp atomic
-    mem_stats.total_length += query_seq.length();
+    // #pragma omp atomic
+    // mem_stats.total_length += query_seq.length();
 
     size_t ftab_k = movi_options->get_ftab_k();
     // At the time, the initialization works if ftab with ftab_k exists only
@@ -39,32 +39,32 @@ bool MoveStructure::query_mem_bml(MoveQuery& mq, int32_t& pos_on_r, int32_t& min
     int32_t init_pos = pos_on_r + min_mem_length - 1;
     MoveBiInterval bi_interval;
     bi_interval = initialize_bidirectional_search(mq, init_pos, match_len);
-    #pragma omp atomic
-    mem_stats.ftab_bidirectional_extensions += match_len;
-    if (match_len <= 1) {
-        #pragma omp atomic
-        ++mem_stats.ftab_bidirectional_fail;
-    }
+    // #pragma omp atomic
+    // // mem_stats.ftab_bidirectional_extensions += match_len;
+    // if (match_len <= 1) {
+    //     #pragma omp atomic
+    //     ++mem_stats.ftab_bidirectional_fail;
+    // }
     // If min_mem_length is at least ftab_k, we skip using BML
     bool ftab_skip = match_len <= 1 && ftab_k <= min_mem_length;
     --init_pos; // Move to next character left of initial match range
 
     if (ftab_skip) {
-        #pragma omp atomic
-        ++mem_stats.ftab_skips;
+        // #pragma omp atomic
+        // ++mem_stats.ftab_skips;
         // If BML skip is known from ftab, find next left end with only backward extension (extend_left slow without ftab)
         MoveInterval fw_interval = bi_interval.fw_interval;
         for (size_t j = 0; j <= init_pos - pos_on_r; ++j) {
             if (!backward_search_step(query_seq[init_pos - j], fw_interval)) {
                 pos_on_r = init_pos - j + 1;
-                #pragma omp atomic
-                ++mem_stats.bml_skips;
-                #pragma omp atomic
-                mem_stats.bml_chars_skipped += j - (init_pos - pos_on_r);
+                // #pragma omp atomic
+                // ++mem_stats.bml_skips;
+                // #pragma omp atomic
+                // mem_stats.bml_chars_skipped += j - (init_pos - pos_on_r);
                 return false;
             }
-            #pragma omp atomic
-            ++mem_stats.backward_extensions;
+            // #pragma omp atomic
+            // ++mem_stats.backward_extensions;
             ++match_len;
         }
         // Should never reach here
@@ -76,14 +76,14 @@ bool MoveStructure::query_mem_bml(MoveQuery& mq, int32_t& pos_on_r, int32_t& min
         for (size_t j = 0; j <= init_pos - pos_on_r; ++j) {
             if (!extend_left(query_seq[init_pos - j], bi_interval)) {
                 pos_on_r = init_pos - j + 1;
-                #pragma omp atomic
-                ++mem_stats.bml_skips;
-                #pragma omp atomic
-                mem_stats.bml_chars_skipped += j - (init_pos - pos_on_r);
+                // #pragma omp atomic
+                // ++mem_stats.bml_skips;
+                // #pragma omp atomic
+                // mem_stats.bml_chars_skipped += j - (init_pos - pos_on_r);
                 return false;
             }
-            #pragma omp atomic
-            ++mem_stats.bidirectional_left_extensions;
+            // #pragma omp atomic
+            // ++mem_stats.bidirectional_left_extensions;
             ++match_len;
         }
     }
@@ -98,15 +98,15 @@ bool MoveStructure::query_mem_bml(MoveQuery& mq, int32_t& pos_on_r, int32_t& min
             rc_interval = rc_interval_before_extension;
             break;
         }
-        #pragma omp atomic
-        ++mem_stats.forward_extensions;
+        // #pragma omp atomic
+        // ++mem_stats.forward_extensions;
         ++match_len;
     }
 
-    #pragma omp atomic
-    ++mem_stats.mems;
-    #pragma omp atomic
-    mem_stats.total_counts += rc_interval.count(rlbwt);
+    // #pragma omp atomic
+    // ++mem_stats.mems;
+    // #pragma omp atomic
+    // mem_stats.total_counts += rc_interval.count(rlbwt);
     mq.add_mem(pos_on_r, i, rc_interval.count(rlbwt));
 
     // Backward extension to find next left end of candidate MEM (inclusive)
@@ -118,19 +118,19 @@ bool MoveStructure::query_mem_bml(MoveQuery& mq, int32_t& pos_on_r, int32_t& min
         match_len = 0;
         MoveInterval fw_interval = initialize_backward_search(mq, init_pos, match_len);
         ++match_len; // TODO: this is still off by one for initialize_backward_search
-        #pragma omp atomic
-        mem_stats.ftab_backward_extensions += match_len;
-        if (match_len <= 1) {
-            #pragma omp atomic
-            ++mem_stats.ftab_backward_fail;
-        }
+        // #pragma omp atomic
+        // mem_stats.ftab_backward_extensions += match_len;
+        // if (match_len <= 1) {
+        //     #pragma omp atomic
+        //     ++mem_stats.ftab_backward_fail;
+        // }
         --init_pos; // Move to next character left of ftab k-mer or character left of initial range if ftab fails
         for (i = 0; i <= init_pos - (pos_on_r + 1); ++i) {
             if (!backward_search_step(query_seq[init_pos - i], fw_interval)) {
                 break;
             }
-            #pragma omp atomic
-            ++mem_stats.backward_extensions;
+            // #pragma omp atomic
+            // ++mem_stats.backward_extensions;
             ++match_len;
         }
     }
@@ -141,8 +141,8 @@ bool MoveStructure::query_mem_bml(MoveQuery& mq, int32_t& pos_on_r, int32_t& min
 
 uint64_t MoveStructure::query_all_mems(MoveQuery& mq) {
     std::string& query_seq = mq.query();
-    #pragma omp atomic
-    mem_stats.total_length += query_seq.length();
+    // #pragma omp atomic
+    // mem_stats.total_length += query_seq.length();
     
     size_t ftab_k = movi_options->get_ftab_k();
     // At the time, the initialization works if ftab with ftab_k exists only
@@ -154,12 +154,12 @@ uint64_t MoveStructure::query_all_mems(MoveQuery& mq) {
     uint64_t match_len = 0; // bases matched so far
     int32_t init_pos = s; 
     MoveBiInterval bi_interval = initialize_bidirectional_search(mq, init_pos, match_len);
-    #pragma omp atomic
-    mem_stats.ftab_bidirectional_extensions += match_len;
-    if (match_len <= 1) {
-        #pragma omp atomic
-        ++mem_stats.ftab_bidirectional_fail;
-    }
+    // #pragma omp atomic
+    // mem_stats.ftab_bidirectional_extensions += match_len;
+    // if (match_len <= 1) {
+    //     #pragma omp atomic
+    //     ++mem_stats.ftab_bidirectional_fail;
+    // }
 
     // Forward extension to find right end of MEM (exclusive)
     while (s < query_seq.length()) {
@@ -168,12 +168,12 @@ uint64_t MoveStructure::query_all_mems(MoveQuery& mq) {
         while (s + match_len < query_seq.length() && extend_right(query_seq[s + match_len], bi_interval)) {
             bi_interval_before_extension = bi_interval;
             ++match_len;
-            #pragma omp atomic
-            ++mem_stats.bidirectional_right_extensions;
+            // #pragma omp atomic
+            // ++mem_stats.bidirectional_right_extensions;
         }
         e = s + match_len;
-        #pragma omp atomic
-        mem_stats.total_counts += bi_interval_before_extension.fw_interval.count(rlbwt);
+        // #pragma omp atomic
+        // mem_stats.total_counts += bi_interval_before_extension.fw_interval.count(rlbwt);
         mq.add_mem(s, e, bi_interval_before_extension.fw_interval.count(rlbwt));
 
         // Backward extension to find next MEM start
@@ -181,17 +181,17 @@ uint64_t MoveStructure::query_all_mems(MoveQuery& mq) {
         if (e < query_seq.length()) {
             init_pos = e;
             bi_interval = initialize_bidirectional_search(mq, init_pos, match_len);
-            #pragma omp atomic
-            mem_stats.ftab_bidirectional_extensions += match_len;
-            if (match_len <= 1) {
-                #pragma omp atomic
-                ++mem_stats.ftab_bidirectional_fail;
-            }
+            // #pragma omp atomic
+            // mem_stats.ftab_bidirectional_extensions += match_len;
+            // if (match_len <= 1) {
+            //     #pragma omp atomic
+            //     ++mem_stats.ftab_bidirectional_fail;
+            // }
             while (extend_left(query_seq[e - match_len], bi_interval)) {
                 bi_interval_before_extension = bi_interval;
                 ++match_len;
-                #pragma omp atomic
-                ++mem_stats.bidirectional_left_extensions;
+                // #pragma omp atomic
+                // ++mem_stats.bidirectional_left_extensions;
             }
             bi_interval = bi_interval_before_extension;
         }
