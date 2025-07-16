@@ -13,6 +13,7 @@ class MoviOptions {
             pml_query = true;
         }
         bool is_no_header() { return no_header; }
+        bool is_adjusted_block() { return adjusted_block; }
         bool is_preprocessed() { return preprocessed; }
         bool is_split() { return split; }
         bool is_thresholds() { return thresholds; }
@@ -75,6 +76,7 @@ class MoviOptions {
         std::string get_out_file() { return out_file; }
 
         void set_no_header(bool no_header_) { no_header = no_header_; }
+        void set_adjusted_block(bool adjusted_block_) { adjusted_block = adjusted_block_; }
         void set_preprocessed(bool preprocessed_) { preprocessed = preprocessed_; }
         void set_thresholds(bool thresholds_) { thresholds = thresholds_; }
         void set_no_output(bool no_output_) { no_output = no_output_; }
@@ -156,6 +158,7 @@ class MoviOptions {
             std::cerr << "index_dir:\t" << index_dir << "\n";
             std::cerr << "LF_type:\t" << LF_type << "\n";
             std::cerr << "no_header:\t" << no_header << "\n";
+            std::cerr << "adjusted_block:\t" << adjusted_block << "\n";
             std::cerr << "preprocessed:\t" << preprocessed << "\n";
             std::cerr << "ilc:\t" << ilc << "\n";
             std::cerr << "split:\t" << split << "\n";
@@ -201,6 +204,7 @@ class MoviOptions {
         std::string LF_type;
         std::string out_file;
         bool no_header = false;
+        bool adjusted_block = true;
         bool preprocessed = false;
         int ilc = 0;
         bool split = false;

@@ -11,6 +11,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("type", "Which index type should be built or used.", cxxopts::value<std::string>())
         ("h,help", "Print help")
         ("no-header", "Header information in not stored")
+        ("default-blocks", "The block size should not be read from the index (for blocked indexes)")
         ("d,dbg", "Enable debug mode")
         ("v,verbose", "Enable verbose mode")
         ("l,logs", "Enable logs");
@@ -121,6 +122,11 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         if (result.count("no-header")) {
             // Set global verbose flag
             movi_options.set_no_header(true);
+        }
+
+        if (result.count("default-block")) {
+            // Set global verbose flag
+            movi_options.set_adjusted_block(false);
         }
 
         if (result.count("verbose")) {

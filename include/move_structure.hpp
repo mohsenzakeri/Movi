@@ -199,6 +199,10 @@ class MoveStructure {
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
         uint32_t compute_index(char row_char, char lookup_char);
 
+#if BLOCKED_MODE
+        void compute_blocked_ids(std::vector<uint64_t>& raw_ids);
+#endif
+
 #if USE_NEXT_POINTERS
         void compute_nexts();
 #endif
@@ -370,7 +374,11 @@ class MoveStructure {
         uint32_t tally_checkpoints;
         std::vector<std::vector<MoveTally>> tally_ids;
 #endif
+
+#if BLOCKED_MODE
         std::vector<std::vector<uint32_t>> id_blocks;
+        uint64_t block_size = BLOCK_SIZE;
+#endif
 
         // auxilary datastructures for the length, offset and thresholds overflow
         std::vector<uint64_t> n_overflow;

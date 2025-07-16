@@ -22,6 +22,7 @@ void MoveRow::init(uint16_t n_, uint16_t offset_, uint64_t id_) {
     // This should be set before calling other setters.
     overflow_bits = std::numeric_limits<uint8_t>::max();
 #endif
+    // TODO: In the blocked mode, the following (set_id) is not needed here (will be set later)
     this->set_id(id_);
     if (id_ != this->get_id()) {
         std::cerr << "The id setter or getter is not working properly.\n";

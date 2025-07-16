@@ -664,7 +664,7 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
 #endif
 #if BLOCKED_MODE
     if (idx != end_bwt_idx) {
-        uint64_t block_number = idx / BLOCK_SIZE;
+        uint64_t block_number = idx / block_size;
         return rlbwt[idx].get_id() + static_cast<uint64_t>(id_blocks[rlbwt[idx].get_c()][block_number]) + first_runs[rlbwt[idx].get_c() + 1];
     }
     else
@@ -1458,12 +1458,17 @@ void MoveStructure::build() {
             }
         }
 #else
+
+
+#if BLOCKED_MODE
+        raw_ids[r_idx] = pp_id;
+        pp_id = 0;
+#endif
+
         // rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
         rlbwt[r_idx].init(len, offset, pp_id);
 #endif
-#if BLOCKED_MODE
-        raw_ids[r_idx] = pp_id;
-#endif
+
         // To take care of cases where length of the run
         // does not fit in uint16_t
 #if SPLIT_MAX_RUN
@@ -1563,76 +1568,7 @@ void MoveStructure::build() {
     }
 
 #if BLOCKED_MODE
-    uint64_t max_raw_id = 0;
-    uint64_t max_blocked_id = 0;
-    std::vector<uint32_t> block_start_id;
-    block_start_id.resize(alphabet.size(), 0);
-    uint64_t block_count = 0;
-    id_blocks.resize(alphabet.size());
-    uint32_t max_diff = 0;
-    for (uint64_t i = 0; i < rlbwt.size(); i++) {
-        if (i % 10000 == 0)
-            std::cerr << "i: " << i << "\r";
-        uint64_t block_boundary = (BLOCK_SIZE) * block_count; // BLOCK_SIZE = 1 << 22 - 1
-        if (i >= block_boundary) {
-            std::cout << "\n\n" << block_count << "\t";
-            // A new block is being initiated
-            block_count += 1;
-            // Store the largest (last) observed id for each character in the last block as a check point for the new block
-            for (uint64_t j = 0; j < alphabet.size(); j++) {
-                id_blocks[j].push_back(block_start_id[j]);
-                std::cout << id_blocks[j][block_count - 1] << "\t";
-                if (block_count > 1)
-                    max_diff = std::max(max_diff, id_blocks[j][block_count - 1] - id_blocks[j][block_count - 2] );
-            }
-            std::cout << "\n";
-        }
-        if (i != end_bwt_idx) {
-            uint64_t id = raw_ids[i];
-            max_raw_id = std::max(id, max_raw_id);
-
-            uint64_t block_number = i / BLOCK_SIZE;
-            if (block_number != block_count - 1) {
-                std::cerr << "The block calculation is incorrect.\n";
-                std::cerr << "block_count: " << block_count << " block_number: " << block_number << "\n";
-                exit(0);
-            }
-
-            // First Calcuate the id with respect to the first run with the same character -> adjusted_id
-            // The first entry of the first _runs stores the ids for the global end run, so +1 is required
-            uint64_t adjusted_id = id - first_runs[rlbwt[i].get_c() + 1];
-            // Calcuated the distance of the ajustedt_id from the check point of that character
-            uint64_t blocked_id = adjusted_id - static_cast<uint64_t>(id_blocks[rlbwt[i].get_c()][block_number]);
-            if (blocked_id > MAX_BLOCKED_ID) {
-                std::cerr << "The number of bits in the runs are not enough for storing the blocked_id.\n";
-                std::cerr << "adjusted_id: " << adjusted_id << " id: " << id << " first_runs[rlbwt[i].get_c() + 1]: " << first_runs[rlbwt[i].get_c() + 1] << "\n";
-                std::cerr << "id_blocks[rlbwt[i].get_c()][block_number]: " << id_blocks[rlbwt[i].get_c()][block_number] << "\n";
-                std::cerr << "rlbwt[i].get_c(): " << static_cast<uint32_t>(rlbwt[i].get_c()) << "\n";
-                std::cerr << "blocked_id: " << blocked_id << " MAX_BLOCKED_ID: " << MAX_BLOCKED_ID << "\n";
-                std::cerr << "block_count: " << block_count << " block_number: " << block_number << "\n";
-                std::cerr << "i: " << i << " BLOCK_SIZE: " << BLOCK_SIZE << "\n";
-                exit(0);
-            }
-            rlbwt[i].set_id(blocked_id);
-            if (rlbwt[i].get_id() != blocked_id) {
-                std::cerr << rlbwt[i].get_id() << "-------" << blocked_id << "\n";
-                exit(0);
-            }
-
-            max_blocked_id = std::max(blocked_id, max_blocked_id);
-
-            // always holds the last id seen for each character
-            block_start_id[rlbwt[i].get_c()] = static_cast<uint32_t>(id - first_runs[rlbwt[i].get_c() + 1]);
-            if (id - first_runs[rlbwt[i].get_c() + 1] > std::numeric_limits<uint32_t>::max()) {
-                std::cerr << "id - first_runs[rlbwt[i].get_c() + 1]: " << id - first_runs[rlbwt[i].get_c() + 1] << "\n";
-                std::cerr << "The block_start_id does not fit in uint32_t\n";
-                exit(0);
-            }
-        }
-    }
-    std::cerr << "max raw id: " << max_raw_id << "\t max blocked id: " << max_blocked_id << "\n";
-    std::cerr << "max allowed blocked id: " << MAX_BLOCKED_ID << "\n";
-    std::cerr << "Maximum distance between the check points: " << max_diff << "\n";
+    compute_blocked_ids(raw_ids);
 #endif
 
 #if USE_NEXT_POINTERS
@@ -1925,6 +1861,119 @@ void MoveStructure::compute_thresholds() {
     }
 }
 #endif
+
+#if BLOCKED_MODE
+void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
+    bool blocked_ids_computed = false;
+    block_size = BLOCK_SIZE;
+
+    while (!blocked_ids_computed) {
+        uint64_t max_raw_id = 0;
+        uint64_t max_blocked_id = 0;
+        std::vector<uint32_t> block_start_id;
+        block_start_id.resize(alphabet.size(), 0);
+        uint64_t block_count = 0;
+        id_blocks.resize(alphabet.size());
+        uint32_t max_diff = 0;
+
+        bool small_block = false;
+        for (uint64_t i = 0; i < rlbwt.size(); i++) {
+            if (i % 10000 == 0)
+                std::cerr << "i: " << i << "\r";
+            uint64_t block_boundary = (block_size) * block_count; // BLOCK_SIZE = 1 << 22 - 1
+            if (i >= block_boundary) {
+                std::cout << "\n\n" << block_count << "\t";
+                // A new block is being initiated
+                block_count += 1;
+                // Store the largest (last) observed id for each character in the last block as a check point for the new block
+                for (uint64_t j = 0; j < alphabet.size(); j++) {
+                    id_blocks[j].push_back(block_start_id[j]);
+                    std::cout << id_blocks[j][block_count - 1] << "\t";
+                    if (block_count > 1)
+                        max_diff = std::max(max_diff, id_blocks[j][block_count - 1] - id_blocks[j][block_count - 2] );
+                }
+                std::cout << "\n";
+            }
+            if (i != end_bwt_idx) {
+                uint64_t id = raw_ids[i];
+                max_raw_id = std::max(id, max_raw_id);
+
+                uint64_t block_number = i / block_size;
+                if (block_number != block_count - 1) {
+                    std::cerr << "The block calculation is incorrect.\n";
+                    std::cerr << "block_count: " << block_count << " block_number: " << block_number << "\n";
+                    exit(0);
+                }
+
+                // First Calcuate the id with respect to the first run with the same character -> adjusted_id
+                // The first entry of the first _runs stores the ids for the global end run, so +1 is required
+                uint64_t adjusted_id = id - first_runs[rlbwt[i].get_c() + 1];
+                // Calcuated the distance of the ajustedt_id from the check point of that character
+                uint64_t blocked_id = adjusted_id - static_cast<uint64_t>(id_blocks[rlbwt[i].get_c()][block_number]);
+                if (blocked_id > MAX_BLOCKED_ID) {
+                    std::cerr << "The number of bits in the runs are not enough for storing the blocked_id.\n";
+                    std::cerr << "adjusted_id: " << adjusted_id << " id: " << id << " first_runs[rlbwt[i].get_c() + 1]: " << first_runs[rlbwt[i].get_c() + 1] << "\n";
+                    std::cerr << "id_blocks[rlbwt[i].get_c()][block_number]: " << id_blocks[rlbwt[i].get_c()][block_number] << "\n";
+                    std::cerr << "rlbwt[i].get_c(): " << static_cast<uint32_t>(rlbwt[i].get_c()) << "\n";
+                    std::cerr << "blocked_id: " << blocked_id << " MAX_BLOCKED_ID: " << MAX_BLOCKED_ID << "\n";
+                    std::cerr << "block_count: " << block_count << " block_number: " << block_number << "\n";
+                    std::cerr << "i: " << i << " block_size: " << block_size << "\n";
+
+                    small_block = true;
+                    break;
+                    // exit(0);
+                }
+                rlbwt[i].set_id(blocked_id);
+                if (rlbwt[i].get_id() != blocked_id) {
+                    std::cerr << rlbwt[i].get_id() << "-------" << blocked_id << "\n";
+
+                    small_block = true;
+                    break;
+                    // exit(0);
+                }
+
+                max_blocked_id = std::max(blocked_id, max_blocked_id);
+
+                // always holds the last id seen for each character
+                block_start_id[rlbwt[i].get_c()] = static_cast<uint32_t>(id - first_runs[rlbwt[i].get_c() + 1]);
+                if (id - first_runs[rlbwt[i].get_c() + 1] > std::numeric_limits<uint32_t>::max()) {
+                    std::cerr << "id - first_runs[rlbwt[i].get_c() + 1]: " << id - first_runs[rlbwt[i].get_c() + 1] << "\n";
+                    std::cerr << "The block_start_id does not fit in uint32_t\n";
+
+                    small_block = true;
+                    break;
+                    // exit(0);
+                }
+            }
+
+        }
+
+        if (small_block) {
+            blocked_ids_computed = false;
+            block_size = block_size / 2;
+
+            for (auto& block: id_blocks) {
+                block.clear();
+                block.shrink_to_fit();
+            }
+            id_blocks.clear();
+            id_blocks.shrink_to_fit();
+
+            block_start_id.clear();
+            block_start_id.shrink_to_fit();
+
+        } else {
+            blocked_ids_computed = true;
+
+            std::cerr << "max raw id: " << max_raw_id << "\t max blocked id: " << max_blocked_id << "\n";
+            std::cerr << "max allowed blocked id: " << MAX_BLOCKED_ID << "\n";
+            std::cerr << "block_size: " << block_size << "\n";
+            std::cerr << "Maximum distance between the check points: " << max_diff << "\n";
+        }
+    }
+}
+#endif
+
 
 uint64_t scan_count;
 #if USE_NEXT_POINTERS
@@ -3245,6 +3294,9 @@ void MoveStructure::serialize() {
         uint64_t id_blocks_size = 0;
         fout.write(reinterpret_cast<char*>(&id_blocks_size), sizeof(id_blocks_size));
     }
+
+    fout.write(reinterpret_cast<char*>(&block_size), sizeof(block_size));
+
 #endif
     fout.write(reinterpret_cast<char*>(&original_r), sizeof(original_r));
 
@@ -3417,6 +3469,10 @@ void MoveStructure::deserialize() {
             fin.read(reinterpret_cast<char*>(&id_blocks[i][0]), id_blocks_size*sizeof(uint32_t));
         }
     }
+    if (!fin.eof() and movi_options->is_adjusted_block()) {
+        fin.read(reinterpret_cast<char*>(&block_size), sizeof(block_size));
+    }
+
 #endif
     // To be able to load the indexes that haven't stored original_r
     if (fin.eof()) {
