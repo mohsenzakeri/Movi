@@ -206,7 +206,6 @@ class MoveStructure {
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
 #endif
         KmerStatistics kmer_stats;
-        // MEMStatistics mem_stats;
         friend class ReadProcessor;
         std::vector<MoveRow> get_rlbwt();
     private:

@@ -257,9 +257,6 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             } else if (movi_options.is_kmer()) {
                 mv_.kmer_stats.print(movi_options.is_kmer_count());
             }
-            else if (movi_options.is_mem()) {
-                // mv_.mem_stats.print();
-            }
             if (movi_options.is_classify()) {
                 classifier.close_report_file();
             }
