@@ -65,8 +65,8 @@ const uint16_t mask_offset =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) 
 const uint16_t mask_n =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_N));            // 00000011 11111111
 const uint16_t mask_c =  static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C));                 // 00011100 00000000
 #define MAX_RUN_LENGTH  1023     // 2^10 - 1
-#define BLOCK_SIZE      4194304  // 2^22
-#define MAX_BLOCKED_ID  16777215 // 2^24 - 1
+#define BLOCK_SIZE      4194304  // 2^22 -- the actual value might be different
+#define MAX_ALLOWED_BLOCKED_ID  16777215 // 2^24 - 1 -- the actual value might be different
 #endif
 
 #if MODE == 8
@@ -89,8 +89,8 @@ const uint16_t mask_thresholds1 =  static_cast<uint16_t>(~(((1U << 1) - 1) << 12
 const uint16_t mask_thresholds2 =  static_cast<uint16_t>(~(((1U << 1) - 1) << 13));                 // 00100000 00000000
 const uint16_t mask_thresholds3 = static_cast<uint16_t>(~(((1U << 1) - 1) << 14));                  // 01000000 00000000
 #define MAX_RUN_LENGTH  511      // 2^9 - 1
-#define BLOCK_SIZE      4194304  // 2^22
-#define MAX_BLOCKED_ID  16777215 // 2^24 - 1
+#define BLOCK_SIZE      4194304  // 2^22 -- the actual value might be different
+#define MAX_ALLOWED_BLOCKED_ID  16777215 // 2^24 - 1 -- the actual value might be different
 #endif
 
 #if MODE == 5

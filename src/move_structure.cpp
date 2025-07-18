@@ -1882,7 +1882,9 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
 
         id_blocks.resize(alphabet.size());
 
+        uint64_t max_allowed_blocked_id = MAX_ALLOWED_BLOCKED_ID;
         bool small_block = false;
+
         for (uint64_t i = 0; i < rlbwt.size(); i++) {
             if (i % 10000 == 0)
                 std::cerr << "i: " << i << "\r";
@@ -1935,7 +1937,7 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
                 uint64_t blocked_id = adjusted_id - static_cast<uint64_t>(id_blocks[rlbwt[i].get_c()][block_number]);
 
                 // Check for potential errors in blocked id computation
-                if (blocked_id > max_blocked_id) {
+                if (blocked_id > max_allowed_blocked_id) {
 
                     std::cerr << "The number of bits in the runs are not enough for storing the blocked_id.\n";
                     std::cerr << "adjusted_id: " << adjusted_id << " id: " << id
@@ -1943,6 +1945,7 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
                     std::cerr << "id_blocks[rlbwt[i].get_c()][block_number]: " << id_blocks[rlbwt[i].get_c()][block_number] << "\n";
                     std::cerr << "rlbwt[i].get_c(): " << static_cast<uint32_t>(rlbwt[i].get_c()) << "\n";
                     std::cerr << "blocked_id: " << blocked_id << " max_blocked_id: " << max_blocked_id << "\n";
+                    std::cerr << "max_allowed_blocked_id: " << max_allowed_blocked_id << "\n";
                     std::cerr << "block_count: " << block_count << " block_number: " << block_number << "\n";
                     std::cerr << "i: " << i << " block_size: " << block_size << "\n";
 
@@ -1979,6 +1982,7 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
         if (small_block) {
             blocked_ids_computed = false;
             block_size = block_size / 2;
+            max_allowed_blocked_id = ((max_allowed_blocked_id + 1) / 2) - 1;
 
             for (auto& block: id_blocks) {
                 block.clear();
@@ -1993,10 +1997,11 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
         } else {
             blocked_ids_computed = true;
 
+            std::cerr << "Blocked index:\n";
             std::cerr << "max raw id: " << max_raw_id << "\t max blocked id: " << max_blocked_id << "\n";
-            std::cerr << "max allowed blocked id: " << MAX_BLOCKED_ID << "\n";
+            std::cerr << "max allowed blocked id: " << max_allowed_blocked_id << "\n";
             std::cerr << "block_size: " << block_size << "\n";
-            std::cerr << "Maximum distance between the check points: " << max_diff << "\n";
+            std::cerr << "Maximum distance between the check points: " << max_diff << "\n\n";
         }
     }
 }
