@@ -1179,9 +1179,8 @@ void MoveStructure::build() {
 
             size_t remaining_length = len;
 
-#if ANY_SPLITTING
             // First attempt to split the run by thresholds
-            if ((splitting or movi_options->is_thresholds()) and
+            if ((splitting or SPLIT_THRESHOLDS_TRUE) and
                     rbits(bwt_offset + len) != rbits(bwt_offset)) {
 
                 uint64_t run_head = bwt_offset;
@@ -1212,6 +1211,7 @@ void MoveStructure::build() {
                 }
 
             }
+
             bwt_offset += len;
 
             // Split the remaining length by MAX_RUN_LENGTH
@@ -1227,11 +1227,7 @@ void MoveStructure::build() {
                 lens.push_back(remaining_length);
                 heads.push_back(original_run_heads[i]);
             }
-#endif
-#if NO_SPLIT
-            lens.push_back(len);
-            heads.push_back(original_run_heads[i]);
-#endif
+
         }
         std::cerr << "\n";
 
@@ -1275,7 +1271,7 @@ void MoveStructure::build() {
                 std::cerr << "r: " << r << "\t";
                 std::cerr << "scanned_bwt_length: " << scanned_bwt_length << "/" << length << "\r";
             }
-#if ANY_SPLITTING
+
             // The first row is already set and accounted for, so we skip
             if (current_char != next_char) {
                 // 1) A new run is detected if the next character is different
@@ -1289,7 +1285,7 @@ void MoveStructure::build() {
 
                 add_detected_run(scanned_bwt_length, current_char, next_char, run_length);
 
-            } else if ((movi_options->is_thresholds() or splitting) and bits[scanned_bwt_length + 1] == 1) {
+            } else if ((splitting or SPLIT_THRESHOLDS_TRUE) and bits[scanned_bwt_length + 1] == 1) {
                 // 2) A new run is detected based on a non-trivial threshold or the Nishimoto-Tabei splitting bitvector
                 // The bit was already set by one of the threshold values or the splitting bitvector
                 // So, we have found a new run, and reset the run length
@@ -1305,13 +1301,7 @@ void MoveStructure::build() {
                 add_detected_run(scanned_bwt_length, current_char, next_char, run_length);
                 split_by_max_run += 1;
             }
-#endif
-#if NO_SPLIT
-            if (current_char != next_char) {
-                original_r += 1;
-                add_detected_run(scanned_bwt_length, current_char, next_char, run_length);
-            }
-#endif
+
             current_char = next_char;
             next_char = bwt_file.get();
             scanned_bwt_length += 1;
@@ -1364,7 +1354,7 @@ void MoveStructure::build() {
 
     uint64_t offset = 0;
     uint64_t max_len = 0;
-    if (movi_options->is_verbose()) {
+    if (movi_options->is_verbose() ) {
         std::cerr << "bits.size(): " << bits.size() << "\n";
         std::cerr << "rank_support_v<>(&bits)(bits.size()): "
                   << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
