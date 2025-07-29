@@ -38,7 +38,7 @@ extern uint32_t alphamap_3[4][4];
 #define SPLIT_THRESHOLDS_TRUE MODE == 8 or MODE == 7 or MODE == 6
 #define SPLIT_MAX_RUN MODE == 3 or MODE == 6 or MODE == 2 or MODE == 8 or MODE == 5 or MODE == 7
 #define SPLIT_ARRAY MODE == 1 or MODE == 4
-#define ANY_SPLITTING MODE == 1 or MODE == 4 or MODE == 3 or MODE == 6 or MODE == 2 or MODE == 8 or MODE == 5 or MODE == 7
+// #define ANY_SPLITTING MODE == 1 or MODE == 4 or MODE == 3 or MODE == 6 or MODE == 2 or MODE == 8 or MODE == 5 or MODE == 7
 #define NO_SPLIT MODE == 0
 #define NO_EXTRA_TABLE MODE == 0 or MODE == 1 or MODE == 4 or MODE == 3 or MODE == 6
 #define CONSTANT_MODE MODE == 1
