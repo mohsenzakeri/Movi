@@ -23,7 +23,6 @@
 #include "kseq.h"
 #include "fastcluster.h"
 
-#include <sdsl/int_vector.hpp>
 #include <sdsl/bit_vectors.hpp>
 
 #include "movi_options.hpp"
@@ -404,7 +403,7 @@ class MoveStructure {
         std::unordered_map<uint64_t, uint64_t> run_lengths;
 
         // The following are only used for construction, not stored in the index
-        sdsl::int_vector<> thresholds;
+        std::vector<uint64_t> thresholds;
         std::vector<uint64_t> all_p;
         std::vector<char> heads;
         std::vector<char> original_run_heads;

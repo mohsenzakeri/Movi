@@ -139,8 +139,8 @@ uint8_t F_char(std::vector<uint64_t>& first_runs, uint64_t run) {
     exit(0);
 }
 
-void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
-    int log_n = 100; // TODO: This is too large, might help for improving the build process
+void read_thresholds(std::string tmp_filename, std::vector<uint64_t>& thresholds) {
+    // Read the 5 Bytes thresholds to uin64_t variables
 
     struct stat filestat;
     FILE *fd;
@@ -155,22 +155,35 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
     if (filestat.st_size % THRBYTES != 0)
         std::cerr <<("invilid file " + tmp_filename);
 
-    size_t length_thr = filestat.st_size / THRBYTES;
-    size_t threshold = 0;
+    uint64_t length_thr = filestat.st_size / THRBYTES;
+    uint64_t threshold = 0;
 
-    thresholds = sdsl::int_vector<>(length_thr, 0, log_n);
+    thresholds.resize(length_thr);
 
-    size_t i = 0;
-    for (i = 0; i < length_thr; ++i) {
+    // when the thresholds overflow 5 Bytes, a method is implemented to recover the true values
+    uint64_t MAX_5_BYTES = 1ULL << 40;
+    uint64_t step_count = 0;
+
+    for (uint64_t i = 0; i < length_thr; ++i) {
         if (i % 100000 == 0) {
             std::cerr << "read thresholds:\t" << i << "\r";
         }
-        size_t threshold = 0;
+
+        threshold = 0;
         if ((fread(&threshold, THRBYTES, 1, fd)) != 1)
             std::cerr <<("fread() file " + tmp_filename + " failed");
-        thresholds[i] = threshold;
+
+        // Detect a sudden drop in thresholds value
+        // Ignore first iteration and the row with sentinel character
+        if (i > 0 and threshold != 0
+            and threshold <  (thresholds[i-1] - step_count * MAX_5_BYTES)/10 ) {
+            step_count += 1;
+        }
+
+        thresholds[i] = threshold + step_count * MAX_5_BYTES;
     }
-    std::cerr << "Finished reading " << i << " thresholds.\n";
+
+    std::cerr << "Finished reading " << length_thr << " thresholds.\n";
 }
 
 template <typename T>

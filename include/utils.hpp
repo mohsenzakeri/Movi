@@ -9,8 +9,8 @@
 #include <fstream>
 #include <iostream>
 #include <cstring>
+#include <random>
 
-#include <sdsl/int_vector.hpp>
 #include <zlib.h>
 #include "kseq.h"
 
@@ -86,7 +86,7 @@ uint64_t kmer_to_number(size_t k, std::string& r, int32_t pos, std::vector<uint6
 
 uint8_t F_char(std::vector<uint64_t>& first_runs, uint64_t run);
 
-void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds);
+void read_thresholds(std::string tmp_filename, std::vector<uint64_t>& thresholds);
 
 // template <typename T>
 // void output_lens(const std::vector<T>& matching_lengths, std::ofstream& mls_file);
