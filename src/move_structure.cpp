@@ -135,7 +135,7 @@ void MoveStructure::find_sampled_SA_entries() {
     std::cerr << "r: " << r << "\n";
     std::cerr << "Finding the BWT offset of run starts (the p array)..\n";
     for (uint64_t i = 0; i < r; i++) {
-        if (i % 10000 == 0)
+        if (i % 1000000 == 0)
             std::cerr << i << "\r";
         all_p[i] = tot_len;
         tot_len += rlbwt[i].get_n();
@@ -152,7 +152,7 @@ void MoveStructure::find_sampled_SA_entries() {
     uint64_t SA_val = tot_len;
     std::cerr << "Finding the sampled SA entries..\n";
     for (uint64_t i = 0; i < tot_len; i++) {
-        if (i % 10000 == 0)
+        if (i % 1000000 == 0)
             std::cerr << i << "\r";
         SA_val--;
         uint64_t row_ind = all_p[index] + offset;
@@ -272,7 +272,7 @@ void MoveStructure::build_doc_sets() {
     uint64_t unique_cnt = 0;
     uint16_t temp[MAX_RUN_LENGTH];
     for (uint64_t i = 0; i < r; i++) {
-        if (i % 100000000 == 0) {
+        if (i % 1000000 == 0) {
             std::cerr << "Processed " << i << " runs, " << unique_cnt << " unique doc sets so far\r";
         }
 
@@ -569,7 +569,7 @@ std::string MoveStructure::reconstruct_lf() {
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
         total_elapsed += elapsed.count();
 
-        if (i % 10000 == 0)
+        if (i % 1000000 == 0)
             std::cerr << i << "\r";
         i += 1;
         // orig_string = rlbwt[run_index].get_c() + orig_string;
@@ -590,7 +590,7 @@ void MoveStructure::sequential_lf() {
     for (uint64_t row_index = 0; row_index < r; row_index++) {
         auto& current = rlbwt[row_index];
         for (uint64_t j = 0; j < current.get_n(); j ++) {
-            if (line_index % 10000 == 0)
+            if (line_index % 1000000 == 0)
                 std::cerr << line_index << "\r";
             uint64_t offset = j;
             uint64_t i = row_index;
@@ -636,7 +636,7 @@ void MoveStructure::random_lf() {
 
     uint64_t total_elapsed = 0;
     for (uint64_t i = 0; i < length; i++) {
-        if (i % 10000 == 0)
+        if (i % 1000000 == 0)
             std::cerr << i << "\r";
 
         // uint64_t n = std::rand() % r;
@@ -994,7 +994,7 @@ void MoveStructure::build_rlbwt() {
     std::ofstream len_file(movi_options->get_bwt_file() + ".len", std::ios::out | std::ios::binary);
     std::ofstream heads_file(movi_options->get_bwt_file() + ".heads");
     while (current_char != EOF) {
-        if (r % 10000 == 0)
+        if (r % 1000000 == 0)
             std::cerr << r << "\r";
         if (current_char != last_char) {
             r += 1;
@@ -1034,7 +1034,7 @@ void MoveStructure::find_run_heads_information() {
         // Required for computing the id field of the rlbwt rows
         bits[bwt_offset] = 1;
 
-        if (i>0 && i % 100000 == 0) {
+        if (i>0 && i % 1000000 == 0) {
             std::cerr << "processed runs: " << i << "/" << r << "\t";
             std::cerr << "bwt_offset: " << bwt_offset << "\r";
         }
@@ -1096,7 +1096,7 @@ void MoveStructure::build() {
 
         std::ifstream len_file(bwt_filename + ".len", std::ios::in | std::ios::binary);
         for (uint64_t i = 0; i < original_r; i++) {
-            if (i>0 && i % 100000 == 0)
+            if (i>0 && i % 1000000 == 0)
                 std::cerr << "Computing total length of the BWT: " << i << "/" << original_r << "\r";
 
             size_t len = 0;
@@ -1167,7 +1167,7 @@ void MoveStructure::build() {
 #endif
 
         for (uint64_t i = 0; i < original_r; i++) {
-            if (i>0 && i % 100000 == 0)
+            if (i>0 && i % 1000000 == 0)
                 std::cerr << "Iterating over original_r: " << i << "/" << original_r << "\r";
 
             size_t len = 0;
@@ -1266,7 +1266,7 @@ void MoveStructure::build() {
                 all_possible_chars[next_char] += 1;
             }
 
-            if (original_r % 100000 == 0) {
+            if (original_r % 1000000 == 0) {
                 std::cerr << "original_r: " << original_r << "\t";
                 std::cerr << "r: " << r << "\t";
                 std::cerr << "scanned_bwt_length: " << scanned_bwt_length << "/" << length << "\r";
@@ -1384,7 +1384,7 @@ void MoveStructure::build() {
 
     // Building the move structure rows with O(r) loop
     for (uint64_t r_idx = 0; r_idx < r; r_idx++) {
-        if (r_idx % 10000 == 0)
+        if (r_idx % 1000000 == 0)
             std::cerr << "Building Movi rows: " << r_idx << "/" << r << "\r";
 
         uint64_t lf  = 0;
@@ -1582,7 +1582,7 @@ void MoveStructure::fill_bits_by_thresholds() {
 void MoveStructure::compute_run_lcs() {
     std::cout << "run,length,lcs\n";
     for (int i = 0; i < r; i++) {
-        if (i % 1000 == 0) std::cerr << i << "\r";
+        if (i % 1000000 == 0) std::cerr << i << "\r";
         if (get_n(i) > 1) {
             uint64_t id_top = i;
             uint64_t id_bottom = i;
@@ -1723,7 +1723,7 @@ void MoveStructure::compute_thresholds() {
     }
 
     for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
-        if (i % 10000 == 0)
+        if (i % 1000000 == 0)
             std::cerr << "Updating the thresholds per run: " << (rlbwt.size() - i) << "/" << rlbwt.size() << "\r";
 
         char rlbwt_c = alphabet[rlbwt[i].get_c()];
@@ -1876,7 +1876,7 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
         bool small_block = false;
 
         for (uint64_t i = 0; i < rlbwt.size(); i++) {
-            if (i % 10000 == 0)
+            if (i % 1000000 == 0)
                 std::cerr << "i: " << i << "\r";
 
             uint64_t block_boundary = (block_size) * block_count; // BLOCK_SIZE = 1 << 22 - 1
@@ -2002,7 +2002,7 @@ uint64_t scan_count;
 #if USE_NEXT_POINTERS
 void MoveStructure::compute_nexts() {
     for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
-        if (i % 100000 == 0)
+        if (i % 1000000 == 0)
             std::cerr << i << "\r";
 
         char rlbwt_c = alphabet[rlbwt[i].get_c()];
@@ -2576,7 +2576,7 @@ bool MoveStructure::look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r,
 void MoveStructure::flat_and_serialize_colors_vectors() {
     std::unordered_map<uint32_t, uint64_t> flat_index;
     for (uint64_t i = 0; i < unique_doc_sets.size(); i++) {
-        if (i % 100000 == 0) {
+        if (i % 1000000 == 0) {
             std::cerr << "i: " << i << "\r";
         }
         flat_index[i] = flat_colors.size();
@@ -2589,7 +2589,7 @@ void MoveStructure::flat_and_serialize_colors_vectors() {
 
     doc_set_flat_inds.resize(doc_set_inds.size());
     for (uint64_t i = 0; i < doc_set_inds.size(); i++) {
-        if (i % 100000 == 0) {
+        if (i % 1000000 == 0) {
             std::cerr << "i: " << i << "\r";
         }
         doc_set_flat_inds[i].set_value(flat_index[doc_set_inds[i]]);
@@ -2614,7 +2614,7 @@ void MoveStructure::add_colors_to_rlbwt() {
 #if MODE == 3 or MODE == 6
     rlbwt_colored.resize(rlbwt.size());
     for (uint64_t i = 0; i < rlbwt.size(); i++) {
-        if (i % 100000 == 0) {
+        if (i % 1000000 == 0) {
             std::cerr << "i: " << i << "\r";
         }
         rlbwt_colored[i].id = rlbwt[i].id;
@@ -3670,7 +3670,7 @@ void MoveStructure::analyze_rows() {
         end_row += get_n(i);
         std::cout << end_row << "\t" << get_char(i) << "\n";
         counter += 1;
-        if (i%100000 == 0) std::cerr << i << "\t" << split_thresholds << "\r";
+        if (i%1000000 == 0) std::cerr << i << "\t" << split_thresholds << "\r";
         for (int j = 0; j < 16; j ++) {
             if (get_n(i) >= std::pow(2,j + 1)) {
                 counts_length[j] += 1;
@@ -3767,7 +3767,7 @@ void MoveStructure::write_doc_set_freqs(std::string fname) {
     sort(freqs.begin(), freqs.end(), std::greater<>());
 
     std::ofstream out(fname);
-    for (size_t i = 0; i < 100000; i++) {
+    for (size_t i = 0; i < 1000000; i++) {
         out << freqs[i].first << " ";
         for (int doc : unique_doc_sets[freqs[i].second]) {
             out << doc << " ";
@@ -3793,7 +3793,7 @@ void MoveStructure::print_ids() {
 
     for (uint64_t i = 0; i < r; i++) {
 
-        if (i%100000 == 0) std::cerr << i << "\r";
+        if (i%1000000 == 0) std::cerr << i << "\r";
 
         if (i != end_bwt_idx) {
 

@@ -57,7 +57,7 @@ void color(MoveStructure& mv_, MoviOptions& movi_options) {
             if (doc_pats_file.good()) {
                 mv_.deserialize_doc_pats(doc_pats_name);
             } else {
-                std::cerr << "Doc patterns are not available, building .. \n";
+                std::cerr << "Doc patterns are not available, building... \n";
 
                 auto begin = std::chrono::system_clock::now();
                 mv_.build_doc_pats();
