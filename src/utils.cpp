@@ -165,7 +165,7 @@ void read_thresholds(std::string tmp_filename, std::vector<uint64_t>& thresholds
     uint64_t step_count = 0;
 
     for (uint64_t i = 0; i < length_thr; ++i) {
-        if (i % 100000 == 0) {
+        if (i % 1000000 == 0) {
             std::cerr << "read thresholds:\t" << i << "\r";
         }
 
