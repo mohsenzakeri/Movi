@@ -3,7 +3,7 @@ FROM ubuntu:latest AS builder
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Set portable compiler flags to prevent illegal instruction errors
+# Set portable compiler flags
 ENV CC=gcc-10
 ENV CXX=g++-10
 ENV CFLAGS="-march=x86-64 -mtune=generic -O2"
