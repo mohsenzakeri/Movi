@@ -1,5 +1,14 @@
 FROM ubuntu:latest AS builder
 
+# Prevent interactive prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Set portable compiler flags to prevent illegal instruction errors
+ENV CC=gcc-10
+ENV CXX=g++-10
+ENV CFLAGS="-march=x86-64 -mtune=generic -O2"
+ENV CXXFLAGS="-march=x86-64 -mtune=generic -O2"
+
 # Install required dependencies in a single layer
 RUN apt-get update && apt-get install -y \
     zlib1g-dev \
@@ -16,13 +25,19 @@ RUN apt-get update && apt-get install -y \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Install Movi
+# Install Movi with portable compilation flags
 RUN git clone https://github.com/mohsenzakeri/Movi /movi && \
     cd /movi && \
     mkdir build && \
     cd build && \
-    cmake .. && \
-    make -j
+    cmake -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
+          -DCMAKE_C_FLAGS="${CFLAGS}" \
+          -DCMAKE_BUILD_TYPE=Release \
+          .. && \
+    make -j$(nproc)
+
+# TODO: Quick fix for finding hte relavant binaries
+RUN cp /movi/build/movi-* /
 
 # Add the build directories to the PATH
 ENV PATH="/movi/build:${PATH}"
