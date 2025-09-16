@@ -1079,7 +1079,7 @@ void MoveStructure::add_detected_run(uint64_t scanned_bwt_length,
     r += 1;
 
     // Boundary check for bits vector
-    if (bwt_offset >= bits.size()) {
+    if (scanned_bwt_length + 1 >= bits.size()) {
         std::cerr << "\add_detected_run: " << scanned_bwt_length + 1 << " offset is greater than the bits vector length (" << bits.size() << ")\n";
         exit(0);
     }
