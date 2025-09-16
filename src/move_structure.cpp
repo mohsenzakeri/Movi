@@ -1030,6 +1030,13 @@ void MoveStructure::find_run_heads_information() {
     uint64_t bwt_offset = 0;
 
     for (uint64_t i = 0; i < r; i++) {
+
+        // Boundary check for bits vector
+        if (bwt_offset >= bits.size()) {
+            std::cerr << "\nfind_run_heads_information: " << bwt_offset << " offset is greater than the bits vector length (" << bits.size() << ")\n";
+            exit(0);
+        }
+
         // The following line is important to tag the run boundaries in the main bitvector
         // Required for computing the id field of the rlbwt rows
         bits[bwt_offset] = 1;
@@ -1070,6 +1077,13 @@ void MoveStructure::add_detected_run(uint64_t scanned_bwt_length,
     lens.push_back(run_length);
 
     r += 1;
+
+    // Boundary check for bits vector
+    if (bwt_offset >= bits.size()) {
+        std::cerr << "\add_detected_run: " << scanned_bwt_length + 1 << " offset is greater than the bits vector length (" << bits.size() << ")\n";
+        exit(0);
+    }
+
     bits[scanned_bwt_length + 1] = 1;
     run_length = 0;
 }
@@ -1186,6 +1200,13 @@ void MoveStructure::build() {
                 uint64_t run_head = bwt_offset;
 
                 for (uint64_t j = bwt_offset + 1; j < bwt_offset + len; j++) {
+
+                    // Boundary check for bits vector
+                    if (j >= bits.size()) {
+                        std::cerr << "\nThresholds splitting (preprocessed): " << j << " offset is greater than the bits vector length (" << bits.size() << ")\n";
+                        exit(0);
+                    }
+
                     if (bits[j]) {
                         size_t current_run_length = j - run_head;
                         remaining_length -= current_run_length;
@@ -1270,6 +1291,12 @@ void MoveStructure::build() {
                 std::cerr << "original_r: " << original_r << "\t";
                 std::cerr << "r: " << r << "\t";
                 std::cerr << "scanned_bwt_length: " << scanned_bwt_length << "/" << length << "\r";
+            }
+
+            // Boundary check for bits vector
+            if (scanned_bwt_length + 1 >= bits.size()) {
+                std::cerr << "\Finding the runs: " << scanned_bwt_length + 1 << " offset is greater than the bits vector length (" << bits.size() << ")\n";
+                exit(0);
             }
 
             // The first row is already set and accounted for, so we skip
@@ -1397,6 +1424,13 @@ void MoveStructure::build() {
         }
 
         uint64_t pp_id = rbits(lf) - 1;
+
+        // Boundary check for bits vector
+        if (lf >= bits.size()) {
+            std::cerr << "\Building the move structure rows: " << lf << " offset is greater than the bits vector length (" << bits.size() << ")\n";
+            exit(0);
+        }
+
         if (bits[lf] == 1)
             pp_id += 1;
 
@@ -1574,6 +1608,13 @@ void MoveStructure::build() {
 
 void MoveStructure::fill_bits_by_thresholds() {
     for (int i = 0; i < thresholds.size(); i++) {
+
+        // Boundary check for bits vector
+        if (thresholds[i] >= bits.size()) {
+            std::cerr << "\fill_bits_by_thresholds: " << thresholds[i] << " offset is greater than the bits vector length (" << bits.size() << ")\n";
+            exit(0);
+        }
+
         bits[thresholds[i]] = 1;
     }
     std::cerr << "The bits vector is updated by thresholds.\n\n";
