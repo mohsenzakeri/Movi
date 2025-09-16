@@ -150,6 +150,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
         std::ofstream mls_file;
         std::ofstream count_file;
+        std::ofstream kmer_file;
         std::ofstream costs_file;
         std::ofstream scans_file;
         std::ofstream fastforwards_file;
@@ -171,6 +172,8 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + "." + query_type(movi_options) + ".bin", std::ios::out | std::ios::binary);
             else if (movi_options.is_count())
                 count_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".matches");
+            else if (movi_options.is_kmer())
+                kmer_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".kmers." + std::to_string(movi_options.get_k()));
         }
 
         Classifier classifier;
@@ -280,6 +283,12 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     } else if (movi_options.is_kmer()) {
                         mq = MoveQuery(query_seq);
                         mv_.query_all_kmers(mq, movi_options.is_kmer_count());
+                        if (!movi_options.is_kmer_count()) {
+                            #pragma omp critical
+                            {
+                                output_kmers(movi_options.is_stdout() and !movi_options.is_classify(), kmer_file, read_struct.id, query_seq.length() - movi_options.get_k() + 1, mq, movi_options.is_no_output());
+                            }
+                        }
                     }
 
                     if (movi_options.is_logs()) {

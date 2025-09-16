@@ -98,6 +98,8 @@ void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::strin
 
 void output_counts(bool to_stdout, std::ofstream& count_file, std::string read_id, size_t query_length, int32_t pos_on_r, uint64_t match_count, bool no_output = false);
 
+void output_kmers(bool to_stdout, std::ofstream& kmer_file, std::string read_id, size_t all_kmer_count, MoveQuery& mq, bool no_output = false);
+
 void output_logs(std::ofstream& costs_file, std::ofstream& scans_file, std::ofstream& fastforwards_file, std::string read_id, MoveQuery& mq, bool no_output = false);
 
 void output_read(std::string& read_id, std::string& read, bool no_output = false);

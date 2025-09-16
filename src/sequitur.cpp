@@ -400,9 +400,10 @@ void MoveStructure::query_all_kmers(MoveQuery& mq, bool kmer_counts) {
                     }
                 // }
             } else {
-                uint64_t kmers_found = query_kmers_from(mq, pos_on_r);
+                uint64_t found_kmer_count = query_kmers_from(mq, pos_on_r);
+                mq.add_kmer(pos_on_r + 2 - k, found_kmer_count);
                 #pragma omp atomic
-                kmer_stats.positive_kmers += kmers_found;
+                kmer_stats.positive_kmers += found_kmer_count;
             }
         }
 

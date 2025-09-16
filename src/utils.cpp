@@ -253,6 +253,18 @@ void output_counts(bool to_stdout, std::ofstream& count_file, std::string read_i
     }
 }
 
+void output_kmers(bool to_stdout, std::ofstream& kmer_file, std::string read_id, size_t all_kmer_count, MoveQuery& mq, bool no_output) {
+    if (!no_output) {
+        if (to_stdout) {
+            std::cout << read_id << "\t";
+            std::cout << mq.found_kmer_count << "/" << all_kmer_count << "\t" << mq.get_matching_lengths_string() << "\n";
+        } else {
+            kmer_file << read_id << "\t";
+            kmer_file << mq.found_kmer_count << "/" << all_kmer_count << "\t" << mq.get_matching_lengths_string() << "\n";
+        }
+    }
+}
+
 void output_logs(std::ofstream& costs_file, std::ofstream& scans_file, std::ofstream& fastforwards_file, std::string read_id, MoveQuery& mq, bool no_output) {
     if (!no_output) {
         // costs_file << ">" << seq->name.s << "\n";
