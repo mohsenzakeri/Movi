@@ -126,6 +126,7 @@ const uint8_t mask_c = static_cast<uint8_t>(~(((1U << C_BITS) - 1) << SHIFT_C));
 const uint8_t mask_thresholds1 = static_cast<uint8_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_1));      // 00100000
 const uint8_t mask_thresholds2 = static_cast<uint8_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_2));      // 01000000
 const uint8_t mask_thresholds3 = static_cast<uint8_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_3));      // 10000000
+#define MAX_RUN_LENGTH 511 // 2^9-1
 #endif
 
 // #if MODE == 5 or MODE == 7
