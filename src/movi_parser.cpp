@@ -119,31 +119,31 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
     try {
         auto result = options.parse(argc, argv);
 
+        // Set global logs flags first
+
         if (result.count("no-header")) {
-            // Set global verbose flag
+            // For hadnling old indexes
             movi_options.set_no_header(true);
         }
 
         if (result.count("default-block")) {
-            // Set global verbose flag
+            // For hadnling old indexes
             movi_options.set_adjusted_block(false);
         }
 
         if (result.count("verbose")) {
-            // Set global verbose flag
             movi_options.set_verbose(true);
         }
 
         if (result.count("logs")) {
-            // Set global logs flag
             movi_options.set_logs(true);
         }
 
         if (result.count("dbg")) {
-            // Set global debug flag
             movi_options.set_debug(true);
         }
 
+        // Set command-specific flags
         if (result.count("command")) {
             std::string command = result["command"].as<std::string>();
             movi_options.set_command(command);
