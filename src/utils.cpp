@@ -173,10 +173,12 @@ void read_thresholds(std::string tmp_filename, std::vector<uint64_t>& thresholds
         if ((fread(&threshold, THRBYTES, 1, fd)) != 1)
             std::cerr <<("fread() file " + tmp_filename + " failed");
 
-        // Detect a sudden drop in thresholds value
-        // Ignore first iteration and the row with sentinel character
-        if (i > 0 and threshold != 0
-            and threshold <  (thresholds[i-1] - step_count * MAX_5_BYTES)/10 ) {
+        // Detect a sudden drop in thresholds value (overflow)
+        if (i > 0 and threshold != 0                                            /* Ignore first iteration and the row with sentinel character */
+            and (threshold < (thresholds[i-1] - step_count * MAX_5_BYTES)/10))  /* Unusual drop in the threshold values */
+            and ((thresholds[i-1] - step_count * MAX_5_BYTES) > MAX_5_BYTES/10) /* last threshold was not too small */ {
+
+            std::cerr << "\n" << threshold << "\t" << thresholds[i-1] << "\t" << (thresholds[i-1] - step_count * MAX_5_BYTES) << "\n";
             step_count += 1;
         }
 
