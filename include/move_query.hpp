@@ -10,6 +10,7 @@ class MoveQuery {
         uint64_t length() { return query_string.length(); }
 
         void add_kmer(int32_t pos_on_r, uint64_t kmer_count) {
+            // We use the same variable used for stroing matching lengths to store the kmer matches
             if (kmer_count > 0) {
                 found_kmer_count += kmer_count;
                 matching_lengths_string += std::to_string(pos_on_r) + ":" + std::to_string(kmer_count) + " ";
