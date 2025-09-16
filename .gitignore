@@ -37,4 +37,6 @@ debug*/*
 .vscode/
 test_data/*.bin
 test_data/*.txt
+thirdparty/*
+CMakeModules/*
 # test_data/test_out
