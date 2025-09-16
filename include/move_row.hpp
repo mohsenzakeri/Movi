@@ -108,10 +108,16 @@ const uint16_t mask_thresholds3 = static_cast<uint16_t>(~(((1U << 1) - 1) << SHI
 #define SHIFT_N 2
 #define C_BITS 4
 #define SHIFT_C 4
+#define SHIFT_BYTE 10
+#define MASK_BYTE 3
 const uint8_t mask_offset =  static_cast<uint8_t>(~(((1U << LENGTH_MASK_BITS) - 1) << SHIFT_OFFSET));   // 00000011
 const uint8_t mask_n =  static_cast<uint8_t>(~(((1U << LENGTH_MASK_BITS) - 1) << SHIFT_N));             // 00001100
 const uint8_t mask_c = static_cast<uint8_t>(~(((1U << C_BITS) - 1) << SHIFT_C));                        // 11110000
+#if BYTE == 1
+#define MAX_RUN_LENGTH 16383 // 2^14-1
+#else
 #define MAX_RUN_LENGTH 1023 // 2^10-1
+#endif
 #endif
 
 #if MODE == 7
@@ -123,13 +129,29 @@ const uint8_t mask_c = static_cast<uint8_t>(~(((1U << C_BITS) - 1) << SHIFT_C));
 #define SHIFT_THRESHOLD_3 7
 #define C_BITS 3
 #define SHIFT_C 2
+#define SHIFT_BYTE 9
+#define MASK_BYTE 1
 const uint8_t mask_offset = static_cast<uint8_t>(~(((1U << LENGTH_MASK_BITS) - 1) << SHIFT_OFFSET)); // 00000001
 const uint8_t mask_n = static_cast<uint8_t>(~(((1U << LENGTH_MASK_BITS) - 1) << SHIFT_N));           // 00000010
 const uint8_t mask_c = static_cast<uint8_t>(~(((1U << C_BITS) - 1) << SHIFT_C));                     // 00011100
 const uint8_t mask_thresholds1 = static_cast<uint8_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_1));      // 00100000
 const uint8_t mask_thresholds2 = static_cast<uint8_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_2));      // 01000000
 const uint8_t mask_thresholds3 = static_cast<uint8_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_3));      // 10000000
+#if BYTE == 1
+#define MAX_RUN_LENGTH 8191 // 2^13-1
+#else
 #define MAX_RUN_LENGTH 511 // 2^9-1
+#endif
+#endif
+
+#if BYTE == 1
+// Additional Byte for the tally mode
+#define LN_BITS 4
+#define LO_BITS 4
+#define SHIFT_LN 0
+#define SHIFT_LO 4
+const uint16_t mask_ln = static_cast<uint8_t>(~(((1U << LN_BITS) - 1) << SHIFT_LN));                 // 00001111
+const uint16_t mask_lo = static_cast<uint8_t>(~(((1U << LO_BITS) - 1) << SHIFT_LO));                 // 11110000
 #endif
 
 // #if MODE == 5 or MODE == 7
@@ -237,7 +259,11 @@ class __attribute__((packed)) MoveRow {
             return 6;
 #endif
 #if MODE == 5 or MODE == 7
+#if BYTE == 1
+            return 4;
+#else
             return 3;
+#endif
 #endif
         }
     // private:
@@ -245,6 +271,9 @@ class __attribute__((packed)) MoveRow {
         uint8_t n; // length of the run
         uint8_t offset; // offset of the bwt row head of the current run in the new run after the LF-jump
         uint8_t c;
+#if BYTE == 1
+        uint8_t l;
+#endif
 #endif
 
 #if MODE == 2 or MODE == 8
@@ -330,12 +359,20 @@ inline bool MoveRow::is_overflow_thresholds() const{
 #if MODE == 5 or MODE == 7
 inline uint16_t MoveRow::get_n() const{
     uint16_t res = n;
-    return res | (static_cast<uint16_t>((c & (~mask_n)) >> SHIFT_N) << 8);
+    res = res | (static_cast<uint16_t>((c & (~mask_n)) >> SHIFT_N) << 8);
+#if BYTE
+    res = res | (static_cast<uint16_t>((l & (~mask_ln)) >> SHIFT_LN) << SHIFT_BYTE);
+#endif
+    return res;
 }
 
 inline uint16_t MoveRow::get_offset() const{
     uint16_t res = offset;
-    return res | (static_cast<uint16_t>((c & (~mask_offset)) >> SHIFT_OFFSET) << 8);
+    res = res | (static_cast<uint16_t>((c & (~mask_offset)) >> SHIFT_OFFSET) << 8);
+#if BYTE
+    res = res | (static_cast<uint16_t>((l & (~mask_lo)) >> SHIFT_LO) << SHIFT_BYTE);
+#endif
+    return res;
 }
 
 inline char MoveRow::get_c() const{

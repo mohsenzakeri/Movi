@@ -250,8 +250,12 @@ void MoveRow::set_n(uint16_t n_) {
         n = static_cast<uint8_t>(n_);
         c = c & mask_n;
         if (n_ >= 256) {
-            uint8_t n_8 = n_ >> 8;
+            uint8_t n_8 = (n_ >> 8) & static_cast<uint8_t>(MASK_BYTE);
             c = c | (n_8 << SHIFT_N);
+#if BYTE
+            uint8_t n_high = (n_ >> SHIFT_BYTE);
+            l = l | (n_high << SHIFT_LN);
+#endif
         }
     } else {
         std::cerr << "The length is greater than 2^12: " << n_ << "\n";
@@ -264,8 +268,12 @@ void MoveRow::set_offset(uint16_t offset_) {
         offset = static_cast<uint8_t>(offset_);
         c = c & mask_offset;
         if (offset_ >= 256) {
-            uint8_t offset_8 = offset_ >> 8;
+            uint8_t offset_8 = (offset_ >> 8) & static_cast<uint8_t>(MASK_BYTE);
             c = c | (offset_8 << SHIFT_OFFSET);
+#if BYTE
+            uint8_t offset_high = (offset_ >> SHIFT_BYTE);
+            l = l | (offset_high << SHIFT_LO);
+#endif
         }
     }
     else {
