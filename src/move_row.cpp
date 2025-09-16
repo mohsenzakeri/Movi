@@ -204,9 +204,11 @@ void MoveRow::set_id(uint64_t id_) {
 
     n = n & mask_id1;
     n = n | ((id_ >> 16) << SHIFT_ID1);
+#if MODE == 2
     offset = offset & mask_id2;
     //Note: SHIFT_ID1_RES = 16 + ID_SIG_BITS1
     offset = offset | ((id_ >> (16 + ID_SIG_BITS1)) << SHIFT_ID2);
+#endif
 }
 
 void MoveRow::set_c(char c_, std::vector<uint64_t>& alphamap) {

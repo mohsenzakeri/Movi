@@ -73,30 +73,33 @@ const uint16_t mask_c =  static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C
 #endif
 
 #if MODE == 8
-#define SHIFT_ID1 9
-#define SHIFT_ID2 15
-#define SHIFT_ID1_RES 23
+// Current implementation of MODE 8, does not allocate any bits in the offset for the id field.
+// SHIFT_ID2, ID_SIG_BITS2, mask_id2 are only kept for consistency between MODE 2 and MODE 8,
+// otherwise they can be removed for MODE 8.
+#define SHIFT_ID1 10
+#define SHIFT_ID2 16
+#define SHIFT_ID1_RES 22
 #define SHIFT_OFFSET 0
 #define SHIFT_N 0
-#define SHIFT_C 9
-#define SHIFT_THRESHOLD_1 12
-#define SHIFT_THRESHOLD_2 13
-#define SHIFT_THRESHOLD_3 14
-#define ID_SIG_BITS1 7
-#define ID_SIG_BITS2 1
-#define LENGTH_BITS 9
+#define SHIFT_C 10
+#define SHIFT_THRESHOLD_1 13
+#define SHIFT_THRESHOLD_2 14
+#define SHIFT_THRESHOLD_3 15
+#define ID_SIG_BITS1 6
+#define ID_SIG_BITS2 0
+#define LENGTH_BITS 10
 #define C_BITS 3
-const uint16_t mask_id1 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS1) - 1) << SHIFT_ID1));      // 11111110 00000000
-const uint16_t mask_id2 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS2) - 1) << SHIFT_ID2));      // 10000000 00000000
-const uint16_t mask_offset = static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_OFFSET)); // 00000001 11111111
-const uint16_t mask_n = static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_N));           // 00000001 11111111
-const uint16_t mask_c = static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C));                // 00001110 00000000
-const uint16_t mask_thresholds1 = static_cast<uint16_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_1)); // 00010000 00000000
-const uint16_t mask_thresholds2 = static_cast<uint16_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_2)); // 00100000 00000000
-const uint16_t mask_thresholds3 = static_cast<uint16_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_3)); // 01000000 00000000
-#define MAX_RUN_LENGTH  511     // 2^9 - 1
-#define BLOCK_SIZE      4194304  // 2^22 -- the actual value might be different
-#define MAX_ALLOWED_BLOCKED_ID  16777215 // 2^24 - 1 -- the actual value might be different
+const uint16_t mask_id1 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS1) - 1) << SHIFT_ID1));      // 11111100 00000000
+const uint16_t mask_id2 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS2) - 1) << SHIFT_ID2));      // 00000000 00000000
+const uint16_t mask_offset = static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_OFFSET)); // 00000011 11111111
+const uint16_t mask_n = static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_N));           // 00000011 11111111
+const uint16_t mask_c = static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C));                // 00011100 00000000
+const uint16_t mask_thresholds1 = static_cast<uint16_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_1)); // 00100000 00000000
+const uint16_t mask_thresholds2 = static_cast<uint16_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_2)); // 01000000 00000000
+const uint16_t mask_thresholds3 = static_cast<uint16_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_3)); // 10000000 00000000
+#define MAX_RUN_LENGTH          1023    // 2^10 - 1
+#define BLOCK_SIZE              1048576 // 2^20 (the actual value might be different)
+#define MAX_ALLOWED_BLOCKED_ID  4194303 // 2^22 - 1 (the actual value might be different)
 #endif
 
 #if MODE == 5
@@ -389,11 +392,13 @@ inline uint64_t MoveRow::get_id() const {
             res = static_cast<uint64_t>(extract_value(n, mask_id1, SHIFT_ID1));
             res = res << 16;
         }
+#if MODE == 2
         if (offset >= (1U << SHIFT_ID2) ) {
             uint64_t res2 = static_cast<uint64_t>(extract_value(offset, mask_id2, SHIFT_ID2));
             res2 = res2 << SHIFT_ID1_RES;
             res = res | res2;
         }
+#endif
         uint64_t c = static_cast<uint64_t>(id);
         c = c | res;
         return c;
