@@ -140,15 +140,15 @@ void MoveRow::set_threshold(uint16_t i, uint16_t value) {
     switch (i) {
         case 0:
             offset = offset & mask_thresholds1;
-            offset = offset | (value << 11);
+            offset = offset | (value << SHIFT_THRESHOLD_1);
             break;
         case 1:
             n = n & mask_thresholds2;
-            n = n | (value << 11);
+            n = n | (value << SHIFT_THRESHOLD_2);
             break;
         case 2:
             n = n & mask_thresholds3;
-            n = n | (value << 12);
+            n = n | (value << SHIFT_THRESHOLD_3);
             break;
         default:
             std::cerr << "Only three thresholds may be stored: " << i << "\n";
@@ -224,15 +224,15 @@ void MoveRow::set_threshold(uint16_t i, uint16_t value) {
     switch (i) {
         case 0:
             offset = offset & mask_thresholds1;
-            offset = offset | (value << 12);
+            offset = offset | (value << SHIFT_THRESHOLD_1);
             break;
         case 1:
             offset = offset & mask_thresholds2;
-            offset = offset | (value << 13);
+            offset = offset | (value << SHIFT_THRESHOLD_2);
             break;
         case 2:
             offset = offset & mask_thresholds3;
-            offset = offset | (value << 14);
+            offset = offset | (value << SHIFT_THRESHOLD_3);
             break;
         default:
             std::cerr << "Only three thresholds may be stored: " << i << "\n";
@@ -287,15 +287,15 @@ void MoveRow::set_threshold(uint16_t i, uint16_t value) {
     switch (i) {
         case 0:
             c = c & mask_thresholds1;
-            c = c | (value << 5);
+            c = c | (value << SHIFT_THRESHOLD_1);
             break;
         case 1:
             c = c & mask_thresholds2;
-            c = c | (value << 6);
+            c = c | (value << SHIFT_THRESHOLD_2);
             break;
         case 2:
             c = c & mask_thresholds3;
-            c = c | (value << 7);
+            c = c | (value << SHIFT_THRESHOLD_3);
             break;
         default:
             std::cerr << "Only three thresholds may be stored: " << i << "\n";

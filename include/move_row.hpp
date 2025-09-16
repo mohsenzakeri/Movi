@@ -35,16 +35,19 @@ const uint16_t mask_c = static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C)
 #if MODE == 6
 #define SHIFT_C 13
 #define SHIFT_ID 12
+#define SHIFT_THRESHOLD_1 11
+#define SHIFT_THRESHOLD_2 11
+#define SHIFT_THRESHOLD_3 12
 #define ID_SIG_BITS 4
 #define LENGTH_BITS 11
 #define C_BITS 3
-const uint16_t mask_id =  static_cast<uint16_t>(~(((1U << ID_SIG_BITS) - 1) << SHIFT_ID)); // 11110000 00000000
-const uint16_t mask_offset =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << 0));    // 00000111 11111111
-const uint16_t mask_n =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << 0));         // 00000111 11111111
-const uint16_t mask_c = static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C));         // 11100000 00000000
-const uint16_t mask_thresholds1 =  static_cast<uint16_t>(~(((1U << 1) - 1) << 11));        // 00001000 00000000
-const uint16_t mask_thresholds2 =  static_cast<uint16_t>(~(((1U << 1) - 1) << 11));        // 00001000 00000000
-const uint16_t mask_thresholds3 = static_cast<uint16_t>(~(((1U << 1) - 1) << 12));         // 00010000 00000000
+const uint16_t mask_id = static_cast<uint16_t>(~(((1U << ID_SIG_BITS) - 1) << SHIFT_ID));         // 11110000 00000000
+const uint16_t mask_offset = static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << 0));            // 00000111 11111111
+const uint16_t mask_n = static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << 0));                 // 00000111 11111111
+const uint16_t mask_c = static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C));                // 11100000 00000000
+const uint16_t mask_thresholds1 = static_cast<uint16_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_1)); // 00001000 00000000
+const uint16_t mask_thresholds2 = static_cast<uint16_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_2)); // 00001000 00000000
+const uint16_t mask_thresholds3 = static_cast<uint16_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_3)); // 00010000 00000000
 #define MAX_RUN_LENGTH 2047 // 2^11-1
 #endif
 
@@ -76,19 +79,22 @@ const uint16_t mask_c =  static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C
 #define SHIFT_OFFSET 0
 #define SHIFT_N 0
 #define SHIFT_C 9
+#define SHIFT_THRESHOLD_1 12
+#define SHIFT_THRESHOLD_2 13
+#define SHIFT_THRESHOLD_3 14
 #define ID_SIG_BITS1 7
 #define ID_SIG_BITS2 1
 #define LENGTH_BITS 9
 #define C_BITS 3
-const uint16_t mask_id1 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS1) - 1) << SHIFT_ID1));        // 11111110 00000000
-const uint16_t mask_id2 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS2) - 1) << SHIFT_ID2));        // 10000000 00000000
-const uint16_t mask_offset =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_OFFSET));  // 00000001 11111111
-const uint16_t mask_n =  static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_N));            // 00000001 11111111
-const uint16_t mask_c =  static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C));                 // 00001110 00000000
-const uint16_t mask_thresholds1 =  static_cast<uint16_t>(~(((1U << 1) - 1) << 12));                 // 00010000 00000000
-const uint16_t mask_thresholds2 =  static_cast<uint16_t>(~(((1U << 1) - 1) << 13));                 // 00100000 00000000
-const uint16_t mask_thresholds3 = static_cast<uint16_t>(~(((1U << 1) - 1) << 14));                  // 01000000 00000000
-#define MAX_RUN_LENGTH  511      // 2^9 - 1
+const uint16_t mask_id1 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS1) - 1) << SHIFT_ID1));      // 11111110 00000000
+const uint16_t mask_id2 = static_cast<uint16_t>(~(((1U << ID_SIG_BITS2) - 1) << SHIFT_ID2));      // 10000000 00000000
+const uint16_t mask_offset = static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_OFFSET)); // 00000001 11111111
+const uint16_t mask_n = static_cast<uint16_t>(~(((1U << LENGTH_BITS) - 1) << SHIFT_N));           // 00000001 11111111
+const uint16_t mask_c = static_cast<uint16_t>(~(((1U << C_BITS) - 1) << SHIFT_C));                // 00001110 00000000
+const uint16_t mask_thresholds1 = static_cast<uint16_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_1)); // 00010000 00000000
+const uint16_t mask_thresholds2 = static_cast<uint16_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_2)); // 00100000 00000000
+const uint16_t mask_thresholds3 = static_cast<uint16_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_3)); // 01000000 00000000
+#define MAX_RUN_LENGTH  511     // 2^9 - 1
 #define BLOCK_SIZE      4194304  // 2^22 -- the actual value might be different
 #define MAX_ALLOWED_BLOCKED_ID  16777215 // 2^24 - 1 -- the actual value might be different
 #endif
@@ -109,15 +115,17 @@ const uint8_t mask_c = static_cast<uint8_t>(~(((1U << C_BITS) - 1) << SHIFT_C));
 #define LENGTH_MASK_BITS 1
 #define SHIFT_OFFSET 0
 #define SHIFT_N 1
+#define SHIFT_THRESHOLD_1 5
+#define SHIFT_THRESHOLD_2 6
+#define SHIFT_THRESHOLD_3 7
 #define C_BITS 3
 #define SHIFT_C 2
-const uint8_t mask_offset =  static_cast<uint8_t>(~(((1U << LENGTH_MASK_BITS) - 1) << SHIFT_OFFSET));   // 00000001
-const uint8_t mask_n =  static_cast<uint8_t>(~(((1U << LENGTH_MASK_BITS) - 1) << SHIFT_N));             // 00000010
-const uint8_t mask_c = static_cast<uint8_t>(~(((1U << C_BITS) - 1) << SHIFT_C));                        // 00011100
-const uint8_t mask_thresholds1 =  static_cast<uint8_t>(~(((1U << 1) - 1) << 5));                        // 00100000
-const uint8_t mask_thresholds2 =  static_cast<uint8_t>(~(((1U << 1) - 1) << 6));                        // 01000000
-const uint8_t mask_thresholds3 = static_cast<uint8_t>(~(((1U << 1) - 1) << 7));                         // 10000000
-#define MAX_RUN_LENGTH 511 // 2^9-1
+const uint8_t mask_offset = static_cast<uint8_t>(~(((1U << LENGTH_MASK_BITS) - 1) << SHIFT_OFFSET)); // 00000001
+const uint8_t mask_n = static_cast<uint8_t>(~(((1U << LENGTH_MASK_BITS) - 1) << SHIFT_N));           // 00000010
+const uint8_t mask_c = static_cast<uint8_t>(~(((1U << C_BITS) - 1) << SHIFT_C));                     // 00011100
+const uint8_t mask_thresholds1 = static_cast<uint8_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_1));      // 00100000
+const uint8_t mask_thresholds2 = static_cast<uint8_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_2));      // 01000000
+const uint8_t mask_thresholds3 = static_cast<uint8_t>(~(((1U << 1) - 1) << SHIFT_THRESHOLD_3));      // 10000000
 #endif
 
 // #if MODE == 5 or MODE == 7
@@ -412,11 +420,11 @@ inline char MoveRow::get_c() const{
 inline uint16_t MoveRow::get_threshold(uint16_t i) const {
     switch (i) {
         case 0:
-            return static_cast<uint16_t>((offset & (~mask_thresholds1)) >> 11);
+            return static_cast<uint16_t>((offset & (~mask_thresholds1)) >> SHIFT_THRESHOLD_1);
         case 1:
-            return static_cast<uint16_t>((n & (~mask_thresholds2)) >> 11);
+            return static_cast<uint16_t>((n & (~mask_thresholds2)) >> SHIFT_THRESHOLD_2);
         case 2:
-            return static_cast<uint16_t>((n & (~mask_thresholds3)) >> 12);
+            return static_cast<uint16_t>((n & (~mask_thresholds3)) >> SHIFT_THRESHOLD_3);
         default:
             std::cerr << "Only three thresholds exist per run: " << i << "\n";
             exit(0);
@@ -428,11 +436,11 @@ inline uint16_t MoveRow::get_threshold(uint16_t i) const {
 inline uint16_t MoveRow::get_threshold(uint16_t i) const {
     switch (i) {
         case 0:
-            return static_cast<uint16_t>((offset & (~mask_thresholds1)) >> 12);
+            return static_cast<uint16_t>((offset & (~mask_thresholds1)) >> SHIFT_THRESHOLD_1);
         case 1:
-            return static_cast<uint16_t>((offset & (~mask_thresholds2)) >> 13);
+            return static_cast<uint16_t>((offset & (~mask_thresholds2)) >> SHIFT_THRESHOLD_2);
         case 2:
-            return static_cast<uint16_t>((offset & (~mask_thresholds3)) >> 14);
+            return static_cast<uint16_t>((offset & (~mask_thresholds3)) >> SHIFT_THRESHOLD_3);
         default:
             std::cerr << "Only three thresholds exist per run: " << i << "\n";
             exit(0);
@@ -444,11 +452,11 @@ inline uint16_t MoveRow::get_threshold(uint16_t i) const {
 inline uint16_t MoveRow::get_threshold(uint16_t i) const {
     switch (i) {
         case 0:
-            return static_cast<uint16_t>((c & (~mask_thresholds1)) >> 5);
+            return static_cast<uint16_t>((c & (~mask_thresholds1)) >> SHIFT_THRESHOLD_1);
         case 1:
-            return static_cast<uint16_t>((c & (~mask_thresholds2)) >> 6);
+            return static_cast<uint16_t>((c & (~mask_thresholds2)) >> SHIFT_THRESHOLD_2);
         case 2:
-            return static_cast<uint16_t>((c & (~mask_thresholds3)) >> 7);
+            return static_cast<uint16_t>((c & (~mask_thresholds3)) >> SHIFT_THRESHOLD_3);
         default:
             std::cerr << "Only three thresholds exist per run: " << i << "\n";
             exit(0);
