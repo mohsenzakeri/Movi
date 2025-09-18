@@ -1,6 +1,8 @@
 #ifndef MOVI_OPTIONS_HPP
 #define MOVI_OPTIONS_HPP
 
+#include <iostream>
+
 class MoviOptions {
     public:
         MoviOptions() {

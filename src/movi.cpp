@@ -414,7 +414,7 @@ int main(int argc, char** argv) {
     try {
         MoviOptions movi_options;
         if (!parse_command(argc, argv, movi_options)) {
-            return 0;
+            return 1;
         }
 
         if (movi_options.is_stdout() and !movi_options.is_no_output()) {

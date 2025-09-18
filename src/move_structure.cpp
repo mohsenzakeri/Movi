@@ -1295,7 +1295,7 @@ void MoveStructure::build() {
 
             // Boundary check for bits vector
             if (scanned_bwt_length + 1 >= bits.size()) {
-                std::cerr << "\Finding the runs: " << scanned_bwt_length + 1 << " offset is greater than the bits vector length (" << bits.size() << ")\n";
+                std::cerr << "\nFinding the runs: " << scanned_bwt_length + 1 << " offset is greater than the bits vector length (" << bits.size() << ")\n";
                 exit(0);
             }
 
@@ -1427,7 +1427,7 @@ void MoveStructure::build() {
 
         // Boundary check for bits vector
         if (lf >= bits.size()) {
-            std::cerr << "\Building the move structure rows: " << lf << " offset is greater than the bits vector length (" << bits.size() << ")\n";
+            std::cerr << "\nBuilding the move structure rows: " << lf << " offset is greater than the bits vector length (" << bits.size() << ")\n";
             exit(0);
         }
 

@@ -391,13 +391,14 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                 cxxopts::throw_or_mimic<cxxopts::exceptions::no_such_option>(message);
             }
 
-                if (result.count("help")) {
-                    std::cerr << options.help(help_groups) << std::endl;
-                    return 0;
-                }
+            if (result.count("help")) {
+                std::cerr << options.help(help_groups) << std::endl;
+                return 0;
+            }
 
         } else {
             const std::string message = "No action specified.";
+            help_groups.push_back(" ");
             cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
         }
     } catch (const cxxopts::exceptions::exception& e) {
