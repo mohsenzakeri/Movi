@@ -3695,6 +3695,43 @@ void MoveStructure::verify_lfs() {
     }
 }
 
+void MoveStructure::verify_lf_loop() {
+    // This function only works if the LF function works correctly and
+    // It verifies that n LF_move operations loops back to the same BWT offeset.
+    uint64_t idx = end_bwt_idx;
+    uint64_t offset = 0;
+
+    std::vector<std::vector<uint64_t>> bwt_offsets(r);
+    for (uint64_t i = 0; i < r; i++) {
+        bwt_offsets[i].resize(rlbwt[i].get_n(), 0);
+    }
+
+    std::cerr << "Verifying that all the LF_move operations loop back to the same BWT offset.\n";
+    for (uint64_t i = 0; i < length; i++) {
+        LF_move(offset, idx);
+        bwt_offsets[idx][offset] = 1;
+    }
+
+    uint64_t visited_offsets = 0;
+    for (uint64_t i = 0; i < r; i++) {
+        for (uint64_t j = 0; j < rlbwt[i].get_n(); j++) {
+            if (bwt_offsets[i][j] == 1) {
+                visited_offsets += 1;
+            }
+        }
+    }
+
+    if (idx == end_bwt_idx and offset == 0 and visited_offsets == length) {
+        std::cerr << "All the LF_move operations are correct.\n";
+    } else {
+        std::cerr << "LF_move operations failed to loop back to the same BWT offset.\n";
+        std::cerr << "\tlast idx: " << idx << " last offset: " << offset << "\n";
+        std::cerr << "\tNumber of visited offsets: " << visited_offsets << "\n";
+        std::cerr << "\tlength of the BWT: " << length << "\n";
+        exit(1);
+    }
+}
+
 void MoveStructure::analyze_rows() {
     for (int i = 0; i < first_runs.size(); i++) {
         std::cerr << i << "\t" << first_runs[i] << "\t" << last_runs[i] << "\n";

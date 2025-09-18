@@ -442,7 +442,7 @@ int main(int argc, char** argv) {
             MoveStructure mv_(&movi_options, SPLIT_ARRAY, CONSTANT_MODE);
             if (movi_options.if_verify()) {
                 std::cerr << "Verifying the LF_move results...\n";
-                mv_.verify_lfs();
+                mv_.verify_lf_loop();
             }
             mv_.serialize();
             build_ftab(mv_, movi_options);

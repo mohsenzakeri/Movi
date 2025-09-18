@@ -262,6 +262,7 @@ class MoveStructure {
         bool reposition_randomly(uint64_t& idx, uint64_t& offset, char r_char, uint64_t& scan_count);
 
         void verify_lfs();
+        void verify_lf_loop();
         void print_stats();
         void print_ids();
         void analyze_rows();
