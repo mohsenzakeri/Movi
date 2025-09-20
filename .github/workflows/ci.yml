@@ -27,5 +27,4 @@ jobs:
         
     - name: Run tests
       run: |
-        cd build
-        ../run_tests.sh
+        ./run_tests.sh
