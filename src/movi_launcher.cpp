@@ -136,6 +136,7 @@ void execute_command_line(const std::string& command, const std::string& error_m
     }
     if (std::system(command.c_str()) != 0 and args.action != "view") {
         std::cerr << "Error executing the command: " + error_msg << "\n";
+        exit(1);
     }
 }
 
