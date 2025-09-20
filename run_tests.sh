@@ -55,7 +55,7 @@ cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_STANDARD=20 -DBUILD_TEST=1
 
 # Build the project
 print_status "Building project..."
-make -j
+make
 
 # Check if test executables were built
 TEST_EXECUTABLES=("basics-tests" "build-tests" "pml-tests")
