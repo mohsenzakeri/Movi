@@ -110,3 +110,7 @@ endif()
 #endif()
 
 add_subdirectory(src)
+
+if (BUILD_TEST STREQUAL "1")
+    add_subdirectory(tests)
+endif()
