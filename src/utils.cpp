@@ -202,7 +202,7 @@ void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::strin
 
     if (to_stdout) {
 
-        std::cout << ">" << read_id << " \n";
+        std::cout << ">" << read_id << "\n";
         std::reverse(mq.get_matching_lengths_string().begin(), mq.get_matching_lengths_string().end());
         std::cout << mq.get_matching_lengths_string();
         std::cout << "\n";
