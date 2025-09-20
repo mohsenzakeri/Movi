@@ -89,7 +89,7 @@ if (NOT EXISTS ${EXTERNAL_REPOS_DIR}/pfp-thresholds-build/pfp_thresholds)
     STAMP_DIR ${EXTERNAL_REPOS_DIR}/pfp-thresholds-stamp
     TMP_DIR ${EXTERNAL_REPOS_DIR}/pfp-thresholds-tmp
     CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_REPOS_DIR}/pfp-thresholds/install
-               -DCMAKE_CXX_FLAGS=-include\ cstdint
+            #    -DCMAKE_CXX_FLAGS=-include\ cstdint
     BUILD_ALWAYS OFF
     INSTALL_COMMAND make install
   )
