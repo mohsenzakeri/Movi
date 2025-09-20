@@ -5,6 +5,40 @@
 
 set -e  # Exit on any error
 
+# Parse command line arguments
+JOBS=1  # Default to 1 job
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -j|--jobs)
+            JOBS="$2"
+            shift 2
+            ;;
+        -j*)
+            JOBS="${1#-j}"
+            shift
+            ;;
+        -h|--help)
+            echo "Usage: $0 [OPTIONS]"
+            echo "Options:"
+            echo "  -j, --jobs N     Number of parallel jobs for compilation (default: 1)"
+            echo "  -h, --help       Show this help message"
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            echo "Use -h or --help for usage information"
+            exit 1
+            ;;
+    esac
+done
+
+# Validate jobs parameter
+if ! [[ "$JOBS" =~ ^[0-9]+$ ]] || [ "$JOBS" -lt 1 ]; then
+    echo "Error: Jobs must be a positive integer, got: $JOBS"
+    exit 1
+fi
+
 echo "=========================================="
 echo "Movi Test Runner"
 echo "=========================================="
@@ -54,8 +88,8 @@ print_status "Configuring CMake..."
 cmake .. -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_STANDARD=20 -DBUILD_TEST=1
 
 # Build the project
-print_status "Building project..."
-make
+print_status "Building project with $JOBS parallel job(s)..."
+make -j$JOBS
 
 # Check if test executables were built
 TEST_EXECUTABLES=("basics-tests" "build-tests" "pml-tests")

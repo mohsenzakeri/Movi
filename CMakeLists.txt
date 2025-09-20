@@ -16,6 +16,11 @@ include(FetchContent)
 
 find_package(OpenMP REQUIRED)
 
+# This is needed because external libraries (pfp-thresholds, sdsl, etc.)
+# use cstdint types but don't include the header
+# force include <cstdint> for all C++ compilation units
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -include cstdint")
+
 #----------------------------------------
 # Add zlib
 #----------------------------------------
