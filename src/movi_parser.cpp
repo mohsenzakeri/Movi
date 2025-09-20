@@ -225,7 +225,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("count") >= 1) { movi_options.set_count(); }
                         if (result.count("zml") >= 1) { movi_options.set_zml(); }
                         if (result.count("pml") >= 1) { movi_options.set_pml(); }
-                        if (result.count("sa-entries") >= 1) { movi_options.set_get_sa_entries(true); std::cerr << "get_sa_entries: " << movi_options.is_get_sa_entries() << "\n"; }
+                        if (result.count("sa-entries") >= 1) { movi_options.set_get_sa_entries(true); }
                         if (result.count("rpml") >= 1) { movi_options.set_random_repositioning(true); }
                         if (result.count("classify") >= 1) { movi_options.set_classify(true); }
                         if (result.count("filter") >= 1) { movi_options.set_filter(true); }

@@ -29,7 +29,7 @@ class MoviOptions {
         bool is_verbose() { return verbose; }
         bool is_logs() { return logs; }
         bool is_debug() { return debug; }
-        bool if_verify() { return verify; }
+        bool is_verify() { return verify; }
         bool is_random_repositioning() { return random_repositioning; }
         bool is_get_sa_entries() { return get_sa_entries; }
         bool is_pml() { return pml_query; }

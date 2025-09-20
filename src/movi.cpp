@@ -440,7 +440,7 @@ int main(int argc, char** argv) {
         std::string command = movi_options.get_command();
         if (command == "build") {
             MoveStructure mv_(&movi_options, SPLIT_ARRAY, CONSTANT_MODE);
-            if (movi_options.if_verify()) {
+            if (movi_options.is_verify()) {
                 std::cerr << "Verifying the LF_move results...\n";
                 mv_.verify_lf_loop();
             }
