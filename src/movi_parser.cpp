@@ -1,6 +1,6 @@
 #include "movi_parser.hpp"
 
-bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
+bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supress_messages) {
     // movi_options.print_options();
 
     // cxxopts::Options options("movi-" + program(), "Please use the following format:");
@@ -204,7 +204,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         movi_options.set_compressed(true);
                     }
                     if (result.count("threads") == 1) {
-                        std::cerr << "threads: " << result["threads"].as<int>() << "\n";
+                        if (!supress_messages) {
+                            std::cerr << "threads: " << result["threads"].as<int>() << "\n";
+                        }
                         movi_options.set_threads(static_cast<size_t>(result["threads"].as<int>()));
                     }
                 } else {
@@ -274,11 +276,15 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                             movi_options.set_prefetch(false);
                         }
                         if (result.count("strands") == 1) {
-                            std::cerr << "strands: " << result["strands"].as<int>() << "\n";
+                            if (!supress_messages) {
+                                std::cerr << "Number of strands: " << result["strands"].as<int>() << "\n";
+                            }
                             movi_options.set_strands(static_cast<size_t>(result["strands"].as<int>()));
                         }
                         if (result.count("threads") == 1) {
-                            std::cerr << "threads: " << result["threads"].as<int>() << "\n";
+                            if (!supress_messages) {
+                                std::cerr << "Number of threads: " << result["threads"].as<int>() << "\n";
+                            }
                             movi_options.set_threads(static_cast<size_t>(result["threads"].as<int>()));
                         }
                         if (result.count("stdout")) {
@@ -293,8 +299,10 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                     }
                 } catch (const cxxopts::exceptions::exception& e) {
-                    std::cerr << "Error parsing command line options: " << e.what() << "\n";
-                    std::cerr << options.help(help_groups) << "\n";
+                    if (!supress_messages) {
+                        std::cerr << "Error parsing command line options: " << e.what() << "\n";
+                        std::cerr << options.help(help_groups) << "\n";
+                    }
                     return false;
                 }
             } else if (command == "rlbwt") {
@@ -392,7 +400,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
             }
 
             if (result.count("help")) {
-                std::cerr << options.help(help_groups) << std::endl;
+                if (!supress_messages) {
+                    std::cerr << options.help(help_groups) << std::endl;
+                }
                 return 0;
             }
 
@@ -402,8 +412,10 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
             cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
         }
     } catch (const cxxopts::exceptions::exception& e) {
-        std::cerr << "Error parsing command line options: " << e.what() << "\n";
-        std::cerr << options.help(help_groups) << "\n";
+        if (!supress_messages) {
+            std::cerr << "Error parsing command line options: " << e.what() << "\n";
+            std::cerr << options.help(help_groups) << "\n";
+        }
         return false;
     }
     return true;

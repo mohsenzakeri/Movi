@@ -8,6 +8,6 @@
 #include "utils.hpp"
 #include "movi_options.hpp"
 
-bool parse_command(int argc, char** argv, MoviOptions& movi_options);
+bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supress_messages = false);
 
 #endif
