@@ -77,7 +77,7 @@ if (NOT EXISTS ${EXTERNAL_REPOS_DIR}/pfp-thresholds-build/pfp_thresholds)
   ExternalProject_Add(
     pfp-thresholds
     GIT_REPOSITORY https://github.com/mohsenzakeri/pfp-thresholds
-    GIT_TAG probing
+    GIT_TAG movi
     PREFIX ${EXTERNAL_REPOS_DIR}
     SOURCE_DIR ${EXTERNAL_REPOS_DIR}/pfp-thresholds
     BINARY_DIR ${EXTERNAL_REPOS_DIR}/pfp-thresholds-build
