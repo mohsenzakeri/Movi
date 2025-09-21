@@ -23,8 +23,8 @@ void test_pml_computation(const std::string& index_type, const std::string& inde
     int query_exit_code = system(query_cmd.c_str());
     REQUIRE(query_exit_code == 0);
 
-    // Sort output
-    std::string query_sort_cmd = "sort " + query_output + " > " + query_output + ".sorted";
+    // Sort output using C locale for consistent sorting across environments
+    std::string query_sort_cmd = "LC_ALL=C sort " + query_output + " > " + query_output + ".sorted";
     int sort_exit_code = system(query_sort_cmd.c_str());
     REQUIRE(sort_exit_code == 0);
 
