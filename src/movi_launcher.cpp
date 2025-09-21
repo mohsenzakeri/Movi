@@ -168,7 +168,7 @@ void handle_build(const Args& args, const std::vector<std::string>& all_args) {
 
     // Execute pfp_thresholds
     if (!args.skip_pfp) {
-        std::string pfp_command = binary_dir + PFP_THRESHOLDS_PATH + " -f " + clean_fasta;
+        std::string pfp_command = binary_dir + PFP_THRESHOLDS_PATH + " -P -f " + clean_fasta;
         execute_command_line(pfp_command, "Failed in pfp_thresholds step", args);
     }
 

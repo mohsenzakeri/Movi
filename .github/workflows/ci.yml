@@ -27,4 +27,4 @@ jobs:
         
     - name: Run tests
       run: |
-        ./run_tests.sh -j4
+        ./run_tests.sh -j8
