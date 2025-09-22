@@ -27,4 +27,4 @@ jobs:
         
     - name: Build the binaries and Run tests
       run: |
-        ./run_tests.sh -j
+        ./run_tests.sh -j$(nproc)

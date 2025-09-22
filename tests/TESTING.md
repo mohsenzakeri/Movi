@@ -16,7 +16,7 @@ The testing framework uses [Catch2](https://github.com/catchorg/Catch2) as the t
 ./run_tests.sh
 
 # Run tests with parallel compilation (faster)
-./run_tests.sh -j
+./run_tests.sh -j$(nproc)
 ```
 
 ### Manual Testing
@@ -27,8 +27,8 @@ mkdir -p build_test
 cd build_test
 
 # Configure and build
-cmake .. -DCMAKE_BUILD_TYPE=Debug
-make -j
+cmake .. -DCMAKE_BUILD_TYPE=Debug -DBUILD_TEST=1
+make -j$(nproc)
 
 # Run all tests using the test runner script
 ../run_tests.sh
