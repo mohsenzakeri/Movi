@@ -12,8 +12,11 @@ The testing framework uses [Catch2](https://github.com/catchorg/Catch2) as the t
 ### Quick Start
 
 ```bash
-# Run all tests with the provided script
+# Run all tests with the provided script (single-threaded build)
 ./run_tests.sh
+
+# Run tests with parallel compilation (faster)
+./run_tests.sh -j
 ```
 
 ### Manual Testing
@@ -102,4 +105,20 @@ if ! run_test "Your Tests" "your-tests"; then
     ((FAILED_TESTS++))
 fi
 ((TOTAL_TESTS++))
+```
+
+## Continuous Integration
+
+The repository is configured with GitHub Actions to automatically run tests on:
+- Push to main/develop branches
+- Pull requests to main/develop branches
+
+The CI pipeline is found at `.github/workflows/ci.yml`.
+
+### Local Testing Before Push
+
+Always run tests locally before pushing:
+
+```bash
+./run_tests.sh
 ```

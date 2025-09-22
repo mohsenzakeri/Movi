@@ -25,6 +25,6 @@ jobs:
         cmake -Bbuild -H. -DBUILD_TESTING=OFF
         sudo cmake --build build/ --target install
         
-    - name: Run tests
+    - name: Build the binaries and Run tests
       run: |
-        ./run_tests.sh -j8
+        ./run_tests.sh -j
