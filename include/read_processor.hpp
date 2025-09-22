@@ -92,10 +92,7 @@ class ReadProcessor {
         gzFile fp;
         kseq_t *seq;
         int l;
-        std::ofstream mls_file;
-        std::ofstream matches_file;
-        std::ofstream out_file;
-        std::ofstream colors_file;
+        OutputFiles output_files;
         int strands;
         uint32_t k;
         bool verbose = false;
@@ -107,9 +104,6 @@ class ReadProcessor {
         uint64_t kmer_extension_count;
         uint64_t kmer_extension_stopped_count;
         uint64_t negative_kmer_extension_count;
-        std::ofstream costs_file;
-        std::ofstream scans_file;
-        std::ofstream fastforwards_file;
         std::chrono::time_point<std::chrono::high_resolution_clock> t1;
 };
 

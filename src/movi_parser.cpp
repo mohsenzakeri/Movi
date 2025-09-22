@@ -75,7 +75,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
         ("s,strands", "Number of strands for query", cxxopts::value<int>())
         ("t,threads", "Number of threads for query", cxxopts::value<int>())
-        ("out-file", "Output file if computing PMLs for classification", cxxopts::value<std::string>())
+        ("o,out-file", "Output file if computing PMLs for classification", cxxopts::value<std::string>())
         ("stdout", "Write the output to stdout, writes the matching lengths by default, or the report of classification if --classify is passed")
         ("no-output", "Do not write any output, ignores other options about the output")
         ("ignore-illegal-chars", "In the case of illegal characters (i.e., non-ACGT for genomic data), substitute the character with \'A\'(1) or a random character from the alphabet (2).", cxxopts::value<int>());
@@ -243,6 +243,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                         if (result.count("color-move-rows") == 1) { movi_options.set_color_move_rows(true); }
                         if (result.count("color-vectors") == 1) { movi_options.set_doc_sets_vector_of_vectors(true); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
+                        if (result.count("out-file")) { movi_options.set_out_file(result["out-file"].as<std::string>()); }
                         if (result.count("multi-classify")) {
                             if (result.count("full")) {
                                 movi_options.set_full_color(true);
@@ -255,8 +256,12 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                                 movi_options.set_tree_compressed(true);
                                 movi_options.set_freq_compressed(false);
                             }
-                            if (result.count("out-file")) {
+
+                            if (result.count("out-file") == 1) {
                                 movi_options.set_out_file(result["out-file"].as<std::string>());
+                            } else {
+                                const std::string message = "Please include the out file for multi-classify.";
+                                cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                             }
                         }
                         if (result.count("ignore-illegal-chars") == 1) {

@@ -18,52 +18,10 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
         fp = gzopen(reads_file_name.c_str(), "r"); // STEP 2: open the file handler
     }
 
-    if (!mv_.movi_options->is_filter()) {
+    // seq = kseq_init(fp); // STEP 3: initialize seq
+    // Open output files using the utility function
+    open_output_files(*(mv_.movi_options), output_files);
 
-        // seq = kseq_init(fp); // STEP 3: initialize seq
-        std::string index_type = program();
-        if (mv_.movi_options->is_multi_classify()) {
-            out_file = std::ofstream(mv_.movi_options->get_out_file());
-        }
-
-        if (!mv_.movi_options->is_stdout() and !mv_.movi_options->is_no_output()) {
-
-            if (mv_.movi_options->is_report_colors()) {
-                std::string colors_file_name = reads_file_name + "." + index_type + ".colors.bin";
-                colors_file = std::ofstream(colors_file_name, std::ios::out | std::ios::binary);
-            } else if (mv_.movi_options->is_report_color_ids()) {
-                std::string colors_file_name = reads_file_name + "." + index_type + ".color_ids.bin";
-                colors_file = std::ofstream(colors_file_name, std::ios::out | std::ios::binary);
-            }
-
-            if (mv_.movi_options->is_pml()) {
-                std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
-                mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
-            } else if (mv_.movi_options->is_zml()) {
-                std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
-                mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
-            } else if (mv_.movi_options->is_count()) {
-                std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
-                matches_file = std::ofstream(matches_file_name);
-            }
-
-            if (mv_.movi_options->is_pml()) {
-                std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
-                mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
-            } else if (mv_.movi_options->is_zml()) {
-                std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
-                mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
-            } else if (mv_.movi_options->is_count()) {
-                std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
-                matches_file = std::ofstream(matches_file_name);
-            }
-            if (mv_.movi_options->is_logs()) {
-                costs_file = std::ofstream(reads_file_name + "." + index_type + ".costs");
-                scans_file = std::ofstream(reads_file_name + "." + index_type + ".scans");
-                fastforwards_file = std::ofstream(reads_file_name + "." + index_type + ".fastforwards");
-            }
-        }
-    }
     if (mv_.movi_options->is_classify() or mv_.movi_options->is_filter()) {
         classifier.initialize_report_file(*mv_.movi_options);
     }
@@ -540,24 +498,24 @@ void ReadProcessor::write_mls(Strand& process) {
     }
 
     if (mv.movi_options->is_multi_classify()) {
-        out_file << process.read_name << ",";
+        output_files.out_file << process.read_name << ",";
         // binary classification in the multi-class classification mode is handled at a different part of the code
         // if (mv.movi_options->is_classify() && !mv.classifier->is_present(process.mq.get_matching_lengths(), *mv.movi_options)) {
         float PML_mean = static_cast<float>(process.sum_matching_lengths) / process.read.length();
         if (PML_mean < UNCLASSIFIED_THRESHOLD || process.best_doc == std::numeric_limits<uint16_t>::max()) {
             // Not present
             if (mv.movi_options->is_report_all()) {
-                out_file << "0\n";
+                output_files.out_file << "0\n";
             } else {
-                out_file << "0,0\n";
+                output_files.out_file << "0,0\n";
             }
         } else {
             if (mv.movi_options->is_report_colors() or mv.movi_options->is_report_color_ids()) {
                 // Writing the PMLs
-                output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, false, false);
+                output_matching_lengths(write_stdout, output_files.mls_file, process.read_name, process.mq, false, false);
 
                 // Writing the colors
-                output_matching_lengths(write_stdout, colors_file, process.read_name, process.mq, true, false);
+                output_matching_lengths(write_stdout, output_files.colors_file, process.read_name, process.mq, true, false);
             }
 
             // If the second most occurring document is more than 95% of the most occurring one,
@@ -568,7 +526,7 @@ void ReadProcessor::write_mls(Strand& process) {
                 if (mv.movi_options->get_min_score_frac() == 0) {
                     // For the min_diff_frac mode, we write the best document no matter what
                     // For the min_score_frac mode, the best document is outputed only if its score is high enough
-                    out_file << mv.to_taxon_id[process.best_doc];
+                    output_files.out_file << mv.to_taxon_id[process.best_doc];
                 }
 
                 uint32_t output_document_count = 0;
@@ -579,23 +537,23 @@ void ReadProcessor::write_mls(Strand& process) {
                         float diff_best = static_cast<float>(best_doc_cnt - process.classify_cnts[i]);
 
                         if (i!= process.best_doc and diff_best < mv.movi_options->get_min_diff_frac() * best_doc_cnt) {
-                                out_file << "," << mv.to_taxon_id[i];
+                                output_files.out_file << "," << mv.to_taxon_id[i];
                         }
                     } else {
 
                         if (static_cast<float>(process.classify_cnts[i]) >= mv.movi_options->get_min_score_frac() * process.colors_count) {
-                            out_file << "," << mv.to_taxon_id[i]; // << ":" << process.classify_cnts[i] << "/" << process.colors_count << "/" << process.read.length();
+                            output_files.out_file << "," << mv.to_taxon_id[i]; // << ":" << process.classify_cnts[i] << "/" << process.colors_count << "/" << process.read.length();
                             output_document_count += 1;
                         }
                     }
                 }
 
                 if (mv.movi_options->get_min_score_frac() != 0 and output_document_count == 0) {
-                    out_file << "0";
+                    output_files.out_file << "0";
                 }
             } else {
                 if (process.second_best_doc == std::numeric_limits<uint16_t>::max()) {
-                    out_file << mv.to_taxon_id[process.best_doc] << ",0";
+                    output_files.out_file << mv.to_taxon_id[process.best_doc] << ",0";
                 } else {
 
                     uint32_t best_doc_cnt = process.classify_cnts[process.best_doc];
@@ -603,13 +561,13 @@ void ReadProcessor::write_mls(Strand& process) {
                     float second_best_diff = static_cast<float>(best_doc_cnt - second_best_doc_cnt);
 
                     if (second_best_diff < 0.05 * best_doc_cnt) {
-                        out_file << mv.to_taxon_id[process.best_doc] << "," << mv.to_taxon_id[process.second_best_doc];
+                        output_files.out_file << mv.to_taxon_id[process.best_doc] << "," << mv.to_taxon_id[process.second_best_doc];
                     } else {
-                        out_file << mv.to_taxon_id[process.best_doc] << ",0";
+                        output_files.out_file << mv.to_taxon_id[process.best_doc] << ",0";
                     }
                 }
             }
-            out_file << "\n";
+            output_files.out_file << "\n";
         }
     } else {
         if (!mv.movi_options->is_filter()) {
@@ -621,10 +579,10 @@ void ReadProcessor::write_mls(Strand& process) {
                 process.mq.add_cost(elapsed);
                 process.mq.add_fastforward(process.ff_count);
                 process.mq.add_scan(process.scan_count);
-                output_logs(costs_file, scans_file, fastforwards_file, process.read_name, process.mq, mv.movi_options->is_no_output());
+                output_logs(output_files.costs_file, output_files.scans_file, output_files.fastforwards_file, process.read_name, process.mq, mv.movi_options->is_no_output());
             }
 
-            output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, false, mv.movi_options->is_no_output());
+            output_matching_lengths(write_stdout, output_files.mls_file, process.read_name, process.mq, false, mv.movi_options->is_no_output());
         }
     }
 }
@@ -633,7 +591,7 @@ void ReadProcessor::write_count(Strand& process) {
     compute_match_count(process);
     auto& R = process.mq.query();
     bool write_stdout = mv.movi_options->is_stdout();
-    output_counts(write_stdout, matches_file, process.read_name, R.length(), process.pos_on_r, process.match_count, mv.movi_options->is_no_output());
+    output_counts(write_stdout, output_files.matches_file, process.read_name, R.length(), process.pos_on_r, process.match_count, mv.movi_options->is_no_output());
 }
 
 void ReadProcessor::compute_match_count(Strand& process) {
@@ -660,30 +618,17 @@ void ReadProcessor::end_process() {
         bool is_zml = mv.movi_options->is_zml();
         bool is_count = mv.movi_options->is_count();
 
-        if (!mv.movi_options->is_stdout()) {
-            if (is_pml or is_zml) {
-                mls_file.close();
-                std::cerr << "Matching lengths file is closed!\n";
-            } else if (is_count) {
-                matches_file.close();
-                std::cerr << "match_file file closed!\n";
-            }
-        }
-
         if (mv.movi_options->is_classify()) {
             classifier.close_report_file();
         }
+
+        // Close output files using the utility function
+        close_output_files(*(mv.movi_options), output_files);
 
         // kseq_destroy(seq); // STEP 5: destroy seq
         // std::cerr << "kseq destroyed!\n";
         // gzclose(fp); // STEP 6: close the file handler
         // std::cerr << "fp file closed!\n";
-
-        if (mv.movi_options->is_logs()) {
-            costs_file.close();
-            scans_file.close();
-            fastforwards_file.close();
-        }
     }
 }
 

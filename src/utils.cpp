@@ -296,6 +296,89 @@ void output_read(std::string& read_id, std::string& read, bool no_output) {
     }
 }
 
+void open_output_files(MoviOptions& movi_options, OutputFiles& output_files) {
+
+    std::string index_type = program();
+
+    // Handle multi_classify out_file (used in ReadProcessor)
+    if (movi_options.is_multi_classify()) {
+        output_files.out_file = std::ofstream(movi_options.get_out_file());
+    }
+
+    bool should_open_files = ((!movi_options.is_stdout() || movi_options.is_classify()) &&
+                             !movi_options.is_filter() &&
+                             !movi_options.is_no_output());
+
+    if (should_open_files) {
+
+        // Handle color files
+        if (movi_options.is_report_colors()) {
+            std::string colors_file_name = movi_options.get_read_file()  + "." + index_type + ".colors.bin";
+            output_files.colors_file = std::ofstream(colors_file_name, std::ios::out | std::ios::binary);
+        } else if (movi_options.is_report_color_ids()) {
+            std::string colors_file_name = movi_options.get_read_file()  + "." + index_type + ".color_ids.bin";
+            output_files.colors_file = std::ofstream(colors_file_name, std::ios::out | std::ios::binary);
+        }
+
+        // Determine output file name prefix based on context
+        std::string out_file_name_prefix = movi_options.get_out_file() != "" ? movi_options.get_out_file() :
+                                                                               movi_options.get_read_file() + "." + index_type;
+        if (!movi_options.is_kmer()) {
+            out_file_name_prefix += "." + query_type(movi_options);
+        }
+
+        // Handle PML/ZML, count query files and kmer query files
+        if (movi_options.is_pml() || movi_options.is_zml()) {
+            std::string mls_file_name = out_file_name_prefix + ".bin";
+            output_files.mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
+        } else if (movi_options.is_count()) {
+            std::string matches_file_name = out_file_name_prefix + ".matches";
+            output_files.matches_file = std::ofstream(matches_file_name);
+        } else if (movi_options.is_kmer()) {
+            std::string kmer_file_name = out_file_name_prefix + ".kmers." + std::to_string(movi_options.get_k());
+            output_files.kmer_file = std::ofstream(kmer_file_name);
+        }
+
+        // Handle SA entries file
+        if (movi_options.is_get_sa_entries()) {
+            std::string sa_entries_file_name = out_file_name_prefix + ".sa_entries";
+            output_files.sa_entries_file = std::ofstream(sa_entries_file_name);
+        }
+
+        // Handle log files
+        if (movi_options.is_logs()) {
+            output_files.costs_file = std::ofstream(out_file_name_prefix + ".costs");
+            output_files.scans_file = std::ofstream(out_file_name_prefix + ".scans");
+            output_files.fastforwards_file = std::ofstream(out_file_name_prefix + ".fastforwards");
+        }
+    }
+}
+
+void close_output_files(MoviOptions& movi_options, OutputFiles& output_files) {
+    if (!movi_options.is_no_output() && !movi_options.is_filter()) {
+        if (movi_options.is_pml() || movi_options.is_zml()) {
+            if (!movi_options.is_stdout()) {
+                output_files.mls_file.close();
+            }
+            if (movi_options.is_get_sa_entries()) {
+                output_files.sa_entries_file.close();
+            }
+            std::cerr << "The output file for the matching lengths closed.\n";
+        } else if (movi_options.is_count()) {
+            if (!movi_options.is_stdout()) {
+                output_files.matches_file.close();
+            }
+            std::cerr << "The count file is closed.\n";
+        }
+
+        if (movi_options.is_logs()) {
+            output_files.costs_file.close();
+            output_files.scans_file.close();
+            output_files.fastforwards_file.close();
+        }
+    }
+}
+
 // Borrowed from spumoni written by Omar Ahmed: https://github.com/oma219/spumoni/tree/main
 std::string parse_null_reads(const char* ref_file, const char* output_path) {
     /* Parses out null reads in the case that we don't use a file-list */

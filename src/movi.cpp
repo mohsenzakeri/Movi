@@ -146,35 +146,11 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         // int l;
         // kseq_t* seq = open_kseq(fp, movi_options.get_read_file());
 
-        std::string index_type = program();
-
-        std::ofstream mls_file;
-        std::ofstream count_file;
-        std::ofstream kmer_file;
-        std::ofstream costs_file;
-        std::ofstream scans_file;
-        std::ofstream fastforwards_file;
+        OutputFiles output_files;
         std::ofstream report_file;
-        std::ofstream sa_entries_file;
 
-        if ((!movi_options.is_stdout() or movi_options.is_classify()) and !movi_options.is_filter()) {
-            if (movi_options.is_logs()) {
-                costs_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".costs");
-                scans_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".scans");
-                fastforwards_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".fastforwards");
-            }
-
-            if (movi_options.is_get_sa_entries()) {
-                sa_entries_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".sa_entries");
-            }
-
-            if (movi_options.is_pml() or movi_options.is_zml())
-                mls_file = std::ofstream(movi_options.get_read_file() + "." + index_type + "." + query_type(movi_options) + ".bin", std::ios::out | std::ios::binary);
-            else if (movi_options.is_count())
-                count_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".matches");
-            else if (movi_options.is_kmer())
-                kmer_file = std::ofstream(movi_options.get_read_file() + "." + index_type + ".kmers." + std::to_string(movi_options.get_k()));
-        }
+        // Open output files using the utility function
+        open_output_files(movi_options, output_files);
 
         Classifier classifier;
         mv_.set_classifier(&classifier);
@@ -262,9 +238,9 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                             }
 
                             if (!movi_options.is_filter()) {
-                                output_matching_lengths(movi_options.is_stdout() and !movi_options.is_classify(), mls_file, read_struct.id, mq, false, movi_options.is_no_output());
+                                output_matching_lengths(movi_options.is_stdout() and !movi_options.is_classify(), output_files.mls_file, read_struct.id, mq, false, movi_options.is_no_output());
                                 if (movi_options.is_get_sa_entries()) {
-                                    output_sa_entries(sa_entries_file, read_struct.id, mq, movi_options.is_no_output());
+                                    output_sa_entries(output_files.sa_entries_file, read_struct.id, mq, movi_options.is_no_output());
                                 }
                             }
                         }
@@ -278,7 +254,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
                         #pragma omp critical
                         {
-                            output_counts(movi_options.is_stdout() and !movi_options.is_classify(), count_file, read_struct.id, query_seq.length(), pos_on_r, match_count, movi_options.is_no_output());
+                            output_counts(movi_options.is_stdout() and !movi_options.is_classify(), output_files.matches_file, read_struct.id, query_seq.length(), pos_on_r, match_count, movi_options.is_no_output());
                         }
                     } else if (movi_options.is_kmer()) {
                         mq = MoveQuery(query_seq);
@@ -286,7 +262,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                         if (!movi_options.is_kmer_count()) {
                             #pragma omp critical
                             {
-                                output_kmers(movi_options.is_stdout() and !movi_options.is_classify(), kmer_file, read_struct.id, query_seq.length() - movi_options.get_k() + 1, mq, movi_options.is_no_output());
+                                output_kmers(movi_options.is_stdout() and !movi_options.is_classify(), output_files.kmer_file, read_struct.id, query_seq.length() - movi_options.get_k() + 1, mq, movi_options.is_no_output());
                             }
                         }
                     }
@@ -294,7 +270,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     if (movi_options.is_logs()) {
                         #pragma omp critical
                         {
-                            output_logs(costs_file, scans_file, fastforwards_file, read_struct.id, mq, movi_options.is_no_output());
+                            output_logs(output_files.costs_file, output_files.scans_file, output_files.fastforwards_file, read_struct.id, mq, movi_options.is_no_output());
                         }
                     }
                 }
@@ -304,18 +280,6 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         if (!movi_options.is_no_output() and !movi_options.is_filter()) {
             if (movi_options.is_pml() or movi_options.is_zml()) {
                 std::cerr << "all fast forward counts: " << total_ff_count << "\n";
-                if (!movi_options.is_stdout()) {
-                    mls_file.close();
-                }
-                if (movi_options.is_get_sa_entries()) {
-                    sa_entries_file.close();
-                }
-                std::cerr << "The output file for the matching lengths closed.\n";
-            } else if (movi_options.is_count()) {
-                if (!movi_options.is_stdout()) {
-                    count_file.close();
-                }
-                std::cerr << "The count file is closed.\n";
             } else if (movi_options.is_kmer()) {
                 mv_.kmer_stats.print(movi_options.is_kmer_count());
             }
@@ -324,11 +288,8 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 classifier.close_report_file();
             }
 
-            if (movi_options.is_logs()) {
-                costs_file.close();
-                scans_file.close();
-                fastforwards_file.close();
-            }
+            // Close output files using the utility function
+            close_output_files(movi_options, output_files);
         }
         // close_kseq(seq, fp);
     }

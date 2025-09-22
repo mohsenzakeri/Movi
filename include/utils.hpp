@@ -17,6 +17,30 @@
 #include "move_query.hpp"
 #include "movi_options.hpp"
 
+// Struct to hold all output file streams used across the codebase
+struct OutputFiles {
+    std::ofstream mls_file;
+    std::ofstream matches_file;
+    std::ofstream costs_file;
+    std::ofstream scans_file;
+    std::ofstream fastforwards_file;
+    std::ofstream colors_file;
+    std::ofstream kmer_file;
+    std::ofstream sa_entries_file;
+    std::ofstream out_file;
+
+    // Default constructor
+    OutputFiles() = default;
+
+    // Move constructor and assignment (ofstream is not copyable)
+    OutputFiles(OutputFiles&&) = default;
+    OutputFiles& operator=(OutputFiles&&) = default;
+
+    // Disable copy constructor and assignment
+    OutputFiles(const OutputFiles&) = delete;
+    OutputFiles& operator=(const OutputFiles&) = delete;
+};
+
 #define my_prefetch_r(address) __builtin_prefetch((void *)address, 0, 3)
 #define my_prefetch_w(address) __builtin_prefetch((void *)address, 1, 3)
 
@@ -105,6 +129,10 @@ void output_logs(std::ofstream& costs_file, std::ofstream& scans_file, std::ofst
 void output_read(std::string& read_id, std::string& read, bool no_output = false);
 
 void output_sa_entries(std::ofstream& sa_entries_file, std::string read_id, MoveQuery& mq, bool no_output = false);
+
+void open_output_files(MoviOptions& movi_options, OutputFiles& output_files);
+
+void close_output_files(MoviOptions& movi_options, OutputFiles& output_files);
 
 // Borrowed from spumoni written by Omar Ahmed: https://github.com/oma219/spumoni/tree/main
 std::string parse_null_reads(const char* ref_file, const char* output_path);

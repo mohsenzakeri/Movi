@@ -204,7 +204,7 @@ class MoviOptions {
         std::string mls_file;
         std::string index_dir;
         std::string LF_type;
-        std::string out_file;
+        std::string out_file = "";
         bool no_header = false;
         bool adjusted_block = true;
         bool preprocessed = false;
