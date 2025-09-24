@@ -272,7 +272,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         Classifier classifier;
         mv_.set_classifier(&classifier);
         mv_.set_output_files(&output_files);
-        if (movi_options.is_classify() or movi_options.is_filter()) {
+        if (movi_options.is_classify()) {
             classifier.initialize_report_file(movi_options);
         }
 
@@ -343,25 +343,20 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                     }
 
                     if (movi_options.is_logs()) {
-                        #pragma omp critical
-                        {
-                            output_logs(output_files.costs_file, output_files.scans_file, output_files.fastforwards_file, mq);
+                        if (movi_options.write_output_allowed()) {
+                            #pragma omp critical
+                            {
+                                output_logs(output_files.costs_file, output_files.scans_file, output_files.fastforwards_file, mq);
+                            }
                         }
                     }
                 }
             }
         }
 
-        if (!movi_options.is_no_output() and !movi_options.is_filter()) {
-            if (movi_options.is_pml() or movi_options.is_zml()) {
-                std::cerr << "all fast forward counts: " << total_ff_count << "\n";
-            } else if (movi_options.is_kmer()) {
-                mv_.kmer_stats.print(movi_options.is_kmer_count());
-            }
-
-            if (movi_options.is_classify()) {
-                classifier.close_report_file();
-            }
+        if (movi_options.write_output_allowed()) {
+            print_query_stats(movi_options, total_ff_count, mv_);
+        }
 
         if (movi_options.is_classify()) {
             classifier.close_report_file();
@@ -458,7 +453,7 @@ int main(int argc, char** argv) {
             return 1;
         }
 
-        if (movi_options.is_stdout() and !movi_options.is_no_output()) {
+        if (movi_options.is_stdout()) {
             // Disable sync for faster I/O
             std::ios_base::sync_with_stdio(false);
 

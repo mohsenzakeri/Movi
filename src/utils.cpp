@@ -1,4 +1,5 @@
 #include "utils.hpp"
+#include "move_structure.hpp"
 
 uint32_t alphamap_3[4][4] = {{3, 0, 1, 2},
                              {0, 3, 1, 2},
@@ -203,7 +204,7 @@ void output_binary(const std::vector<T>& matching_lengths, std::ofstream& mls_fi
 
 void output_base_stats(DataType data_type, bool to_stdout, std::ofstream& output_file, MoveQuery& mq) {
 
-    if (to_stdout) {
+    if (to_stdout and data_type == DataType::match_length) {
 
         std::cout << ">" << mq.get_query_id() << "\n";
         std::reverse(mq.get_matching_lengths_string().begin(), mq.get_matching_lengths_string().end());
@@ -285,18 +286,25 @@ void output_read(MoveQuery& mq) {
     std::cout << mq.query() << "\n";
 }
 
+void print_query_stats(MoviOptions& movi_options, uint64_t total_ff_count, MoveStructure& mv) {
+    if (movi_options.is_pml() or movi_options.is_zml()) {
+        std::cerr << "all fast forward counts: " << total_ff_count << "\n";
+    } else if (movi_options.is_kmer()) {
+        mv.kmer_stats.print(movi_options.is_kmer_count());
+    }
+}
+
 void open_output_files(MoviOptions& movi_options, OutputFiles& output_files) {
 
     std::string index_type = program();
 
-    // Handle multi_classify out_file (used in ReadProcessor)
+    // Handle multi_classify out_file
     if (movi_options.is_multi_classify()) {
         output_files.out_file = std::ofstream(movi_options.get_out_file());
     }
 
-    bool should_open_files = ((!movi_options.is_stdout() || movi_options.is_classify()) &&
-                             !movi_options.is_filter() &&
-                             !movi_options.is_no_output());
+    bool should_open_files = (!movi_options.is_stdout() || movi_options.is_classify()) &&
+                             movi_options.write_output_allowed();
 
     if (should_open_files) {
 
@@ -343,20 +351,35 @@ void open_output_files(MoviOptions& movi_options, OutputFiles& output_files) {
 }
 
 void close_output_files(MoviOptions& movi_options, OutputFiles& output_files) {
-    if (!movi_options.is_no_output() && !movi_options.is_filter()) {
+
+    if (movi_options.is_multi_classify()) {
+        output_files.out_file.close();
+    }
+
+    bool should_close_files = (!movi_options.is_stdout() || movi_options.is_classify()) &&
+                             movi_options.write_output_allowed();
+
+    if (should_close_files) {
+
+        if (movi_options.is_report_colors()) {
+            output_files.colors_file.close();
+        } else if (movi_options.is_report_color_ids()) {
+            output_files.colors_file.close();
+        }
+
         if (movi_options.is_pml() || movi_options.is_zml()) {
-            if (!movi_options.is_stdout()) {
-                output_files.mls_file.close();
-            }
-            if (movi_options.is_get_sa_entries()) {
-                output_files.sa_entries_file.close();
-            }
+            output_files.mls_file.close();
             std::cerr << "The output file for the matching lengths closed.\n";
         } else if (movi_options.is_count()) {
-            if (!movi_options.is_stdout()) {
-                output_files.matches_file.close();
-            }
+            output_files.matches_file.close();
             std::cerr << "The count file is closed.\n";
+        } else if (movi_options.is_kmer()) {
+            output_files.kmer_file.close();
+            std::cerr << "The kmer file is closed.\n";
+        }
+
+        if (movi_options.is_get_sa_entries()) {
+            output_files.sa_entries_file.close();
         }
 
         if (movi_options.is_logs()) {

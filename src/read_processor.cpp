@@ -22,7 +22,7 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
     // Open output files using the utility function
     open_output_files(*(mv_.movi_options), output_files);
 
-    if (mv_.movi_options->is_classify() or mv_.movi_options->is_filter()) {
+    if (mv_.movi_options->is_classify()) {
         classifier.initialize_report_file(*mv_.movi_options);
     }
 
@@ -232,7 +232,7 @@ void ReadProcessor::process_char(Strand& process) {
         }
     }
 
-    process.mq.add_ml(process.match_len, mv.movi_options->is_stdout());
+    process.mq.add_ml(process.match_len, mv.movi_options->write_stdout_enabled());
     process.sum_matching_lengths += process.match_len;
     process.pos_on_r -= 1;
 
@@ -314,7 +314,7 @@ void ReadProcessor::process_char_tally(Strand& process) {
                 std::cerr << "\t \t This should not happen!\n";
             }
         }
-        process.mq.add_ml(process.match_len, mv.movi_options->is_stdout());
+        process.mq.add_ml(process.match_len, mv.movi_options->write_stdout_enabled());
         process.pos_on_r -= 1;
 
         // get_id is called at the beginning of the next LF
@@ -481,7 +481,6 @@ void ReadProcessor::find_tally_b(Strand& process) {
 #endif
 
 void ReadProcessor::write_mls(Strand& process) {
-    bool write_stdout = mv.movi_options->is_stdout();
 
     if (mv.movi_options->is_multi_classify()) {
         output_files.out_file << process.mq.get_query_id() << ",";
@@ -496,7 +495,7 @@ void ReadProcessor::write_mls(Strand& process) {
                 output_files.out_file << "0,0\n";
             }
         } else {
-            if (mv.movi_options->is_report_colors() or mv.movi_options->is_report_color_ids()) {
+            if ((mv.movi_options->is_report_colors() or mv.movi_options->is_report_color_ids()) && mv.movi_options->write_output_allowed()) {
                 // Writing the PMLs
                 output_base_stats(DataType::match_length, mv.movi_options->write_stdout_enabled(), output_files.mls_file, process.mq);
 
@@ -568,8 +567,7 @@ void ReadProcessor::write_mls(Strand& process) {
             }
         }
 
-        if (!mv.movi_options->is_filter()) {
-            bool write_stdout = mv.movi_options->is_stdout() and !mv.movi_options->is_classify() and !mv.movi_options->is_filter();
+        if (mv.movi_options->write_output_allowed()) {
 
             output_base_stats(DataType::match_length, mv.movi_options->write_stdout_enabled(), output_files.mls_file, process.mq);
 
@@ -686,13 +684,13 @@ void ReadProcessor::process_latency_hiding(BatchLoader& reader) {
                             reset_backward_search(processes[i]);
                         } else if (is_zml) {
                             if (backward_search_finished and processes[i].pos_on_r > 0) {
-                                processes[i].mq.add_ml(processes[i].match_len, mv.movi_options->is_stdout());
+                                processes[i].mq.add_ml(processes[i].match_len, mv.movi_options->write_stdout_enabled());
                                 processes[i].pos_on_r -= 1;
                                 reset_backward_search(processes[i]);
                                 processes[i].kmer_end = processes[i].pos_on_r;
                                 // continue;
                             } else if (processes[i].pos_on_r <= 0) {
-                                processes[i].mq.add_ml(processes[i].match_len, mv.movi_options->is_stdout());
+                                processes[i].mq.add_ml(processes[i].match_len, mv.movi_options->write_stdout_enabled());
                                 write_mls(processes[i]);
                                 reset_process(processes[i], reader);
                                 reset_backward_search(processes[i]);
@@ -1006,7 +1004,7 @@ void ReadProcessor::reset_backward_search(Strand& process) {
         return;
     }
     while (!mv.check_alphabet(query_seq[process.pos_on_r]) and process.pos_on_r >= 0) {
-        process.mq.add_ml(0, mv.movi_options->is_stdout());
+        process.mq.add_ml(0, mv.movi_options->write_stdout_enabled());
         process.pos_on_r -= 1;
     }
     if (process.pos_on_r < 0) {
@@ -1130,7 +1128,7 @@ bool ReadProcessor::backward_search(Strand& process, uint64_t end_pos) {
         // Therefore, we can safely say that the read at position pos_on_r - 1 is matched now.
         process.pos_on_r -= 1;
         if (mv.movi_options->is_zml()) {
-            process.mq.add_ml(process.match_len, mv.movi_options->is_stdout());
+            process.mq.add_ml(process.match_len, mv.movi_options->write_stdout_enabled());
             process.match_len += 1;
         }
         // To make the pos_on_r match the range currently represented after the two LF steps.

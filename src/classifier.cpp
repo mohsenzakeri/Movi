@@ -123,7 +123,7 @@ bool Classifier::classify(std::string& read_name, std::vector<uint16_t>& matchin
 
     // #pragma omp critical --> this is now handled by the method that call classify
     {
-        if (!movi_options.is_filter()) {
+        if (movi_options.write_output_allowed()) {
             std::ostream& out = movi_options.is_stdout() ? std::cout : report_file;
             out.precision(3);
             out << std::setw(30) << std::left << read_name

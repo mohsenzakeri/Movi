@@ -60,6 +60,10 @@ class MoviOptions {
         bool is_flat_color_vectors() { return flat_color_vectors; }
         bool is_color() { return color; }
         bool is_doc_sets_vector_of_vectors() { return doc_sets_vector_of_vectors; }
+
+        bool write_output_allowed() { return !is_no_output() && !is_filter(); }
+        bool write_stdout_enabled() { return is_stdout() and !is_classify(); }
+
         int get_min_match_len() { return min_match_len; }
         bool is_pvalue_scoring() { return pvalue_scoring; }
         size_t get_threads() { return threads; }
@@ -104,7 +108,10 @@ class MoviOptions {
         void set_multi_ftab(bool multi_ftab_) { multi_ftab = multi_ftab_; }
         void set_reverse(bool reverse_) { reverse = reverse_; }
         void set_classify(bool classify_) { classify = classify_; }
-        void set_filter(bool filter_) { filter = filter_; }
+        void set_filter(bool filter_) {
+            filter = filter_;
+            if (filter_) classify = true;  // Filter mode requires binary classification
+        }
         void set_multi_classify(bool multi_classify_) { multi_classify = multi_classify_; }
         void set_early_stop(bool val) { early_stop = val; }
         void set_report_colors(bool report_colors_) { report_colors = report_colors_; }

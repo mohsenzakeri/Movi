@@ -136,6 +136,8 @@ void open_output_files(MoviOptions& movi_options, OutputFiles& output_files);
 
 void close_output_files(MoviOptions& movi_options, OutputFiles& output_files);
 
+void print_query_stats(MoviOptions& movi_options, uint64_t total_ff_count, MoveStructure& mv);
+
 // Borrowed from spumoni written by Omar Ahmed: https://github.com/oma219/spumoni/tree/main
 std::string parse_null_reads(const char* ref_file, const char* output_path);
 
