@@ -94,9 +94,7 @@ TEST_CASE("MoveStructure - PML query with classification", "[move_structure_pml_
     SECTION("Tally-thresholds PML classification (threaded)") {
         test_classification_computation("tally-thresholds", "tally_thresholds", "tally_thresholds", "--no-prefetch -t16");
     }
-}
 
-TEST_CASE("ReadProcessor - PML classification", "[read_processor]") {
     SECTION("Regular thresholds PML classification with 16 strands and 1 thread") {
         test_classification_computation("regular-thresholds", "regular_thresholds", "regular_thresholds", "-s16 -t1");
     }
