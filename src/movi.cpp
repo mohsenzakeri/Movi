@@ -91,6 +91,7 @@ void color(MoveStructure& mv_, MoviOptions& movi_options) {
 }
 
 void query(MoveStructure& mv_, MoviOptions& movi_options) {
+
     if (movi_options.get_ftab_k() != 0) {
         mv_.read_ftab();
         std::cerr<<"Ftab was read!\n";
@@ -139,6 +140,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 }
             }
         }
+
         rp.end_process();
 
     } else {
@@ -147,13 +149,13 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         // kseq_t* seq = open_kseq(fp, movi_options.get_read_file());
 
         OutputFiles output_files;
-        std::ofstream report_file;
 
         // Open output files using the utility function
         open_output_files(movi_options, output_files);
 
         Classifier classifier;
         mv_.set_classifier(&classifier);
+        mv_.set_output_files(&output_files);
         if (movi_options.is_classify() or movi_options.is_filter()) {
             classifier.initialize_report_file(movi_options);
         }
@@ -195,6 +197,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
                     #pragma omp atomic
                     read_processed += 1 ;
+
                     #pragma omp critical
                     {
                         if (read_processed % 1000 == 0)
@@ -317,8 +320,6 @@ void view(MoviOptions& movi_options) {
         std::cout << ">" << read_name << " \n";
         uint64_t mq_pml_lens_size = 0;
         mls_file.read(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
-
-
 
         // TODO: There is a lot of duplicate code here to handle 16 and 32 bits pml variations.
         if (movi_options.is_small_pml_lens()) {

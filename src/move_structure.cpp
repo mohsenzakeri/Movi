@@ -2557,11 +2557,11 @@ uint64_t MoveStructure::query_zml(MoveQuery& mq) {
         }
         
         // Document occuring the most is the genotype we think the query is from.
-        out_file << to_taxon_id[best_doc] << " ";
+        output_files->out_file << to_taxon_id[best_doc] << " ";
         for (uint16_t i = 0; i < num_species; i++) {
-        //    out_file << classify_cnts[i] << " ";
+        //    output_files->out_file << classify_cnts[i] << " ";
         }
-        out_file << "\n";
+        output_files->out_file << "\n";
     }
 
     return ff_count_tot;
@@ -2878,13 +2878,16 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     }
 
     if (movi_options->is_multi_classify()) {
+
+        output_files->out_file << mq.get_query_id() << ",";
+
         float PML_mean = static_cast<float>(sum_matching_lengths) / mq.query().length();
         if (PML_mean < UNCLASSIFIED_THRESHOLD || best_doc == std::numeric_limits<uint16_t>::max()) {
             // Not present
-            out_file << "0,0\n";
+            output_files->out_file << "0,0\n";
         } else {
             if (second_best_doc == std::numeric_limits<uint16_t>::max()) {
-                out_file << to_taxon_id[best_doc] << ",0";
+                output_files->out_file << to_taxon_id[best_doc] << ",0";
             } else {
                 float best_doc_cnt, second_best_doc_cnt, second_best_diff;
                 if (movi_options->get_min_match_len() > 0) {
@@ -2899,12 +2902,12 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 }
 
                 if (second_best_diff < 0.05 * best_doc_cnt) {
-                    out_file << to_taxon_id[best_doc] << "," << to_taxon_id[second_best_doc];
+                    output_files->out_file << to_taxon_id[best_doc] << "," << to_taxon_id[second_best_doc];
                 } else {
-                    out_file << to_taxon_id[best_doc] << ",0";
+                    output_files->out_file << to_taxon_id[best_doc] << ",0";
                 }
             }
-            out_file << "\n";
+            output_files->out_file << "\n";
         }
     }
 

@@ -231,6 +231,7 @@ class MoveStructure {
         // Initialize classify counts
         void initialize_classify_cnts();
         void set_classifier(Classifier *cl) { classifier = cl; }
+        void set_output_files(OutputFiles *of) { output_files = of; }
 
         // Document tree functions
         bool is_ancestor(uint16_t x, uint16_t y);
@@ -291,6 +292,9 @@ class MoveStructure {
         friend class ReadProcessor;
         std::vector<MoveRow> get_rlbwt();
     private:
+        // Reference to output files for writing results
+        OutputFiles* output_files;
+
         // Sorted vector of the start offsets of each document.  
         std::vector<uint64_t> doc_offsets;
         // Species ID for each document
