@@ -559,9 +559,9 @@ void ReadProcessor::write_mls(Strand& process) {
         if (mv.movi_options->is_classify()) {
 
             // Classification with 32 bits pmls works if the pml values are less than 2^16.
-            std::vector<uint16_t> matching_lens(process.mq.get_matching_lengths().begin(), process.mq.get_matching_lengths().end());
+            std::vector<uint16_t> matching_lens_16(process.mq.get_matching_lengths().begin(), process.mq.get_matching_lengths().end());
 
-            bool found = classifier.classify(process.mq.get_query_id(), matching_lens, *mv.movi_options);
+            bool found = classifier.classify(process.mq.get_query_id(), matching_lens_16, *mv.movi_options);
             if (found and mv.movi_options->is_filter() && !mv.movi_options->is_no_output()) {
                 output_read(process.mq);
             }

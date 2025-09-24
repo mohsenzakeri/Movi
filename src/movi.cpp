@@ -33,16 +33,10 @@ uint64_t handle_pml_zml(MoveQuery& mq, MoviOptions& movi_options,
     #pragma omp critical
     {
         if (movi_options.is_classify()) {
-            std::vector<uint16_t> matching_lens;
+            std::vector<uint16_t> matching_lens_16(mq.get_matching_lengths().begin(), mq.get_matching_lengths().end());
+            // Classification with 32 bits pmls works if the pml values are less than 2^16.
 
-            // TODO: Classify for the large pml lens is not supported yet.
-            if (movi_options.is_small_pml_lens()) {
-                for (uint32_t i = 0;  i < mq.get_matching_lengths().size(); i++) {
-                    matching_lens.push_back(static_cast<uint16_t>(mq.get_matching_lengths()[i]));
-                }
-            }
-
-            bool found = classifier.classify(mq.get_query_id(), matching_lens, movi_options);
+            bool found = classifier.classify(mq.get_query_id(), matching_lens_16, movi_options);
 
             if (found and movi_options.is_filter() && !movi_options.is_no_output()) {
                 output_read(mq);
