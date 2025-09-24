@@ -216,17 +216,13 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
     omp_set_num_threads(movi_options.get_threads());
     omp_set_nested(0);
 
-    if (!movi_options.no_prefetch()) {
-        ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
+    std::ifstream input_file;
+    setup_input_file(input_file, movi_options.get_read_file());
 
-        std::ifstream input_file;
-        if (movi_options.get_read_file() == "-") {
-            input_file.copyfmt(std::cin);
-            input_file.clear(std::cin.rdstate());
-            input_file.basic_ios<char>::rdbuf(std::cin.rdbuf());
-        } else {
-            input_file.open(movi_options.get_read_file().c_str());
-        }
+    if (!movi_options.no_prefetch()) {
+
+        ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(),
+                         movi_options.is_verbose(), movi_options.is_reverse());
 
 #pragma omp parallel
         {
@@ -277,16 +273,6 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         }
 
         uint64_t total_ff_count = 0;
-
-        std::ifstream input_file;
-        if (movi_options.get_read_file() == "-") {
-            input_file.copyfmt(std::cin);
-            input_file.clear(std::cin.rdstate());
-            input_file.basic_ios<char>::rdbuf(std::cin.rdbuf());
-        } else {
-            input_file.open(movi_options.get_read_file().c_str());
-        }
-
         uint64_t read_processed = 0;
 
         #pragma omp parallel
