@@ -92,7 +92,7 @@ print_status "Building project with $JOBS parallel job(s)..."
 make -j$JOBS
 
 # Check if test executables were built
-TEST_EXECUTABLES=("basics-tests" "build-tests" "pml-tests")
+TEST_EXECUTABLES=("basics-tests" "build-tests" "pml-tests" "classification-tests")
 MISSING_TESTS=()
 
 for test_exe in "${TEST_EXECUTABLES[@]}"; do
@@ -161,6 +161,11 @@ fi
 ((TOTAL_TESTS++))
 
 if ! run_test "PML Tests" "pml-tests"; then
+    ((FAILED_TESTS++))
+fi
+((TOTAL_TESTS++))
+
+if ! run_test "Classification Tests" "classification-tests"; then
     ((FAILED_TESTS++))
 fi
 ((TOTAL_TESTS++))

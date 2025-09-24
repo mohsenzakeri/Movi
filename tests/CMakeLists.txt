@@ -26,6 +26,12 @@ target_include_directories(pml-tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
 target_compile_options(pml-tests PRIVATE -Wno-deprecated-declarations)
 target_compile_definitions(pml-tests PRIVATE BINARY_DIR="${CMAKE_BINARY_DIR}")
 
+add_executable(classification-tests test_classification.cpp test_utils.cpp)
+target_link_libraries(classification-tests PRIVATE movi_lib_test Catch2::Catch2WithMain)
+target_include_directories(classification-tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_compile_options(classification-tests PRIVATE -Wno-deprecated-declarations)
+target_compile_definitions(classification-tests PRIVATE BINARY_DIR="${CMAKE_BINARY_DIR}")
+
 # CTest registration removed - using direct Catch2 execution instead
 # add_test(NAME basics-tests COMMAND basics-tests)
 # add_test(NAME build-tests COMMAND build-tests)
