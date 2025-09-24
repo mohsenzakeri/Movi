@@ -9,8 +9,6 @@
 struct Strand {
     Strand() {}
     uint16_t st_length;
-    std::string read_name;
-    std::string read;
     MoveQuery mq;
     MoveInterval range;
     MoveInterval range_prev;

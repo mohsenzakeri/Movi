@@ -46,8 +46,11 @@ std::string query_type(MoviOptions& movi_options) {
         }
     } else if (movi_options.is_zml()) {
         return "zml";
+    } else if (movi_options.is_count()) {
+        return "count";
+    } else if (movi_options.is_kmer()) {
+        return "kmers";
     } else {
-        // TODO: handle other query types
         throw std::runtime_error("Invalid query type");
     }
 }
@@ -189,7 +192,7 @@ void read_thresholds(std::string tmp_filename, std::vector<uint64_t>& thresholds
 }
 
 template <typename T>
-void output_lens(const std::vector<T>& matching_lengths, std::ofstream& mls_file) {
+void output_binary(const std::vector<T>& matching_lengths, std::ofstream& mls_file) {
 
     uint64_t matching_lengths_size = matching_lengths.size();
     mls_file.write(reinterpret_cast<const char*>(&matching_lengths_size), sizeof(matching_lengths_size));
@@ -198,102 +201,88 @@ void output_lens(const std::vector<T>& matching_lengths, std::ofstream& mls_file
 
 }
 
-void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::string read_id, MoveQuery& mq, bool color, bool no_output) {
+void output_base_stats(DataType data_type, bool to_stdout, std::ofstream& output_file, MoveQuery& mq) {
 
     if (to_stdout) {
 
-        std::cout << ">" << read_id << "\n";
+        std::cout << ">" << mq.get_query_id() << "\n";
         std::reverse(mq.get_matching_lengths_string().begin(), mq.get_matching_lengths_string().end());
         std::cout << mq.get_matching_lengths_string();
         std::cout << "\n";
 
     } else {
 
-        uint16_t st_length = read_id.length();
-        // uint16_t st_length = seq->name.m;
+        uint16_t st_length = mq.get_query_id().length();
 
-        mls_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
-        // mls_file.write(reinterpret_cast<char*>(&seq->name.s[0]), st_length);
+        output_file.write(reinterpret_cast<char*>(&st_length), sizeof(st_length));
 
-        mls_file.write(reinterpret_cast<char*>(&read_id[0]), st_length);
+        output_file.write(reinterpret_cast<char*>(&mq.get_query_id()[0]), st_length);
 
-        if (color) {
-
-            std::vector<uint64_t>& matching_lengths = mq.get_matching_colors();
-            output_lens(matching_lengths, mls_file);
-
-        } else {
+        if (data_type == DataType::match_length) {
 
             std::vector<uint32_t>& matching_lengths = mq.get_matching_lengths();
-            output_lens(matching_lengths, mls_file);
+            output_binary(matching_lengths, output_file);
+
+        } else if (data_type == DataType::sa_entry) {
+
+            std::vector<uint64_t>& sa_entries = mq.get_sa_entries();
+            output_binary(sa_entries, output_file);
+
+        } else if (data_type == DataType::color) {
+
+            std::vector<uint64_t>& matching_colors = mq.get_matching_colors();
+            output_binary(matching_colors, output_file);
 
         }
     }
 }
 
-void output_sa_entries(std::ofstream& sa_entries_file, std::string read_id, MoveQuery& mq, bool no_output) {
-    if (!no_output) {
-        sa_entries_file << ">" << read_id << "\n";
-        for (auto& sa_entry : mq.get_sa_entries()) {
-            sa_entries_file << sa_entry << " ";
-        }
-        sa_entries_file << "\n";
+void output_counts(bool to_stdout, std::ofstream& count_file, size_t query_length, int32_t pos_on_r, uint64_t match_count, MoveQuery& mq) {
+    if (to_stdout) {
+        std::cout << mq.get_query_id() << "\t";
+        std::cout << query_length - pos_on_r << "/" << query_length << "\t" << match_count << "\n";
+    } else {
+        count_file << mq.get_query_id() << "\t";
+        count_file << query_length - pos_on_r << "/" << query_length << "\t" << match_count << "\n";
     }
 }
 
-void output_counts(bool to_stdout, std::ofstream& count_file, std::string read_id, size_t query_length, int32_t pos_on_r, uint64_t match_count, bool no_output) {
-    if (!no_output) {
-        if (to_stdout) {
-            // std::cout << seq->name.s << "\t";
-            std::cout << read_id << "\t";
-            std::cout << query_length - pos_on_r << "/" << query_length << "\t" << match_count << "\n";
-        } else {
-            // count_file << seq->name.s << "\t";
-            count_file << read_id << "\t";
-            count_file << query_length - pos_on_r << "/" << query_length << "\t" << match_count << "\n";
-        }
+void output_kmers(bool to_stdout, std::ofstream& kmer_file, size_t all_kmer_count, MoveQuery& mq) {
+    if (to_stdout) {
+        std::cout << mq.get_query_id() << "\t";
+        std::cout << mq.found_kmer_count << "/" << all_kmer_count << "\t" << mq.get_matching_lengths_string() << "\n";
+    } else {
+        kmer_file << mq.get_query_id() << "\t";
+        kmer_file << mq.found_kmer_count << "/" << all_kmer_count << "\t" << mq.get_matching_lengths_string() << "\n";
     }
 }
 
-void output_kmers(bool to_stdout, std::ofstream& kmer_file, std::string read_id, size_t all_kmer_count, MoveQuery& mq, bool no_output) {
-    if (!no_output) {
-        if (to_stdout) {
-            std::cout << read_id << "\t";
-            std::cout << mq.found_kmer_count << "/" << all_kmer_count << "\t" << mq.get_matching_lengths_string() << "\n";
-        } else {
-            kmer_file << read_id << "\t";
-            kmer_file << mq.found_kmer_count << "/" << all_kmer_count << "\t" << mq.get_matching_lengths_string() << "\n";
-        }
+void output_logs(std::ofstream& costs_file, std::ofstream& scans_file, std::ofstream& fastforwards_file, MoveQuery& mq) {
+
+    costs_file << ">" << mq.get_query_id() << "\n";
+    scans_file << ">" << mq.get_query_id() << "\n";
+    fastforwards_file << ">" << mq.get_query_id() << "\n";
+
+    for (auto& cost : mq.get_costs()) {
+        costs_file << cost.count() << " ";
     }
+
+    for (auto& scan: mq.get_scans()) {
+        scans_file << scan << " ";
+    }
+
+    for (auto& fast_forward : mq.get_fastforwards()) {
+        fastforwards_file << fast_forward << " ";
+    }
+
+    costs_file << "\n";
+    scans_file << "\n";
+    fastforwards_file << "\n";
 }
 
-void output_logs(std::ofstream& costs_file, std::ofstream& scans_file, std::ofstream& fastforwards_file, std::string read_id, MoveQuery& mq, bool no_output) {
-    if (!no_output) {
-        // costs_file << ">" << seq->name.s << "\n";
-        // scans_file << ">" << seq->name.s << "\n";
-        costs_file << ">" << read_id << "\n";
-        scans_file << ">" << read_id << "\n";
-        fastforwards_file << ">" << read_id << "\n";
-        for (auto& cost : mq.get_costs()) {
-            costs_file << cost.count() << " ";
-        }
-        for (auto& scan: mq.get_scans()) {
-            scans_file << scan << " ";
-        }
-        for (auto& fast_forward : mq.get_fastforwards()) {
-            fastforwards_file << fast_forward << " ";
-        }
-        costs_file << "\n";
-        scans_file << "\n";
-        fastforwards_file << "\n";
-    }
-}
-
-void output_read(std::string& read_id, std::string& read, bool no_output) {
-    if (!no_output) {
-        std::cout << ">" << read_id << "\n";
-        std::cout << read << "\n";
-    }
+void output_read(MoveQuery& mq) {
+    std::cout << ">" << mq.get_query_id() << "\n";
+    std::cout << mq.query() << "\n";
 }
 
 void open_output_files(MoviOptions& movi_options, OutputFiles& output_files) {
@@ -323,9 +312,8 @@ void open_output_files(MoviOptions& movi_options, OutputFiles& output_files) {
         // Determine output file name prefix based on context
         std::string out_file_name_prefix = movi_options.get_out_file() != "" ? movi_options.get_out_file() :
                                                                                movi_options.get_read_file() + "." + index_type;
-        if (!movi_options.is_kmer()) {
-            out_file_name_prefix += "." + query_type(movi_options);
-        }
+
+        out_file_name_prefix += "." + query_type(movi_options);
 
         // Handle PML/ZML, count query files and kmer query files
         if (movi_options.is_pml() || movi_options.is_zml()) {
@@ -335,7 +323,7 @@ void open_output_files(MoviOptions& movi_options, OutputFiles& output_files) {
             std::string matches_file_name = out_file_name_prefix + ".matches";
             output_files.matches_file = std::ofstream(matches_file_name);
         } else if (movi_options.is_kmer()) {
-            std::string kmer_file_name = out_file_name_prefix + ".kmers." + std::to_string(movi_options.get_k());
+            std::string kmer_file_name = out_file_name_prefix + "." + std::to_string(movi_options.get_k());
             output_files.kmer_file = std::ofstream(kmer_file_name);
         }
 

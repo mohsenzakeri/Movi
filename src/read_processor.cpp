@@ -46,20 +46,22 @@ bool ReadProcessor::next_read(Strand& process, BatchLoader& reader) {
     if (valid_read) {
         #pragma omp atomic
         read_processed += 1;
-    // if (l >= 0) {
+
         // process.st_length = seq->name.m;
         process.st_length = read_struct.id.length();
-        // process.read_name = seq->name.s;
-        process.read_name = read_struct.id;
-        // process.read = seq->seq.s;
-        process.read = std::string(read_struct.seq);
+        // Read name is now stored in MoveQuery via set_query_id()
+        // Create sequence string and optionally reverse it
+        std::string sequence = std::string(read_struct.seq);
         if (reverse) {
-            std::reverse(process.read.begin(), process.read.end());
+            std::reverse(sequence.begin(), sequence.end());
         }
         process.match_len = 0;
         process.ff_count = 0;
         process.scan_count = 0;
-        process.mq = MoveQuery(process.read);
+
+        process.mq = MoveQuery(sequence);
+        process.mq.set_query_id(read_struct.id);
+
         return false;
     } else {
         // std::cerr << "No more reads to process!\n";
@@ -71,7 +73,7 @@ void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
     process.finished = next_read(process, reader);
     if (!process.finished) {
         process.length_processed = 0;
-        process.pos_on_r = process.read.length() - 1;
+        process.pos_on_r = process.mq.query().length() - 1;
         process.idx = mv.r - 1;
         process.offset = mv.get_n(process.idx) - 1;
 
@@ -102,7 +104,7 @@ void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
 
 // This function is for computing PMLs
 void ReadProcessor::process_char(Strand& process) {
-    if (process.pos_on_r < process.read.length() - 1) {
+    if (process.pos_on_r < process.mq.query().length() - 1) {
         // LF step
         // if (mv.logs)
         //     process.t3 = std::chrono::high_resolution_clock::now();
@@ -236,8 +238,8 @@ void ReadProcessor::process_char(Strand& process) {
 
     // Check for early stopping if the read is unclassified
     if ( mv.movi_options->is_early_stop() and mv.movi_options->is_multi_classify() ) {
-        if ( process.pos_on_r < process.read.length() / 2 and process.pos_on_r % 100 == 0 ) {
-            float PML_mean = static_cast<float>(process.sum_matching_lengths) / (process.read.length() - process.pos_on_r);
+        if ( process.pos_on_r < process.mq.query().length() / 2 and process.pos_on_r % 100 == 0 ) {
+            float PML_mean = static_cast<float>(process.sum_matching_lengths) / (process.mq.query().length() - process.pos_on_r);
             if (PML_mean < UNCLASSIFIED_THRESHOLD) {
                 // setting the pos_on_r to -1 will stop the read processing
                 process.pos_on_r = -1;
@@ -256,7 +258,7 @@ void ReadProcessor::process_char(Strand& process) {
 void ReadProcessor::process_char_tally(Strand& process) {
     if (process.tally_state == false) {
 
-        if (process.pos_on_r < process.read.length() - 1) {
+        if (process.pos_on_r < process.mq.query().length() - 1) {
 
             // First find the id if not found already
             if (process.id_found == false) {
@@ -482,10 +484,10 @@ void ReadProcessor::write_mls(Strand& process) {
     bool write_stdout = mv.movi_options->is_stdout();
 
     if (mv.movi_options->is_multi_classify()) {
-        output_files.out_file << process.read_name << ",";
+        output_files.out_file << process.mq.get_query_id() << ",";
         // binary classification in the multi-class classification mode is handled at a different part of the code
         // if (mv.movi_options->is_classify() && !mv.classifier->is_present(process.mq.get_matching_lengths(), *mv.movi_options)) {
-        float PML_mean = static_cast<float>(process.sum_matching_lengths) / process.read.length();
+        float PML_mean = static_cast<float>(process.sum_matching_lengths) / process.mq.query().length();
         if (PML_mean < UNCLASSIFIED_THRESHOLD || process.best_doc == std::numeric_limits<uint16_t>::max()) {
             // Not present
             if (mv.movi_options->is_report_all()) {
@@ -496,10 +498,10 @@ void ReadProcessor::write_mls(Strand& process) {
         } else {
             if (mv.movi_options->is_report_colors() or mv.movi_options->is_report_color_ids()) {
                 // Writing the PMLs
-                output_matching_lengths(write_stdout, output_files.mls_file, process.read_name, process.mq, false, false);
+                output_base_stats(DataType::match_length, mv.movi_options->write_stdout_enabled(), output_files.mls_file, process.mq);
 
                 // Writing the colors
-                output_matching_lengths(write_stdout, output_files.colors_file, process.read_name, process.mq, true, false);
+                output_base_stats(DataType::color, mv.movi_options->write_stdout_enabled(), output_files.colors_file, process.mq);
             }
 
             // If the second most occurring document is more than 95% of the most occurring one,
@@ -526,7 +528,7 @@ void ReadProcessor::write_mls(Strand& process) {
                     } else {
 
                         if (static_cast<float>(process.classify_cnts[i]) >= mv.movi_options->get_min_score_frac() * process.colors_count) {
-                            output_files.out_file << "," << mv.to_taxon_id[i]; // << ":" << process.classify_cnts[i] << "/" << process.colors_count << "/" << process.read.length();
+                            output_files.out_file << "," << mv.to_taxon_id[i]; // << ":" << process.classify_cnts[i] << "/" << process.colors_count << "/" << process.mq.query().length();
                             output_document_count += 1;
                         }
                     }
@@ -569,6 +571,12 @@ void ReadProcessor::write_mls(Strand& process) {
         if (!mv.movi_options->is_filter()) {
             bool write_stdout = mv.movi_options->is_stdout() and !mv.movi_options->is_classify() and !mv.movi_options->is_filter();
 
+            output_base_stats(DataType::match_length, mv.movi_options->write_stdout_enabled(), output_files.mls_file, process.mq);
+
+            if (mv.movi_options->is_get_sa_entries()) {
+                output_base_stats(DataType::sa_entry, mv.movi_options->write_stdout_enabled(), output_files.sa_entries_file, process.mq);
+            }
+
             bool logs = mv.movi_options->is_logs();
             if (logs) {
                 auto t2 = std::chrono::high_resolution_clock::now();
@@ -576,19 +584,19 @@ void ReadProcessor::write_mls(Strand& process) {
                 process.mq.add_cost(elapsed);
                 process.mq.add_fastforward(process.ff_count);
                 process.mq.add_scan(process.scan_count);
-                output_logs(output_files.costs_file, output_files.scans_file, output_files.fastforwards_file, process.read_name, process.mq, mv.movi_options->is_no_output());
+                output_logs(output_files.costs_file, output_files.scans_file, output_files.fastforwards_file, process.mq);
             }
 
-            output_matching_lengths(write_stdout, output_files.mls_file, process.read_name, process.mq, false, mv.movi_options->is_no_output());
         }
     }
 }
 
 void ReadProcessor::write_count(Strand& process) {
     compute_match_count(process);
-    auto& R = process.mq.query();
-    bool write_stdout = mv.movi_options->is_stdout();
-    output_counts(write_stdout, output_files.matches_file, process.read_name, R.length(), process.pos_on_r, process.match_count, mv.movi_options->is_no_output());
+    if (mv.movi_options->write_output_allowed()) {
+        auto& R = process.mq.query();
+        output_counts(mv.movi_options->write_stdout_enabled(), output_files.matches_file, R.length(), process.pos_on_r, process.match_count, process.mq);
+    }
 }
 
 void ReadProcessor::compute_match_count(Strand& process) {
@@ -1016,12 +1024,12 @@ void ReadProcessor::reset_kmer_search(Strand& process, BatchLoader& reader) {
     process.finished = next_read(process, reader);
     if (!process.finished) {
         process.length_processed = 0;
-        process.kmer_start = process.read.length() - k + 1;
-        process.kmer_end = process.read.length() - 1 + 1;
+        process.kmer_start = process.mq.query().length() - k + 1;
+        process.kmer_end = process.mq.query().length() - 1 + 1;
         process.pos_on_r = process.kmer_end;
 
         // Find the first position where the character is legal
-        while (!mv.check_alphabet(process.read[process.pos_on_r])) {
+        while (!mv.check_alphabet(process.mq.query()[process.pos_on_r])) {
             process.pos_on_r -= 1;
         }
     }

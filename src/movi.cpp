@@ -19,6 +19,122 @@
 #include "classifier.hpp"
 #include "batch_loader.hpp"
 
+// Function to handle PML/ZML processing for a single read
+uint64_t handle_pml_zml(MoveQuery& mq, MoviOptions& movi_options,
+                        MoveStructure& mv_, OutputFiles& output_files, Classifier& classifier) {
+    uint64_t ff_count = 0;
+
+    if (movi_options.is_pml()) {
+        ff_count += mv_.query_pml(mq);
+    } else if (movi_options.is_zml()) {
+        ff_count += mv_.query_zml(mq);
+    }
+
+    #pragma omp critical
+    {
+        if (movi_options.is_classify()) {
+            std::vector<uint16_t> matching_lens;
+
+            // TODO: Classify for the large pml lens is not supported yet.
+            if (movi_options.is_small_pml_lens()) {
+                for (uint32_t i = 0;  i < mq.get_matching_lengths().size(); i++) {
+                    matching_lens.push_back(static_cast<uint16_t>(mq.get_matching_lengths()[i]));
+                }
+            }
+
+            bool found = classifier.classify(mq.get_query_id(), matching_lens, movi_options);
+
+            if (found and movi_options.is_filter() && !movi_options.is_no_output()) {
+                output_read(mq);
+            }
+        }
+
+        if (movi_options.write_output_allowed()) {
+            output_base_stats(DataType::match_length, movi_options.write_stdout_enabled(), output_files.mls_file, mq);
+
+            if (movi_options.is_get_sa_entries()) {
+                output_base_stats(DataType::sa_entry, movi_options.write_stdout_enabled(), output_files.sa_entries_file, mq);
+            }
+        }
+    }
+
+    return ff_count;
+}
+
+// Function to handle count processing for a single read
+void handle_count(MoveQuery& mq, MoviOptions& movi_options,
+                  MoveStructure& mv_, OutputFiles& output_files) {
+    int32_t pos_on_r = mq.query().length() - 1;
+    // uint64_t match_count = mv_.backward_search(query_seq, pos_on_r);
+    // if (pos_on_r != 0) pos_on_r += 1;
+    uint64_t match_count = mv_.query_backward_search(mq, pos_on_r);
+
+    if (movi_options.write_output_allowed()) {
+        #pragma omp critical
+        {
+            output_counts(movi_options.write_stdout_enabled(), output_files.matches_file, mq.query().length(), pos_on_r, match_count, mq);
+        }
+    }
+}
+
+// Function to handle k-mer processing for a single read
+void handle_kmer(MoveQuery& mq, MoviOptions& movi_options,
+                 MoveStructure& mv_, OutputFiles& output_files) {
+    mv_.query_all_kmers(mq, movi_options.is_kmer_count());
+
+    if (!movi_options.is_kmer_count()) {
+        if (movi_options.write_output_allowed()) {
+            #pragma omp critical
+            {
+                output_kmers(movi_options.write_stdout_enabled(), output_files.kmer_file, mq.query().length() - movi_options.get_k() + 1, mq);
+            }
+        }
+    }
+}
+
+// Helper function to setup input file stream
+void setup_input_file(std::ifstream& input_file, const std::string& read_file) {
+    if (read_file == "-") {
+        input_file.copyfmt(std::cin);
+        input_file.clear(std::cin.rdstate());
+        input_file.basic_ios<char>::rdbuf(std::cin.rdbuf());
+    } else {
+        input_file.open(read_file.c_str());
+    }
+}
+
+// Function to load color table/document sets
+void load_color_table(MoveStructure& mv_, MoviOptions& movi_options) {
+    auto begin = std::chrono::system_clock::now();
+
+    if (movi_options.is_full_color()) {
+        mv_.fill_run_offsets();
+        std::string fname = movi_options.get_index_dir() + "/doc_pats.bin";
+        mv_.deserialize_doc_pats(fname);
+    } else {
+        if (movi_options.is_doc_sets_vector_of_vectors()) {
+            if (!movi_options.is_freq_compressed() and !movi_options.is_tree_compressed()) {
+                std::string fname = movi_options.get_index_dir() + "/doc_sets.bin";
+                mv_.deserialize_doc_sets(fname);
+            } else if (movi_options.is_freq_compressed()) {
+                std::string fname = movi_options.get_index_dir() + "/compress_doc_sets.bin";
+                mv_.deserialize_doc_sets(fname);
+            } else if (movi_options.is_tree_compressed()) {
+                std::string fname = movi_options.get_index_dir() + "/tree_doc_sets.bin";
+                mv_.deserialize_doc_sets(fname);
+            }
+        } else {
+            mv_.deserialize_doc_sets_flat();
+        }
+        mv_.load_document_info();
+    }
+    mv_.initialize_classify_cnts();
+
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+    std::fprintf(stderr, "Time measured for loading the document sets: %.3f seconds.\n", elapsed.count() * 1e-9);
+}
+
 void build_ftab(MoveStructure& mv_, MoviOptions& movi_options) {
     if (movi_options.is_multi_ftab() and movi_options.get_ftab_k() > 1) {
         int max_ftab = movi_options.get_ftab_k();
@@ -206,74 +322,30 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
                     // std::string query_seq = seq->seq.s;
                     std::string query_seq = std::string(read_struct.seq);
-                    MoveQuery mq;
+
+                    if (movi_options.is_reverse())
+                        std::reverse(query_seq.begin(), query_seq.end());
+
+                    MoveQuery mq = MoveQuery(query_seq);
+                    mq.set_query_id(read_struct.id);
+
                     if (movi_options.is_pml() or movi_options.is_zml()) {
-                        if (movi_options.is_reverse())
-                            std::reverse(query_seq.begin(), query_seq.end());
-                        mq = MoveQuery(query_seq);
-                        if (movi_options.is_pml()) {
-                            mv_.out_file << read_struct.id << ",";
-                            total_ff_count += mv_.query_pml(mq);
-                        } else if (movi_options.is_zml()) {
-                            mv_.out_file << read_struct.id << ",";
-                            total_ff_count += mv_.query_zml(mq);
-                        }
-
-                        #pragma omp critical
-                        {
-                            if (movi_options.is_classify() or movi_options.is_filter()) {
-
-                                std::vector<uint16_t> matching_lens;
-
-                                // TODO: Classify for the large pml lens is not supported yet.
-                                if (movi_options.is_small_pml_lens()) {
-                                    for (uint32_t i = 0;  i < mq.get_matching_lengths().size(); i++) {
-                                        matching_lens.push_back(static_cast<uint16_t>(mq.get_matching_lengths()[i]));
-                                    }
-                                }
-
-                                bool found = classifier.classify(read_struct.id, matching_lens, movi_options);
-
-                                if (found and movi_options.is_filter()) {
-                                    output_read(read_struct.id, read_struct.seq, movi_options.is_no_output());
-                                }
-
-                            }
-
-                            if (!movi_options.is_filter()) {
-                                output_matching_lengths(movi_options.is_stdout() and !movi_options.is_classify(), output_files.mls_file, read_struct.id, mq, false, movi_options.is_no_output());
-                                if (movi_options.is_get_sa_entries()) {
-                                    output_sa_entries(output_files.sa_entries_file, read_struct.id, mq, movi_options.is_no_output());
-                                }
-                            }
-                        }
+                        total_ff_count += handle_pml_zml(mq, movi_options, mv_, output_files, classifier);
 
                     } else if (movi_options.is_count()) {
-                        int32_t pos_on_r = query_seq.length() - 1;
-                        // uint64_t match_count = mv_.backward_search(query_seq, pos_on_r);
-                        // if (pos_on_r != 0) pos_on_r += 1;
-                        mq = MoveQuery(query_seq);
-                        uint64_t match_count = mv_.query_backward_search(mq, pos_on_r);
 
-                        #pragma omp critical
-                        {
-                            output_counts(movi_options.is_stdout() and !movi_options.is_classify(), output_files.matches_file, read_struct.id, query_seq.length(), pos_on_r, match_count, movi_options.is_no_output());
-                        }
+                        handle_count(mq, movi_options, mv_, output_files);
+
                     } else if (movi_options.is_kmer()) {
-                        mq = MoveQuery(query_seq);
-                        mv_.query_all_kmers(mq, movi_options.is_kmer_count());
-                        if (!movi_options.is_kmer_count()) {
-                            #pragma omp critical
-                            {
-                                output_kmers(movi_options.is_stdout() and !movi_options.is_classify(), output_files.kmer_file, read_struct.id, query_seq.length() - movi_options.get_k() + 1, mq, movi_options.is_no_output());
-                            }
-                        }
+
+                        handle_kmer(mq, movi_options, mv_, output_files);
+
                     }
 
                     if (movi_options.is_logs()) {
                         #pragma omp critical
                         {
-                            output_logs(output_files.costs_file, output_files.scans_file, output_files.fastforwards_file, read_struct.id, mq, movi_options.is_no_output());
+                            output_logs(output_files.costs_file, output_files.scans_file, output_files.fastforwards_file, mq);
                         }
                     }
                 }
@@ -291,9 +363,12 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 classifier.close_report_file();
             }
 
-            // Close output files using the utility function
-            close_output_files(movi_options, output_files);
+        if (movi_options.is_classify()) {
+            classifier.close_report_file();
         }
+
+        // Close output files using the utility function
+        close_output_files(movi_options, output_files);
         // close_kseq(seq, fp);
     }
 }

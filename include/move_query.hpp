@@ -45,11 +45,14 @@ class MoveQuery {
         void add_fastforward(uint64_t fastforward) { fastforwards.push_back(fastforward); }
         std::vector<uint32_t>& get_matching_lengths() { return matching_lens; }
         std::vector<uint64_t>& get_matching_colors() { return matching_colors; }
-        std::string& get_matching_lengths_string() { return matching_lengths_string; }
         std::vector<uint64_t>& get_sa_entries() { return sa_entries; }
+        std::string& get_matching_lengths_string() { return matching_lengths_string; }
         std::vector<uint16_t>& get_scans() { return scans; }
         std::vector<uint16_t>& get_fastforwards() { return fastforwards; }
         std::vector<std::chrono::nanoseconds>& get_costs() { return costs; }
+
+        void set_query_id(std::string id) { query_id = id; }
+        std::string& get_query_id() { return query_id; }
 
         friend std::ostream& operator<<(std::ostream& output, const MoveQuery& dt) {
             // output << "The matching statistics are:\n";
@@ -61,7 +64,8 @@ class MoveQuery {
         }
         uint64_t found_kmer_count = 0;
     private:
-        std::string query_string;
+        std::string query_id = "";
+        std::string query_string = "";
         std::string matching_lengths_string = "";
         std::vector<uint64_t> sa_entries;
         std::vector<uint32_t> matching_lens;
