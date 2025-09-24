@@ -71,11 +71,11 @@ TEST_CASE("ReadProcessor - PML query", "[read_processor]") {
 }
 
 // Cleanup function
-TEST_CASE("Cleanup test data", "[cleanup]") {
-    SECTION("Remove test data directory") {
-        if (std::filesystem::exists(TEST_DATA_DIR)) {
-            std::filesystem::remove_all(TEST_DATA_DIR);
-        }
-        REQUIRE_FALSE(std::filesystem::exists(TEST_DATA_DIR));
-    }
-}
+// TEST_CASE("Cleanup test data", "[cleanup]") {
+//     SECTION("Remove test data directory") {
+//         if (std::filesystem::exists(TEST_DATA_DIR)) {
+//             std::filesystem::remove_all(TEST_DATA_DIR);
+//         }
+//         REQUIRE_FALSE(std::filesystem::exists(TEST_DATA_DIR));
+//     }
+// }
