@@ -362,7 +362,11 @@ void view(MoviOptions& movi_options) {
 
             std::cout << "\n";
 
-            // TODO: Classification with 32 bits pmls is not supported.
+            if (movi_options.is_classify()) {
+                // Classification with 32 bits pmls works if the pml values are less than 2^16.
+                std::vector<uint16_t> matching_lens_16(pml_lens.begin(), pml_lens.end());
+                classifier.classify(read_name, matching_lens_16, movi_options);
+            }
         }
 
     }
