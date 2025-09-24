@@ -17,6 +17,16 @@
 #include "move_query.hpp"
 #include "movi_options.hpp"
 
+// Forward declarations
+class MoveStructure;
+
+// Enum for different data types that can be output
+enum class DataType {
+    match_length,
+    color,
+    sa_entry
+};
+
 // Struct to hold all output file streams used across the codebase
 struct OutputFiles {
     std::ofstream mls_file;
@@ -112,23 +122,15 @@ uint8_t F_char(std::vector<uint64_t>& first_runs, uint64_t run);
 
 void read_thresholds(std::string tmp_filename, std::vector<uint64_t>& thresholds);
 
-// template <typename T>
-// void output_lens(const std::vector<T>& matching_lengths, std::ofstream& mls_file);
-// // --- Explicit instantiations ---
-// template void output_lens<uint32_t>(const std::vector<uint32_t>&, std::ofstream&);
-// template void output_lens<uint64_t>(const std::vector<uint64_t>&, std::ofstream&);
+void output_base_stats(DataType data_type, bool to_stdout, std::ofstream& output_file, MoveQuery& mq);
 
-void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::string read_id, MoveQuery& mq, bool color, bool no_output);
+void output_counts(bool to_stdout, std::ofstream& count_file, size_t query_length, int32_t pos_on_r, uint64_t match_count, MoveQuery& mq);
 
-void output_counts(bool to_stdout, std::ofstream& count_file, std::string read_id, size_t query_length, int32_t pos_on_r, uint64_t match_count, bool no_output = false);
+void output_kmers(bool to_stdout, std::ofstream& kmer_file, size_t all_kmer_count, MoveQuery& mq);
 
-void output_kmers(bool to_stdout, std::ofstream& kmer_file, std::string read_id, size_t all_kmer_count, MoveQuery& mq, bool no_output = false);
+void output_logs(std::ofstream& costs_file, std::ofstream& scans_file, std::ofstream& fastforwards_file, MoveQuery& mq);
 
-void output_logs(std::ofstream& costs_file, std::ofstream& scans_file, std::ofstream& fastforwards_file, std::string read_id, MoveQuery& mq, bool no_output = false);
-
-void output_read(std::string& read_id, std::string& read, bool no_output = false);
-
-void output_sa_entries(std::ofstream& sa_entries_file, std::string read_id, MoveQuery& mq, bool no_output = false);
+void output_read(MoveQuery& mq);
 
 void open_output_files(MoviOptions& movi_options, OutputFiles& output_files);
 
