@@ -95,6 +95,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
     auto rlbwtOptions = options.add_options("rlbwt")
         ("bwt-file", "BWT file", cxxopts::value<std::string>());
 
+    auto colorMoveRowsOptions = options.add_options("color-move-rows")
+        ("i,index", "Index directory", cxxopts::value<std::string>());
+
     auto LFOptions = options.add_options("LF")
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("lf-type", "type of the LF query: \"reconstruct\", \"sequential\", or \"random\"", cxxopts::value<std::string>());
@@ -348,6 +351,13 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                     }
                 } else {
                     const std::string message = "Please specify one mls.bin file.";
+                    cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                }
+            } else if (command == "color-move-rows") {
+                if (result.count("index") == 1) {
+                    movi_options.set_index_dir(result["index"].as<std::string>());
+                } else {
+                    const std::string message = "Please specify the index directory file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
             } else if (command == "LF") {
