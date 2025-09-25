@@ -34,8 +34,7 @@ std::string program() {
 #if MODE == 7
     return "tally-thresholds";
 #endif
-    std::cerr << "The mode is not defined.";
-    exit(0);
+    throw std::runtime_error(ERROR_MSG("[program] The mode is not defined."));
 }
 
 std::string query_type(MoviOptions& movi_options) {
@@ -113,8 +112,7 @@ std::string number_to_kmer(size_t j, size_t m, std::vector<unsigned char>& alpha
 
 uint64_t kmer_to_number(size_t k, std::string& r, int32_t pos, std::vector<uint64_t>& alphamap, bool rc) {
     if (r.length() < k) {
-        std::cerr << "The k does not match the kmer length!\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[kmer_to_number] The k does not match the kmer length!\n"));
     }
 
     uint64_t res = 0;
@@ -139,8 +137,7 @@ uint8_t F_char(std::vector<uint64_t>& first_runs, uint64_t run) {
             return i - 1;
         }
     }
-    std::cerr << "Undefined behaviour.\n";
-    exit(0);
+    throw std::runtime_error(ERROR_MSG("[F_char] Undefined behaviour.\n"));
 }
 
 void read_thresholds(std::string tmp_filename, std::vector<uint64_t>& thresholds) {
@@ -149,15 +146,16 @@ void read_thresholds(std::string tmp_filename, std::vector<uint64_t>& thresholds
     struct stat filestat;
     FILE *fd;
 
-    if ((fd = fopen(tmp_filename.c_str(), "r")) == nullptr)
-        std::cerr <<("open() file " + tmp_filename + " failed");
-
+    if ((fd = fopen(tmp_filename.c_str(), "r")) == nullptr) {
+        throw std::runtime_error(ERROR_MSG("[read_thresholds] open() file " + tmp_filename + " failed"));
+    }
     int fn = fileno(fd);
-    if (fstat(fn, &filestat) < 0)
-        std::cerr <<("stat() file " + tmp_filename + " failed");
-
-    if (filestat.st_size % THRBYTES != 0)
-        std::cerr <<("invilid file " + tmp_filename);
+    if (fstat(fn, &filestat) < 0) {
+        throw std::runtime_error(ERROR_MSG("[read_thresholds] stat() file " + tmp_filename + " failed"));
+    }
+    if (filestat.st_size % THRBYTES != 0) {
+        throw std::runtime_error(ERROR_MSG("[read_thresholds] invilid file " + tmp_filename));
+    }
 
     uint64_t length_thr = filestat.st_size / THRBYTES;
     uint64_t threshold = 0;

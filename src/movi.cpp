@@ -497,7 +497,7 @@ int main(int argc, char** argv) {
             mv_.deserialize();
             auto end = std::chrono::system_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-            std::printf("Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+            std::fprintf(stderr, "Time measured for loading the index: %.3f seconds.", elapsed.count() * 1e-9);
 
             color(mv_, movi_options);
         } else if (command == "query") {

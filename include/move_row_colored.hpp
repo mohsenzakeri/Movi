@@ -280,8 +280,7 @@ inline uint16_t MoveRowColored::get_threshold(uint16_t i) const {
         case 2:
             return static_cast<uint16_t>((n & (~mask_thresholds3)) >> 12);
         default:
-            std::cerr << "Only three thresholds exist per run: " << i << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[MoveRowColored - get_threshold] Only three thresholds exist per run: " + std::to_string(i) + "\n"));
     }
 }
 #endif
@@ -296,8 +295,7 @@ inline uint16_t MoveRowColored::get_threshold(uint16_t i) const {
         case 2:
             return static_cast<uint16_t>((offset & (~mask_thresholds3)) >> 14);
         default:
-            std::cerr << "Only three thresholds exist per run: " << i << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[MoveRowColored - get_threshold] Only three thresholds exist per run: " + std::to_string(i) + "\n"));
     }
 }
 #endif
@@ -312,8 +310,7 @@ inline uint16_t MoveRowColored::get_threshold(uint16_t i) const {
         case 2:
             return static_cast<uint16_t>((c & (~mask_thresholds3)) >> 7);
         default:
-            std::cerr << "Only three thresholds exist per run: " << i << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[MoveRowColored - get_threshold] Only three thresholds exist per run: " + std::to_string(i) + "\n"));
     }
 }
 #endif

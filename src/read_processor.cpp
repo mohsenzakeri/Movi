@@ -355,8 +355,9 @@ void ReadProcessor::find_next_id(Strand& process) {
 
     // Sanity check, the offset in the destination run should be always smaller than the length of that run
     if (process.tally_offset >= mv.get_n(process.run_id)) {
-        std::cout << "tally_offset: " << process.tally_offset << " n: " << mv.get_n(process.run_id) << "\n"; // << dbg.str() << "\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[Read Processor - find next tally id] tally_offset: " +std::to_string(process.tally_offset) +
+                                           " n: " + std::to_string(mv.get_n(process.run_id)) +
+                                           "\nThe offset in the destination run should be always smaller than the length of that run."));
     }
 
     if (process.find_next_id_attempt == 0) {
@@ -423,8 +424,7 @@ void ReadProcessor::count_rows_untill_tally(Strand& process) {
     // }
 
     if (process.last_id == mv.r) {
-        std::cerr << "last_id should never be equal to r.\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[Read Processor - count rows until tally] last_id should never be equal to r = " + std::to_string(mv.r) + "\n"));
     }
 
     // We should know what will be the offset of the run head in the destination run (id)
@@ -615,8 +615,7 @@ void ReadProcessor::compute_match_count(Strand& process) {
     else if (!process.range.is_empty())
         process.match_count = process.range.count(mv.rlbwt);
     else {
-        std::cerr << "This should not happen, for match count computation.\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[Read Processor - compute match count] This should not happen, for match count computation.\n"));
     }
 }
 
@@ -651,8 +650,7 @@ void ReadProcessor::process_latency_hiding(BatchLoader& reader) {
     bool is_count = mv.movi_options->is_count();
 
     if ((is_pml and is_count) or (is_pml and is_zml) or (is_count and is_zml)) {
-        std::cerr << "Error parsing the input, multipe types of queries cannot be processed at the same time.\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[Read Processor - process latency hiding] Multipe types of queries cannot be processed at the same time.\n"));
     }
 
     std::vector<Strand> processes;
@@ -1166,8 +1164,8 @@ bool ReadProcessor::backward_search(Strand& process, uint64_t end_pos) {
         // If we are at position 0 after the last LF step, we can finish the procedure
         // Very expensive operation: process.match_count = process.range.count(mv.rlbwt);
         if (process.pos_on_r < 0) {
-            std::cerr << "This should never happen.\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[Read Processor - backward search] This should never happen pos_on_r: " +
+                                               std::to_string(process.pos_on_r) + "\n"));
         }
         return true;
     }

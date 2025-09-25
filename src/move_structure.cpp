@@ -161,6 +161,7 @@ void MoveStructure::find_sampled_SA_entries() {
         }
         LF_move(offset, index);
     }
+    std::cerr << INFO_MSG("Finished building the sampled SA entries.");
 }
 
 uint64_t MoveStructure::get_SA_entries(uint64_t idx, uint64_t offset) {
@@ -195,9 +196,7 @@ uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i, uint64_t id) {
     auto& row = rlbwt[i];
     auto idx = (id == std::numeric_limits<uint64_t>::max()) ? get_id(i) : id;
     if (idx >= r) {
-        std::cerr << "This should not happen.\n";
-        std::cerr << "idx:::" << idx << " i:" << i << "\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[LF_move] This should not happen.\nidx:::" + std::to_string(idx) + " i:" + std::to_string(i)));
     }
     offset = get_offset(i) + offset;
     uint16_t ff_count = 0;
@@ -209,10 +208,8 @@ uint16_t MoveStructure::LF_move(uint64_t& offset, uint64_t& i, uint64_t id) {
         uint64_t idx_ = fast_forward(offset, idx, 0);
         idx += idx_;
         if (idx_ >= std::numeric_limits<uint16_t>::max()) {
-            std::cerr << "Number of fast forwards for a query was greater than 2^16: " << idx_ << "\n";
-            std::cerr << "offset: " << offset << "\n";
-            std::cerr << "idx: " << idx << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[LF_move] Number of fast forwards for a query was greater than 2^16: " +
+                                     std::to_string(idx_) + "\noffset: " + std::to_string(offset) + "\nidx: " + std::to_string(idx)));
         }
         ff_count = static_cast<uint16_t>(idx_);
     }
@@ -749,8 +746,7 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
             return id;
         }
         if (last_id == r) {
-            std::cerr << "last_id should never be equal to r.\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[get id - tally mode] last_id should never be equal to r."));
         }
 
         // We should know what will be the offset of the run head in the destination run (id)
@@ -769,8 +765,8 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
 
         // Sanity check, the offset in the destination run should be always smaller than the length of that run
         if (offset >= get_n(id)) {
-            std::cout << "offset: " << offset << " n: " << get_n(id) << "\n"; // << dbg.str() << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[get id - tally mode] offset: " + std::to_string(offset) + " n: " + std::to_string(get_n(id)) +
+                                                "\nThe offset in the destination run should be always smaller than the length of that run."));
         }
         if (offset >= rows_until_tally) {
             return id;
@@ -821,18 +817,18 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
         }
 
         if (last_id == r) {
-            std::cerr << idx << " " << tally_a << "\n";
-            std::cerr << "last_id should never be equal to r.\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[get id - tally mode] last_id should never be equal to r.\nidx: " +
+                                              std::to_string(idx) + " tally_a: " + std::to_string(tally_a) + "\n"));
         }
 
         uint16_t offset = get_offset(last_id);
 
         // Sanity check, the offset in the destination run should be always smaller than the length of that run
         if (offset >= get_n(id)) {
-            std::cout << "idx: " << idx << " last_id: " << last_id << " id: " << id << " prev_check_point: " << prev_check_point << "\n";
-            std::cout << "offset: " << offset << " n: " << get_n(id) << "\n"; // << dbg.str() << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[get id - tally mode] offset: " + std::to_string(offset) + " n: " + std::to_string(get_n(id)) +
+                                                "idx: " + std::to_string(idx) + " last_id: " + std::to_string(last_id) + " id: " + std::to_string(id) +
+                                                " prev_check_point: " + std::to_string(prev_check_point) +
+                                                "\nThe offset in the destination run should be always smaller than the length of that run."));
         }
         if ((get_n(id) - offset - 1) >= rows_until_tally) {
             return id;
@@ -907,8 +903,8 @@ uint64_t MoveStructure::get_thresholds(uint64_t idx, uint32_t alphabet_index) {
 
 uint16_t MoveStructure::get_rlbwt_thresholds(uint64_t idx, uint16_t i) {
     if (i >= alphabet.size() - 1) {
-        std::cerr << "get_thresholds: " << i << " is greater than or equal to " << alphabet.size() - 1 << "\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[get_rlbwt_thresholds] get_thresholds: " + std::to_string(i) +
+                                 " is greater than or equal to " +std::to_string(alphabet.size() - 1)));
     }
 
     uint8_t status = rlbwt[idx].get_threshold_status(i);
@@ -917,18 +913,14 @@ uint16_t MoveStructure::get_rlbwt_thresholds(uint64_t idx, uint16_t i) {
         case 1: return rlbwt[idx].get_threshold(); break;
         case 3: return get_n(idx); break;
         default:
-            std::cerr << "Undefined status for thresholds status: " << status << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[get_rlbwt_thresholds] Undefined status for thresholds status: " + std::to_string(status)));
     }
-
-    std::cerr << "Undefined behavior!\n";
-    exit(0);
 }
 
 void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value) {
     if (i >= alphabet.size() - 1) {
-        std::cerr << "get_thresholds: " << i << " is greater than or equal to " << alphabet.size() - 1 << "\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[set_rlbwt_thresholds] get_thresholds: " + std::to_string(i) +
+                                 " is greater than or equal to " + std::to_string(alphabet.size() - 1)));
     }
 
     uint8_t status = 0;
@@ -1033,8 +1025,8 @@ void MoveStructure::find_run_heads_information() {
 
         // Boundary check for bits vector
         if (bwt_offset >= bits.size()) {
-            std::cerr << "\nfind_run_heads_information: " << bwt_offset << " offset is greater than the bits vector length (" << bits.size() << ")\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[find run heads information] " + std::to_string(bwt_offset) +
+                                    " offset is greater than the bits vector length (" + std::to_string(bits.size()) + ")"));
         }
 
         // The following line is important to tag the run boundaries in the main bitvector
@@ -1080,8 +1072,8 @@ void MoveStructure::add_detected_run(uint64_t scanned_bwt_length,
 
     // Boundary check for bits vector
     if (scanned_bwt_length + 1 >= bits.size()) {
-        std::cerr << "\add_detected_run: " << scanned_bwt_length + 1 << " offset is greater than the bits vector length (" << bits.size() << ")\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[add_detected_run] " + std::to_string(scanned_bwt_length + 1) +
+                                    " offset is greater than the bits vector length (" + std::to_string(bits.size()) + ")"));
     }
 
     bits[scanned_bwt_length + 1] = 1;
@@ -1203,8 +1195,8 @@ void MoveStructure::build() {
 
                     // Boundary check for bits vector
                     if (j >= bits.size()) {
-                        std::cerr << "\nThresholds splitting (preprocessed): " << j << " offset is greater than the bits vector length (" << bits.size() << ")\n";
-                        exit(0);
+                        throw std::runtime_error(ERROR_MSG("[build - finding the runs (preprocessed)] " + std::to_string(j) +
+                                                " offset is greater than the bits vector length (" + std::to_string(bits.size()) + ")"));
                     }
 
                     if (bits[j]) {
@@ -1295,8 +1287,8 @@ void MoveStructure::build() {
 
             // Boundary check for bits vector
             if (scanned_bwt_length + 1 >= bits.size()) {
-                std::cerr << "\nFinding the runs: " << scanned_bwt_length + 1 << " offset is greater than the bits vector length (" << bits.size() << ")\n";
-                exit(0);
+                throw std::runtime_error(ERROR_MSG("[build - finding the runs] Finding the runs: " + std::to_string(scanned_bwt_length + 1) +
+                                    " offset is greater than the bits vector length (" + std::to_string(bits.size()) + ")"));
             }
 
             // The first row is already set and accounted for, so we skip
@@ -1305,9 +1297,8 @@ void MoveStructure::build() {
                 original_r += 1;
 
                 if (splitting and !bits[scanned_bwt_length + 1]) {
-                    std::cerr << "There is something wrong with the splitting vector.\n";
-                    std::cerr << "The run boundaries should have been set to 1 since a new character was detected.\n";
-                    exit(0);
+                    throw std::runtime_error(ERROR_MSG("[build - finding the runs] There is something wrong with the splitting vector.\n" +
+                                    "The run boundaries should have been set to 1 since a new character was detected."));
                 }
 
                 add_detected_run(scanned_bwt_length, current_char, next_char, run_length);
@@ -1336,16 +1327,14 @@ void MoveStructure::build() {
         std::cerr << "\n";
 
         if (r != heads.size()) {
-            std::cerr << "r: " << r << " heads.size(): " << heads.size() << "\n";
-            std::cerr << "The number of runs is not consistent.\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[build - finding the runs] r: " + std::to_string(r) + " heads.size(): " + std::to_string(heads.size()) +
+                                    " The number of runs is not consistent."));
         }
 
         if (length != scanned_bwt_length + 1) {
-            std::cerr << "The length of the BWT is not consistent.\n";
-            std::cerr << "length: " << length << "\n";
-            std::cerr << "scanned_bwt_length: " << scanned_bwt_length << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[build - finding the runs] length: " + std::to_string(length) +
+                                    " scanned_bwt_length: " + std::to_string(scanned_bwt_length) +
+                                    " The length of the BWT is not consistent."));
         }
 
         build_alphabet(all_possible_chars);
@@ -1427,8 +1416,8 @@ void MoveStructure::build() {
 
         // Boundary check for bits vector
         if (lf >= bits.size()) {
-            std::cerr << "\nBuilding the move structure rows: " << lf << " offset is greater than the bits vector length (" << bits.size() << ")\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[build rows] Building the move structure rows: " + std::to_string(lf) +
+                                    " offset is greater than the bits vector length (" + std::to_string(bits.size()) + ")"));
         }
 
         if (bits[lf] == 1)
@@ -1439,13 +1428,13 @@ void MoveStructure::build() {
 
         // check the boundaries before performing select
         if (pp_id >= r) {
-            std::cerr << "pp_id: " << pp_id << " r: " << r << " r_idx: " << r_idx << " lf: " << lf << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[build rows] pp_id: " + std::to_string(pp_id) + " r: " + std::to_string(r) +
+                                    " r_idx: " + std::to_string(r_idx) + " lf: " + std::to_string(lf)));
         }
 
         if (lf < all_p[pp_id]) {
-            std::cerr << pp_id << " " << lf << " " << all_p[pp_id] << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[build rows] pp_id: " + std::to_string(pp_id) + " lf: " + std::to_string(lf) +
+                                    " all_p[pp_id]: " + std::to_string(all_p[pp_id])));
         }
 
         offset = lf - all_p[pp_id];
@@ -1500,30 +1489,25 @@ void MoveStructure::build() {
 #if SPLIT_MAX_RUN
         if (offset > MAX_RUN_LENGTH or len > MAX_RUN_LENGTH) {
             // Should not get here in the regular mode: MODE = 3
-            std::cerr << "The length or the offset are too large.\n";
-            std::cerr << "offset: " << offset << "\tlength: " << length << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[build rows] The length or the offset are too large.\n" +
+                                                "offset: " + std::to_string(offset) + "\tlength: " + std::to_string(length) + "\n"));
         }
 #endif
 #if SPLIT_THRESHOLDS_FALSE
         if (len > MAX_RUN_LENGTH) {
-            std::cerr << "This shouldn't happen anymore, because the run splitting should be applied in every mode now.\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[build rows] This shouldn't happen anymore, because the run splitting should be applied in every mode now."));
             n_overflow.push_back(len);
             if (n_overflow.size() - 1 >= MAX_RUN_LENGTH) {
-                std::cerr << "Warning: the number of runs with overflow n is beyond " << MAX_RUN_LENGTH<< "! " << n_overflow.size() - 1 << "\n";
-                exit(0);
+                throw std::runtime_error(ERROR_MSG("[build rows] The number of runs with overflow n is beyond " + std::to_string(MAX_RUN_LENGTH) + "! " + std::to_string(n_overflow.size() - 1)));
             }
             rlbwt[r_idx].set_n(n_overflow.size() - 1);
             rlbwt[r_idx].set_overflow_n();
         }
         if (offset > MAX_RUN_LENGTH) {
-            std::cerr << "This shouldn't happen anymore, because the run splitting should be applied in every mode now.\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[build rows] This shouldn't happen anymore, because the run splitting should be applied in every mode now."));
             offset_overflow.push_back(offset);
             if (offset_overflow.size() - 1 >= MAX_RUN_LENGTH) {
-                std::cerr << "Warning: the number of runs with overflow offset is beyond " << MAX_RUN_LENGTH<< "! " << offset_overflow.size() - 1 << "\n";
-                exit(0);
+                throw std::runtime_error(ERROR_MSG("[build rows] The number of runs with overflow offset is beyond " + std::to_string(MAX_RUN_LENGTH) + "! " + std::to_string(offset_overflow.size() - 1)));
             }
             rlbwt[r_idx].set_offset(offset_overflow.size() - 1);
             rlbwt[r_idx].set_overflow_offset();
@@ -1547,9 +1531,9 @@ void MoveStructure::build() {
     }
 #endif
 
-    std::cerr << "Max run length (after splitting if enabled): " << max_len << "\n\n";
+    std::cerr << GENERAL_MSG("Max run length (after splitting if enabled): " + std::to_string(max_len) + "\n\n");
 
-    std::cerr << "\nAll the move rows are built.\n";
+    std::cerr << INFO_MSG("All the move rows are built.");
 
 #if USE_THRESHOLDS
     // compute the thresholds
@@ -1611,13 +1595,12 @@ void MoveStructure::fill_bits_by_thresholds() {
 
         // Boundary check for bits vector
         if (thresholds[i] >= bits.size()) {
-            std::cerr << "\fill_bits_by_thresholds: " << thresholds[i] << " offset is greater than the bits vector length (" << bits.size() << ")\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[fill bits by thresholds] fill_bits_by_thresholds: " + std::to_string(thresholds[i]) + " offset is greater than the bits vector length (" + std::to_string(bits.size()) + ")"));
         }
 
         bits[thresholds[i]] = 1;
     }
-    std::cerr << "The bits vector is updated by thresholds.\n\n";
+    std::cerr << GENERAL_MSG("The bits vector is updated by thresholds.");
 }
 
 void MoveStructure::compute_run_lcs() {
@@ -1698,8 +1681,8 @@ void MoveStructure::write_ftab() {
 
     uint64_t ftab_size = std::pow(4, ftab_k);
     if (ftab_size != ftab.size()) {
-        std::cerr << "The size of the ftab is not correct: " << ftab_size << " != " << ftab.size() << "\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[write ftab] The size of the ftab is not correct: " +
+                                 std::to_string(ftab_size) + " != " + std::to_string(ftab.size())));
     }
     std::string fname = movi_options->get_index_dir() + "/ftab." + std::to_string(ftab_k) + ".bin";
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
@@ -1716,13 +1699,17 @@ void MoveStructure::read_ftab() {
         while (ftab_k > 1) {
             std::string fname = movi_options->get_index_dir() + "/ftab." + std::to_string(ftab_k) + ".bin";
             std::ifstream fin(fname, std::ios::in | std::ios::binary);
+            if (!fin.good()) {
+                throw std::runtime_error(ERROR_MSG("[read ftab] Failed to open the ftab file at " + fname));
+            }
+
             fin.read(reinterpret_cast<char*>(&ftab_k), sizeof(ftab_k));
 
             uint64_t ftab_size = 0;
             fin.read(reinterpret_cast<char*>(&ftab_size), sizeof(ftab_size));
             if (ftab_size != std::pow(4, ftab_k)) {
-                std::cerr << "The size of the ftab is not correct: " << ftab_size << " != " << std::pow(4, ftab_k) << "\n";
-                exit(0);
+                throw std::runtime_error(ERROR_MSG("[read ftab] The size of the ftab is not correct: " +
+                                 std::to_string(ftab_size) + " != " + std::to_string(std::pow(4, ftab_k))));
             }
             std::vector<MoveInterval> new_ftab;
             new_ftab.resize(ftab_size);
@@ -1734,14 +1721,18 @@ void MoveStructure::read_ftab() {
     } else {
         std::string fname = movi_options->get_index_dir() + "/ftab." + std::to_string(ftab_k) + ".bin";
         std::ifstream fin(fname, std::ios::in | std::ios::binary);
+        if (!fin.good()) {
+            throw std::runtime_error(ERROR_MSG("[read ftab] Failed to open the ftab file at " + fname));
+        }
         fin.read(reinterpret_cast<char*>(&ftab_k), sizeof(ftab_k));
         uint64_t ftab_size = 0;
         fin.read(reinterpret_cast<char*>(&ftab_size), sizeof(ftab_size));
-        std::cerr << "ftab_k: " << ftab_k << "\t" << "ftab_size: " << ftab_size << "\n";
+        std::cerr << GENERAL_MSG("Reading the ftab.\nftab_k: " + std::to_string(ftab_k) + "\t" + "ftab_size: " + std::to_string(ftab_size) + "\n");
         if (ftab_size != std::pow(4, ftab_k)) {
-            std::cerr << "The size of the ftab is not correct: " << ftab_size << " != " << std::pow(4, ftab_k) << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[read ftab] The size of the ftab is not correct: " +
+                                 std::to_string(ftab_size) + " != " + std::to_string(std::pow(4, ftab_k))));
         }
+
         ftab.resize(ftab_size);
         fin.read(reinterpret_cast<char*>(&ftab[0]), ftab_size*sizeof(ftab[0]));
         fin.close();
@@ -1783,18 +1774,19 @@ void MoveStructure::compute_thresholds() {
         for (uint64_t j = 0; j < alphabet.size(); j++) {
             if (alphabet[j] == rlbwt_c) {
                 if (thr_i >= thresholds.size()) {
-                    std::cerr << " thr_i = " << thr_i << " is out of bound:\n";
-                    std::cerr << " thresholds.size = " << thresholds.size() << "\n";
-                    exit(0); // TODO: add error handling
+                    throw std::runtime_error(ERROR_MSG("[compute thresholds] thr_i = " + std::to_string(thr_i) + " is out of bound:\n" +
+                                                        " thresholds.size = " + std::to_string(thresholds.size()) +
+                                                        "\nThe thresholds are not correct."));
                 }
                 alphabet_thresholds[j] = thresholds[thr_i];
             } else {
                 if (alphamap_3[alphamap[rlbwt_c]][j] >= alphabet.size() - 1) {
-                    std::cerr << "alphamap_3 is not working in general:\n"
-                                << "alphabet.size() - 1 = " << alphabet.size() - 1 << "\n"
-                                << "alphamap_3[alphamap[rlbwt_c]][j] = " << alphamap_3[alphamap[rlbwt_c]][j] << "\n";
-                    exit(0); // TODO: add error handling
+                    throw std::runtime_error(ERROR_MSG("[compute thresholds] alphamap_3 is not working in general:\n"
+                                "alphabet.size() - 1 = " + std::to_string(alphabet.size() - 1) + "\n"
+                                "alphamap_3[alphamap[rlbwt_c]][j] = " + std::to_string(alphamap_3[alphamap[rlbwt_c]][j]) +
+                                "\nThe alphabet map (alphamap_3) is not correct."));
                 }
+
                 if (alphabet_thresholds[j] >= all_p[i] + get_n(i)) {
                     // rlbwt[i].thresholds[j] = get_n(i);
                     if (i == end_bwt_idx) {
@@ -1841,10 +1833,10 @@ void MoveStructure::compute_thresholds() {
                     set_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j], alphabet_thresholds[j] - all_p[i]);
 #endif
 #if SPLIT_THRESHOLDS_TRUE
-                    std::cerr << "j: " << j << " i:" << i << " n:" << get_n(i) << " atj:"
-                              << alphabet_thresholds[j] << " api:" << all_p[i] << "\n";
-                    std::cerr << "This should never happen, since the runs are split at threshold boundaries.\n";
-                    exit(0);
+                    throw std::runtime_error(ERROR_MSG("[compute thresholds] j: " + std::to_string(j) + " i:" + std::to_string(i) +
+                              " n:" + std::to_string(get_n(i)) + " at j:" + std::to_string(alphabet_thresholds[j]) +
+                              " api:" + std::to_string(all_p[i]) +
+                              "\nThis should never happen, since the runs are split at threshold boundaries."));
 #endif
                     current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = alphabet_thresholds[j] - all_p[i];
                 }
@@ -1869,9 +1861,8 @@ void MoveStructure::compute_thresholds() {
 #if SPLIT_THRESHOLDS_FALSE
         if (rlbwt[i].is_overflow_thresholds()) {
             if (thresholds_overflow.size() >= std::numeric_limits<uint16_t>::max()) {
-                std::cerr << "Undefined behaviour: the number of runs with overflow thresholds is beyond uint16_t!"
-                            << thresholds_overflow.size() << "\n";
-                exit(0);
+                throw std::runtime_error(ERROR_MSG("[compute thresholds] Undefined behaviour: the number of runs with overflow thresholds is beyond uint16_t!" +
+                                    std::to_string(thresholds_overflow.size()) + "\n"));
             }
             for (uint64_t k = 0; k < alphabet.size() - 1; k++) {
                 set_rlbwt_thresholds(i, k, thresholds_overflow.size());
@@ -1956,9 +1947,8 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
                 uint64_t block_number = i / block_size;
 
                 if (block_number != block_count - 1) {
-                    std::cerr << "The block calculation is incorrect.\n";
-                    std::cerr << "block_count: " << block_count << " block_number: " << block_number << "\n";
-                    exit(0);
+                    throw std::runtime_error(ERROR_MSG("[compute blocked ids] The block calculation is incorrect.\n" +
+                                    "block_count: " + std::to_string(block_count) + " block_number: " + std::to_string(block_number) + "\n"));
                 }
 
                 // First Calcuate the id with respect to the first run with the same character -> adjusted_id
@@ -1988,11 +1978,9 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
 
                 // Check if the blocked_id is stored correctly in the run
                 if (rlbwt[i].get_id() != blocked_id) {
-                    std::cerr << "The id was not stored in the move row correctly.\n";
-                    std::cerr << "rlbwt[i].get_id(): " << rlbwt[i].get_id() << "\t"
-                              << "blocked_id: " << blocked_id << "\n";
-
-                    exit(0);
+                    throw std::runtime_error(ERROR_MSG("[compute blocked ids] The id was not stored in the move row correctly.\n" +
+                                    "rlbwt[i].get_id(): " + std::to_string(rlbwt[i].get_id()) + "\t" +
+                                    "blocked_id: " + std::to_string(blocked_id) + "\n"));
                 }
 
                 max_blocked_id = std::max(blocked_id, max_blocked_id);
@@ -2001,10 +1989,9 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
                 block_start_id[rlbwt[i].get_c()] = static_cast<uint32_t>(id - first_runs[rlbwt[i].get_c() + 1]);
 
                 if (id - first_runs[rlbwt[i].get_c() + 1] > std::numeric_limits<uint32_t>::max()) {
-                    std::cerr << "id - first_runs[rlbwt[i].get_c() + 1]: " << id - first_runs[rlbwt[i].get_c() + 1] << "\n";
-                    std::cerr << "The block_start_id does not fit in uint32_t\n";
+                    throw std::runtime_error(ERROR_MSG("[compute blocked ids] The block_start_id does not fit in uint32_t\n" +
+                                    "id - first_runs[rlbwt[i].get_c() + 1]: " + std::to_string(id - first_runs[rlbwt[i].get_c() + 1]) + "\n"));
 
-                    exit(0);
                 }
             }
 
@@ -2140,8 +2127,7 @@ uint64_t MoveStructure::reposition_down(uint64_t idx, char c, uint64_t& scan_cou
 
 void MoveStructure::update_interval(MoveInterval& interval, char next_char) {
     if (!check_alphabet(next_char)) {
-        std::cerr << "This should not happen! The character should have been checked before.\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[update interval] This should not happen! The character should have been checked before."));
     }
 #if USE_NEXT_POINTERS
     // if (movi_options->is_debug())
@@ -2386,8 +2372,7 @@ MoveBiInterval MoveStructure::initialize_bidirectional_search(MoveQuery& mq, int
 
     // match_len_rc will be equal to match_len if both fw and rc are present int he reference
     if (match_len - 1 != match_len_rc) {
-        std::cerr << "The reverse complement might not be present in the reference.\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[initialize bidirectional search] The reverse complement might not be present in the reference."));
     }
 
     return bi_interval;
@@ -2451,8 +2436,7 @@ uint64_t MoveStructure::backward_search_step(std::string& R, int32_t& pos_on_r, 
     // otherwise it is updated according to the character on pos_on_r - 1
     uint64_t ff_count = 0;
     if (pos_on_r <= 0) {
-        std::cerr << "The backward search step never be called on position 0 of the read.\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[backward search step] The backward search step never be called on position 0 of the read."));
     }
 
     if (!check_alphabet(R[pos_on_r - 1])) {
@@ -2771,7 +2755,6 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 /* if (movi_options->is_verbose())
                     std::cerr << "\t idx: " << idx << " offset: " << offset << "\n"; */
             } else {
-                std::cerr << "\t \t This should not happen!\n";
                 std::cerr << "\t \t pos: " << pos_on_r << " r[pos]:" <<  R[pos_on_r] << " t[pointer]:" << c << "\n";
                 std::cerr << "\t \t " << up << ", " << R[pos_on_r] << ", " << pos_on_r << "\n";
                 std::cerr << "\t \t ";
@@ -2786,7 +2769,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
 #if USE_THRESHOLDS
                 reposition_thresholds(saved_idx, offset, R[pos_on_r], scan_count);
 #endif
-                exit(0);
+                throw std::runtime_error(ERROR_MSG("[query pml] This should not happen!"));
             }
         }
     
@@ -2998,8 +2981,7 @@ bool MoveStructure::reposition_thresholds(uint64_t& idx, uint64_t offset, char r
             else
                 idx = saved_idx + rlbwt[saved_idx].get_next_down(alphabet_index);
         } else {
-            std::cerr << "MODE is set to " << MODE <<", but the constant variable is false.\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[reposition thresholds] MODE is set to " + std::to_string(MODE) + ", but the constant variable is false."));
         }
 #endif
         auto tmp = idx;
@@ -3088,9 +3070,9 @@ bool MoveStructure::reposition_randomly(uint64_t& idx, uint64_t& offset, char r_
                 std::cerr << "idx after repositioning down: " << idx << "\n";
             if (idx == r) {
                 // TODO
-                std::cerr << "Neither up or down repositioning works.\n";
-                std::cerr << "The character does not exist in the index.\n";
-                exit(0);
+                throw std::runtime_error(ERROR_MSG("[reposition randomly] Neither up or down repositioning works.\n" +
+                                    "The character does not exist in the index.\n"));
+                throw std::runtime_error(ERROR_MSG("[reposition randomly] Neither up or down repositioning works.\n"));
             }
         }
     } else {
@@ -3116,9 +3098,8 @@ bool MoveStructure::reposition_randomly(uint64_t& idx, uint64_t& offset, char r_
                 std::cerr << "idx after repositioning up: " << idx << "\n";
             if (idx == r) {
                 // TODO
-                std::cerr << "Neither up or down repositioning works.\n";
-                std::cerr << "The character does not exist in the index.\n";
-                exit(0);
+                throw std::runtime_error(ERROR_MSG("[reposition randomly] Neither up or down repositioning works.\n" +
+                                                   "The character does not exist in the index.\n"));
             }
         }
     }
@@ -3126,13 +3107,8 @@ bool MoveStructure::reposition_randomly(uint64_t& idx, uint64_t& offset, char r_
     // sanity check
     char c = alphabet[rlbwt[idx].get_c()];
     if (c != r_char or idx == r) {
-        if (movi_options->is_verbose()) {
-            std::cerr << "c: " << c << "\n";
-            std::cerr << "idx: " << idx << "\n";
-        }
-        // TODO
-        std::cerr << "This should never happen.\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[reposition randomly] This should never happen.""c: " + c + "\n" +
+                                           "idx: " + std::to_string(idx) + "\n"));
     }
 
     return up;
@@ -3164,7 +3140,10 @@ void MoveStructure::serialize_doc_pats(std::string fname) {
 
 void MoveStructure::deserialize_doc_pats(std::string fname) {
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
-    
+    if (!fin.good()) {
+        throw std::runtime_error(ERROR_MSG("[deserialize doc pats] Failed to open document patterns file at " + fname));
+    }
+
     doc_pats.resize(length);
     fin.read(reinterpret_cast<char*>(&doc_pats[0]), length * sizeof(doc_pats[0]));
     fin.close();
@@ -3221,6 +3200,9 @@ void MoveStructure::compute_color_ids_from_flat() {
 void MoveStructure::deserialize_doc_sets_flat() {
     std::string fname = movi_options->get_index_dir() + "/doc_sets_flat.bin";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
+    if (!fin.good()) {
+        throw std::runtime_error(ERROR_MSG("[deserialize doc sets flat] Failed to open document sets flat file at " + fname));
+    }
 
     uint64_t flat_colors_size = 0;
     fin.read(reinterpret_cast<char*>(&flat_colors_size), sizeof(uint64_t));
@@ -3239,6 +3221,9 @@ void MoveStructure::deserialize_doc_sets_flat() {
 
 void MoveStructure::deserialize_doc_sets(std::string fname) {
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
+    if (!fin.good()) {
+        throw std::runtime_error(ERROR_MSG("[deserialize doc sets] Failed to open document sets file at " + fname));
+    }
 
     size_t unique_cnt = 0;
     fin.read(reinterpret_cast<char*>(&unique_cnt), sizeof(unique_cnt));
@@ -3382,10 +3367,13 @@ void MoveStructure::deserialize() {
         fname = movi_options->get_index_dir() + "/movi_index.bin";
         fin.open(fname, std::ios::in | std::ios::binary);
         if (!fin) {
-            throw std::runtime_error("Failed to open the index file at: " + movi_options->get_index_dir());
+            throw std::runtime_error(ERROR_MSG("[deserialize index] Failed to open the index file at: " + movi_options->get_index_dir()));
         }
     }
-    std::cerr << "fname: " << fname << std::endl;
+    if (movi_options->is_verbose()) {
+        std::cerr << "fname: " << fname << std::endl;
+    }
+
     fin.seekg(0, std::ios::beg); 
 
     if (!movi_options->is_no_header()) {
@@ -3394,7 +3382,7 @@ void MoveStructure::deserialize() {
         if (MODE != index_type) {
             throw std::runtime_error("MODE does not match the index_type in the header.");
         }
-        std::cerr << "The " << program() << " index is being used.\n";
+        std::cerr << GENERAL_MSG("The " + program() + " index is being used.");
     }
 
     fin.read(reinterpret_cast<char*>(&length), sizeof(length));
@@ -3404,7 +3392,7 @@ void MoveStructure::deserialize() {
     fin.read(reinterpret_cast<char*>(&end_bwt_idx_next_down[0]), 4*sizeof(end_bwt_idx_next_down[0]));
     fin.read(reinterpret_cast<char*>(&end_bwt_idx_next_up[0]), 4*sizeof(end_bwt_idx_next_up[0]));
 
-    std::cerr << "n: " << length << "\nr: " << r << "\n" << "$: " << end_bwt_idx << "\n";
+    std::cerr << INFO_MSG("Basic index stats:\n\tn: " + std::to_string(length) + "\n\tr: " + std::to_string(r) + "\n\t$: " + std::to_string(end_bwt_idx));
 
     uint64_t alphamap_size;
     fin.read(reinterpret_cast<char*>(&alphamap_size), sizeof(alphamap_size));
@@ -3412,7 +3400,9 @@ void MoveStructure::deserialize() {
     fin.read(reinterpret_cast<char*>(&alphamap[0]), alphamap_size*sizeof(alphamap[0]));
     uint64_t alphabet_size;
     fin.read(reinterpret_cast<char*>(&alphabet_size), sizeof(alphabet_size));
-    std::cerr << "alphabet_size: " << alphabet_size << "\n";
+    if (movi_options->is_verbose()) {
+        std::cerr << "alphabet_size: " << alphabet_size << "\n";
+    }
     alphabet.resize(alphabet_size);
     fin.read(reinterpret_cast<char*>(&alphabet[0]), alphabet_size*sizeof(alphabet[0]));
     if (alphabet.size() > 4) {
@@ -3461,7 +3451,9 @@ void MoveStructure::deserialize() {
         fin.seekg(rlbwt_offset + rlbwt_size, std::ios::beg);
     } else {
         rlbwt.resize(r);
-        std::cerr << "sizeof(MoveRow): " << sizeof(MoveRow) << std::endl;
+        if (movi_options->is_verbose()) {
+            std::cerr << "sizeof(MoveRow): " << sizeof(MoveRow) << std::endl;
+        }
         fin.read(reinterpret_cast<char*>(&rlbwt[0]), r*sizeof(MoveRow));
         // Store rlbwt in a file in the index directory
         // std::string rlbwt_fname = movi_options->get_index_dir() + "/rlbwt.movi";
@@ -3498,7 +3490,7 @@ void MoveStructure::deserialize() {
         fin.read(reinterpret_cast<char*>(&thresholds_overflow[i][0]), (alphabet.size() - 1)*sizeof(uint64_t));
     }
 
-    std::cerr << "All the move rows are read.\n";
+    std::cerr << INFO_MSG("All the move rows are read.");
 
     size_t orig_size;
     fin.read(reinterpret_cast<char*>(&orig_size), sizeof(orig_size));
@@ -3552,11 +3544,10 @@ void MoveStructure::deserialize() {
 
 void MoveStructure::load_document_info() {
     // Read in document offsets.
-    std::ifstream doc_offsets_file(movi_options->get_index_dir() + "/ref.fa.doc_offsets");
+    std::string doc_offsets_fname = movi_options->get_index_dir() + "/ref.fa.doc_offsets";
+    std::ifstream doc_offsets_file(doc_offsets_fname);
     if (!doc_offsets_file.good()) {
-        std::cerr << "Error: doc_offsets file not found at \""
-                  << movi_options->get_index_dir() << "/ref.fa.doc_offsets\"" << std::endl;
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[load document info] doc_offsets file not found at \"" + doc_offsets_fname + "\""));
     }
     uint64_t doc_offset;
     while ((doc_offsets_file >> doc_offset)) {
@@ -3568,7 +3559,8 @@ void MoveStructure::load_document_info() {
     num_species = num_docs;
 
     // Read in document taxon id
-    std::ifstream doc_ids_file(movi_options->get_index_dir() + "/ref.fa.doc_ids");
+    std::string doc_ids_fname = movi_options->get_index_dir() + "/ref.fa.doc_ids";
+    std::ifstream doc_ids_file(doc_ids_fname);
     if (doc_ids_file.good()) {
         uint32_t doc_id;
         while ((doc_ids_file >> doc_id)) {
@@ -3578,6 +3570,7 @@ void MoveStructure::load_document_info() {
         doc_ids_file.close();
     } else {
         // No doc ids information
+        std::cerr << GENERAL_MSG("No doc ids information, setting doc ids to 1...");
         doc_ids.resize(num_docs);
         for (size_t i = 0; i < num_docs; i++) {
             doc_ids[i] = i + 1;
@@ -3631,7 +3624,11 @@ void MoveStructure::serialize_sampled_SA() {
 void MoveStructure::deserialize_sampled_SA() {
     std::string fname = movi_options->get_index_dir() + "/ssa.movi";
     std::ifstream fin(fname, std::ios::in | std::ios::binary);
-    uint64_t SA_sample_rate = 0;
+    if (!fin.good()) {
+        throw std::runtime_error(ERROR_MSG("[deserialize sampled SA] Failed to open sampled SA entries file at " + fname + "\nBuild the sampled SA by running the build-SA command."));
+    }
+
+    uint64_t SA_sample_rate = 0;0;
     fin.read(reinterpret_cast<char*>(&SA_sample_rate), sizeof(SA_sample_rate));
     movi_options->set_SA_sample_rate(SA_sample_rate);
     uint64_t sampled_SA_entries_size = 0;
@@ -3727,11 +3724,10 @@ void MoveStructure::verify_lf_loop() {
     if (idx == end_bwt_idx and offset == 0 and visited_offsets == length) {
         std::cerr << "All the LF_move operations are correct.\n";
     } else {
-        std::cerr << "LF_move operations failed to loop back to the same BWT offset.\n";
         std::cerr << "\tlast idx: " << idx << " last offset: " << offset << "\n";
         std::cerr << "\tNumber of visited offsets: " << visited_offsets << "\n";
         std::cerr << "\tlength of the BWT: " << length << "\n";
-        exit(1);
+        throw std::runtime_error(ERROR_MSG("[verify lf_loop] LF_move operations failed to loop back to the same BWT offset."));
     }
 }
 
