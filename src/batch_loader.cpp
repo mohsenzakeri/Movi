@@ -49,11 +49,21 @@ bool BatchLoader::loadBatch(std::ifstream& input, size_t num_bases, size_t min_n
 
     while (input.good() && (num_bases_covered < num_bases || num_reads_covered < min_number_of_reads)) {
         
-        if (!std::getline(input, batch_buffer)) {return false;}
+        if (!std::getline(input, batch_buffer)) {
+            // Ensure the last batch is read
+            if (input_format == FQ and lines_covered % 4 == 0) {
+                return true;
+            } else if (input_format == FA and lines_covered % 2 == 0) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+
         lines_covered++;
-        
+
         record_size += batch_buffer.size();
-        valid_batch = true; 
+        valid_batch = true;
 
         // Use heuristic to determine number of bases read so far. Half of the
         // length of FASTQ records is roughly length of read, and full length
