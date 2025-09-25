@@ -35,7 +35,15 @@ add_library(movi_lib_test ${MOVI_SOURCES})
 target_link_libraries(movi_lib_test movi_common)
 target_compile_definitions(movi_lib_test PUBLIC MODE=0 COLOR_MODE=0)
 
+
+add_executable(movi movi_launcher.cpp)
+
+add_executable(prepare_ref prepare_ref.cpp)
+target_link_libraries(prepare_ref zlibstatic)
+
 # Main executables with their specific MODE configurations
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
 add_executable(movi-large ${MOVI_MAIN_SOURCES})
 target_link_libraries(movi-large sdsl zlibstatic OpenMP::OpenMP_CXX hclust)
 target_compile_options(movi-large PUBLIC -DMODE=0 -DCOLOR_MODE=0)
@@ -79,20 +87,3 @@ target_compile_options(movi-tally PUBLIC -DMODE=5 -DCOLOR_MODE=0)
 add_executable(movi-tally-thresholds ${MOVI_MAIN_SOURCES})
 target_link_libraries(movi-tally-thresholds sdsl zlibstatic OpenMP::OpenMP_CXX hclust)
 target_compile_options(movi-tally-thresholds PUBLIC -DMODE=7 -DCOLOR_MODE=0)
-
-add_executable(movi movi_launcher.cpp)
-
-add_executable(prepare_ref prepare_ref.cpp)
-target_link_libraries(prepare_ref zlibstatic)
-
-if (BUILD_TEST STREQUAL "1")
-    add_executable(test_bidirectional
-        test_bidirectional.cpp move_structure.cpp move_row.cpp utils.cpp sequitur.cpp)
-    target_link_libraries(test_bidirectional sdsl zlibstatic OpenMP::OpenMP_CXX hclust)
-    target_compile_options(test_bidirectional PUBLIC -DMODE=3 -DCOLOR_MODE=0)
-
-    add_executable(test_bidirectional_blocked
-        test_bidirectional.cpp move_structure.cpp move_row.cpp utils.cpp sequitur.cpp)
-    target_link_libraries(test_bidirectional_blocked sdsl zlibstatic OpenMP::OpenMP_CXX hclust)
-    target_compile_options(test_bidirectional_blocked PUBLIC -DMODE=2 -DCOLOR_MODE=0)
-endif ()

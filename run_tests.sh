@@ -96,7 +96,7 @@ TEST_EXECUTABLES=("basics-tests" "build-tests" "pml-tests" "classification-tests
 MISSING_TESTS=()
 
 for test_exe in "${TEST_EXECUTABLES[@]}"; do
-    if [ ! -f "$test_exe" ]; then
+    if [ ! -f "tests_bin/$test_exe" ]; then
         MISSING_TESTS+=("$test_exe")
     fi
 done
@@ -116,12 +116,12 @@ run_test() {
     local test_name="$1"
     local test_exe="$2"
     
-    if [ -f "$test_exe" ]; then
+    if [ -f "tests_bin/$test_exe" ]; then
         print_status "Running $test_name..."
         echo "----------------------------------------"
         
         # Run tests with verbose output showing individual test cases
-        if ./"$test_exe" --verbosity high --reporter compact; then
+        if ./tests_bin/"$test_exe" --verbosity high --reporter compact; then
             echo "----------------------------------------"
             print_success "$test_name passed"
             echo ""
@@ -132,7 +132,7 @@ run_test() {
             echo ""
             echo "Detailed failure information:"
             echo "Running $test_exe with full output..."
-            ./"$test_exe" --verbosity high --reporter console
+            ./tests_bin/"$test_exe" --verbosity high --reporter console
             echo ""
             return 1
         fi

@@ -8,6 +8,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(catch2)
 
 # Add test executables
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tests_bin)
+
 add_executable(basics-tests test_basics.cpp test_utils.cpp)
 target_link_libraries(basics-tests PRIVATE movi_lib_test Catch2::Catch2WithMain)
 target_include_directories(basics-tests PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -36,3 +38,14 @@ target_compile_definitions(classification-tests PRIVATE BINARY_DIR="${CMAKE_BINA
 # add_test(NAME basics-tests COMMAND basics-tests)
 # add_test(NAME build-tests COMMAND build-tests)
 # add_test(NAME pml-tests COMMAND pml-tests)
+
+# Old Bidirectional tests
+add_executable(test_bidirectional test_bidirectional.cpp)
+target_link_libraries(test_bidirectional movi_lib_test sdsl zlibstatic OpenMP::OpenMP_CXX hclust)
+target_include_directories(test_bidirectional PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_compile_options(test_bidirectional PUBLIC -DMODE=3 -DCOLOR_MODE=0)
+
+add_executable(test_bidirectional_blocked test_bidirectional.cpp)
+target_link_libraries(test_bidirectional_blocked movi_lib_test sdsl zlibstatic OpenMP::OpenMP_CXX hclust)
+target_include_directories(test_bidirectional_blocked PRIVATE ${CMAKE_SOURCE_DIR}/include)
+target_compile_options(test_bidirectional_blocked PUBLIC -DMODE=2 -DCOLOR_MODE=0)

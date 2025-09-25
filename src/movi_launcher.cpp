@@ -102,12 +102,12 @@ int main(int argc, char* argv[]) {
             handle(args, all_args);
         }
     } catch (const std::exception& e) {
-        if (std::filesystem::exists(binary_dir + "/movi-" + args.index_type)) {
+        if (std::filesystem::exists(binary_dir + "/bin/movi-" + args.index_type)) {
             print_error(std::string(e.what()));
-            std::string help_command = binary_dir + "/movi-" + args.index_type + " " + args.action + " -h";
+            std::string help_command = binary_dir + "/bin/movi-" + args.index_type + " " + args.action + " -h";
             execute_command_line(help_command, "Failed in movi " + args.action + " step", args);
         } else {
-            print_error("Error parsing command line options: The binary '" + binary_dir + "/movi-" + args.index_type + "' does not exist.");
+            print_error("Error parsing command line options: The binary '" + binary_dir + "/bin/movi-" + args.index_type + "' does not exist.");
         }
         return 1;
     }
@@ -192,7 +192,7 @@ void handle_build(const Args& args, const std::vector<std::string>& all_args) {
     build_args.push_back("--fasta");
     build_args.push_back(clean_fasta);
     
-    std::string binary = "movi-" + args.index_type;
+    std::string binary = "bin/movi-" + args.index_type;
     std::string build_command = construct_movi_command(binary, build_args);
     execute_command_line(build_command, "Failed in movi build step", args);
 
@@ -209,7 +209,7 @@ void handle(const Args& args, const std::vector<std::string>& all_args) {
         throw std::runtime_error("Errorparsing command line options: Unrecognized index_type '" + std::to_string(index_type_char) + "'");
     }
 
-    std::string binary = "movi-" + char_to_type.at(index_type_char);
+    std::string binary = "bin/movi-" + char_to_type.at(index_type_char);
     std::string command = construct_movi_command(binary, all_args);
     execute_command_line(command, "Failed in movi " + args.action + " step", args);
 }
