@@ -88,9 +88,9 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
         ("t,threads", "Number of threads for query", cxxopts::value<int>());
 
     auto viewOptions = options.add_options("view")
-        ("mls-file", "The matching lengths (PML or ZML) file in the binary format", cxxopts::value<std::string>())
-        ("small-pml", "Read the binary file with PMLs stored as uint16_t.")
-        ("large-pml", "Read the binary file with PMLs stored as uint64_t.");
+        ("bpf", "The base profile format (BPF) file to view", cxxopts::value<std::string>())
+        ("small-bpf", "Read the file with PMLs stored as uint16_t (default: uint32_t).")
+        ("large-bpf", "Read the file with PMLs stored as uint64_t (default: uint32_t).");
 
     auto rlbwtOptions = options.add_options("rlbwt")
         ("bwt-file", "BWT file", cxxopts::value<std::string>());
@@ -329,13 +329,20 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
             } else if (command == "view") {
-                if (result.count("mls-file") == 1) {
-                    movi_options.set_mls_file(result["mls-file"].as<std::string>());
-                    if (result.count("small-pml") >= 1) {
+                if (result.count("bpf") == 1) {
+                    movi_options.set_mls_file(result["bpf"].as<std::string>());
+
+                    if (result.count("no-header") >= 1) {
+                        // To handle legacy BPF files (mls files, e.g., pmls.bin)
+                        // Might use small-bfp or large-bfp options to read the file
+                        movi_options.set_no_header(true);
+                    }
+
+                    if (result.count("small-bpf") >= 1) {
                         movi_options.set_small_pml_lens(true);
                     }
 
-                    if (result.count("large-pml") >= 1) {
+                    if (result.count("large-bpf") >= 1) {
                         movi_options.set_large_pml_lens(true);
                     }
 
@@ -358,7 +365,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                         }
                     }
                 } else {
-                    const std::string message = "Please specify one mls.bin file.";
+                    const std::string message = "Please specify a base profile format (BPF) file to view.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
             } else if (command == "color-move-rows") {

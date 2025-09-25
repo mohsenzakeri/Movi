@@ -308,12 +308,17 @@ void open_output_files(MoviOptions& movi_options, OutputFiles& output_files) {
 
         // Handle color files
         if (movi_options.is_report_colors()) {
-            std::string colors_file_name = movi_options.get_read_file()  + "." + index_type + ".colors.bin";
+            std::string colors_file_name = movi_options.get_read_file()  + "." + index_type + ".colors.bpf";
             output_files.colors_file = std::ofstream(colors_file_name, std::ios::out | std::ios::binary);
+            BPFHeader header;
+            header.init(64);
+            header.write(output_files.colors_file);
         } else if (movi_options.is_report_color_ids()) {
-            std::string colors_file_name = movi_options.get_read_file()  + "." + index_type + ".color_ids.bin";
+            std::string colors_file_name = movi_options.get_read_file()  + "." + index_type + ".color_ids.bpf";
             output_files.colors_file = std::ofstream(colors_file_name, std::ios::out | std::ios::binary);
-        }
+            BPFHeader header;
+            header.init(64);
+            header.write(output_files.colors_file);        }
 
         // Determine output file name prefix based on context
         std::string out_file_name_prefix = movi_options.get_out_file() != "" ? movi_options.get_out_file() :
@@ -323,8 +328,11 @@ void open_output_files(MoviOptions& movi_options, OutputFiles& output_files) {
 
         // Handle PML/ZML, count query files and kmer query files
         if (movi_options.is_pml() || movi_options.is_zml()) {
-            std::string mls_file_name = out_file_name_prefix + ".bin";
+            std::string mls_file_name = out_file_name_prefix + ".bpf";
             output_files.mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
+            BPFHeader header;
+            header.init(32);
+            header.write(output_files.mls_file);
         } else if (movi_options.is_count()) {
             std::string matches_file_name = out_file_name_prefix + ".matches";
             output_files.matches_file = std::ofstream(matches_file_name);
@@ -335,7 +343,7 @@ void open_output_files(MoviOptions& movi_options, OutputFiles& output_files) {
 
         // Handle SA entries file
         if (movi_options.is_get_sa_entries()) {
-            std::string sa_entries_file_name = out_file_name_prefix + ".sa_entries";
+            std::string sa_entries_file_name = out_file_name_prefix + ".sa_entries.bpf";
             output_files.sa_entries_file = std::ofstream(sa_entries_file_name);
         }
 

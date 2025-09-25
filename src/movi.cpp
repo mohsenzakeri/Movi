@@ -358,6 +358,26 @@ void view(MoviOptions& movi_options) {
         classifier.initialize_report_file(movi_options);
     }
 
+    uint8_t entry_size = 32;
+    if (!movi_options.is_no_header()) {
+        // Read BPF header
+        BPFHeader header;
+        mls_file.read(reinterpret_cast<char*>(&header), sizeof(header));
+        if (header.magic != BPF_MAGIC) {
+            throw std::runtime_error("Invalid BPF header.");
+        }
+        if (header.version != 1) {
+            throw std::runtime_error("Invalid BPF version.");
+        }
+        entry_size = header.entry_size;
+    } else {
+        if (movi_options.is_small_pml_lens()) {
+            entry_size = 16;
+        } else if (movi_options.is_large_pml_lens()) {
+            entry_size = 64;
+        }
+    }
+
     while (true) {
         uint16_t st_length = 0;
         mls_file.read(reinterpret_cast<char*>(&st_length), sizeof(st_length));
@@ -372,7 +392,7 @@ void view(MoviOptions& movi_options) {
         mls_file.read(reinterpret_cast<char*>(&mq_pml_lens_size), sizeof(mq_pml_lens_size));
 
         // TODO: There is a lot of duplicate code here to handle 16 and 32 bits pml variations.
-        if (movi_options.is_small_pml_lens()) {
+        if (entry_size == 16) {
             std::vector<uint16_t> pml_lens;
             pml_lens.resize(mq_pml_lens_size);
             mls_file.read(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
@@ -387,7 +407,7 @@ void view(MoviOptions& movi_options) {
                 classifier.classify(read_name, pml_lens, movi_options);
             }
 
-        } else if (movi_options.is_large_pml_lens()) {
+        } else if (entry_size == 64) {
 
             std::vector<uint64_t> pml_lens;
             pml_lens.resize(mq_pml_lens_size);
@@ -401,7 +421,7 @@ void view(MoviOptions& movi_options) {
 
             // TODO: used for color offsets (instad of color ids)
 
-        } else {
+        } else if (entry_size == 32) {
             std::vector<uint32_t> pml_lens;
             pml_lens.resize(mq_pml_lens_size);
             mls_file.read(reinterpret_cast<char*>(&pml_lens[0]), mq_pml_lens_size * sizeof(pml_lens[0]));
@@ -417,6 +437,8 @@ void view(MoviOptions& movi_options) {
                 std::vector<uint16_t> matching_lens_16(pml_lens.begin(), pml_lens.end());
                 classifier.classify(read_name, matching_lens_16, movi_options);
             }
+        } else {
+            throw std::runtime_error("Invalid BPF entry size.");
         }
 
     }

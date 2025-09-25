@@ -20,6 +20,33 @@
 // Forward declarations
 class MoveStructure;
 
+// Magic number to identify BPF files (Base Profile Format)
+const uint32_t BPF_MAGIC = 0x42504600;  // "BPF\0" in ASCII
+
+// Header for base profile format files
+struct BPFHeader {
+    uint32_t magic;      // Magic number to identify BPF files
+    uint8_t version;     // Version number for future compatibility
+    uint8_t entry_size;  // Size of each entry in bits (16, 32, or 64)
+    uint16_t reserved;   // Reserved for future use
+
+    // Initialize header with entry size
+    void init(uint8_t size) {
+        magic = BPF_MAGIC;
+        version = 1;
+        entry_size = size;
+        reserved = 0;
+    }
+
+    // Write header to file
+    void write(std::ofstream& file) {
+        file.write(reinterpret_cast<const char*>(this), sizeof(BPFHeader));
+    }
+
+    // Write BPF header to a file
+    void write_bpf_header(std::ofstream& file, uint8_t entry_size);
+};
+
 // Enum for different data types that can be output
 enum class DataType {
     match_length,
