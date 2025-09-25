@@ -221,6 +221,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                     if (result.count("index") == 1 and result.count("read") == 1) {
                         movi_options.set_index_dir(result["index"].as<std::string>());
                         movi_options.set_read_file(result["read"].as<std::string>());
+                        if (result.count("out-file")) { movi_options.set_out_file(result["out-file"].as<std::string>()); }
                         if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
                         if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
                         if (result.count("bin-width") >= 1) { movi_options.set_bin_width(static_cast<uint32_t>(result["bin-width"].as<uint32_t>())); }
@@ -237,8 +238,6 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                         if (result.count("multi-classify") >= 1) { movi_options.set_multi_classify(true); }
                         if (result.count("early-stop") >= 1) { movi_options.set_early_stop(true); }
                         if (result.count("report-all") >= 1) { movi_options.set_report_all(true); }
-                        if (result.count("report-colors") >= 1) { movi_options.set_report_colors(true); }
-                        if (result.count("report-color-ids") >= 1) { movi_options.set_report_color_ids(true); }
                         if (result.count("min-diff-frac") >= 1) { movi_options.set_min_diff_frac(static_cast<float>(result["min-diff-frac"].as<float>())); }
                         if (result.count("min-score-frac") >= 1) { movi_options.set_min_score_frac(static_cast<float>(result["min-score-frac"].as<float>())); }
                         if (result.count("min-len")) { movi_options.set_min_match_len(result["min-len"].as<uint8_t>()); }
@@ -246,7 +245,16 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                         if (result.count("color-move-rows") == 1) { movi_options.set_color_move_rows(true); }
                         if (result.count("color-vectors") == 1) { movi_options.set_doc_sets_vector_of_vectors(true); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
-                        if (result.count("out-file")) { movi_options.set_out_file(result["out-file"].as<std::string>()); }
+                        if (result.count("report-colors") >= 1) {
+                            movi_options.set_report_colors(true);
+                            // Needs to be in the multi-classify mode to report colors
+                            movi_options.set_multi_classify(true);
+                        }
+                        if (result.count("report-color-ids") >= 1) {
+                            movi_options.set_report_color_ids(true);
+                            // Needs to be in the multi-classify mode to report color ids
+                            movi_options.set_multi_classify(true);
+                        }
                         if (result.count("multi-classify")) {
                             if (result.count("full")) {
                                 movi_options.set_full_color(true);
