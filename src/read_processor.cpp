@@ -233,6 +233,11 @@ void ReadProcessor::process_char(Strand& process) {
     }
 
     process.mq.add_ml(process.match_len, mv.movi_options->write_stdout_enabled());
+    if (mv.movi_options->is_get_sa_entries()) {
+        uint64_t sa_entry = mv.get_SA_entries(process.idx, process.offset);
+        process.mq.add_sa_entries(sa_entry);
+    }
+
     process.sum_matching_lengths += process.match_len;
     process.pos_on_r -= 1;
 
@@ -315,6 +320,11 @@ void ReadProcessor::process_char_tally(Strand& process) {
             }
         }
         process.mq.add_ml(process.match_len, mv.movi_options->write_stdout_enabled());
+        if (mv.movi_options->is_get_sa_entries()) {
+            uint64_t sa_entry = mv.get_SA_entries(process.idx, process.offset);
+            process.mq.add_sa_entries(sa_entry);
+        }
+
         process.pos_on_r -= 1;
 
         // get_id is called at the beginning of the next LF
@@ -685,12 +695,22 @@ void ReadProcessor::process_latency_hiding(BatchLoader& reader) {
                         } else if (is_zml) {
                             if (backward_search_finished and processes[i].pos_on_r > 0) {
                                 processes[i].mq.add_ml(processes[i].match_len, mv.movi_options->write_stdout_enabled());
+                                if (mv.movi_options->is_get_sa_entries()) {
+                                    uint64_t sa_entry = mv.get_SA_entries(processes[i].idx, processes[i].offset);
+                                    processes[i].mq.add_sa_entries(sa_entry);
+                                }
+
                                 processes[i].pos_on_r -= 1;
                                 reset_backward_search(processes[i]);
                                 processes[i].kmer_end = processes[i].pos_on_r;
                                 // continue;
                             } else if (processes[i].pos_on_r <= 0) {
                                 processes[i].mq.add_ml(processes[i].match_len, mv.movi_options->write_stdout_enabled());
+                                if (mv.movi_options->is_get_sa_entries()) {
+                                    uint64_t sa_entry = mv.get_SA_entries(processes[i].idx, processes[i].offset);
+                                    processes[i].mq.add_sa_entries(sa_entry);
+                                }
+
                                 write_mls(processes[i]);
                                 reset_process(processes[i], reader);
                                 reset_backward_search(processes[i]);
@@ -1005,6 +1025,10 @@ void ReadProcessor::reset_backward_search(Strand& process) {
     }
     while (!mv.check_alphabet(query_seq[process.pos_on_r]) and process.pos_on_r >= 0) {
         process.mq.add_ml(0, mv.movi_options->write_stdout_enabled());
+        if (mv.movi_options->is_get_sa_entries()) {
+            uint64_t sa_entry = mv.get_SA_entries(process.idx, process.offset);
+            process.mq.add_sa_entries(sa_entry);
+        }
         process.pos_on_r -= 1;
     }
     if (process.pos_on_r < 0) {
