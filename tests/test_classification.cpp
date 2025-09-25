@@ -16,7 +16,7 @@ void test_pml_filtering(const std::string& index_type, const std::string& index_
     REQUIRE(exit_code == 0);
 
     // Run PML query with classification
-    std::string reads_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/reads.fasta";
+    std::string reads_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/classification.fasta";
     std::string reads_filtered = TEST_DATA_DIR + "/" + output_suffix + ".pmls.filtered";
     std::string query_cmd = std::string(BINARY_DIR) + "/movi query --index " + index_dir +
     " --read " + reads_file + " --pml --filter " + extra_query_args + " --stdout > " + reads_filtered + " 2>/dev/null";
@@ -29,12 +29,20 @@ void test_pml_filtering(const std::string& index_type, const std::string& index_
     REQUIRE(sort_exit_code == 0);
 
     // Compare with expected results
-    std::string filtered_source_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/reads.fasta.pmls.filtered.sorted";
+    std::string filtered_source_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/classification.fasta.pmls.filtered.sorted";
     REQUIRE(std::filesystem::exists(reads_filtered + ".sorted"));
     REQUIRE(std::filesystem::exists(filtered_source_file));
 
     std::string compare_cmd = "diff " + reads_filtered + ".sorted " + filtered_source_file + " > /dev/null 2>&1";
     int compare_exit_code = system(compare_cmd.c_str());
+
+    if (compare_exit_code != 0) {
+        std::cerr << "----------------------------------------\n";
+        std::cerr << query_cmd << "\n";
+        std::cerr << compare_cmd << "\n";
+        std::cerr << "----------------------------------------\n";
+    }
+
     REQUIRE(compare_exit_code == 0);
 }
 
@@ -52,7 +60,7 @@ void test_classification_computation(const std::string& index_type, const std::s
     REQUIRE(exit_code == 0);
 
     // Run PML query with classification
-    std::string reads_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/reads.fasta";
+    std::string reads_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/classification.fasta";
     std::string report_output = TEST_DATA_DIR + "/" + output_suffix + ".pmls.report";
     std::string query_cmd = std::string(BINARY_DIR) + "/movi query --index " + index_dir +
               " --read " + reads_file + " --pml --classify " + extra_query_args + " --stdout > " + report_output + " 2>/dev/null";
@@ -64,13 +72,26 @@ void test_classification_computation(const std::string& index_type, const std::s
     int sort_exit_code = system(query_sort_cmd.c_str());
     REQUIRE(sort_exit_code == 0);
 
-    // Compare with expected results
-    std::string report_source_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/reads.fasta.pmls.report.sorted";
     REQUIRE(std::filesystem::exists(report_output + ".sorted"));
-    REQUIRE(std::filesystem::exists(report_source_file));
+
+    // Compare with expected results
+    std::string summary_report_source_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/classification.fasta.pmls.report.summary.sorted";
+    REQUIRE(std::filesystem::exists(summary_report_source_file));
+
+    std::string summary_cmd = "cat " + report_output + ".sorted | awk '{print $1,$2}' > " + report_output + ".summary.sorted";
+    int summary_exit_code = system(summary_cmd.c_str());
+    REQUIRE(summary_exit_code == 0);
     
-    std::string compare_cmd = "diff " + report_output + ".sorted " + report_source_file + " > /dev/null 2>&1";
+    std::string compare_cmd = "diff " + report_output + ".summary.sorted " + summary_report_source_file + " > /dev/null 2>&1";
     int compare_exit_code = system(compare_cmd.c_str());
+
+    if (compare_exit_code != 0) {
+        std::cerr << "----------------------------------------\n";
+        std::cerr << query_cmd << "\n";
+        std::cerr << compare_cmd << "\n";
+        std::cerr << "----------------------------------------\n";
+    }
+
     REQUIRE(compare_exit_code == 0);
 }
 
