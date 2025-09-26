@@ -30,15 +30,25 @@ const uint32_t MOVI_MAGIC = 0x4D4F5649;  // "Movi" in ASCII
 struct MoviHeader {
     uint32_t magic;      // Magic number to identify MOVI files
     uint8_t version;     // Version number for future compatibility
-    char type;        // Index mode (LARGE, CONSTANT, REGULAR, etc.)
+    char type;           // Index mode (LARGE, CONSTANT, REGULAR, etc.)
     uint8_t reserved;    // Reserved for future use
 
+    uint64_t length;      // Length of the original string
+    uint64_t r;           // Number of movi rows after splitting
+    uint64_t original_r;  // Number of runs before splitting
+    uint64_t end_bwt_idx; // End of BWT index
+
     // Initialize header with mode
-    void init(char type_) {
+
+    void init(char type_, uint64_t _length, uint64_t _r, uint64_t _original_r, uint64_t _end_bwt_idx) {
         magic = MOVI_MAGIC;
         version = 2;
         type = type_;
         reserved = 0;
+        length = _length;
+        r = _r;
+        original_r = _original_r;
+        end_bwt_idx = _end_bwt_idx;
     }
 
     // Write header to file

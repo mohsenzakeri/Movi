@@ -148,7 +148,7 @@ struct MoveBiInterval {
 class MoveStructure {
     public:
         MoveStructure(MoviOptions* movi_options_);
-        MoveStructure(MoviOptions* movi_options_, uint16_t splitting, bool constant);
+        MoveStructure(MoviOptions* movi_options_, uint16_t nt_splitting_, bool constant_);
 
         std::ofstream debug_out;
         std::ofstream out_file;
@@ -186,7 +186,7 @@ class MoveStructure {
 
         void sequential_lf();
         void random_lf();
-        std::string reconstruct_lf();
+        void reconstruct_lf();
 
         uint64_t LF(uint64_t row_number, uint64_t alphabet_index);
         uint64_t LF_heads(uint64_t run_number, uint64_t alphabet_index);
@@ -200,6 +200,13 @@ class MoveStructure {
 
 #if BLOCKED_MODES
         void compute_blocked_ids(std::vector<uint64_t>& raw_ids);
+        void write_id_blocks(std::ofstream& fout);
+        void read_id_blocks(std::ifstream& fin);
+#endif
+
+#if TALLY_MODES
+        void write_tally_table(std::ofstream& fout);
+        void read_tally_table(std::ifstream& fin);
 #endif
 
 #if USE_NEXT_POINTERS
@@ -255,9 +262,22 @@ class MoveStructure {
         void serialize_doc_rows();
         void deserialize_doc_rows();
         void load_document_info();
+
+        std::ifstream open_index_read();
+        std::ofstream open_index_write();
+        void read_index_header(std::ifstream& fin);
+        void write_index_header(std::ofstream& fout);
+        void write_basic_index_data(std::ofstream& fout);
+        void read_basic_index_data(std::ifstream& fin);
+        void write_overflow_tables(std::ofstream& fout);
+        void read_overflow_tables(std::ifstream& fin);
+        void write_counts_data(std::ofstream& fout);
+        void read_counts_data(std::ifstream& fin);
+        void write_main_table(std::ofstream& fout);
+        void read_main_table(std::ifstream& fin, std::streamoff rlbwt_offset);
         void serialize();
         void deserialize();
-        
+
         uint64_t reposition_up(uint64_t idx, char c, uint64_t& scan_count);
         uint64_t reposition_down(uint64_t idx, char c, uint64_t& scan_count);
         bool reposition_randomly(uint64_t& idx, uint64_t& offset, char r_char, uint64_t& scan_count);
@@ -333,7 +353,7 @@ class MoveStructure {
         // Document patterns (species that each row in BWT belongs to).
         std::vector<uint16_t> doc_pats;
 
-        // Counts for classification
+        // Counts for multi classification
         std::vector<uint32_t> classify_cnts;
         std::vector<double> doc_scores;
         const double log4 = log(4);
@@ -341,14 +361,15 @@ class MoveStructure {
         // Classifier object for binary classification
         Classifier *classifier;
     
+        // Basic index configurations
         MoviOptions* movi_options;
-	    bool onebit; // This is not used any more as the onebit modes is deprecated
+        uint16_t nt_splitting;
         bool constant;
-        uint16_t splitting;
 
         // Vector of sampled SA entries. For experiment purposes.
         std::vector<uint64_t> sampled_SA_entries;
 
+        // Basic index characteristics
         std::string bwt_string;
         uint64_t length;
         uint64_t r;
@@ -356,7 +377,6 @@ class MoveStructure {
 
         // The explicit values for the end bwt row
         uint64_t end_bwt_idx;
-        uint64_t eof_row; // This pointer is the same as end_bwt_idx, should be removed.
         uint64_t end_bwt_idx_thresholds[4];
         uint64_t end_bwt_idx_next_up[4];
         uint64_t end_bwt_idx_next_down[4];
@@ -397,9 +417,6 @@ class MoveStructure {
         std::vector<std::vector<MoveInterval> > ftabs;
         std::vector<MoveInterval> ftab;
 
-        std::string orig_string;
-        bool reconstructed;
-
         // Used for gathering statistics
         uint64_t no_ftab;
         uint64_t all_initializations;
@@ -419,7 +436,6 @@ class MoveStructure {
 
         sdsl::bit_vector bits;
         sdsl::rank_support_v<> rbits;
-        // sdsl::select_support_mcl<> sbits;
 };
 
 #endif

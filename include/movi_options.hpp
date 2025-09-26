@@ -14,6 +14,7 @@ class MoviOptions {
             LF_type = "reconstruct";
             pml_query = true;
         }
+
         bool is_no_header() { return no_header; }
         bool is_legacy_header() { return legacy_header; }
         bool is_adjusted_block() { return adjusted_block; }

@@ -28,30 +28,30 @@ void test_index_creation(const std::string& index_type, const std::string& index
 
 TEST_CASE("MoveStructure - index building", "[move_structure_index_building]") {
     SECTION("Regular index creation") {
-        test_index_creation("regular", "regular", 871489);
+        test_index_creation("regular", "regular", 871471);
     }
 
     SECTION("Regular-thresholds index creation") {
-        test_index_creation("regular-thresholds", "regular_thresholds", 948129);
+        test_index_creation("regular-thresholds", "regular_thresholds", 948111);
     }
 
     SECTION("Tally index creation") {
-        test_index_creation("tally", "tally", 437016);
+        test_index_creation("tally", "tally", 436998);
     }
 
     SECTION("Tally-thresholds index creation") {
-        test_index_creation("tally-thresholds", "tally_thresholds", 475336);
+        test_index_creation("tally-thresholds", "tally_thresholds", 475318);
     }
 
     SECTION("Blocked index creation") {
-        test_index_creation("blocked", "blocked", 654263);
+        test_index_creation("blocked", "blocked", 654245);
     }
 
     SECTION("Blocked-thresholds index creation") {
-        test_index_creation("blocked-thresholds", "blocked_thresholds", 711743);
+        test_index_creation("blocked-thresholds", "blocked_thresholds", 711725);
     }
 
     SECTION("Large index creation") {
-        test_index_creation("large", "large", 1306005);
+        test_index_creation("large", "large", 1305987);
     }
 }

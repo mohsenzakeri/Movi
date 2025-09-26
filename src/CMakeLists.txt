@@ -9,6 +9,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 
 set(MOVI_SOURCES
     move_structure.cpp
+    move_structure_io.cpp
     move_row.cpp
     move_row_colored.cpp
     read_processor.cpp
