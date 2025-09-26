@@ -14,11 +14,9 @@ To build from source:
 ```
 git clone https://github.com/mohsenzakeri/Movi
 cd Movi
-git checkout movi-color
-mkdir build-movi-color
-cd build-movi-color
+mkdir build && cd build
 cmake ..
-make
+make -j4
 ```
 
 Building the Movi index on a fasta file requires preprocessing the fasta using the [pfp-thresholds](https://github.com/maxrossi91/pfp-thresholds) software. 
