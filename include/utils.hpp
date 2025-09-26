@@ -23,6 +23,30 @@ class MoveStructure;
 // Magic number to identify BPF files (Base Profile Format)
 const uint32_t BPF_MAGIC = 0x42504600;  // "BPF\0" in ASCII
 
+// Magic number to identify MOVI index files
+const uint32_t MOVI_MAGIC = 0x4D4F5649;  // "Movi" in ASCII
+
+// Header for MOVI index files
+struct MoviHeader {
+    uint32_t magic;      // Magic number to identify MOVI files
+    uint8_t version;     // Version number for future compatibility
+    char type;        // Index mode (LARGE, CONSTANT, REGULAR, etc.)
+    uint8_t reserved;    // Reserved for future use
+
+    // Initialize header with mode
+    void init(char type_) {
+        magic = MOVI_MAGIC;
+        version = 2;
+        type = type_;
+        reserved = 0;
+    }
+
+    // Write header to file
+    void write(std::ofstream& file) {
+        file.write(reinterpret_cast<const char*>(this), sizeof(MoviHeader));
+    }
+};
+
 // Header for base profile format files
 struct BPFHeader {
     uint32_t magic;      // Magic number to identify BPF files

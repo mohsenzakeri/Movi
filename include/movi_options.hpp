@@ -15,6 +15,7 @@ class MoviOptions {
             pml_query = true;
         }
         bool is_no_header() { return no_header; }
+        bool is_legacy_header() { return legacy_header; }
         bool is_adjusted_block() { return adjusted_block; }
         bool is_preprocessed() { return preprocessed; }
         bool is_split() { return split; }
@@ -82,6 +83,7 @@ class MoviOptions {
         std::string get_out_file() { return out_file; }
 
         void set_no_header(bool no_header_) { no_header = no_header_; }
+        void set_legacy_header(bool legacy_header_) { legacy_header = legacy_header_; }
         void set_adjusted_block(bool adjusted_block_) { adjusted_block = adjusted_block_; }
         void set_preprocessed(bool preprocessed_) { preprocessed = preprocessed_; }
         void set_thresholds(bool thresholds_) { thresholds = thresholds_; }
@@ -256,6 +258,7 @@ class MoviOptions {
         bool debug = false;
         bool verbose = false;
         bool logs = false;
+        bool legacy_header = false;
         bool full_color = false;
         bool compress = false;
         bool freq_compressed = false;

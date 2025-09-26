@@ -3265,8 +3265,17 @@ void MoveStructure::serialize() {
     }
 
     if (!movi_options->is_no_header()) {
-        char index_type = static_cast<char>(MODE);
-        fout.write(reinterpret_cast<char*>(&index_type), sizeof(index_type));
+        if (movi_options->is_legacy_header()) {
+            // Legacy header (version 1.x) - just a single byte for mode
+            char index_type = static_cast<char>(MODE);
+            fout.write(reinterpret_cast<char*>(&index_type), sizeof(index_type));
+        } else {
+            // Modern header (version 2.x) with magic number and metadata
+            MoviHeader header;
+            char index_type = static_cast<char>(MODE);
+            header.init(index_type);
+            header.write(fout);
+        }
     }
 
     if (movi_options->is_verbose()) {
@@ -3371,16 +3380,37 @@ void MoveStructure::deserialize() {
         }
     }
     if (movi_options->is_verbose()) {
-        std::cerr << "fname: " << fname << std::endl;
+        std::cerr << "Index file name: " << fname << std::endl;
     }
 
     fin.seekg(0, std::ios::beg); 
 
     if (!movi_options->is_no_header()) {
-        char index_type;
-        fin.read(reinterpret_cast<char*>(&index_type), sizeof(index_type));
-        if (MODE != index_type) {
-            throw std::runtime_error("MODE does not match the index_type in the header.");
+        if (movi_options->is_legacy_header()) {
+            // Legacy header - just a single byte for mode
+            char index_type;
+            fin.read(reinterpret_cast<char*>(&index_type), sizeof(index_type));
+
+            // Verify mode matches
+            if (static_cast<char>(index_type) != static_cast<char>(MODE)) {
+                throw std::runtime_error(ERROR_MSG("[deserialize index] Index mode mismatch. Expected mode " +
+                    std::to_string(MODE) + " but index has mode " + std::to_string(static_cast<uint8_t>(index_type))));
+            }
+        } else {
+            // Modern header (version 2.x)
+            MoviHeader header;
+            fin.read(reinterpret_cast<char*>(&header), sizeof(MoviHeader));
+
+            // Verify magic number
+            if (header.magic != MOVI_MAGIC) {
+                throw std::runtime_error(ERROR_MSG("[deserialize index] Invalid magic number in header. Not a valid Movi 2.0 index file."));
+            }
+
+            // Verify mode matches
+            if (header.type != static_cast<uint8_t>(MODE)) {
+                throw std::runtime_error(ERROR_MSG("[deserialize index] Index mode mismatch. Expected mode " +
+                    std::to_string(MODE) + " but index has mode " + std::to_string(header.type)));
+            }
         }
         std::cerr << GENERAL_MSG("The " + program() + " index is being used.");
     }

@@ -9,6 +9,8 @@
 #include <filesystem>
 #include <sys/stat.h>
 
+#include "utils.hpp"
+
 #define PFP_THRESHOLDS_PATH "/external_repos/pfp-thresholds-build/pfp_thresholds"
 #define R_PERMUTE_PATH "/external_repos/r-permute-build/test/src/"
 #define DEFAULT_INDEX_TYPE "regular-thresholds"
@@ -204,9 +206,9 @@ void handle_build(const Args& args, const std::vector<std::string>& all_args) {
 
 void handle(const Args& args, const std::vector<std::string>& all_args) {
     char index_type_char = args.index_provided ? get_index_type(args.index_path) : type_to_char.at(args.index_type);
-    
+
     if (char_to_type.find(index_type_char) == char_to_type.end()) {
-        throw std::runtime_error("Errorparsing command line options: Unrecognized index_type '" + std::to_string(index_type_char) + "'");
+        throw std::runtime_error("Error parsing command line options: Unrecognized index_type '" + std::to_string(index_type_char) + "'");
     }
 
     std::string binary = "bin/movi-" + char_to_type.at(index_type_char);
@@ -319,6 +321,17 @@ char get_index_type(const std::string& index_dir) {
     for (const auto& fname : possible_filenames) {
         std::ifstream fin(fname, std::ios::binary);
         if (fin) {
+            // Try to read as modern header first
+            MoviHeader header;
+            fin.read(reinterpret_cast<char*>(&header), sizeof(MoviHeader));
+
+            // Check if it's a modern header by verifying magic number
+            if (header.magic == MOVI_MAGIC) {
+                return static_cast<char>(header.type);
+            }
+
+            // If not a modern header, try as legacy header
+            fin.seekg(0, std::ios::beg);
             char index_type;
             fin.read(reinterpret_cast<char*>(&index_type), sizeof(index_type));
             return index_type;

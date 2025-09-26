@@ -10,7 +10,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
         ("command", "Command to execute", cxxopts::value<std::string>())
         ("type", "Which index type should be built or used.", cxxopts::value<std::string>())
         ("h,help", "Print help")
-        ("no-header", "Header information in not stored")
+        ("no-header", "Header information is not stored")
+        ("legacy-header", "Use legacy single-byte header format")
         ("default-blocks", "The block size should not be read from the index (for blocked indexes)")
         ("d,dbg", "Enable debug mode")
         ("v,verbose", "Enable verbose mode")
@@ -125,8 +126,13 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
         // Set global logs flags first
 
         if (result.count("no-header")) {
-            // For hadnling old indexes
+            // For hadnling old indexes with no header
             movi_options.set_no_header(true);
+        }
+
+        if (result.count("legacy-header")) {
+            // For handling indexes with old header format
+            movi_options.set_legacy_header(true);
         }
 
         if (result.count("default-block")) {
