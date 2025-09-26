@@ -22,7 +22,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
         ("l,list", "List of fasta files, only works with 'movi' binary", cxxopts::value<std::string>())
         ("color", "Add colors to the index for multi-class classification")
         ("color-vectors", "Build a vector of vectors for colors (builds \"ref.fa.doc_sets.bin\")")
-        ("thresholds", "Store the threshold values in the compact mode by splitting the runs at threshold boundaries")
+        ("thresholds", "Store the threshold values in by splitting the runs at threshold boundaries")
         ("preprocessed", "The BWT is preprocessed into heads and lens files")
         ("verify", "Verify if all the LF_move operations are correct")
         ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
@@ -171,7 +171,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                     if (result.count("thresholds")) {
                         movi_options.set_thresholds(true);
                     }
-#if TALLY_MODE
+#if TALLY_MODES
                     if (result.count("tally") >= 1) {
                         movi_options.set_tally_checkpoints(static_cast<uint32_t>(result["tally"].as<uint32_t>()));
                     }

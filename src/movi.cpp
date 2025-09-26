@@ -236,7 +236,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 if (movi_options.is_pml() or movi_options.is_zml() or movi_options.is_count()) {
 
 
-#if TALLY_MODE
+#if TALLY_MODES
                     rp.process_latency_hiding_tally(reader);
 #else
                     rp.process_latency_hiding(reader);
@@ -477,7 +477,7 @@ int main(int argc, char** argv) {
 
         std::string command = movi_options.get_command();
         if (command == "build") {
-            MoveStructure mv_(&movi_options, SPLIT_ARRAY, CONSTANT_MODE);
+            MoveStructure mv_(&movi_options, SPLIT_ARRAY, CONSTANT_INDEX);
             if (movi_options.is_verify()) {
                 std::cerr << "Verifying the LF_move results...\n";
                 mv_.verify_lf_loop();

@@ -19,7 +19,7 @@
 
 int main(int argc, char** argv) {
     std::cerr << "\n\n**** The ftab with ftab-k = 12 has to be built.\n";
-    std::cerr << "**** Only works with a compact index.\n\n\n";
+    std::cerr << "**** Only works with a regular index.\n\n\n";
 
     MoviOptions movi_options;
     movi_options.set_index_dir(std::string(argv[1]));

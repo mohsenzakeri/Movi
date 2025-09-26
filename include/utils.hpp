@@ -91,6 +91,17 @@ void close_kseq(kseq_t *seq, gzFile& fp);
 
 extern uint32_t alphamap_3[4][4];
 
+#define LARGE_INDEX MODE == 0
+#define CONSTANT_INDEX MODE == 1
+#define SPLIT_INDEX MODE == 4
+#define REGULAR_INDEX MODE == 3
+#define REGULAR_THRESHOLDS_INDEX MODE == 6
+#define BLOCKED_INDEX MODE == 2
+#define BLOCKED_THRESHOLDS_INDEX MODE == 8
+#define TALLY_INDEX MODE == 5
+#define TALLY_THRESHOLDS_INDEX MODE == 7
+
+#define NO_SAMPPLED_ID MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4 or MODE == 8 or MODE == 3 or MODE == 6
 #define USE_THRESHOLDS MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6 or MODE == 7 or MODE == 8
 #define NO_THRESHOLDS MODE == 2 or MODE == 3 or MODE == 5
 #define THRESHOLDS_WITHOUT_NEXTS MODE == 0 or MODE == 4 or MODE == 8 or MODE == 7 or MODE == 6
@@ -99,13 +110,11 @@ extern uint32_t alphamap_3[4][4];
 #define SPLIT_THRESHOLDS_TRUE MODE == 8 or MODE == 7 or MODE == 6
 #define SPLIT_MAX_RUN MODE == 3 or MODE == 6 or MODE == 2 or MODE == 8 or MODE == 5 or MODE == 7
 #define SPLIT_ARRAY MODE == 1 or MODE == 4
-// #define ANY_SPLITTING MODE == 1 or MODE == 4 or MODE == 3 or MODE == 6 or MODE == 2 or MODE == 8 or MODE == 5 or MODE == 7
-#define NO_SPLIT MODE == 0
 #define NO_EXTRA_TABLE MODE == 0 or MODE == 1 or MODE == 4 or MODE == 3 or MODE == 6
-#define CONSTANT_MODE MODE == 1
-#define COMPACT_MODE MODE == 3 or MODE == 6 // to be changed to regular
-#define BLOCKED_MODE MODE == 2 or MODE == 8
-#define TALLY_MODE MODE == 5 or MODE == 7
+#define REGULAR_MODES MODE == 3 or MODE == 6
+#define BLOCKED_MODES MODE == 2 or MODE == 8
+#define TALLY_MODES MODE == 5 or MODE == 7
+#define MOVI1_STYLE MODE == 0 or MODE == 1 or MODE == 4
 
 #define END_CHARACTER 0
 #define THRBYTES 5

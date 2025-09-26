@@ -4,7 +4,7 @@
 
 #include "move_row_colored.hpp"
 
-#if TALLY_MODE
+#if TALLY_MODES
 MoveRowColored::MoveRowColored(uint16_t n_, uint16_t offset_) {
     this->init(n_, offset_);
 }
@@ -14,7 +14,7 @@ MoveRowColored::MoveRowColored(uint16_t n_, uint16_t offset_, uint64_t id_) {
 }
 #endif
 
-#if TALLY_MODE
+#if TALLY_MODES
 void MoveRowColored::init(uint16_t n_, uint16_t offset_) {
 #else
 void MoveRowColored::init(uint16_t n_, uint16_t offset_, uint64_t id_) {
@@ -45,7 +45,7 @@ void MoveRowColored::init(uint16_t n_, uint16_t offset_, uint64_t id_) {
 
 std::ostream& operator<<(std::ostream& os, const MoveRowColored& mr)
 {
-#if TALLY_MODE
+#if TALLY_MODES
     os << "n:" << mr.get_n() <<  " offset: " << mr.get_offset();
 #else
     os << "n:" << mr.get_n() <<  " offset: " << mr.get_offset() << " id:" << mr.get_id();
@@ -97,7 +97,7 @@ void MoveRowColored::set_c(char c_, std::vector<uint64_t>& alphamap) {
 }
 #endif
 
-#if COMPACT_MODE
+#if REGULAR_MODES
 void MoveRowColored::set_id(uint64_t id_) {
     id = id_; // Store the least significant bits in the didicated id variable
     offset = offset & mask_id;
@@ -153,7 +153,7 @@ void MoveRowColored::set_threshold(uint16_t i, uint16_t value) {
 #endif
 #endif
 
-#if BLOCKED_MODE
+#if BLOCKED_MODES
 void MoveRowColored::set_n(uint16_t n_) {
     if (n_ <= MAX_RUN_LENGTH) {
         n = n & mask_n;
@@ -233,7 +233,7 @@ void MoveRowColored::set_threshold(uint16_t i, uint16_t value) {
 #endif
 #endif
 
-#if TALLY_MODE
+#if TALLY_MODES
 void MoveRowColored::set_n(uint16_t n_) {
     if (n_ <= MAX_RUN_LENGTH) {
         n = static_cast<uint8_t>(n_);

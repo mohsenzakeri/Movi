@@ -85,7 +85,7 @@ void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
         if (mv.movi_options->is_multi_classify()) {
             std::fill(process.classify_cnts.begin(), process.classify_cnts.end(), 0);
         }
-#if TALLY_MODE
+#if TALLY_MODES
         // This is necessary
         process.tally_state = false;
         // These shouldn't matter
@@ -259,7 +259,7 @@ void ReadProcessor::process_char(Strand& process) {
     // process.ff_count_tot += ff_count;
 }
 
-#if TALLY_MODE
+#if TALLY_MODES
 void ReadProcessor::process_char_tally(Strand& process) {
     if (process.tally_state == false) {
 
@@ -734,7 +734,7 @@ void ReadProcessor::process_latency_hiding(BatchLoader& reader) {
     }
 }
 
-#if TALLY_MODE
+#if TALLY_MODES
 void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
     bool is_pml = mv.movi_options->is_pml();
 

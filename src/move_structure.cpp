@@ -659,7 +659,7 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
 #if NO_EXTRA_TABLE
     return rlbwt[idx].get_id();
 #endif
-#if BLOCKED_MODE
+#if BLOCKED_MODES
     if (idx != end_bwt_idx) {
         uint64_t block_number = idx / block_size;
         return rlbwt[idx].get_id() + static_cast<uint64_t>(id_blocks[rlbwt[idx].get_c()][block_number]) + first_runs[rlbwt[idx].get_c() + 1];
@@ -667,7 +667,7 @@ uint64_t MoveStructure::get_id(uint64_t idx) {
     else
         return rlbwt[idx].get_id();
 #endif
-#if TALLY_MODE
+#if TALLY_MODES
     uint64_t id = 0;
     // The $ always goes to row/run 0
     if (idx == end_bwt_idx) {
@@ -1082,7 +1082,7 @@ void MoveStructure::add_detected_run(uint64_t scanned_bwt_length,
 
 void MoveStructure::build() {
 
-#if TALLY_MODE
+#if TALLY_MODES
     tally_checkpoints = movi_options->get_tally_checkpoints();
 #endif
 
@@ -1376,7 +1376,7 @@ void MoveStructure::build() {
                   << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
     }
 
-#if TALLY_MODE
+#if TALLY_MODES
     tally_ids.resize(alphabet.size());
     uint64_t tally_ids_rows_count = r / tally_checkpoints + 2;
     std::vector<uint64_t> current_tally_ids;
@@ -1386,7 +1386,7 @@ void MoveStructure::build() {
     }
 #endif
 
-#if BLOCKED_MODE
+#if BLOCKED_MODES
     std::vector<uint64_t> raw_ids;
     raw_ids.resize(r);
 #endif
@@ -1448,7 +1448,7 @@ void MoveStructure::build() {
                         << "\n";
         }
 
-#if TALLY_MODE
+#if TALLY_MODES
         rlbwt[r_idx].init(len, offset);
 
         if (r_idx != end_bwt_idx) {
@@ -1475,7 +1475,7 @@ void MoveStructure::build() {
 #else
 
 
-#if BLOCKED_MODE
+#if BLOCKED_MODES
         raw_ids[r_idx] = pp_id;
         pp_id = 0;
 #endif
@@ -1523,7 +1523,7 @@ void MoveStructure::build() {
         }
         rlbwt[r_idx].set_c(heads[r_idx], alphamap);
     }
-#if TALLY_MODE
+#if TALLY_MODES
     // Set the last tally_id using the current_tally_ids
     std::cout << "\n";
     for (uint32_t alphabet_ind = 0; alphabet_ind < alphabet.size(); alphabet_ind++) {
@@ -1577,7 +1577,7 @@ void MoveStructure::build() {
         }
     }
 
-#if BLOCKED_MODE
+#if BLOCKED_MODES
     compute_blocked_ids(raw_ids);
 #endif
 
@@ -1886,7 +1886,7 @@ void MoveStructure::compute_thresholds() {
 }
 #endif
 
-#if BLOCKED_MODE
+#if BLOCKED_MODES
 void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
 
     block_size = BLOCK_SIZE;
@@ -3298,7 +3298,7 @@ void MoveStructure::serialize() {
     } else {
         fout.write(reinterpret_cast<char*>(&rlbwt[0]), rlbwt.size()*sizeof(rlbwt[0]));
     }
-#if TALLY_MODE
+#if TALLY_MODES
     fout.write(reinterpret_cast<char*>(&tally_checkpoints), sizeof(tally_checkpoints));
     uint64_t tally_ids_len = tally_ids[0].size();
     fout.write(reinterpret_cast<char*>(&tally_ids_len), sizeof(tally_ids_len)); 
@@ -3335,7 +3335,7 @@ void MoveStructure::serialize() {
     fout.write(reinterpret_cast<char*>(&first_runs[0]), first_runs.size()*sizeof(first_runs[0]));
     fout.write(reinterpret_cast<char*>(&first_offsets[0]), first_offsets.size()*sizeof(first_offsets[0]));
 
-#if BLOCKED_MODE
+#if BLOCKED_MODES
     if (id_blocks.size() > 0) {
         uint64_t id_blocks_size = id_blocks[0].size();
         fout.write(reinterpret_cast<char*>(&id_blocks_size), sizeof(id_blocks_size));
@@ -3462,7 +3462,7 @@ void MoveStructure::deserialize() {
         // rlbwt_file.close();
     }
 
-#if TALLY_MODE
+#if TALLY_MODES
     fin.read(reinterpret_cast<char*>(&tally_checkpoints), sizeof(tally_checkpoints));
     std::cerr << "Tally mode with tally_checkpoints = " << tally_checkpoints << "\n";
     uint64_t tally_ids_len = 0;
@@ -3516,7 +3516,7 @@ void MoveStructure::deserialize() {
     first_offsets.resize(last_runs_size);
     fin.read(reinterpret_cast<char*>(&first_offsets[0]), last_runs_size*sizeof(uint64_t));
 
-#if BLOCKED_MODE
+#if BLOCKED_MODES
     uint64_t id_blocks_size = 0;
     fin.read(reinterpret_cast<char*>(&id_blocks_size), sizeof(id_blocks_size));
     std::cerr << "id_blocks_size: " << id_blocks_size << "\n";
@@ -3817,10 +3817,10 @@ void MoveStructure::print_stats() {
         std::cerr << "n/original_r: " << static_cast<double>(length)/original_r << "\n";
     }
     std::cerr << "Size of the rlbwt table: " << sizeof(rlbwt[0]) * rlbwt.size() * (0.000000001) << "\n";
-#if BLOCKED_MODE
+#if BLOCKED_MODES
     std::cerr << "Size of the block table: " << sizeof(id_blocks[0][0]) * id_blocks[0].size() * id_blocks.size() * (0.000000001) << "\n";
 #endif
-#if TALLY_MODE
+#if TALLY_MODES
     std::cerr << "Size of the tally table: " << sizeof(tally_ids[0][0]) * tally_ids[0].size() * tally_ids.size() * (0.000000001) << "\n";
 #endif
 

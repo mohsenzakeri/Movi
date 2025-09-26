@@ -13,7 +13,7 @@ struct Strand {
     MoveInterval range;
     MoveInterval range_prev;
 
-#if TALLY_MODE
+#if TALLY_MODES
     bool tally_state = false;
     uint64_t tally_b;
     uint64_t rows_until_tally;
@@ -75,7 +75,7 @@ class ReadProcessor {
         void next_kmer_search_negative_skip_all_heuristic(Strand& process, BatchLoader& reader);
         bool verify_kmer(Strand& process, uint64_t k);
 
-#if TALLY_MODE
+#if TALLY_MODES
         void process_char_tally(Strand& process);
         void find_next_id(Strand& process);
         void count_rows_untill_tally(Strand& process);
