@@ -1,7 +1,7 @@
 #include "read_processor.hpp"
 #include <cpuid.h>
 
-ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_ = 4, bool verbose_ = false, bool reverse_ = false) : mv(mv_) {
+ReadProcessor::ReadProcessor(MoveStructure& mv_, int strands_ = 4, bool verbose_ = false, bool reverse_ = false) : mv(mv_) {
 
     int cpu_info[4];
     __cpuid(0x80000006, cpu_info[0], cpu_info[1], cpu_info[2], cpu_info[3]);
@@ -10,15 +10,7 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
 
     verbose = verbose_;
     reverse = mv_.movi_options->is_reverse();
-    // Solution for handling the stdin input: https://biowize.wordpress.com/2013/03/05/using-kseq-h-with-stdin/
-    if (reads_file_name == "-") {
-        FILE *instream = stdin;
-        fp = gzdopen(fileno(instream), "r"); // STEP 2: open the file handler
-    } else {
-        fp = gzopen(reads_file_name.c_str(), "r"); // STEP 2: open the file handler
-    }
 
-    // seq = kseq_init(fp); // STEP 3: initialize seq
     // Open output files using the utility function
     open_output_files(*(mv_.movi_options), output_files);
 
@@ -38,7 +30,6 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
 
 bool ReadProcessor::next_read(Strand& process, BatchLoader& reader) {
 
-    // l = kseq_read(seq); // STEP 4: read sequence
     bool valid_read = false;
     Read read_struct;
     valid_read = reader.grabNextRead(read_struct);
@@ -636,11 +627,6 @@ void ReadProcessor::end_process() {
 
         // Close output files using the utility function
         close_output_files(*(mv.movi_options), output_files);
-
-        // kseq_destroy(seq); // STEP 5: destroy seq
-        // std::cerr << "kseq destroyed!\n";
-        // gzclose(fp); // STEP 6: close the file handler
-        // std::cerr << "fp file closed!\n";
     }
 }
 
@@ -852,11 +838,6 @@ void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
     std::cerr << "total_bs for ziv_merhav: " << total_bs << "\n";
 
     std::cerr << "The output file for the matching lengths closed.\n";
-
-    kseq_destroy(seq); // STEP 5: destroy seq
-    std::cerr << "kseq destroyed!\n";
-    gzclose(fp); // STEP 6: close the file handler
-    std::cerr << "fp file closed!\n";
 } */
 
 uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes, BatchLoader& reader) {
@@ -1001,11 +982,6 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k_, BatchLoader& reader)
     std::cerr << "kmer_extension_stopped_count: " << kmer_extension_stopped_count << "\n";
     std::cerr << "kmer_extension_count: " << kmer_extension_count << "\n";
     std::cerr << "negative_kmer_extension_count: " << negative_kmer_extension_count << "\n\n";
-
-    kseq_destroy(seq); // STEP 5: destroy seq
-    std::cerr << "kseq destroyed!\n";
-    gzclose(fp); // STEP 6: close the file handler
-    std::cerr << "fp file closed!\n";
 }
 
 void ReadProcessor::reset_backward_search(Strand& process) {

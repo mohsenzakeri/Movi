@@ -54,7 +54,7 @@ struct Strand {
 
 class ReadProcessor {
     public:
-        ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_, bool verbose_, bool reverse_);
+        ReadProcessor(MoveStructure& mv_, int strands_, bool verbose_, bool reverse_);
         // void process_regular();
         uint64_t initialize_strands(std::vector<Strand>& processes, BatchLoader& reader);
         void process_latency_hiding(BatchLoader& reader);
@@ -87,8 +87,6 @@ class ReadProcessor {
         Classifier classifier;
         int cache_line_size;
         int prefetch_step;
-        gzFile fp;
-        kseq_t *seq;
         int l;
         OutputFiles output_files;
         int strands;

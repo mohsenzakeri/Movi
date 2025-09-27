@@ -215,8 +215,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
     if (!movi_options.no_prefetch()) {
 
-        ReadProcessor rp(movi_options.get_read_file(), mv_, movi_options.get_strands(),
-                         movi_options.is_verbose(), movi_options.is_reverse());
+        ReadProcessor rp(mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
 
 #pragma omp parallel
         {
@@ -250,10 +249,6 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         rp.end_process();
 
     } else {
-        // gzFile fp;
-        // int l;
-        // kseq_t* seq = open_kseq(fp, movi_options.get_read_file());
-
         OutputFiles output_files;
 
         // Open output files using the utility function
@@ -285,7 +280,6 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 Read read_struct;
                 bool valid_read = false;
 
-                // while ((l = kseq_read(seq)) >= 0) { // STEP 4: read sequence
                 // Iterates over reads in a single batch
                 while (true) {
                     valid_read = reader.grabNextRead(read_struct);
@@ -344,7 +338,6 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
         // Close output files using the utility function
         close_output_files(movi_options, output_files);
-        // close_kseq(seq, fp);
     }
 }
 

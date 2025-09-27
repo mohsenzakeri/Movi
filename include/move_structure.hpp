@@ -20,7 +20,6 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include "kseq.h"
 #include "fastcluster.h"
 
 #include <sdsl/bit_vectors.hpp>
