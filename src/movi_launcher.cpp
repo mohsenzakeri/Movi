@@ -185,7 +185,7 @@ void handle_build(const Args& args, const std::vector<std::string>& all_args) {
 
     // Handle special cases for constant/split indexes
     if (args.index_type == "constant" || args.index_type == "split") {
-        std::string binary = "movi-" + args.index_type;
+        std::string binary = "bin/movi-" + args.index_type;
         if (!args.skip_rlbwt) {
             std::string rlbwt_command = binary_dir + "/" + binary + " rlbwt --bwt-file " + clean_fasta + ".bwt";
             execute_command_line(rlbwt_command, "Failed in rlbwt step", args);
@@ -300,6 +300,7 @@ void parse_build_arguments(int argc, char* argv[],
     script_args.preprocessed = script_args.preprocessed_flag or !script_args.non_preprocessed_flag;
     if (script_args.preprocessed) {
         all_args.push_back("--preprocessed");
+        script_args.skip_rlbwt = true;
     }
 }
 
