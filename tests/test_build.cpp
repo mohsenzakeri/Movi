@@ -3,15 +3,14 @@
 using namespace Catch::Matchers;
 
 // Helper function to test index creation
-void test_index_creation(const std::string& index_type, const std::string& index_suffix, size_t expected_size) {
+void test_index_creation(const std::string& index_type, const std::string& index_suffix, size_t expected_size, std::string flags = "") {
     ensure_test_data_dir();
     std::string fasta_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/ref.fasta";
     REQUIRE(std::filesystem::exists(fasta_file));
     
     const std::string index_dir = TEST_DATA_DIR + "/index_" + index_suffix;
     std::string cmd = std::string(BINARY_DIR) + "/movi build --type " + index_type + " --index " + index_dir +
-              " --fasta " + fasta_file + " --keep --verify > /dev/null 2>&1";
-
+                                 " --fasta " + fasta_file + " " + flags + " --verify > /dev/null 2>&1";
     int exit_code = system(cmd.c_str());
 
     // Check that command executed successfully
@@ -24,6 +23,9 @@ void test_index_creation(const std::string& index_type, const std::string& index
     // Check that the index file has the expected size
     auto file_size = std::filesystem::file_size(index_file);
     REQUIRE(file_size == expected_size);
+
+    // Remove the index file
+    std::filesystem::remove_all(index_file);
 }
 
 TEST_CASE("MoveStructure - index building", "[move_structure_index_building]") {

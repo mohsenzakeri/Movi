@@ -11,7 +11,7 @@ void test_pml_filtering(const std::string& index_type, const std::string& index_
 
     // Build index
     std::string cmd = std::string(BINARY_DIR) + "/movi build --type " + index_type + " --index " + index_dir +
-    " --fasta " + fasta_file + " --keep --verify > /dev/null 2>&1";
+    " --fasta " + fasta_file + " --verify > /dev/null 2>&1";
     int exit_code = system(cmd.c_str());
     REQUIRE(exit_code == 0);
 
@@ -44,6 +44,11 @@ void test_pml_filtering(const std::string& index_type, const std::string& index_
     }
 
     REQUIRE(compare_exit_code == 0);
+
+    // Remove the outputs
+    std::filesystem::remove_all(index_dir + "/index.movi");
+    std::filesystem::remove_all(reads_filtered + ".sorted ");
+    std::filesystem::remove_all(reads_filtered);
 }
 
 // Helper function to test PML classification
@@ -93,6 +98,12 @@ void test_classification_computation(const std::string& index_type, const std::s
     }
 
     REQUIRE(compare_exit_code == 0);
+
+    // Remove the outputs
+    std::filesystem::remove_all(index_dir + "/index.movi");
+    std::filesystem::remove_all(report_output + ".sorted ");
+    std::filesystem::remove_all(report_output + ".summary.sorted");
+    std::filesystem::remove_all(report_output);
 }
 
 TEST_CASE("MoveStructure - PML query with classification", "[move_structure_pml_classification]") {

@@ -11,7 +11,7 @@ void test_pml_computation(const std::string& index_type, const std::string& inde
     
     // Build index
     std::string cmd = std::string(BINARY_DIR) + "/movi build --type " + index_type + " --index " + index_dir +
-              " --fasta " + fasta_file + " --keep --verify > /dev/null 2>&1";
+              " --fasta " + fasta_file + " --verify > /dev/null 2>&1";
     int exit_code = system(cmd.c_str());
     REQUIRE(exit_code == 0);
 
@@ -36,6 +36,11 @@ void test_pml_computation(const std::string& index_type, const std::string& inde
     std::string compare_cmd = "diff " + query_output + ".sorted " + pmls_source_file + " > /dev/null 2>&1";
     int compare_exit_code = system(compare_cmd.c_str());
     REQUIRE(compare_exit_code == 0);
+
+    // Remove the outputs
+    std::filesystem::remove_all(index_dir + "/index.movi");
+    std::filesystem::remove_all(query_output + ".sorted ");
+    std::filesystem::remove_all(query_output);
 }
 
 TEST_CASE("MoveStructure - PML query", "[move_structure_pml]") {
