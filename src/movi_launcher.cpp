@@ -167,10 +167,10 @@ void handle_build(const Args& args, const std::vector<std::string>& all_args) {
     // Prepare reference
     std::string clean_fasta = args.index_path + "/ref.fa";
     if (!args.skip_prepare) {
-        std::string preprocess_command = binary_dir + "/prepare_ref "
+        std::string prepare_ref_command = binary_dir + "/bin/movi-prepare-ref "
                                         + args.fasta_file + " " + clean_fasta
                                         + (args.fasta_list_provided ? " list" : "");
-        execute_command_line(preprocess_command, "Failed in prepare fasta step", args);
+        execute_command_line(prepare_ref_command, "Failed in prepare fasta step", args);
     }
 
     // Execute pfp_thresholds

@@ -39,11 +39,11 @@ target_compile_definitions(movi_lib_test PUBLIC MODE=0 COLOR_MODE=0)
 
 add_executable(movi movi_launcher.cpp)
 
-add_executable(prepare_ref prepare_ref.cpp)
-target_link_libraries(prepare_ref zlibstatic)
-
 # Main executables with their specific MODE configurations
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+add_executable(movi-prepare-ref prepare_ref.cpp)
+target_link_libraries(movi-prepare-ref zlibstatic)
 
 add_executable(movi-large ${MOVI_MAIN_SOURCES})
 target_link_libraries(movi-large sdsl zlibstatic OpenMP::OpenMP_CXX hclust)
