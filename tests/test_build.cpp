@@ -56,4 +56,16 @@ TEST_CASE("MoveStructure - index building", "[move_structure_index_building]") {
     SECTION("Large index creation") {
         test_index_creation("large", "large", 1305987);
     }
+
+    SECTION("Tally-thresholds index creation (preprocessed)") {
+        test_index_creation("tally-thresholds", "tally_thresholds", 475318, "--preprocessed");
+    }
+
+    SECTION("Tally-thresholds index creation (non-preprocessed)") {
+        test_index_creation("large", "large", 1305987, "--non-preprocessed");
+    }
+
+    SECTION("Tally-thresholds index creation (non-preprocessed and preprocessed)") {
+        test_index_creation("tally-thresholds", "tally_thresholds", 475318, "--non-preprocessed --preprocessed");
+    }
 }

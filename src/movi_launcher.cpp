@@ -25,6 +25,7 @@ arguments specific to the launcher:
 --skip-r-permute: skip the r-permute step
 --type: the index type to build
 --list or -l: the list of fasta files
+--non-preprocessed: undo the default behavior of writing the BWT in the run length compressed format (ignored if --preprocessed is set)
  * * * * * * * * * * * * */
 
 std::string binary_dir; // set from argv[0]
@@ -43,6 +44,10 @@ struct Args {
     bool skip_pfp = false;
     bool skip_rlbwt = false;
     bool skip_r_permute = false;
+    // By default, write the BWT in the run length compressed format
+    bool preprocessed = true;
+    bool preprocessed_flag = false;
+    bool non_preprocessed_flag = false;
 };
 
 // Index type mapping
@@ -170,7 +175,11 @@ void handle_build(const Args& args, const std::vector<std::string>& all_args) {
 
     // Execute pfp_thresholds
     if (!args.skip_pfp) {
-        std::string pfp_command = binary_dir + PFP_THRESHOLDS_PATH + " -P -f " + clean_fasta;
+        std::string pfp_command = binary_dir + PFP_THRESHOLDS_PATH + " -P ";
+        if (args.preprocessed) {
+            pfp_command += " -r ";
+        }
+        pfp_command += " -f " + clean_fasta;
         execute_command_line(pfp_command, "Failed in pfp_thresholds step", args);
     }
 
@@ -236,6 +245,10 @@ void parse_build_arguments(int argc, char* argv[],
             script_args.skip_rlbwt = true;
         } else if (arg == "--skip-r-permute") {
             script_args.skip_r_permute = true;
+        } else if (arg == "--non-preprocessed") {
+            script_args.non_preprocessed_flag = true;
+        } else if (arg == "--preprocessed") {
+            script_args.preprocessed_flag = true;
         } else if (arg == "--type") {
             if (i + 1 < argc) {
                 script_args.index_type = argv[++i]; // Get the next argument as the index type
@@ -280,6 +293,13 @@ void parse_build_arguments(int argc, char* argv[],
 
     if (script_args.index_path.empty()) {
         throw std::runtime_error("The index directory should be provided");
+    }
+
+    // By default, write the BWT in the run length compressed format
+    // Only write the uncompressed BWT if the --non-preprocessed flag is set and the --preprocessed flag is not set
+    script_args.preprocessed = script_args.preprocessed_flag or !script_args.non_preprocessed_flag;
+    if (script_args.preprocessed) {
+        all_args.push_back("--preprocessed");
     }
 }
 
