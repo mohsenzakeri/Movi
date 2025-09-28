@@ -134,12 +134,12 @@ void build_ftab(MoveStructure& mv_, MoviOptions& movi_options) {
         int max_ftab = movi_options.get_ftab_k();
         for (int i = 2; i <= max_ftab; i++) {
             movi_options.set_ftab_k(i);
-            mv_.compute_ftab();
+            mv_.build_ftab();
             mv_.write_ftab();
             std::cerr << "The ftab table for k = " << i << " is built and stored in the index directory.\n";
         }
     } else if (movi_options.get_ftab_k() > 1) {
-        mv_.compute_ftab();
+        mv_.build_ftab();
         mv_.write_ftab();
     }
 }
@@ -533,7 +533,7 @@ int main(int argc, char** argv) {
             build_ftab(mv_, movi_options);
             std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n\n";
             if (movi_options.is_output_ids()) {
-                mv_.print_ids();
+                mv_.output_ids();
             }
 
             std::cerr << "Generating the null statistics...\n\n";

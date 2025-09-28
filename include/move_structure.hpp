@@ -14,6 +14,8 @@
 #include <sstream>
 #include <filesystem>
 #include <span>
+#include <sys/stat.h>
+
 
 #include <span>
 #include <sys/mman.h>
@@ -30,162 +32,34 @@
 #include "move_query.hpp"
 #include "sequitur.hpp"
 #include "utils.hpp"
-
-const uint64_t MOD = 1000000000000000003ll;
-const uint32_t ARR_SIZE = (1 << 16);
-extern uint64_t pow2[ARR_SIZE];
+#include "move_intervals.hpp"
+#include "doc_set.hpp"
 
 class Classifier;
-
-class DocSet {
-public:
-    std::vector<uint16_t> docs;
-
-    DocSet() {}
-    DocSet(std::vector<uint16_t> &_docs) : docs(_docs) {}
-    DocSet(std::vector<uint16_t> &&_docs) : docs(_docs) {}
-
-    bool operator==(const DocSet &o) const {
-        return docs == o.docs;
-    }
-};
-
-template<>
-struct std::hash<DocSet> {
-    std::size_t operator()(const DocSet &dc) const {
-        size_t hash = 0;
-        for (int doc : dc.docs) {
-            hash += pow2[doc];
-            if (hash >= MOD) {
-                hash -= MOD;
-            }
-        }
-        return hash;
-    }
-};
-
-struct MoveInterval {
-    MoveInterval() {}
-
-    MoveInterval& operator =(const MoveInterval& interval) {
-        // Check self assignment
-        if (this == &interval)
-            return *this;
-        run_start = interval.run_start;
-        offset_start = interval.offset_start;
-        run_end = interval.run_end;
-        offset_end = interval.offset_end;
-        return *this;
-    }
-
-    uint64_t run_start;
-    uint64_t offset_start;
-    uint64_t run_end;
-    uint64_t offset_end;
-
-    MoveInterval(uint64_t run_start_, uint64_t offset_start_, uint64_t run_end_, uint64_t offset_end_) {
-        run_start = run_start_;
-        offset_start = offset_start_;
-        run_end = run_end_;
-        offset_end = offset_end_;
-    }
-
-    void make_empty() {
-        run_start = 1;
-        offset_start = 0;
-        run_end = 0;
-        offset_end = 0;
-    }
-
-    bool is_empty() {
-        return !((run_start < run_end) or (run_start == run_end and offset_start <= offset_end));
-    }
-
-    uint64_t count(std::vector<MoveRow>& rlbwt) {
-        uint64_t row_count = 0;
-        if (run_start == run_end) {
-            row_count = offset_end - offset_start + 1;
-        } else {
-            row_count = (rlbwt[run_start].get_n() - offset_start) + (offset_end + 1);
-            for (uint64_t k = run_start + 1; k < run_end; k ++) {
-                row_count += rlbwt[k].get_n();
-            }
-        }
-        return row_count;
-    }
-
-    friend std::ostream& operator<<(std::ostream& output, const MoveInterval& mi) {
-        output << mi.run_start << ":" << mi.offset_start << " --- " << mi.run_end << ":" << mi.offset_end;
-        return output;
-    }
-
-    bool operator==(const MoveInterval &m) {
-        if (run_start == m.run_start and offset_start == m.offset_start and
-            run_end == m.run_end and offset_end == m.offset_end)
-            return true;
-        return false;
-    }
-};
-
-struct MoveBiInterval {
-    MoveInterval fw_interval;
-    MoveInterval rc_interval;
-    uint64_t match_len;
-
-    MoveBiInterval() {
-        fw_interval = MoveInterval(1, 0, 0, 0);
-        rc_interval = MoveInterval(1, 0, 0, 0);
-        match_len = 0;
-    }
-
-    friend std::ostream& operator<<(std::ostream& output, const MoveBiInterval& mi_bi) {
-        output << mi_bi.match_len << ": " << mi_bi.fw_interval << "\t" << mi_bi.rc_interval;
-        return output;
-    }
-};
 
 class MoveStructure {
     public:
         MoveStructure(MoviOptions* movi_options_);
         MoveStructure(MoviOptions* movi_options_, uint16_t nt_splitting_, bool constant_);
 
-        std::ofstream debug_out;
-        std::ofstream out_file;
-        
-        void build();
-        void fill_bits_by_thresholds();
-        void find_run_heads_information();
-        void add_detected_run(uint64_t scanned_bwt_length,
-                             uint64_t current_char, uint64_t next_char,
-                             uint16_t& run_length);
-        void build_rlbwt();
-        uint64_t query_pml(MoveQuery& mq);
-        uint64_t query_backward_search(MoveQuery& mq, int32_t& pos_on_r);
-        uint64_t query_zml(MoveQuery& mq);
+        std::vector<MoveRow> get_rlbwt();
+        char get_char(uint64_t idx);
+        uint64_t get_n(uint64_t idx);
+        uint64_t get_offset(uint64_t idx);
+        uint64_t get_id(uint64_t idx);
+        // TODO: The following is useful for mmaping, there is a slowdown though
+        // MoveRow& get_move_row(uint64_t idx);
 
-        void query_all_kmers(MoveQuery& mq, bool kmer_counts = false);
-        uint64_t query_kmers_from_bidirectional(MoveQuery& mq, int32_t& pos_on_r);
-        uint64_t query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool single = false);
+#if USE_THRESHOLDS
+        uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
+#endif
 
-        MoveInterval try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k, bool rc = false);
-        bool look_ahead_ftab(MoveQuery& mq, uint32_t pos_on_r, int32_t& step);
-        bool look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r, int32_t step);
+#if SPLIT_THRESHOLDS_FALSE
+        uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
+        void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
+#endif
 
-        bool extend_bidirectional(char c_, MoveInterval& fw_interval, MoveInterval& rc_interval);
-        bool extend_left(char c, MoveBiInterval& bi_interval);
-        bool extend_right(char c, MoveBiInterval& bi_interval);
-        MoveBiInterval backward_search_bidirectional(std::string& R, int32_t& pos_on_r, MoveBiInterval interval, int32_t max_length);
-        MoveBiInterval initialize_bidirectional_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len);
-
-        bool backward_search_step(char c, MoveInterval& interval);
-        uint64_t backward_search_step(std::string& R, int32_t& pos_on_r, MoveInterval& interval);
-        MoveInterval backward_search(std::string& R, int32_t& pos_on_r, MoveInterval interval, int32_t max_length);
-        MoveInterval initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, bool rc = false);
-        void update_interval(MoveInterval& interval, char next_char);
-
-        void sequential_lf();
-        void random_lf();
-        void reconstruct_lf();
+        uint64_t get_SA_entries(uint64_t idx, uint64_t offset);
 
         uint64_t LF(uint64_t row_number, uint64_t alphabet_index);
         uint64_t LF_heads(uint64_t run_number, uint64_t alphabet_index);
@@ -193,33 +67,97 @@ class MoveStructure {
         uint16_t LF_move(uint64_t& pointer, uint64_t& i, uint64_t id = std::numeric_limits<uint64_t>::max());
         uint64_t fast_forward(uint64_t& offset, uint64_t index, uint64_t x);
 
-        void build_alphabet(std::vector<uint64_t>& all_possible_chars);
-        uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
+        bool check_alphabet(char& c);
         uint32_t compute_index(char row_char, char lookup_char);
 
-#if BLOCKED_MODES
-        void compute_blocked_ids(std::vector<uint64_t>& raw_ids);
-        void write_id_blocks(std::ofstream& fout);
-        void read_id_blocks(std::ifstream& fin);
-#endif
+        void analyze_rows();
+        void print_stats();
 
-#if TALLY_MODES
-        void write_tally_table(std::ofstream& fout);
-        void read_tally_table(std::ifstream& fin);
+/***************************************************************************/
+/****  Beginning of functions implemented in move_structure_search.cpp  ****/
+        MoveInterval try_ftab(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, size_t ftab_k, bool rc = false);
+        bool look_ahead_ftab(MoveQuery& mq, uint32_t pos_on_r, int32_t& step);
+        bool look_ahead_backward_search(MoveQuery& mq, uint32_t pos_on_r, int32_t step);
+
+        uint64_t query_backward_search(MoveQuery& mq, int32_t& pos_on_r);
+        bool backward_search_step(char c, MoveInterval& interval);
+        uint64_t backward_search_step(std::string& R, int32_t& pos_on_r, MoveInterval& interval);
+        MoveInterval backward_search(std::string& R, int32_t& pos_on_r, MoveInterval interval, int32_t max_length);
+        MoveInterval initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, bool rc = false);
+        void update_interval(MoveInterval& interval, char next_char);
+
+        bool extend_bidirectional(char c_, MoveInterval& fw_interval, MoveInterval& rc_interval);
+        bool extend_left(char c, MoveBiInterval& bi_interval);
+        bool extend_right(char c, MoveBiInterval& bi_interval);
+        MoveBiInterval backward_search_bidirectional(std::string& R, int32_t& pos_on_r, MoveBiInterval interval, int32_t max_length);
+        MoveBiInterval initialize_bidirectional_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len);
+/*******  End of functions implemented in move_structure_search.cpp  *******/
+/***************************************************************************/
+
+/***************************************************************************/
+/****  Beginning of functions implemented in move_structure_build.cpp   ****/
+        void build();
+        uint64_t compute_length_from_bwt();
+        void initialize_bits();
+        void fill_bits_by_thresholds();
+        void detect_move_row_boundaries();
+        void add_detected_run(uint64_t scanned_bwt_length, uint64_t run_char, uint16_t& run_length);
+        void find_run_heads_information();
+        void build_move_rows();
+        void find_base_interval_data();
+        void build_alphabet(std::vector<uint64_t>& all_possible_chars);
+
+#if USE_THRESHOLDS
+        void compute_thresholds();
 #endif
 
 #if USE_NEXT_POINTERS
         void compute_nexts();
 #endif
 
-        void compute_ftab();
-        void write_ftab();
-        void compute_run_lcs();
-        void read_ftab();
+#if BLOCKED_MODES
+        void compute_blocked_ids(std::vector<uint64_t>& raw_ids);
+#endif
+
+        void build_ftab();
 
         // Finds SA entries of all rows in BWT.
         void find_sampled_SA_entries();
-        uint64_t get_SA_entries(uint64_t idx, uint64_t offset);
+/*******  End of functions implemented in move_structure_build.cpp   *******/
+/***************************************************************************/
+
+/***************************************************************************/
+/****  Beginning of functions implemented in move_structure_query.cpp   ****/
+        void verify_lfs();
+        void verify_lf_loop();
+        void sequential_lf();
+        void random_lf();
+        void reconstruct_lf();
+
+        uint64_t query_pml(MoveQuery& mq);
+        uint64_t query_zml(MoveQuery& mq);
+
+        uint64_t reposition_up(uint64_t idx, char c, uint64_t& scan_count);
+        uint64_t reposition_down(uint64_t idx, char c, uint64_t& scan_count);
+        bool reposition_randomly(uint64_t& idx, uint64_t& offset, char r_char, uint64_t& scan_count);
+#if USE_THRESHOLDS
+        bool reposition_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
+#endif
+/*******  End of functions implemented in move_structure_query.cpp  *******/
+/***************************************************************************/
+
+/***************************************************************************/
+/**********  Beginning of functions implemented in sequitur.cpp  ***********/
+        void query_all_kmers(MoveQuery& mq, bool kmer_counts = false);
+        uint64_t query_kmers_from_bidirectional(MoveQuery& mq, int32_t& pos_on_r);
+        uint64_t query_kmers_from(MoveQuery& mq, int32_t& pos_on_r, bool single = false);
+/*******  End of functions implemented in sequitur.cpp  ***********/
+/***************************************************************************/
+
+/***************************************************************************/
+/****  Beginning of functions implemented in move_structure_color.cpp  *****/
+        int get_num_docs() { return num_docs; }
+        int get_num_species() { return num_species; }
 
         // Fill the run offsets array (used for building colors among other things)
         void fill_run_offsets();
@@ -232,8 +170,6 @@ class MoveStructure {
         void compute_color_ids_from_flat();
         // Finds documents corresponding to rows in BWT.
         void build_doc_pats();
-        // Writes frequencies of document sets to file.
-        void write_doc_set_freqs(std::string fname);
         // Initialize classify counts
         void initialize_classify_cnts();
         void set_classifier(Classifier *cl) { classifier = cl; }
@@ -243,14 +179,19 @@ class MoveStructure {
         bool is_ancestor(uint16_t x, uint16_t y);
         uint16_t LCA(uint16_t x, uint16_t y);
         void dfs_times(uint16_t cur, uint16_t &t);
-        
-        // The following are used during development only
-        // std::string reconstruct();
-        // char compute_char(uint64_t idx);
-        // uint64_t naive_lcp(uint64_t row1, uint64_t row2);
-        // uint64_t naive_sa(uint64_t bwt_row);
-        // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
+        void compute_run_lcs();
+
+        // The following is just used to test how storing colors in the rlbwt affects the performance
         void add_colors_to_rlbwt();
+/******** End of functions implemented in move_structure_color.cpp *********/
+/***************************************************************************/
+
+/***************************************************************************/
+/*****  Beginning of functions implemented in move_structure_io.cpp  *******/
+
+        // Writes frequencies of document sets to file.
+        void write_doc_set_freqs(std::string fname);
+
         void flat_and_serialize_colors_vectors();
         void deserialize_doc_sets_flat();
 
@@ -258,9 +199,11 @@ class MoveStructure {
         void deserialize_doc_pats(std::string fname);
         void serialize_doc_sets(std::string fname);
         void deserialize_doc_sets(std::string fname);
+        void load_document_info();
+
+        // The following two methods are not implemented
         void serialize_doc_rows();
         void deserialize_doc_rows();
-        void load_document_info();
 
         std::ifstream open_index_read();
         std::ofstream open_index_write();
@@ -276,43 +219,34 @@ class MoveStructure {
         void read_main_table(std::ifstream& fin, std::streamoff rlbwt_offset);
         void serialize();
         void deserialize();
+        void output_ids();
 
-        uint64_t reposition_up(uint64_t idx, char c, uint64_t& scan_count);
-        uint64_t reposition_down(uint64_t idx, char c, uint64_t& scan_count);
-        bool reposition_randomly(uint64_t& idx, uint64_t& offset, char r_char, uint64_t& scan_count);
+#if BLOCKED_MODES
+        void write_id_blocks(std::ofstream& fout);
+        void read_id_blocks(std::ifstream& fin);
+#endif
 
-        void verify_lfs();
-        void verify_lf_loop();
-        void print_stats();
-        void print_ids();
-        void analyze_rows();
-        bool check_alphabet(char& c);
+#if TALLY_MODES
+        void write_tally_table(std::ofstream& fout);
+        void read_tally_table(std::ifstream& fin);
+#endif
 
         void serialize_sampled_SA();
         void deserialize_sampled_SA();
 
-        int get_num_docs() { return num_docs; }
-        int get_num_species() { return num_species; }
-        char get_char(uint64_t idx);
-        uint64_t get_n(uint64_t idx);
-        uint64_t get_offset(uint64_t idx);
-        uint64_t get_id(uint64_t idx);
-        // MoveRow& get_move_row(uint64_t idx);
-#if USE_THRESHOLDS
-        void compute_thresholds();
-        bool reposition_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
-        uint64_t get_thresholds(uint64_t idx, uint32_t alphabet_index);
-#endif
-#if SPLIT_THRESHOLDS_FALSE
-        uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
-        void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
-#endif
+        void write_ftab();
+        void read_ftab();
+/*********  End of functions implemented in move_structure_io.cpp  *********/
+/***************************************************************************/
+
 	    KmerStatistics kmer_stats;
         friend class ReadProcessor;
-        std::vector<MoveRow> get_rlbwt();
     private:
         // Reference to output files for writing results
         OutputFiles* output_files;
+
+        // The BWT file used for building the index
+        std::ifstream bwt_file;
 
         // Sorted vector of the start offsets of each document.  
         std::vector<uint64_t> doc_offsets;
@@ -432,6 +366,7 @@ class MoveStructure {
         std::vector<std::unique_ptr<sdsl::rank_support_v<> > > occs_rank;
         std::vector<uint64_t> heads_rank;
         std::vector<uint64_t> lens;
+        std::vector<uint32_t> original_lens;
 
         sdsl::bit_vector bits;
         sdsl::rank_support_v<> rbits;

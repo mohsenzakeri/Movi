@@ -772,3 +772,41 @@ void MoveStructure::read_ftab() {
         fin.close();
     }
 }
+
+void MoveStructure::output_ids() {
+
+    std::cerr << "\nThe ids are being written out..\n";
+
+    std::string base_name = movi_options->get_index_dir() + "/ids";
+    std::vector<std::unique_ptr<std::ofstream>> id_files;
+
+    std::ofstream ids_all(base_name + ".all");
+
+    for (int i = 0; i < alphabet.size(); i++) {
+        std::string ext(1, alphabet[i]);
+        id_files.push_back(std::make_unique<std::ofstream>(base_name + "." + ext));
+    }
+
+    for (uint64_t i = 0; i < r; i++) {
+
+        if (i%1000000 == 0) std::cerr << i << "\r";
+
+        if (i != end_bwt_idx) {
+
+            uint64_t id = get_id(i);
+            uint64_t adjusted_id = id - first_runs[rlbwt[i].get_c() + 1];
+
+            int char_index = static_cast<int>(rlbwt[i].get_c());
+            *id_files[char_index] << adjusted_id << "\t" << i << "\n";
+
+            ids_all << adjusted_id << "\n";
+        }
+    }
+
+    ids_all.close();
+    for (auto& id_file : id_files) {
+        id_file->close();
+    }
+
+    std::cerr << "\nDone.\n";
+}
