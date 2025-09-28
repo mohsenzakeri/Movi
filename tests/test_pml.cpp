@@ -35,6 +35,14 @@ void test_pml_computation(const std::string& index_type, const std::string& inde
     
     std::string compare_cmd = "diff " + query_output + ".sorted " + pmls_source_file + " > /dev/null 2>&1";
     int compare_exit_code = system(compare_cmd.c_str());
+
+    if (compare_exit_code != 0) {
+        std::cerr << "----------------------------------------\n";
+        std::cerr << query_cmd << "\n";
+        std::cerr << compare_cmd << "\n";
+        std::cerr << "----------------------------------------\n";
+    }
+
     REQUIRE(compare_exit_code == 0);
 
     // Remove the outputs
