@@ -441,6 +441,60 @@ void view(MoviOptions& movi_options) {
     }
 }
 
+void build_rlbwt(MoviOptions& movi_options) {
+    std::cerr << "The run and len files are being built.\n";
+
+    std::ifstream bwt_file(movi_options.get_bwt_file());
+    if (!bwt_file.good()) {
+        throw std::runtime_error(ERROR_MSG("[build_rlbwt] Failed to open the BWT file: " + movi_options.get_bwt_file()));
+    }
+
+    bwt_file.clear();
+    bwt_file.seekg(0,std::ios_base::end);
+    std::streampos end_pos = bwt_file.tellg();
+    if (movi_options.is_verbose())
+        std::cerr << "end_pos: " << end_pos << "\n";
+    std::cerr << static_cast<uint64_t>(end_pos) << "\n";
+    bwt_file.seekg(0);
+    char current_char = bwt_file.get();
+    char last_char = current_char;
+    uint64_t r = 0;
+    size_t len = 0;
+
+    std::ofstream len_file(movi_options.get_bwt_file() + ".len", std::ios::out | std::ios::binary);
+    if (!len_file.good()) {
+        throw std::runtime_error(ERROR_MSG("[build_rlbwt] Failed to open the length file: " + movi_options.get_bwt_file() + ".len"));
+    }
+
+    std::ofstream heads_file(movi_options.get_bwt_file() + ".heads");
+    if (!heads_file.good()) {
+
+        throw std::runtime_error(ERROR_MSG("[build_rlbwt] Failed to open the heads file: " + movi_options.get_bwt_file() + ".heads"));
+    }
+
+    while (current_char != EOF) {
+        if (r % 1000000 == 0)
+            std::cerr << r << "\r";
+        if (current_char != last_char) {
+            r += 1;
+            // write output
+            heads_file << last_char;
+            len_file.write(reinterpret_cast<char*>(&len), 5);
+            len = 0;
+        }
+        len += 1;
+        last_char = current_char;
+        current_char = bwt_file.get();
+    }
+
+    // write output
+    heads_file << last_char;
+    len_file.write(reinterpret_cast<char*>(&len), 5);
+
+    heads_file.close();
+    len_file.close();
+}
+
 int main(int argc, char** argv) {
     try {
         MoviOptions movi_options;
@@ -554,9 +608,7 @@ int main(int argc, char** argv) {
         } else if (command == "view") {
             view(movi_options);
         } else if (command == "rlbwt") {
-            std::cerr << "The run and len files are being built.\n";
-            MoveStructure mv_(&movi_options);
-            mv_.build_rlbwt();
+            build_rlbwt(movi_options);
         } else if (command == "color-move-rows") {
             MoveStructure mv_(&movi_options);
             mv_.deserialize();
