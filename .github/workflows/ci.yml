@@ -9,10 +9,26 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+
     steps:
     - uses: actions/checkout@v4
     
+    - name: Install Clang (if needed)
+      run: |
+        if [ "${{ matrix.compiler }}" == "clang" ]; then
+          sudo apt-get install -y clang
+        fi
+
+    - name: Set compiler
+      run: |
+        if [ "${{ matrix.compiler }}" == "clang" ]; then
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+        fi
+
     - name: Install dependencies
       run: |
         sudo apt-get update
