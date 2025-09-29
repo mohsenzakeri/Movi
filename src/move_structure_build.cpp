@@ -3,9 +3,9 @@
 void MoveStructure::build() {
 
     length = compute_length_from_bwt();
-    std::cerr << GENERAL_MSG("The total length of the BWT (n): " + std::to_string(length) + "\n");
+    std::cerr << GENERAL_MSG("The total length of the BWT (n): " + std::to_string(length));
 
-    std::cerr << GENERAL_MSG("Building starts...\n");
+    std::cerr << GENERAL_MSG("Building starts...");
 
     initialize_bits();
 
@@ -37,11 +37,11 @@ void MoveStructure::build() {
 
 #if USE_NEXT_POINTERS
     if (constant) {
-        std::cerr << GENERAL_MSG("Computing the next ups and downs.\n");
+        std::cerr << GENERAL_MSG("Computing the next ups and downs.");
         compute_nexts();
     }
 #endif
-    std::cerr << INFO_MSG("The move structure building is done.\n");
+    std::cerr << INFO_MSG("The move structure building is done.");
 }
 
 void MoveStructure::find_run_heads_information() {
@@ -386,7 +386,7 @@ void MoveStructure::detect_move_row_boundaries() {
     original_lens.shrink_to_fit();
 
     if (movi_options->is_thresholds()) {
-        std::cerr << "Number of runs added by thresholds splitting: " << split_by_thresholds << "\n";
+        std::cerr << GENERAL_MSG("Number of runs added by thresholds splitting: " + std::to_string(split_by_thresholds));
     }
     std::cerr << "n: " << length << "\n";
     std::cerr << "r: " << r << "\n";
@@ -411,7 +411,7 @@ void MoveStructure::build_alphabet(std::vector<uint64_t>& all_possible_chars) {
             alphabet_index += 1;
         }
     }
-    std::cerr << "All the characters are indexed.\n";
+    std::cerr << GENERAL_MSG("All the characters are indexed.") << "\n";
 }
 
 void MoveStructure::build_move_rows() {
@@ -589,7 +589,7 @@ void MoveStructure::build_move_rows() {
     }
 #endif
 
-    std::cerr << GENERAL_MSG("Max run length (after splitting if enabled): " + std::to_string(max_len) + "\n\n");
+    std::cerr << GENERAL_MSG("Max run length (after splitting if enabled): " + std::to_string(max_len));
 
     std::cerr << INFO_MSG("All the move rows are built.");
 

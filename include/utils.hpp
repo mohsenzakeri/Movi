@@ -159,10 +159,10 @@ extern uint32_t alphamap_3[4][4];
 
 #define UNCLASSIFIED_THRESHOLD 0.4
 
-#define ERROR_MSG(msg) (std::string("\033[31m\n\nError: ") + msg + "\n\033[0m")
-#define WARNING_MSG(msg) (std::string("\033[33m\n\nWarning: ") + msg + "\n\033[0m")
+#define ERROR_MSG(msg) (std::string("\033[31m\n\nError: ") + msg + "\033[0m")
+#define WARNING_MSG(msg) (std::string("\033[33m\n\nWarning: ") + msg + "\033[0m")
 #define INFO_MSG(msg) (std::string("\033[32m\n") + msg + "\n\033[0m")
-#define GENERAL_MSG(msg) (std::string("\033[37m\n") + msg + "\n\033[0m")
+#define GENERAL_MSG(msg) (std::string("\033[37m") + msg + "\n\033[0m")
 
 // To be used for generating random numbers for each thread
 struct ThreadRandom {

@@ -531,7 +531,7 @@ int main(int argc, char** argv) {
             }
             mv_.serialize();
             build_ftab(mv_, movi_options);
-            std::cerr << "The move structure is successfully stored at " << movi_options.get_index_dir() << "\n\n";
+            std::cerr << INFO_MSG("The move structure is successfully stored at " + movi_options.get_index_dir() + "\n\n");
             if (movi_options.is_output_ids()) {
                 mv_.output_ids();
             }
