@@ -3,11 +3,10 @@
 using namespace Catch::Matchers;
 
 // Helper function to test PML computation
-void test_pml_computation(const std::string& index_type, const std::string& index_suffix, 
-                         const std::string& output_suffix, const std::string& extra_query_args = "") {
+void test_pml_computation(const std::string& index_type, std::string reads_file_name, const std::string& extra_query_args = "") {
     ensure_test_data_dir();
     std::string fasta_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/ref.fasta";
-    const std::string index_dir = TEST_DATA_DIR + "/index_" + index_suffix;
+    const std::string index_dir = TEST_DATA_DIR + "/index_" + index_type;
     
     // Build index
     std::string cmd = std::string(BINARY_DIR) + "/movi build --type " + index_type + " --index " + index_dir +
@@ -16,8 +15,8 @@ void test_pml_computation(const std::string& index_type, const std::string& inde
     REQUIRE(exit_code == 0);
 
     // Run PML query
-    std::string reads_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/reads.fasta";
-    std::string query_output = TEST_DATA_DIR + "/" + output_suffix + ".pmls";
+    std::string reads_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/" + reads_file_name;
+    std::string query_output = TEST_DATA_DIR + "/" + index_type + ".pmls";
     std::string query_cmd = std::string(BINARY_DIR) + "/movi query --index " + index_dir +
               " --read " + reads_file + " --pml " + extra_query_args + " --stdout > " + query_output + " 2>/dev/null";
     int query_exit_code = system(query_cmd.c_str());
@@ -29,7 +28,7 @@ void test_pml_computation(const std::string& index_type, const std::string& inde
     REQUIRE(sort_exit_code == 0);
 
     // Compare with expected results
-    std::string pmls_source_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/reads.fasta.pmls.sorted";
+    std::string pmls_source_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/" + reads_file_name + ".pmls.sorted";
     REQUIRE(std::filesystem::exists(query_output + ".sorted"));
     REQUIRE(std::filesystem::exists(pmls_source_file));
     
@@ -53,33 +52,51 @@ void test_pml_computation(const std::string& index_type, const std::string& inde
 
 TEST_CASE("MoveStructure - PML query", "[move_structure_pml]") {
     SECTION("Regular thresholds PML computation") {
-        test_pml_computation("regular-thresholds", "regular_thresholds", "regular_thresholds", "--no-prefetch -t1");
+        test_pml_computation("regular-thresholds", "reads.fasta", "--no-prefetch -t1");
     }
 
     SECTION("Blocked-thresholds PML computation") {
-        test_pml_computation("blocked-thresholds", "blocked_thresholds", "blocked_thresholds", "--no-prefetch -t1");
+        test_pml_computation("blocked-thresholds", "reads.fasta", "--no-prefetch -t1");
     }
 
     SECTION("Tally-thresholds PML computation") {
-        test_pml_computation("tally-thresholds", "tally_thresholds", "tally_thresholds", "--no-prefetch -t1");
+        test_pml_computation("tally-thresholds", "reads.fasta", "--no-prefetch -t1");
     }
 
     SECTION("Large PML computation") {
-        test_pml_computation("large", "large", "large", "--no-prefetch -t1");
+        test_pml_computation("large", "reads.fasta", "--no-prefetch -t1");
     }
 
     SECTION("Tally-thresholds PML computation (threaded)") {
-        test_pml_computation("tally-thresholds", "tally_thresholds", "tally_thresholds", "--no-prefetch -t16");
+        test_pml_computation("tally-thresholds", "reads.fasta", "--no-prefetch -t16");
     }
 }
 
 TEST_CASE("ReadProcessor - PML query", "[read_processor]") {
     SECTION("Regular thresholds PML computation with 16 strands and 1 thread") {
-        test_pml_computation("regular-thresholds", "regular_thresholds", "regular_thresholds", "-s16 -t1");
+        test_pml_computation("regular-thresholds", "reads.fasta", "-s16 -t1");
     }
 
     SECTION("Regular thresholds PML computation with 16 strands and 16 thread") {
-        test_pml_computation("regular-thresholds", "regular_thresholds", "regular_thresholds", "-s16 -t16");
+        test_pml_computation("regular-thresholds", "reads.fasta", "-s16 -t16");
+    } 
+}
+
+TEST_CASE("PML query with fastq", "[pml_query_fastq]") {
+    SECTION("Blocked thresholds PML computation (fastq)") {
+        test_pml_computation("blocked-thresholds", "sample.fastq", "--no-prefetch -t1");
+    }
+
+    SECTION("Regular thresholds PML computation with 4 threads (fastq)") {
+        test_pml_computation("regular-thresholds", "sample.fastq", "--no-prefetch -t4");
+    }
+
+    SECTION("Tally thresholds PML computation with 4 strands and 1 thread (fastq)") {
+            test_pml_computation("tally-thresholds", "sample.fastq", "-s4 -t1");
+        }
+
+    SECTION("Regular thresholds PML computation with 4 strands and 4 threads (fastq)") {
+        test_pml_computation("regular-thresholds", "sample.fastq", "-s4 -t4");
     }
 }
 
