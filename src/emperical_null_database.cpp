@@ -15,14 +15,14 @@ size_t EmpNullDatabase::get_percentile_value() {
 
 void EmpNullDatabase::generate_stats(MoviOptions& movi_options, MoveStructure& mv_, std::string pattern_file) {
     bool random_repositioning = (USE_THRESHOLDS ? false : true);
-    std::cerr << "random_repositioning: " << random_repositioning << "\n";
+    if (movi_options.is_verbose())
+        std::cerr << "random_repositioning: " << random_repositioning << "\n";
     movi_options.set_random_repositioning(random_repositioning);
     gzFile fp;
     int l;
     kseq_t* seq = open_kseq(fp, pattern_file);
     while ((l = kseq_read(seq)) >= 0) { 
         std::string query_seq = seq->seq.s;
-        std::reverse(query_seq.begin(), query_seq.end());
         MoveQuery mq = MoveQuery(query_seq);
 
         if (movi_options.is_pml()) {
@@ -39,13 +39,15 @@ void EmpNullDatabase::generate_stats(MoviOptions& movi_options, MoveStructure& m
     close_kseq(seq, fp);
 }
 
-void EmpNullDatabase::compute_stats() {
+void EmpNullDatabase::compute_stats(MoviOptions& movi_options) {
     // Determine vector size needed
     auto max_null_stat = std::max_element(ml_stats.begin(), ml_stats.end());
     max_stat_width = std::max(static_cast<int>(std::ceil(std::log2(*max_null_stat))), 1);
 
-    std::cerr << "Maximum null statistic: " << *max_null_stat << "\n";
-    std::cerr << "Number of bits used per null statistic: " << max_stat_width << "\n";
+    if (movi_options.is_verbose()) {
+        std::cerr << "Maximum null statistic: " << *max_null_stat << "\n";
+        std::cerr << "Number of bits used per null statistic: " << max_stat_width << "\n";
+    }
 
     // Initialize attributes
     num_values = ml_stats.size();
@@ -78,8 +80,10 @@ void EmpNullDatabase::compute_stats() {
         largest_val = curr_val;
     percentile_value = largest_val;
 
-    std::cerr << "Largest common null statistic: " << largest_val << "\n";
-    std::cerr << "Mean null statistic: " << mean_null_stat << "\n";
+    if (movi_options.is_verbose()) {
+        std::cerr << "Largest common null statistic: " << largest_val << "\n";
+        std::cerr << "Mean null statistic: " << mean_null_stat << "\n";
+    }
     std::cerr << "Percentile value: " << percentile_value << "\n";
 }
 

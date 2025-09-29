@@ -424,7 +424,9 @@ std::string parse_null_reads(const char* ref_file, const char* output_path) {
             // Make sure we don't extract reads of Ns
             if (std::string(grabbed_seq).find("N") == std::string::npos) {
                 output_null_fd << ">read_" << curr_total_null_reads << "\n";
-                output_null_fd << grabbed_seq << "\n";
+                std::string read_seq = std::string(grabbed_seq);
+                std::reverse(read_seq.begin(), read_seq.end());
+                output_null_fd << read_seq << "\n";
                 curr_total_null_reads++;
                 go_for_extraction = (curr_total_null_reads < NULL_READ_BOUND);
             }
@@ -433,7 +435,9 @@ std::string parse_null_reads(const char* ref_file, const char* output_path) {
         // Special case - if sequence is less than or equal to 150 bp
         if (seq->seq.l <= NULL_READ_CHUNK) {
             output_null_fd << ">read_" << curr_total_null_reads << "\n";
-            output_null_fd << seq->seq.s << "\n";
+            std::string read_seq = std::string(seq->seq.s);
+            std::reverse(read_seq.begin(), read_seq.end());
+            output_null_fd << read_seq << "\n";
             curr_total_null_reads++;
         }
     }

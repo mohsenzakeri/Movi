@@ -17,7 +17,7 @@ void Classifier::generate_null_statistics(MoveStructure& mv_, MoviOptions& movi_
 
     EmpNullDatabase nulldb;
     nulldb.generate_stats(movi_options, mv_, pattern_file);
-    nulldb.compute_stats();
+    nulldb.compute_stats(movi_options);
     nulldb.serialize(movi_options);
 }
 
