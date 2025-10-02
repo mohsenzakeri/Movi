@@ -13,7 +13,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("no-header", "Header information in not stored")
         ("d,dbg", "Enable debug mode")
         ("v,verbose", "Enable verbose mode")
-        ("l,logs", "Enable logs");
+        ("logs", "Enable logs");
 
     auto buildOptions = options.add_options("build")
         ("i,index", "Index directory", cxxopts::value<std::string>())
@@ -45,6 +45,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("count", "Compute the count queries")
         ("kmer", "Search all the kmers")
         ("kmer-count", "Find the count of every kmer")
+        ("mem", "Compute the maximal exact matches (MEMs)")
         ("sa-entries", "Find the SA entries for each read")
         ("classify", "Classify the reads")
         ("filter", "Filter the reads based on the matching lengths, output the filtered reads to stdout")
@@ -69,6 +70,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("mmap", "Use memory mapping to read the index")
         ("n,no-prefetch", "Disable prefetching for query")
         ("k,k-length", "The length of the kmer", cxxopts::value<uint32_t>())
+        ("l,min-mem-length", "The minimum length of the MEMs", cxxopts::value<uint32_t>())
         ("ftab-k", "The length of the ftba kmer", cxxopts::value<uint32_t>())
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
         ("s,strands", "Number of strands for query", cxxopts::value<int>())
@@ -209,11 +211,13 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         movi_options.set_index_dir(result["index"].as<std::string>());
                         movi_options.set_read_file(result["read"].as<std::string>());
                         if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
+                        if (result.count("min-mem-length") >= 1) { movi_options.set_min_mem_length(static_cast<uint32_t>(result["min-mem-length"].as<uint32_t>())); }
                         if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
                         if (result.count("bin-width") >= 1) { movi_options.set_bin_width(static_cast<uint32_t>(result["bin-width"].as<uint32_t>())); }
                         if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
                         if (result.count("kmer") >= 1) { movi_options.set_kmer(); }
                         if (result.count("kmer-count") >= 1) { movi_options.set_kmer(); movi_options.set_kmer_count(true); }
+                        if (result.count("mem") >= 1) { movi_options.set_mem(); }
                         if (result.count("count") >= 1) { movi_options.set_count(); }
                         if (result.count("zml") >= 1) { movi_options.set_zml(); }
                         if (result.count("pml") >= 1) { movi_options.set_pml(); }
