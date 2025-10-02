@@ -52,8 +52,7 @@ bool MoveStructure::query_mem_bml(MoveQuery& mq, int32_t& pos_on_r, int32_t& min
             ++match_len;
         }
         // Should never reach here
-        std::cerr << "Extended past failed ftab\n";
-        exit(0);
+        throw std::runtime_error("Extended past failed ftab");
     }
     else {
         // Backward extension to find if left end permits a sufficiently long MEM, should equal pos_on_r if true

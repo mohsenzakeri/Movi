@@ -41,7 +41,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
     }
     if (movi_options.is_mem() and !movi_options.no_prefetch()) {
         movi_options.set_prefetch(false);
-        std::cerr << "MEM finding does not support prefetching.\n";
+        std::cerr << "MEM finding does not support prefetching. Continuing with prefetching disabled.\n";
     }
 
     omp_set_num_threads(movi_options.get_threads());
