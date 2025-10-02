@@ -1,8 +1,8 @@
-pfp="<PATH TO PFP_THRESHOLDS BINARY>"
+pfp="../pfp-thresholds/build/pfp_thresholds"
 
-prepare_ref="<PATH TO PREPARE_REF BINARY>"
-movi_default="<PATH TO MOVI-DEFAULT BINARY>"
-movi_constant="<PATH TO MOVI-CONSTANT BINARY>"
+prepare_ref="build/prepare_ref"
+movi_default="build/movi-default"
+movi_constant="build/movi-constant"
 
 bconstructor="<PATH TO BUILD_CONSTRUCTOR BINARY>"
 rconstructor="<PATH TO RUN_CONSTRUCTOR BINARY>"
@@ -39,7 +39,7 @@ if test -f "$index_dir/ref.fa"
 then
   echo "The clean_fasta is already made, skipping.."
 else
-  cmd="$t $index_dir/build.prepare_ref.time $prepare_ref $fasta_list $clean_fasta list"
+  cmd="$t $index_dir/build.prepare_ref.time $prepare_ref $fasta_list $clean_fasta list $4"
   echo $cmd
   eval $cmd
 fi
@@ -77,7 +77,7 @@ if [ "$1" == "constant" ]; then
   eval $cmd
 
   echo "Removing extra files.."
-  rm $index_dir/ref.fa*
+  # rm $index_dir/ref.fa*
   echo "done"
 fi
 
@@ -89,6 +89,6 @@ if [ "$1" == "default" ]; then
   eval $cmd
 
   echo "Removing extra files.."
-  rm $index_dir/ref.fa*
+  # rm $index_dir/ref.fa*
   echo "done"
 fi

@@ -34,20 +34,10 @@ So, Movi clones and installs this repository during build. Furthermore, for the 
 
 `<index directory>` is the directory where you want the Movi index to be located.
 
-`<index type` determines the type of Movi index to be built. If no value is passed, the `regular-thresholds` index is built.
+Note: The flag `--type <index type>` determines the strategy to build the main table of the Movi index. If no value is passed, the `regular-thresholds` index is built.
 Possible index types: `large` `constant` `split` `regular` `regular-thresholds` `blocked` `blocked-thresholds` `tally` `tally-thresholds`
 
-The index will be located at `<index directory>/movi.index`
-
-The above command by default runs 3 main steps for building the index including:
-
-1. Preprocessing the fasta file for modifying the illegal characters (non A/C/G/T) as well as creating the reverse complement sequences. The result of this step is a `ref.fa` file which will be found in the `<index directory>`. This step can be skipped by adding `--skip-prepare` to the command.
-
-2. Runs the [pfp-thresholds](https://github.com/maxrossi91/pfp-thresholds) for building the Burrows Wheeler Transform (BWT) and the thresholds data structure for `ref.fa`. After this, `ref.fa.bwt` and `ref.fa.thr_pos` will be generated. This step can be skipped by adding `--skip-pfp` to the command.
-
-3. The final step is building the Movi index using `ref.fa.bwt` and `ref.fa.thr_pos`.
-
-
+If the thresholds are note available, please pass `--type regular` to build an index without the thresholds data structure.
 
 ## Compute Pseudo Matching Lengths (PML)
 
@@ -71,7 +61,6 @@ Alternatively, you can directly output the PMLs to a text file using the `--stdo
 ```
 ./movi query --index <index directory> --read <reads file> --stdout > <output file>
 ```
-
 ## Binary classification of the reads
 
 You can apply different classification schemes on the pseudo matching lengths produced by Movi to determine whether the read is found in the index or not.
@@ -94,3 +83,29 @@ avg max-value: average of the max PML found in each window
 above thr: how many windows have a mx PML above the threshold -- the threshold is determined from a null distribution
 below thr: how many windows have a mx PML below the threshold
 ```
+
+## Multi-class classification with Movi Color
+
+Movi Color augments the Movi index with information about the origin of sequences, enabling multi-class and taxonomic classification.
+
+>[Tan, Steven, Sina Majidian, Ben Langmead, and Mohsen Zakeri. "Movi Color: fast and accurate long-read classification with the move structure." bioRxiv (2025)](https://www.biorxiv.org/content/10.1101/2025.05.22.655637v1.abstract)
+### Add colors to an existing Movi index
+
+**Note: The following step is not required if the index was built using the `--color` flag.**
+
+```
+./movi color --index <index directory>
+```
+This step requires the file `ref.fa.doc_offsets` to be available in the index directory. Every line in the `ref.fa.doc_offsets` should specify the offset in the concatenated text corresponding to the rigth most end of a document + 1.
+It will avoid rebuilding the index from the scratch and only adds the color information to an index.
+
+Alternatively, you can pass the --color flag to the build command to construct the color table during index building.
+
+### Perform Multi-class classification
+```
+./movi query --index <index directory> --read <reads file> --multi-classify --out-file <output file>
+```
+
+The `<output file>` will be in the csv format, each line will include three columns: `read name`, `primary document id`, `secondary document id`. 
+
+For more information about the document IDs and multi-class classification, please see [this page](https://github.com/mohsenzakeri/Movi/wiki/Multi%E2%80%90class-classification-with-Movi-Color).

@@ -68,9 +68,9 @@ kseq_t* open_kseq(gzFile& fp, std::string file_address) {
 
 void close_kseq(kseq_t *seq, gzFile& fp) {
     kseq_destroy(seq); // STEP 5: destroy seq
-    std::cerr << "kseq destroyed!\n";
+    // std::cerr << "kseq destroyed!\n";
     gzclose(fp); // STEP 6: close the file handler
-    std::cerr << "fp file closed!\n";
+    // std::cerr << "fp file closed!\n";
 }
 
 char complement(char c) {
@@ -174,7 +174,7 @@ void read_thresholds(std::string tmp_filename, sdsl::int_vector<>& thresholds) {
 }
 
 
-void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::string read_id, MoveQuery& mq, bool no_output) {
+void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::string read_id, MoveQuery& mq, bool color, bool no_output) {
 
     if (to_stdout) {
         std::cout << ">" << read_id << " \n";
@@ -183,6 +183,10 @@ void output_matching_lengths(bool to_stdout, std::ofstream& mls_file, std::strin
         std::cout << "\n";
     } else {
         auto& matching_lengths = mq.get_matching_lengths();
+        if (color) {
+            matching_lengths = mq.get_matching_colors();
+        }
+
         uint64_t matching_lengths_size = matching_lengths.size();
         // uint16_t st_length = seq->name.m;
         uint16_t st_length = read_id.length();

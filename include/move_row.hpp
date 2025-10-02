@@ -120,7 +120,7 @@ const uint8_t mask_thresholds3 = static_cast<uint8_t>(~(((1U << 1) - 1) << 7)); 
 #define MAX_RUN_LENGTH 511 // 2^9-1
 #endif
 
-#if MODE == 5 or MODE == 7
+// #if MODE == 5 or MODE == 7
 struct __attribute__((packed)) MoveTally {
     uint32_t right;
     uint8_t left;
@@ -150,7 +150,7 @@ struct __attribute__((packed)) MoveTally {
         }
     }
 };
-#endif
+// #endif
 
 class __attribute__((packed)) MoveRow {
     public:
@@ -174,10 +174,11 @@ class __attribute__((packed)) MoveRow {
 #endif
         friend std::ostream& operator<<(std::ostream& os, const MoveRow& mr);
 
+        // void set_p(uint64_t p_);
+        // void set_pp(uint64_t pp_);
         void set_n(uint16_t n_);
         void set_offset(uint16_t offset_);
         void set_c(char c_, std::vector<uint64_t>& alphamap);
-
         uint16_t get_n() const;
         uint16_t get_offset() const;
         char get_c() const;
@@ -198,6 +199,7 @@ class __attribute__((packed)) MoveRow {
         void set_overflow_offset();
         void set_overflow_thresholds();
         bool is_overflow_n() const;
+        bool is_overflow_n_ff() const;
         bool is_overflow_offset() const;
 #endif
 
@@ -229,7 +231,7 @@ class __attribute__((packed)) MoveRow {
             return 3;
 #endif
         }
-    private:
+    // private:
 #if MODE == 5 or MODE == 7
         uint8_t n; // length of the run
         uint8_t offset; // offset of the bwt row head of the current run in the new run after the LF-jump
@@ -242,11 +244,16 @@ class __attribute__((packed)) MoveRow {
 #if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 3 or MODE == 6
         uint32_t id;        // The least significant bits of the bwt run after the LF-jump
 #endif
+
+#if COLOR_MODE == 1
+        uint32_t color_id; // The color id of the run, only used in the colored-compressed mode
+#endif
+
 #if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4 or MODE == 8 or MODE == 3 or MODE == 6
         uint16_t n;         // length of the run
         uint16_t offset;    // offset of the bwt row head of the current run in the new run after the LF-jump
 #endif
-  
+
 #if MODE == 0 or MODE == 1 or MODE == 4
         uint16_t threshold;
         uint8_t overflow_bits;
@@ -343,8 +350,9 @@ inline uint64_t MoveRow::get_id() const {
         c = c | res;
         return c;
     } else {
-        return static_cast<uint64_t>(id);
+        return static_cast<uint32_t>(id);
     }
+    return id;
 }
 
 inline uint16_t MoveRow::get_n() const {
