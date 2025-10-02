@@ -22,6 +22,7 @@ public:
     void generate_null_statistics(MoveStructure& mv_, MoviOptions& movi_options);
     size_t initialize_report_file(MoviOptions& movi_options);
     void close_report_file();
+    bool is_present(std::vector<uint16_t>& matching_lens, MoviOptions& movi_options);
     bool classify(std::string& read_name, std::vector<uint16_t>& matching_lens, MoviOptions& movi_options);
 
 private:

@@ -4,7 +4,7 @@ project(movi)
 # C++ standard settings
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=gnu++17")
+set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Output directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/)
@@ -46,6 +46,26 @@ if(NOT sdsl_POPULATED)
   add_subdirectory(${sdsl_SOURCE_DIR} ${sdsl_BINARY_DIR} EXCLUDE_FROM_ALL)
 endif()
 
+#----------------------------------------
+# Add hclust
+#----------------------------------------
+FetchContent_Declare(
+  hclust
+  GIT_REPOSITORY https://github.com/cdalitz/hclust-cpp.git
+)
+
+FetchContent_GetProperties(hclust)
+if(NOT hclust_POPULATED)
+  FetchContent_Populate(hclust)
+endif()
+
+add_library(hclust
+  ${hclust_SOURCE_DIR}/fastcluster.cpp
+)
+target_include_directories(hclust PUBLIC ${hclust_SOURCE_DIR})
+
+
+
 # External repositories
 include(ExternalProject)
 set(EXTERNAL_REPOS_DIR ${CMAKE_BINARY_DIR}/external_repos)
@@ -69,23 +89,24 @@ if (NOT EXISTS ${EXTERNAL_REPOS_DIR}/pfp-thresholds-build/pfp_thresholds)
   )
 endif()
 
+
 #----------------------------------------
 # Add r-permute
 #----------------------------------------
-if (NOT EXISTS ${EXTERNAL_REPOS_DIR}/r-permute-build/test/src/run_constructor)
-  ExternalProject_Add(
-    r-permute
-    GIT_REPOSITORY https://github.com/drnatebrown/r-permute
-    GIT_TAG main
-    PREFIX ${EXTERNAL_REPOS_DIR}
-    SOURCE_DIR ${EXTERNAL_REPOS_DIR}/r-permute
-    BINARY_DIR ${EXTERNAL_REPOS_DIR}/r-permute-build
-    STAMP_DIR ${EXTERNAL_REPOS_DIR}/r-permute-stamp
-    TMP_DIR ${EXTERNAL_REPOS_DIR}/r-permute-tmp
-    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_REPOS_DIR}/r-permute/install
-    BUILD_ALWAYS OFF
-    INSTALL_COMMAND make install
-  )
-endif()
+#if (NOT EXISTS ${EXTERNAL_REPOS_DIR}/r-permute-build/test/src/run_constructor)
+#  ExternalProject_Add(
+#    r-permute
+#    GIT_REPOSITORY https://github.com/drnatebrown/r-permute
+#    GIT_TAG main
+#    PREFIX ${EXTERNAL_REPOS_DIR}
+#    SOURCE_DIR ${EXTERNAL_REPOS_DIR}/r-permute
+#    BINARY_DIR ${EXTERNAL_REPOS_DIR}/r-permute-build
+#    STAMP_DIR ${EXTERNAL_REPOS_DIR}/r-permute-stamp
+#    TMP_DIR ${EXTERNAL_REPOS_DIR}/r-permute-tmp
+#    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_REPOS_DIR}/r-permute/install
+#    BUILD_ALWAYS OFF
+#    INSTALL_COMMAND make install
+#  )
+#endif()
 
 add_subdirectory(src)

@@ -22,8 +22,33 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
 
         // seq = kseq_init(fp); // STEP 3: initialize seq
         std::string index_type = program();
+        if (mv_.movi_options->is_multi_classify()) {
+            out_file = std::ofstream(mv_.movi_options->get_out_file());
+        }
 
         if (!mv_.movi_options->is_stdout() and !mv_.movi_options->is_no_output()) {
+
+            if (mv_.movi_options->is_report_colors()) {
+                std::string colors_file_name = reads_file_name + "." + index_type + ".colors.bin";
+                colors_file = std::ofstream(colors_file_name, std::ios::out | std::ios::binary);
+
+                // Copmuter color ids for the output
+                mv.compute_color_ids_from_flat();
+                std::cerr << "Color offset to color id table is created.\n";
+
+            }
+
+            if (mv_.movi_options->is_pml()) {
+                std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
+                mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
+            } else if (mv_.movi_options->is_zml()) {
+                std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
+                mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
+            } else if (mv_.movi_options->is_count()) {
+                std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
+                matches_file = std::ofstream(matches_file_name);
+            }
+
             if (mv_.movi_options->is_pml()) {
                 std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
                 mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
@@ -94,6 +119,14 @@ void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
         process.idx = mv.r - 1;
         process.offset = mv.get_n(process.idx) - 1;
 
+        // reset the multi-class classification variables
+        process.best_doc = std::numeric_limits<uint16_t>::max();
+        process.second_best_doc = std::numeric_limits<uint16_t>::max();
+        process.sum_matching_lengths = 0;
+        process.colors_count = 0;
+        if (mv.movi_options->is_multi_classify()) {
+            std::fill(process.classify_cnts.begin(), process.classify_cnts.end(), 0);
+        }
 #if TALLY_MODE
         // This is necessary
         process.tally_state = false;
@@ -135,7 +168,62 @@ void ReadProcessor::process_char(Strand& process) {
         t1 = process.t1;
     }
 
-    auto& row = mv.get_move_row(process.idx);
+    if (mv.movi_options->is_multi_classify()) {
+        if (process.match_len >= mv.movi_options->get_min_match_len()) {
+
+            process.colors_count += 1;
+
+            uint64_t color_id;
+#if COLOR_MODE == 1
+            color_id = static_cast<uint64_t>(mv.rlbwt[process.idx].color_id);
+            // Skip doc sets that weren't saved (thrown away by compression).
+            if (color_id >= mv.unique_doc_sets.size()) return;
+#else
+            if (mv.movi_options->is_doc_sets_vector_of_vectors()) {
+                color_id = static_cast<uint64_t>(mv.doc_set_inds[process.idx]);
+                // Skip doc sets that weren't saved (thrown away by compression).
+                if (color_id >= mv.unique_doc_sets.size()) {
+                    // std::cerr << "doc_set_inds[idx] >= unique_doc_sets.size()\n";
+                    // std::cerr << "This should not happen when compression is not turned on.\n";
+                    // std::cerr << "The compressed version of the prefetching mode is not supported yet.\n";
+                    // exit(0);
+                    return;
+                }
+            } else {
+                color_id = mv.doc_set_flat_inds[process.idx].get();
+                // Skip doc sets that weren't saved (thrown away by compression).
+                if (color_id >= mv.flat_colors.size()) return;
+            }
+#endif
+            std::span<uint16_t> cur_set;
+            if (mv.movi_options->is_doc_sets_vector_of_vectors()) {
+                std::vector<uint16_t> &cur_set_vec = mv.unique_doc_sets[color_id];
+                cur_set = std::span<uint16_t>(cur_set_vec.data(), cur_set_vec.size());
+            } else {
+                uint32_t cur_set_size = mv.flat_colors[color_id];
+                cur_set = std::span<uint16_t>(mv.flat_colors.data() + color_id + 1,
+                                              mv.flat_colors.data() + color_id + 1 + cur_set_size);
+            }
+
+            for (int doc : cur_set) {
+                process.classify_cnts[doc]++;
+                if (doc != process.best_doc) {
+                    if (process.best_doc == std::numeric_limits<uint16_t>::max() || process.classify_cnts[doc] > process.classify_cnts[process.best_doc]) {
+                        process.second_best_doc = process.best_doc;
+                        process.best_doc = doc;
+                    } else if (process.second_best_doc == std::numeric_limits<uint16_t>::max() || process.classify_cnts[doc] > process.classify_cnts[process.second_best_doc]) {
+                        process.second_best_doc = doc;
+                    }
+                }
+            }
+
+            process.mq.add_color(mv.color_offset_to_id[color_id]);
+        } else {
+            process.mq.add_color(mv.color_offset_to_id.size());
+        }
+    }
+
+    auto& row = mv.rlbwt[process.idx];
     uint64_t row_idx = process.idx;
     char row_c = mv.alphabet[row.get_c()];
     std::string& R = process.mq.query();
@@ -153,14 +241,14 @@ void ReadProcessor::process_char(Strand& process) {
         bool up = false;
 #if USE_THRESHOLDS
         up = mv.movi_options->is_random_repositioning() ?
-                mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
+                mv.reposition_randomly(process.idx, process.offset, R[process.pos_on_r], process.scan_count) :
                 mv.reposition_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #else
         // When there is no threshold, reposition randomly
-        up = mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count);
+        up = mv.reposition_randomly(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #endif
         process.match_len = 0;
-        char c = mv.alphabet[mv.get_move_row(process.idx).get_c()];
+        char c = mv.alphabet[mv.rlbwt[process.idx].get_c()];
         // sanity check
         if (c == R[process.pos_on_r]) {
             // Observing a match after the repositioning
@@ -174,8 +262,22 @@ void ReadProcessor::process_char(Strand& process) {
             std::cerr << "\t \t This should not happen!\n";
         }
     }
+
     process.mq.add_ml(process.match_len, mv.movi_options->is_stdout());
+    process.sum_matching_lengths += process.match_len;
     process.pos_on_r -= 1;
+
+    // Check for early stopping if the read is unclassified
+    if ( mv.movi_options->is_early_stop() and mv.movi_options->is_multi_classify() ) {
+        if ( process.pos_on_r < process.read.length() / 2 and process.pos_on_r % 100 == 0 ) {
+            float PML_mean = static_cast<float>(process.sum_matching_lengths) / (process.read.length() - process.pos_on_r);
+            if (PML_mean < UNCLASSIFIED_THRESHOLD) {
+                // setting the pos_on_r to -1 will stop the read processing
+                process.pos_on_r = -1;
+            }
+        }
+    }
+
     // if (mv.logs)
     //     process.t2 = std::chrono::high_resolution_clock::now();
     // LF step should happen here in the non-prefetch code
@@ -204,7 +306,7 @@ void ReadProcessor::process_char_tally(Strand& process) {
         }
 
         // After LF is performed, calculate PML based on case1/case2
-        auto& row = mv.get_move_row(process.idx);
+        auto& row = mv.rlbwt[process.idx];
         uint64_t row_idx = process.idx;
         char row_c = mv.alphabet[row.get_c()];
         std::string& R = process.mq.query();
@@ -222,14 +324,14 @@ void ReadProcessor::process_char_tally(Strand& process) {
             bool up = false;
 #if USE_THRESHOLDS
             up = mv.movi_options->is_random_repositioning() ?
-                    mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count) :
+                    mv.reposition_randomly(process.idx, process.offset, R[process.pos_on_r], process.scan_count) :
                     mv.reposition_thresholds(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #else
             // When there is no threshold, reposition randomly
-            up = mv.reposition_randomly(process.idx, R[process.pos_on_r], process.scan_count);
+            up = mv.reposition_randomly(process.idx, process.offset, R[process.pos_on_r], process.scan_count);
 #endif
             process.match_len = 0;
-            char c = mv.alphabet[mv.get_move_row(process.idx).get_c()];
+            char c = mv.alphabet[mv.rlbwt[process.idx].get_c()];
             // sanity check
             if (c == R[process.pos_on_r]) {
                 // Observing a match after the repositioning
@@ -373,7 +475,7 @@ void ReadProcessor::find_tally_b(Strand& process) {
         return;
     }
 
-    process.char_index = mv.get_move_row(process.idx).get_c();
+    process.char_index = mv.rlbwt[process.idx].get_c();
 
     // The id of the last run is always stored at the last tally_id row
     if (process.idx == mv.r - 1) {
@@ -410,27 +512,111 @@ void ReadProcessor::find_tally_b(Strand& process) {
 #endif
 
 void ReadProcessor::write_mls(Strand& process) {
+    bool write_stdout = mv.movi_options->is_stdout();
     if (mv.movi_options->is_classify() or mv.movi_options->is_filter()) {
-        std::vector<uint16_t>& matching_lens = process.mq.get_matching_lengths();
+
+        std::vector<uint16_t> matching_lens;
+
+        // TODO: Classify for the large pml lens is not supported yet.
+        if (mv.movi_options->is_small_pml_lens()) {
+            for (uint32_t i = 0;  i < process.mq.get_matching_lengths().size(); i++) {
+                matching_lens.push_back(static_cast<uint16_t>(process.mq.get_matching_lengths()[i]));
+            }
+        }
+
         bool found = classifier.classify(process.read_name, matching_lens, *mv.movi_options);
         if (found and mv.movi_options->is_filter()) {
             output_read(process.read_name, process.read, mv.movi_options->is_no_output());
         }
     }
 
-    if (!mv.movi_options->is_filter()) {
-        bool write_stdout = mv.movi_options->is_stdout() and !mv.movi_options->is_classify() and !mv.movi_options->is_filter();
-        bool logs = mv.movi_options->is_logs();
-        if (logs) {
-            auto t2 = std::chrono::high_resolution_clock::now();
-            auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
-            process.mq.add_cost(elapsed);
-            process.mq.add_fastforward(process.ff_count);
-            process.mq.add_scan(process.scan_count);
-            output_logs(costs_file, scans_file, fastforwards_file, process.read_name, process.mq, mv.movi_options->is_no_output());
-        }
+    if (mv.movi_options->is_multi_classify()) {
+        out_file << process.read_name << ",";
+        // binary classification in the multi-class classification mode is handled at a different part of the code
+        // if (mv.movi_options->is_classify() && !mv.classifier->is_present(process.mq.get_matching_lengths(), *mv.movi_options)) {
+        float PML_mean = static_cast<float>(process.sum_matching_lengths) / process.read.length();
+        if (PML_mean < UNCLASSIFIED_THRESHOLD || process.best_doc == std::numeric_limits<uint16_t>::max()) {
+            // Not present
+            if (mv.movi_options->is_report_all()) {
+                out_file << "0\n";
+            } else {
+                out_file << "0,0\n";
+            }
+        } else {
+            if (mv.movi_options->is_report_colors()) {
+                // Writing the PMLs
+                output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, false, false);
 
-        output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, mv.movi_options->is_no_output());
+                // Writing the colors
+                output_matching_lengths(write_stdout, colors_file, process.read_name, process.mq, true, false);
+            }
+
+            // If the second most occurring document is more than 95% of the most occurring one,
+            // we report the other species as well and classify the read at a higher level.
+            // out_file << mv.to_taxon_id[process.best_doc];
+            if (mv.movi_options->is_report_all()) {
+
+                if (mv.movi_options->get_min_score_frac() == 0) {
+                    // For the min_diff_frac mode, we write the best document no matter what
+                    // For the min_score_frac mode, the best document is outputed only if its score is high enough
+                    out_file << mv.to_taxon_id[process.best_doc];
+                }
+
+                uint32_t output_document_count = 0;
+                uint32_t best_doc_cnt = process.classify_cnts[process.best_doc];
+                for (int i = 0; i < process.classify_cnts.size(); i++) {
+                    if (mv.movi_options->get_min_score_frac() == 0) {
+
+                        float diff_best = static_cast<float>(best_doc_cnt - process.classify_cnts[i]);
+
+                        if (i!= process.best_doc and diff_best < mv.movi_options->get_min_diff_frac() * best_doc_cnt) {
+                                out_file << "," << mv.to_taxon_id[i];
+                        }
+                    } else {
+
+                        if (static_cast<float>(process.classify_cnts[i]) >= mv.movi_options->get_min_score_frac() * process.colors_count) {
+                            out_file << "," << mv.to_taxon_id[i]; // << ":" << process.classify_cnts[i] << "/" << process.colors_count << "/" << process.read.length();
+                            output_document_count += 1;
+                        }
+                    }
+                }
+
+                if (mv.movi_options->get_min_score_frac() != 0 and output_document_count == 0) {
+                    out_file << "0";
+                }
+            } else {
+                if (process.second_best_doc == std::numeric_limits<uint16_t>::max()) {
+                    out_file << mv.to_taxon_id[process.best_doc] << ",0";
+                } else {
+
+                    uint32_t best_doc_cnt = process.classify_cnts[process.best_doc];
+                    uint32_t second_best_doc_cnt = process.classify_cnts[process.second_best_doc];
+                    float second_best_diff = static_cast<float>(best_doc_cnt - second_best_doc_cnt);
+
+                    if (second_best_diff < 0.05 * best_doc_cnt) {
+                        out_file << mv.to_taxon_id[process.best_doc] << "," << mv.to_taxon_id[process.second_best_doc];
+                    } else {
+                        out_file << mv.to_taxon_id[process.best_doc] << ",0";
+                    }
+                }
+            }
+            out_file << "\n";
+        }
+    } else {
+        if (!mv.movi_options->is_filter()) {
+            bool write_stdout = mv.movi_options->is_stdout() and !mv.movi_options->is_classify() and !mv.movi_options->is_filter();
+            bool logs = mv.movi_options->is_logs();
+            if (logs) {
+                auto t2 = std::chrono::high_resolution_clock::now();
+                auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1);
+                process.mq.add_cost(elapsed);
+                process.mq.add_fastforward(process.ff_count);
+                process.mq.add_scan(process.scan_count);
+                output_logs(costs_file, scans_file, fastforwards_file, process.read_name, process.mq, mv.movi_options->is_no_output());
+            }
+
+            output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, false, mv.movi_options->is_no_output());
+        }
     }
 }
 
@@ -562,10 +748,10 @@ void ReadProcessor::process_latency_hiding(BatchLoader& reader) {
                 } else {
                     // 4: big jump with prefetch
                     if (is_pml) {
-                        my_prefetch_r((void*)(&(mv.get_move_row(0)) + mv.get_id(processes[i].idx)));
+                        my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.get_id(processes[i].idx)));
                     } else if (is_count or is_zml) {
-                        my_prefetch_r((void*)(&(mv.get_move_row(0)) + mv.get_id(processes[i].range.run_start)));
-                        my_prefetch_r((void*)(&(mv.get_move_row(0)) + mv.get_id(processes[i].range.run_end)));
+                        my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.get_id(processes[i].range.run_start)));
+                        my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.get_id(processes[i].range.run_end)));
                     }
                 }
             }
@@ -603,11 +789,11 @@ void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
                         // prefetch following rows until the checkpoint
                         // Every prefetch loads 64 bytes which is about 20 move rows
                         for (uint64_t tally = processes[i].idx; tally <= processes[i].next_check_point; tally += prefetch_step)
-                            my_prefetch_r((void*)(&(mv.get_move_row(0)) + tally));
+                            my_prefetch_r((void*)(&(mv.rlbwt[0]) + tally));
                     } else {
                         // prefetch tally.id
                         for (uint64_t tally = 0; tally <= mv.tally_checkpoints; tally += prefetch_step)
-                            my_prefetch_r((void*)(&(mv.get_move_row(0)) + processes[i].run_id - tally));
+                            my_prefetch_r((void*)(&(mv.rlbwt[0]) + processes[i].run_id - tally));
                     }
                 }
             }
@@ -670,8 +856,8 @@ void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
                         processes[i].mq.add_ml(processes[i].match_len);
                         processes[i].match_len += 1;
                     }
-                    my_prefetch_r((void*)(&(mv.get_move_row(0)) + mv.get_move_row(processes[i].range.run_start).get_id()));
-                    my_prefetch_r((void*)(&(mv.get_move_row(0)) + mv.get_move_row(processes[i].range.run_end).get_id()));
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_start].get_id()));
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.rlbwt[processes[i].range.run_end].get_id()));
                 }
             }
         }
@@ -691,7 +877,13 @@ void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
 uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes, BatchLoader& reader) {
     uint64_t finished_count = 0;
     uint64_t empty_strands = 0;
-    for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
+    for(int i = 0; i < strands; i++) {
+        processes.emplace_back(Strand());
+        if (mv.movi_options->is_multi_classify()) {
+            processes[i].classify_cnts.resize(mv.get_num_species(), 0);
+        }
+    }
+
     // std::cerr << strands << " processes are created.\n";
     for (uint64_t i = 0; i < strands; i++) {
         if (finished_count == 0) {
@@ -809,8 +1001,8 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k_, BatchLoader& reader)
                     }
                 } else {
                     // 4: big jump with prefetch
-                    my_prefetch_r((void*)(&(mv.get_move_row(0)) + mv.get_id(processes[i].range.run_start)));
-                    my_prefetch_r((void*)(&(mv.get_move_row(0)) + mv.get_id(processes[i].range.run_end)));
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.get_id(processes[i].range.run_start)));
+                    my_prefetch_r((void*)(&(mv.rlbwt[0]) + mv.get_id(processes[i].range.run_end)));
                 }
             }
         }
@@ -944,8 +1136,8 @@ bool ReadProcessor::backward_search(Strand& process, uint64_t end_pos) {
     if (verbose)
         std::cerr << "backward search begins:\n" << process.pos_on_r << " "
                     << R[process.pos_on_r] << " "
-                    << mv.alphabet[mv.get_move_row(process.range.run_start).get_c()] << " "
-                    << mv.alphabet[mv.get_move_row(process.range.run_end).get_c()] << "\n";
+                    << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
+                    << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
     bool first_iteration = process.pos_on_r == end_pos;
     if (first_iteration) {
         if (process.range.is_empty()) {
@@ -1000,14 +1192,14 @@ bool ReadProcessor::backward_search(Strand& process, uint64_t end_pos) {
     process.range_prev = process.range;
     if (verbose)
         std::cerr << "before: " << process.range.run_start << " " << process.range.run_end << " "
-                    << static_cast<uint64_t>(mv.get_move_row(process.range.run_start).get_c()) << " "
-                    << mv.alphabet[mv.get_move_row(process.range.run_end).get_c()] << "\n";
+                    << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
+                    << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
     mv.update_interval(process.range, R[process.pos_on_r - 1]);
     if (verbose)
         std::cerr << "after: " << process.range.run_start << " " << process.range.run_end << " "
-                    << static_cast<uint64_t>(mv.get_move_row(process.range.run_start).get_c()) << " "
-                    << mv.alphabet[mv.get_move_row(process.range.run_start).get_c()] << " "
-                    << mv.alphabet[mv.get_move_row(process.range.run_end).get_c()] << "\n";
+                    << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
+                    << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
+                    << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
 
     return false;
 }

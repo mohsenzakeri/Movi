@@ -19,6 +19,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("f,fasta", "Reference file", cxxopts::value<std::string>())
         ("l,list", "List of fasta files, only works with 'movi' binary", cxxopts::value<std::string>())
+        ("color", "Add colors to the index for multi-class classification")
+        ("color-vectors", "Build a vector of vectors for colors (builds \"ref.fa.doc_sets.bin\")")
         ("thresholds", "Store the threshold values in the compact mode by splitting the runs at threshold boundaries")
         ("preprocessed", "The BWT is preprocessed into heads and lens files")
         ("verify", "Verify if all the LF_move operations are correct")
@@ -47,6 +49,20 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("sa-entries", "Find the SA entries for each read")
         ("classify", "Classify the reads")
         ("filter", "Filter the reads based on the matching lengths, output the filtered reads to stdout")
+        ("multi-classify", "Multi-class classification with PMLs")
+        ("early-stop", "Early stop the read processing for unclassified reads")
+        ("report-all", "Report all the taxon ids for each read (default: min-diff-frac = 0.05), not available in no-prefetch mode")
+        ("report-colors", "Report the colors for each PML")
+        ("min-diff-frac", "Report all the taxon ids which have score close to the best document by this fraction", cxxopts::value<float>())
+        ("min-score-frac", "Report all the taxon ids which have score >= min-score-frac * read-length. If set, min-diff-frac mode is turned off.", cxxopts::value<float>())
+        ("min-len", "Minimum matching length for classification (only consider PMLs >= min-len), default is 1", cxxopts::value<uint8_t>())
+        ("pvalue-scoring", "Use p-value scoring for classification")
+        ("full", "Use full coloring information to compute pseudo-matching lengths (PMLs)")
+        ("compress", "Use compressed document sets for classification")
+        ("freq-compress", "Use frequency compressed document sets for classification")
+        ("tree-compress", "Use tree compressed document sets for classification")
+        ("color-move-rows", "Color the move rows, query is not performed")
+        ("color-vectors", "Use vector of vectors for colors (requires \"ref.fa.doc_sets.bin\")")
         ("bin-width", "The width of the bin used for classification", cxxopts::value<uint32_t>())
         ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
         ("i,index", "Index directory", cxxopts::value<std::string>())
@@ -59,12 +75,21 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
         ("s,strands", "Number of strands for query", cxxopts::value<int>())
         ("t,threads", "Number of threads for query", cxxopts::value<int>())
+        ("out-file", "Output file if computing PMLs for classification", cxxopts::value<std::string>())
         ("stdout", "Write the output to stdout, writes the matching lengths by default, or the report of classification if --classify is passed")
         ("no-output", "Do not write any output, ignores other options about the output")
         ("ignore-illegal-chars", "In the case of illegal characters (i.e., non-ACGT for genomic data), substitute the character with \'A\'(1) or a random character from the alphabet (2).", cxxopts::value<int>());
 
+    auto colorOptions = options.add_options("color")
+        ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("color-vectors", "Build a vector of vectors for colors (builds \"ref.fa.doc_sets.bin\")")
+        ("compress", "Whether or not we compress doc sets (only keep most frequent few)")
+        ("full", "Whether or not to store all document information (or just the sets for each run)")
+        ("t,threads", "Number of threads for query", cxxopts::value<int>());
+
     auto viewOptions = options.add_options("view")
-        ("mls-file", "The matching lengths (PML or ZML) file in the binary format", cxxopts::value<std::string>());
+        ("mls-file", "The matching lengths (PML or ZML) file in the binary format", cxxopts::value<std::string>())
+        ("small-pml", "Read the binary file with PMLs stored as uint16_t.");
 
     auto rlbwtOptions = options.add_options("rlbwt")
         ("bwt-file", "BWT file", cxxopts::value<std::string>());
@@ -75,7 +100,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
 
     auto inspectOptions = options.add_options("inspect")
         ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
-        ("i,index", "Index directory", cxxopts::value<std::string>());
+        ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("flat-color-vectors", "Flat and serialize the colors vectors");
 
     auto ftabOptions = options.add_options("ftab")
         ("i,index", "Index directory", cxxopts::value<std::string>())
@@ -122,6 +148,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                 if (result.count("index") == 1 and result.count("fasta") == 1) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
                     movi_options.set_ref_file(result["fasta"].as<std::string>());
+                    if (result.count("color")) { movi_options.set_color(true); }
+                    if (result.count("color-vectors") == 1) { movi_options.set_doc_sets_vector_of_vectors(true); }
                     if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
                     if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
                     if (result.count("output-ids") >= 1) { movi_options.set_output_ids(true); }
@@ -157,6 +185,26 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                     const std::string message = "Please specify the index directory file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
+            } else if (command == "color") { 
+                if (result.count("index") == 1) {
+                    movi_options.set_index_dir(result["index"].as<std::string>());
+                    if (result.count("color-vectors") == 1) {
+                        movi_options.set_doc_sets_vector_of_vectors(true);
+                    }
+                    if (result.count("full")) {
+                        movi_options.set_full_color(true);
+                    }
+                    if (result.count("compress")) {
+                        movi_options.set_compressed(true);
+                    }
+                    if (result.count("threads") == 1) {
+                        std::cerr << "threads: " << result["threads"].as<int>() << "\n";
+                        movi_options.set_threads(static_cast<size_t>(result["threads"].as<int>()));
+                    }
+                } else {
+                    const std::string message = "Please include one index directory and one fasta file.";
+                    cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
+                }
             } else if (command == "query") {
                 try {
                     if (result.count("index") == 1 and result.count("read") == 1) {
@@ -177,7 +225,33 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                         if (result.count("rpml") >= 1) { movi_options.set_random_repositioning(true); }
                         if (result.count("classify") >= 1) { movi_options.set_classify(true); }
                         if (result.count("filter") >= 1) { movi_options.set_filter(true); }
+                        if (result.count("multi-classify") >= 1) { movi_options.set_multi_classify(true); }
+                        if (result.count("early-stop") >= 1) { movi_options.set_early_stop(true); }
+                        if (result.count("report-all") >= 1) { movi_options.set_report_all(true); }
+                        if (result.count("report-colors") >= 1) { movi_options.set_report_colors(true); }
+                        if (result.count("min-diff-frac") >= 1) { movi_options.set_min_diff_frac(static_cast<float>(result["min-diff-frac"].as<float>())); }
+                        if (result.count("min-score-frac") >= 1) { movi_options.set_min_score_frac(static_cast<float>(result["min-score-frac"].as<float>())); }
+                        if (result.count("min-len")) { movi_options.set_min_match_len(result["min-len"].as<uint8_t>()); }
+                        if (result.count("pvalue-scoring") == 1) { movi_options.set_pvalue_scoring(true); }
+                        if (result.count("color-move-rows") == 1) { movi_options.set_color_move_rows(true); }
+                        if (result.count("color-vectors") == 1) { movi_options.set_doc_sets_vector_of_vectors(true); }
                         if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
+                        if (result.count("multi-classify")) {
+                            if (result.count("full")) {
+                                movi_options.set_full_color(true);
+                            }
+                            if (result.count("freq-compress")) {
+                                movi_options.set_freq_compressed(true);
+                                movi_options.set_tree_compressed(false);
+                            }
+                            if (result.count("tree-compress")) {
+                                movi_options.set_tree_compressed(true);
+                                movi_options.set_freq_compressed(false);
+                            }
+                            if (result.count("out-file")) {
+                                movi_options.set_out_file(result["out-file"].as<std::string>());
+                            }
+                        }
                         if (result.count("ignore-illegal-chars") == 1) {
                             if (!movi_options.set_ignore_illegal_chars(result["ignore-illegal-chars"].as<int>())) {
                                 const std::string message = "ignore-illegal-chars should be either 1 (set illegal chars to \'A\') or 2 (set illegal chars to a random char).";
@@ -228,6 +302,10 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
             } else if (command == "view") {
                 if (result.count("mls-file") == 1) {
                     movi_options.set_mls_file(result["mls-file"].as<std::string>());
+                    if (result.count("small-pml") >= 1) {
+                        movi_options.set_small_pml_lens(true);
+                    }
+
                     if (result.count("classify") >= 1) {
                         movi_options.set_classify(true);
                         if (result.count("bin-width") >= 1) {
@@ -267,6 +345,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options) {
                 if (result.count("index")) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
                     if (result.count("output-ids") >= 1) { movi_options.set_output_ids(true); }
+                    if (result.count("flat-color-vectors") == 1) { movi_options.set_flat_color_vectors(true); }
                 } else {
                     const std::string message = "Please specify the index directory file.";
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);

@@ -10,22 +10,62 @@
 #include <sys/stat.h>
 #include <vector>
 #include <unordered_map>
+#include <map>
+#include <sstream>
+#include <filesystem>
+#include <span>
 
 #include <span>
 #include <sys/mman.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include "kseq.h"
+#include "fastcluster.h"
 
 #include <sdsl/int_vector.hpp>
 #include <sdsl/bit_vectors.hpp>
 
 #include "movi_options.hpp"
 #include "move_row.hpp"
+#include "move_row_colored.hpp"
 #include "move_query.hpp"
 #include "sequitur.hpp"
 #include "mem_finder.hpp"
 #include "utils.hpp"
+
+const uint64_t MOD = 1000000000000000003ll;
+const uint32_t ARR_SIZE = (1 << 16);
+extern uint64_t pow2[ARR_SIZE];
+
+class Classifier;
+
+class DocSet {
+public:
+    std::vector<uint16_t> docs;
+
+    DocSet() {}
+    DocSet(std::vector<uint16_t> &_docs) : docs(_docs) {}
+    DocSet(std::vector<uint16_t> &&_docs) : docs(_docs) {}
+
+    bool operator==(const DocSet &o) const {
+        return docs == o.docs;
+    }
+};
+
+template<>
+struct std::hash<DocSet> {
+    std::size_t operator()(const DocSet &dc) const {
+        size_t hash = 0;
+        for (int doc : dc.docs) {
+            hash += pow2[doc];
+            if (hash >= MOD) {
+                hash -= MOD;
+            }
+        }
+        return hash;
+    }
+};
 
 struct MoveInterval {
     MoveInterval() {}
@@ -112,8 +152,15 @@ class MoveStructure {
         MoveStructure(MoviOptions* movi_options_);
         MoveStructure(MoviOptions* movi_options_, uint16_t splitting, bool constant);
 
+        std::ofstream debug_out;
+        std::ofstream out_file;
+        
         void build();
         void fill_bits_by_thresholds();
+        void find_run_heads_information();
+        void add_detected_run(uint64_t scanned_bwt_length,
+                             uint64_t current_char, uint64_t next_char,
+                             uint16_t& run_length);
         void build_rlbwt();
         uint64_t query_pml(MoveQuery& mq);
         uint64_t query_backward_search(MoveQuery& mq, int32_t& pos_on_r);
@@ -149,10 +196,12 @@ class MoveStructure {
         std::string reconstruct_lf();
 
         uint64_t LF(uint64_t row_number, uint64_t alphabet_index);
+        uint64_t LF_heads(uint64_t run_number, uint64_t alphabet_index);
         // The 3rd argument of LF_move is used in the latency_hiding_tally mode
         uint16_t LF_move(uint64_t& pointer, uint64_t& i, uint64_t id = std::numeric_limits<uint64_t>::max());
         uint64_t fast_forward(uint64_t& offset, uint64_t index, uint64_t x);
 
+        void build_alphabet(std::vector<uint64_t>& all_possible_chars);
         uint64_t compute_threshold(uint64_t r_idx, uint64_t pointer, char lookup_char);
         uint32_t compute_index(char row_char, char lookup_char);
 
@@ -169,16 +218,51 @@ class MoveStructure {
         void find_sampled_SA_entries();
         uint64_t get_SA_entries(uint64_t idx, uint64_t offset);
 
+        // Fill the run offsets array (used for building colors among other things)
+        void fill_run_offsets();
+        // Builds document sets for each run in rlbwt.
+        void build_doc_sets();
+        uint32_t hash_collapse(std::unordered_map<DocSet, uint32_t> &keep_set, DocSet &bv);
+        void build_tree_doc_sets();
+        void build_doc_set_similarities();
+        void compress_doc_sets();
+        void compute_color_ids_from_flat();
+        // Finds documents corresponding to rows in BWT.
+        void build_doc_pats();
+        // Writes frequencies of document sets to file.
+        void write_doc_set_freqs(std::string fname);
+        // Initialize classify counts
+        void initialize_classify_cnts();
+        void set_classifier(Classifier *cl) { classifier = cl; }
+
+        // Document tree functions
+        bool is_ancestor(uint16_t x, uint16_t y);
+        uint16_t LCA(uint16_t x, uint16_t y);
+        void dfs_times(uint16_t cur, uint16_t &t);
+        
         // The following are used during development only
         // std::string reconstruct();
         // char compute_char(uint64_t idx);
         // uint64_t naive_lcp(uint64_t row1, uint64_t row2);
         // uint64_t naive_sa(uint64_t bwt_row);
         // bool jump_naive_lcp(uint64_t& idx, uint64_t pointer, char r_char, uint64_t& lcp);
+        void add_colors_to_rlbwt();
+        void flat_and_serialize_colors_vectors();
+        void deserialize_doc_sets_flat();
 
+        void serialize_doc_pats(std::string fname);
+        void deserialize_doc_pats(std::string fname);
+        void serialize_doc_sets(std::string fname);
+        void deserialize_doc_sets(std::string fname);
+        void serialize_doc_rows();
+        void deserialize_doc_rows();
+        void load_document_info();
+        void serialize();
+        void deserialize();
+        
         uint64_t reposition_up(uint64_t idx, char c, uint64_t& scan_count);
         uint64_t reposition_down(uint64_t idx, char c, uint64_t& scan_count);
-        bool reposition_randomly(uint64_t& idx, char r_char, uint64_t& scan_count);
+        bool reposition_randomly(uint64_t& idx, uint64_t& offset, char r_char, uint64_t& scan_count);
 
         void verify_lfs();
         void print_stats();
@@ -186,16 +270,16 @@ class MoveStructure {
         void analyze_rows();
         bool check_alphabet(char& c);
 
-        void serialize();
-        void deserialize();
         void serialize_sampled_SA();
         void deserialize_sampled_SA();
 
+        int get_num_docs() { return num_docs; }
+        int get_num_species() { return num_species; }
         char get_char(uint64_t idx);
         uint64_t get_n(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
         uint64_t get_id(uint64_t idx);
-        MoveRow& get_move_row(uint64_t idx);
+        // MoveRow& get_move_row(uint64_t idx);
 #if USE_THRESHOLDS
         void compute_thresholds();
         bool reposition_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
@@ -205,10 +289,55 @@ class MoveStructure {
         uint16_t get_rlbwt_thresholds(uint64_t idx, uint16_t i);
         void set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t value);
 #endif
-        KmerStatistics kmer_stats;
+	    KmerStatistics kmer_stats;
         friend class ReadProcessor;
         std::vector<MoveRow> get_rlbwt();
     private:
+        // Sorted vector of the start offsets of each document.  
+        std::vector<uint64_t> doc_offsets;
+        // Species ID for each document
+        std::vector<uint32_t> doc_ids;
+        // Map from taxon id to compressed species index
+        std::map<uint32_t, uint32_t> taxon_id_compress;
+        // Compressed species index to taxon id
+        std::vector<uint32_t> to_taxon_id;
+        // log length of each species
+        std::vector<double> log_lens;
+        uint32_t num_docs;
+        uint32_t num_species;
+
+        // Offset of run heads in the rlbwt.
+        std::vector<uint64_t> run_offsets;
+
+        // Document sets.
+        std::vector<uint16_t> flat_colors;
+        std::unordered_map<uint64_t, uint32_t> color_offset_to_id;
+        std::vector<std::vector<uint16_t>> unique_doc_sets;
+        std::vector<uint32_t> doc_set_inds;
+        std::vector<MoveTally> doc_set_flat_inds;
+        sdsl::bit_vector compressed;
+
+        // Tree over documents
+        std::vector<std::vector<uint16_t>> tree;
+        std::vector<std::vector<uint16_t>> tree_doc_sets;
+        std::vector<std::vector<uint16_t>> bin_lift;
+        std::vector<uint16_t> t_in;
+        std::vector<uint16_t> t_out;
+        
+        // Count of how much each doc set appears (by ID).
+        std::vector<uint64_t> doc_set_cnts;
+
+        // Document patterns (species that each row in BWT belongs to).
+        std::vector<uint16_t> doc_pats;
+
+        // Counts for classification
+        std::vector<uint32_t> classify_cnts;
+        std::vector<double> doc_scores;
+        const double log4 = log(4);
+
+        // Classifier object for binary classification
+        Classifier *classifier;
+    
         MoviOptions* movi_options;
 	    bool onebit; // This is not used any more as the onebit modes is deprecated
         bool constant;
@@ -241,6 +370,7 @@ class MoveStructure {
         // The move structure rows
         std::vector<MoveRow> rlbwt;
         std::span<MoveRow> rlbwt_view;
+        std::vector<MoveRowColored> rlbwt_colored;
 #if TALLY_MODE
         uint32_t tally_checkpoints;
         std::vector<std::vector<MoveTally>> tally_ids;
@@ -274,8 +404,12 @@ class MoveStructure {
         sdsl::int_vector<> thresholds;
         std::vector<uint64_t> all_p;
         std::vector<char> heads;
+        std::vector<char> original_run_heads;
         std::vector<std::unique_ptr<sdsl::bit_vector> > occs;
         std::vector<std::unique_ptr<sdsl::rank_support_v<> > > occs_rank;
+        std::vector<uint64_t> heads_rank;
+        std::vector<uint64_t> lens;
+
         sdsl::bit_vector bits;
         sdsl::rank_support_v<> rbits;
         // sdsl::select_support_mcl<> sbits;
