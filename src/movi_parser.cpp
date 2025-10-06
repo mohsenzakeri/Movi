@@ -14,7 +14,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
         ("legacy-header", "Use legacy single-byte header format")
         ("default-blocks", "The block size should not be read from the index (for blocked indexes)")
         ("d,dbg", "Enable debug mode")
-        ("v,verbose", "Enable verbose mode")
+        ("verbose", "Enable verbose mode")
         ("l,logs", "Enable logs");
 
     auto buildOptions = options.add_options("build")
@@ -50,6 +50,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
         ("sa-entries", "Find the SA entries for each read")
         ("classify", "Classify the reads")
         ("filter", "Filter the reads based on the matching lengths, output the filtered reads to stdout")
+        ("v,invert", "Output the not found reads during filtering")
         ("multi-classify", "Multi-class classification with PMLs")
         ("early-stop", "Early stop the read processing for unclassified reads")
         ("report-all", "Report all the taxon ids for each read (default: min-diff-frac = 0.05), not available in no-prefetch mode")
@@ -241,6 +242,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                         if (result.count("rpml") >= 1) { movi_options.set_random_repositioning(true); }
                         if (result.count("classify") >= 1) { movi_options.set_classify(true); }
                         if (result.count("filter") >= 1) { movi_options.set_filter(true); }
+                        if (result.count("invert") >= 1) { movi_options.set_invert(true); }
                         if (result.count("multi-classify") >= 1) { movi_options.set_multi_classify(true); }
                         if (result.count("early-stop") >= 1) { movi_options.set_early_stop(true); }
                         if (result.count("report-all") >= 1) { movi_options.set_report_all(true); }

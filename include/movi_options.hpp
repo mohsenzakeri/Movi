@@ -43,6 +43,7 @@ class MoviOptions {
         bool is_multi_ftab() { return multi_ftab; }
         bool is_classify() { return classify; }
         bool is_filter() { return filter; }
+        bool is_invert() { return invert; }
         bool is_early_stop() { return early_stop; }
         bool is_report_colors() { return report_colors; }
         bool is_report_color_ids() { return report_color_ids; }
@@ -115,6 +116,7 @@ class MoviOptions {
             filter = filter_;
             if (filter_) classify = true;  // Filter mode requires binary classification
         }
+        void set_invert(bool invert_) { invert = invert_; }
         void set_multi_classify(bool multi_classify_) { multi_classify = multi_classify_; }
         void set_early_stop(bool val) { early_stop = val; }
         void set_report_colors(bool report_colors_) { report_colors = report_colors_; }
@@ -195,6 +197,7 @@ class MoviOptions {
             std::cerr << "verify:\t" << verify << "\n";
             std::cerr << "classify:\t" << classify << "\n";
             std::cerr << "filter:\t" << filter << "\n";
+            std::cerr << "invert:\t" << invert << "\n";
             std::cerr << "generate_null_reads:\t" << generate_null_reads << "\n";
             std::cerr << "bin_width:\t" << bin_width << "\n";
             std::cerr << "no_output:\t" << no_output << "\n";
@@ -241,6 +244,7 @@ class MoviOptions {
         bool verify = false;
         bool classify = false;
         bool filter = false;
+        bool invert = false;
         bool multi_classify = false;
         bool early_stop = false;
         bool report_colors = false;

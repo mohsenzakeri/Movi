@@ -38,8 +38,12 @@ uint64_t handle_pml_zml(MoveQuery& mq, MoviOptions& movi_options,
 
             bool found = classifier.classify(mq.get_query_id(), matching_lens_16, movi_options);
 
-            if (found and movi_options.is_filter() && !movi_options.is_no_output()) {
-                output_read(mq);
+            if (movi_options.is_filter() && !movi_options.is_no_output()) {
+                if (found && !movi_options.is_invert()) {
+                    output_read(mq);
+                } else if (!found && movi_options.is_invert()) {
+                    output_read(mq);
+                }
             }
         }
 

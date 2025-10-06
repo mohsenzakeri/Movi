@@ -563,8 +563,12 @@ void ReadProcessor::write_mls(Strand& process) {
             std::vector<uint16_t> matching_lens_16(process.mq.get_matching_lengths().begin(), process.mq.get_matching_lengths().end());
 
             bool found = classifier.classify(process.mq.get_query_id(), matching_lens_16, *mv.movi_options);
-            if (found and mv.movi_options->is_filter() && !mv.movi_options->is_no_output()) {
-                output_read(process.mq);
+            if (mv.movi_options->is_filter() && !mv.movi_options->is_no_output()) {
+                if (found && !mv.movi_options->is_invert()) {
+                    output_read(process.mq);
+                } else if (!found && mv.movi_options->is_invert()) {
+                    output_read(process.mq);
+                }
             }
         }
 
