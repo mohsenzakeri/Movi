@@ -6,6 +6,8 @@
 
 #include "kseq.h"
 
+#include "commons.hpp"
+
 // STEP 1: declare the type of file handler and the read() function
 KSEQ_INIT(gzFile, gzread)
 
@@ -53,10 +55,10 @@ uint64_t read_fasta(const char* file_name,
         }
 
         if (kmer_mode) {
-            // Adding the separators (#) for the kmer mode
-            clean_fasta << '>' << seq->name.s << '\n' << seq->seq.s << '#' << '\n';
+            // Adding the separators (%) for the kmer mode
+            clean_fasta << '>' << seq->name.s << '\n' << seq->seq.s << SEPARATOR << '\n';
             if (rc)
-                clean_fasta << '>' << seq->name.s << "_rev_comp" << '\n' << seq_rc << '#' << '\n';
+                clean_fasta << '>' << seq->name.s << "_rev_comp" << '\n' << seq_rc << SEPARATOR << '\n';
             total_length += rc ? 2 : 1;
         } else {
             clean_fasta << '>' << seq->name.s << '\n' << seq->seq.s << '\n';

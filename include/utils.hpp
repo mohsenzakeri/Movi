@@ -14,6 +14,7 @@
 #include <zlib.h>
 #include "kseq.h"
 
+#include "commons.hpp"
 #include "move_query.hpp"
 #include "movi_options.hpp"
 
