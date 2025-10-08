@@ -655,142 +655,145 @@ void MoveStructure::fill_bits_by_thresholds() {
 
 
 #if USE_THRESHOLDS
+void MoveStructure::debug_threshold_calculation(uint64_t i, uint64_t thr_i, uint64_t j, char rlbwt_c,
+                                               const std::vector<uint64_t>& alphabet_thresholds) {
+    if (!movi_options->is_verbose() || i < rlbwt.size() - 10) return;
+
+    std::cerr << "i: " << i << "\n"
+              << "rlbwt[i].get_offset(): " << get_offset(i) << "\n"
+              << "get_n(i): " << get_n(i) << "\n"
+              << "thresholds[thr_i]: " << thresholds[thr_i] << " "
+              << "rlbwt_c: " << rlbwt_c << "\n";
+
+    if (j < alphabet.size()) {
+        std::cerr << "\t j: \t" << j << " "
+                  << "alphabet[j]: " << alphabet[j] << "  "
+                  << "alphamap_3[alphamap[rlbwt_c]][j]: " << alphamap_3[alphamap[rlbwt_c]][j] << " "
+                  << "alphabet_thresholds[j]: " << alphabet_thresholds[j] << " "
+#if SPLIT_THRESHOLDS_FALSE
+                  << "rlbwt[i].thresholds[j]:" << get_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j]) << "\n";
+#endif
+#if SPLIT_THRESHOLDS_TRUE
+                  << "rlbwt[i].thresholds[j]:" << get_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j]) << "\n";
+#endif
+    }
+}
+
+void MoveStructure::set_threshold_for_one_character(uint64_t i, uint16_t threshold_index, uint64_t value,
+                                                    uint16_t value_split, std::vector<uint64_t>& current_thresholds) {
+    if (i == end_bwt_idx) {
+        end_bwt_idx_thresholds[threshold_index] = value;
+        return;
+    }
+#if SPLIT_THRESHOLDS_FALSE
+    if (value > std::numeric_limits<uint16_t>::max()) {
+        rlbwt[i].set_overflow_thresholds();
+    } else {
+        set_rlbwt_thresholds(i, threshold_index, static_cast<uint16_t>(value));
+    }
+
+    if (i != end_bwt_idx) {
+        current_thresholds[threshold_index] = value;
+    }
+#endif
+#if SPLIT_THRESHOLDS_TRUE
+    if (value_split == std::numeric_limits<uint16_t>::max()) {
+        throw std::runtime_error(ERROR_MSG("[set_thresholds_for_dna_rows]" +
+            " This should never happen, since the runs are split at threshold boundaries.\n" +
+            " threshold_index: " + std::to_string(threshold_index) + " i:" + std::to_string(i) +
+            " value:" + std::to_string(value) + " all_p[i]:" + std::to_string(all_p[i])));
+    }
+    rlbwt[i].set_threshold(threshold_index, value_split);
+#endif
+}
+
 void MoveStructure::compute_thresholds() {
     // initialize the start threshold at the last row
     std::vector<uint64_t> alphabet_thresholds(alphabet.size(), length);
 
     uint64_t thr_i = original_r - 1;
-    uint64_t run_p = 0;
 
     if (movi_options->is_verbose()) {
         std::cerr << "thresholds.size():" << thresholds.size() << " length: "
-                  << length << " r: " << r <<  " original_r: " << original_r << "\n";
+                  << length << " r: " << r << " original_r: " << original_r << "\n";
         std::cerr << "thresholds[r]: " << thresholds[original_r-1] << " r-1: "
                   << thresholds[original_r - 2] << " r-2: " << thresholds[original_r - 3] << "\n";
     }
 
+    // Iterate over all the move rows in reverse order
     for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
         if (i % 1000000 == 0)
             std::cerr << "Updating the thresholds per run: " << (rlbwt.size() - i) << "/" << rlbwt.size() << "\r";
 
-        char rlbwt_c = alphabet[rlbwt[i].get_c()];
-
-        if (movi_options->is_verbose() and i >= rlbwt.size() - 10) {
-            std::cerr << "i: " << i << "\n"
-                << "rlbwt[i].get_offset(): " << get_offset(i) << "\n "
-                << "get_n(i): " << get_n(i) << "\n"
-                << "thresholds[thr_i]: " << thresholds[thr_i] << " "
-                << "rlbwt_c: " << rlbwt_c << "\n";
+        if (thr_i >= thresholds.size()) {
+            throw std::runtime_error(ERROR_MSG("[compute thresholds] thr_i = " + std::to_string(thr_i) + " is out of bound:\n" +
+                                                " thresholds.size = " + std::to_string(thresholds.size())));
         }
 
+        char rlbwt_c = alphabet[rlbwt[i].get_c()];
+        // TODO: we are probably not looking at the right character here
+        // char rlbwt_c = get_char(i);
+
+        // Used for non-split thresholds
         std::vector<uint64_t> current_thresholds;
         current_thresholds.resize(alphabet.size() - 1);
 
+        // For other move rows, store a threshold for each character other than the row's character
         for (uint64_t j = 0; j < alphabet.size(); j++) {
             if (alphabet[j] == rlbwt_c) {
-                if (thr_i >= thresholds.size()) {
-                    throw std::runtime_error(ERROR_MSG("[compute thresholds] thr_i = " + std::to_string(thr_i) + " is out of bound:\n" +
-                                                        " thresholds.size = " + std::to_string(thresholds.size()) +
-                                                        "\nThe thresholds are not correct."));
-                }
+                // We don't need to store a threshold for the row's character
                 alphabet_thresholds[j] = thresholds[thr_i];
             } else {
-                if (alphamap_3[alphamap[rlbwt_c]][j] >= alphabet.size() - 1) {
+                uint16_t threshold_index = i == end_bwt_idx ? j : static_cast<uint16_t>(alphamap_3[alphamap[rlbwt_c]][j]);
+                uint64_t current_threshold = alphabet_thresholds[j];
+
+                if (threshold_index >= alphabet.size() - 1 && i != end_bwt_idx) {
                     throw std::runtime_error(ERROR_MSG("[compute thresholds] alphamap_3 is not working in general:\n"
                                 "alphabet.size() - 1 = " + std::to_string(alphabet.size() - 1) + "\n"
-                                "alphamap_3[alphamap[rlbwt_c]][j] = " + std::to_string(alphamap_3[alphamap[rlbwt_c]][j]) +
-                                "\nThe alphabet map (alphamap_3) is not correct."));
+                                "alphamap_3[alphamap[rlbwt_c]][j] = " + std::to_string(threshold_index)));
+                }
+                uint64_t threshold_value;
+                uint16_t threshold_value_split;
+                if (current_threshold >= all_p[i] + get_n(i)) {
+                    threshold_value = get_n(i);
+                    threshold_value_split = 1;
+                } else if (current_threshold <= all_p[i]) {
+                    threshold_value = 0;
+                    threshold_value_split = 0;
+                } else {
+                    threshold_value = current_threshold - all_p[i];
+                    threshold_value_split = std::numeric_limits<uint16_t>::max();
                 }
 
-                if (alphabet_thresholds[j] >= all_p[i] + get_n(i)) {
-                    // rlbwt[i].thresholds[j] = get_n(i);
-                    if (i == end_bwt_idx) {
-                        end_bwt_idx_thresholds[j] = get_n(i);
-                        if (movi_options->is_verbose()) {
-                            std::cerr << "condition 1: end_bwt_idx_thresholds[" << j << "]:" << end_bwt_idx_thresholds[j] << "\n";
-                        }
-                        continue;
-                    }
-#if SPLIT_THRESHOLDS_FALSE
-                    set_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j], get_n(i));
-#endif
-#if SPLIT_THRESHOLDS_TRUE
-                    rlbwt[i].set_threshold(alphamap_3[alphamap[rlbwt_c]][j], 1);
-#endif
-                    current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = get_n(i);
-                } else if (alphabet_thresholds[j] <= all_p[i]) {
-                    if (i == end_bwt_idx) {
-                        end_bwt_idx_thresholds[j] = 0;
-                        if (movi_options->is_verbose()) {
-                            std::cerr << "condition 2: end_bwt_idx_thresholds[" << j << "]:" << end_bwt_idx_thresholds[j] << "\n";
-                        }
-                        continue;
-                    }
-#if SPLIT_THRESHOLDS_FALSE
-                    set_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j], 0);
-#endif
-#if SPLIT_THRESHOLDS_TRUE
-                    rlbwt[i].set_threshold(alphamap_3[alphamap[rlbwt_c]][j], 0);
-#endif
-                    current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = 0;
-                } else {
-                    if (i == end_bwt_idx) {
-                        end_bwt_idx_thresholds[j] = alphabet_thresholds[j] - all_p[i];
-                        if (movi_options->is_verbose()) {
-                            std::cerr << "condition 3: end_bwt_idx_thresholds[" << j << "]:" << end_bwt_idx_thresholds[j] << "\n";
-                        }
-                        continue;
-                    }
-#if SPLIT_THRESHOLDS_FALSE
-                    if (alphabet_thresholds[j] - all_p[i] >= std::numeric_limits<uint16_t>::max()) {
-                        rlbwt[i].set_overflow_thresholds();
-                    }
-                    set_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j], alphabet_thresholds[j] - all_p[i]);
-#endif
-#if SPLIT_THRESHOLDS_TRUE
-                    throw std::runtime_error(ERROR_MSG("[compute thresholds] j: " + std::to_string(j) + " i:" + std::to_string(i) +
-                              " n:" + std::to_string(get_n(i)) + " at j:" + std::to_string(alphabet_thresholds[j]) +
-                              " api:" + std::to_string(all_p[i]) +
-                              "\nThis should never happen, since the runs are split at threshold boundaries."));
-#endif
-                    current_thresholds[alphamap_3[alphamap[rlbwt_c]][j]] = alphabet_thresholds[j] - all_p[i];
-                }
+                set_threshold_for_one_character(i, threshold_index, threshold_value, threshold_value_split, current_thresholds);
+
                 // printing the values for last 10 runs to debug
-                if (movi_options->is_verbose() and i >= rlbwt.size() - 10) {
-                    std::cerr << "\t j: \t" << j << " "
-                        << "alphabet[j]: " << alphabet[j] << "  "
-                        << "alphamap_3[alphamap[rlbwt_c]][j]: " << alphamap_3[alphamap[rlbwt_c]][j] << " "
-                        << "alphabet_thresholds[j]: " << alphabet_thresholds[j] << " "
-#if SPLIT_THRESHOLDS_FALSE
-                        << "rlbwt[i].thresholds[j]:" << get_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j]) << "\n";
-#endif
-#if SPLIT_THRESHOLDS_TRUE
-                        << "rlbwt[i].thresholds[j]:" << get_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j]) << "\n";
-#endif
-                }
+                debug_threshold_calculation(i, thr_i, j, rlbwt_c, alphabet_thresholds);
             }
         }
+
         if (i > 0 && (rlbwt[i].get_c() != rlbwt[i - 1].get_c()  || i == end_bwt_idx || i-1 == end_bwt_idx)) {
             thr_i--;
         }
+
 #if SPLIT_THRESHOLDS_FALSE
+        // Handle overflow thresholds
         if (rlbwt[i].is_overflow_thresholds()) {
             if (thresholds_overflow.size() >= std::numeric_limits<uint16_t>::max()) {
-                throw std::runtime_error(ERROR_MSG("[compute thresholds] Undefined behaviour: the number of runs with overflow thresholds is beyond uint16_t!" +
-                                    std::to_string(thresholds_overflow.size()) + "\n"));
+                throw std::runtime_error(ERROR_MSG("[compute thresholds] " +
+                    "Undefined behaviour: the number of runs with overflow thresholds is beyond uint16_t." +
+                    std::to_string(thresholds_overflow.size()) + "\n"));
             }
-            for (uint64_t k = 0; k < alphabet.size() - 1; k++) {
-                set_rlbwt_thresholds(i, k, thresholds_overflow.size());
+            for (uint16_t j = 0; j < alphabet.size() - 1; j++) {
+                set_rlbwt_thresholds(i, j, thresholds_overflow.size());
             }
             thresholds_overflow.push_back(current_thresholds);
         }
 #endif
-        run_p += get_n(i);
     }
-    std::cerr << "\n";
 
     // since the thresholds for the first run was not calculated in the for
-    for (uint64_t j = 0; j < alphabet.size() - 1; j++) {
+    for (uint16_t j = 0; j < alphabet.size() - 1; j++) {
 #if SPLIT_THRESHOLDS_FALSE
         set_rlbwt_thresholds(0, j, 0);
 #endif

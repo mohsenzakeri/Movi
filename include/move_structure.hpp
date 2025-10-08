@@ -109,6 +109,11 @@ class MoveStructure {
 
 #if USE_THRESHOLDS
         void compute_thresholds();
+        // Helper for threshold calculation
+        void debug_threshold_calculation(uint64_t i, uint64_t thr_i, uint64_t j, char rlbwt_c,
+                                         const std::vector<uint64_t>& alphabet_thresholds);
+        void set_threshold_for_one_character(uint64_t i, uint16_t threshold_index, uint64_t value,
+                                             uint16_t value_split, std::vector<uint64_t>& current_thresholds);
 #endif
 
 #if USE_NEXT_POINTERS
