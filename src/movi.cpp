@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 
 #include <omp.h>
-#include <sdsl/int_vector.hpp>
+#include "sdsl_wrapper.hpp"
 #include "cxxopts.hpp"
 
 #include "utils.hpp"

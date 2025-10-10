@@ -9,7 +9,7 @@
 #include <sys/stat.h>
 
 #include "kseq.h"
-#include <sdsl/int_vector.hpp>
+#include "sdsl_wrapper.hpp"
 #include "cxxopts.hpp"
 
 #include "move_structure.hpp"

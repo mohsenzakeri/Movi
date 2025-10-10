@@ -24,7 +24,7 @@
 #include <unistd.h>
 #include "fastcluster.h"
 
-#include <sdsl/bit_vectors.hpp>
+#include "sdsl_wrapper.hpp"
 
 #include "movi_options.hpp"
 #include "move_row.hpp"
