@@ -1,15 +1,11 @@
 # release
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2")
 # debug:
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
-
-# Suppress deprecation warnings from SDSL library
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated")
+# set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g")
 
 # compile with address sanitizer
-#add_compile_options(-fsanitize=address)
-#add_link_options(-fsanitize=address)
+# add_compile_options(-fsanitize=address)
+# add_link_options(-fsanitize=address)
 
 set(MOVI_SOURCES
     move_structure.cpp
@@ -39,10 +35,10 @@ add_library(movi_common INTERFACE)
 target_link_libraries(movi_common INTERFACE sdsl zlibstatic OpenMP::OpenMP_CXX hclust)
 target_include_directories(movi_common INTERFACE ${CMAKE_SOURCE_DIR}/include)
 
-# Create library for tests (MODE=0)
+# Create library for tests
 add_library(movi_lib_test ${MOVI_SOURCES})
 target_link_libraries(movi_lib_test movi_common)
-target_compile_definitions(movi_lib_test PUBLIC MODE=0 COLOR_MODE=0)
+target_compile_definitions(movi_lib_test PRIVATE MODE=0 COLOR_MODE=0)
 
 
 add_executable(movi movi_launcher.cpp)

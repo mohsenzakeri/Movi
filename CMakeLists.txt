@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
-project(movi)
+project(movi VERSION 2.0.0)
 
 # C++ standard settings
 set(CMAKE_CXX_STANDARD 20)
@@ -8,6 +8,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Output directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/)
+
+# Suppress deprecation warnings from SDSL library
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated")
 
 # Dependencies
 include_directories("include")
