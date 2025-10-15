@@ -17,6 +17,7 @@
 #include "commons.hpp"
 #include "move_query.hpp"
 #include "movi_options.hpp"
+#include "version.hpp"
 
 // Forward declarations
 class MoveStructure;
@@ -30,7 +31,9 @@ const uint32_t MOVI_MAGIC = 0x4D4F5649;  // "Movi" in ASCII
 // Header for MOVI index files
 struct MoviHeader {
     uint32_t magic;      // Magic number to identify MOVI files
-    uint8_t version;     // Version number for future compatibility
+    uint8_t version = MOVI_VERSION_MAJOR; // Version number for future compatibility
+    uint8_t version_minor = MOVI_VERSION_MINOR; // Minor version number for future compatibility
+    uint8_t version_patch = MOVI_VERSION_PATCH; // Patch version number for future compatibility
     char type;           // Index mode (LARGE, CONSTANT, REGULAR, etc.)
     uint8_t reserved;    // Reserved for future use
 
@@ -43,7 +46,6 @@ struct MoviHeader {
 
     void init(char type_, uint64_t _length, uint64_t _r, uint64_t _original_r, uint64_t _end_bwt_idx) {
         magic = MOVI_MAGIC;
-        version = 2;
         type = type_;
         reserved = 0;
         length = _length;
@@ -61,14 +63,15 @@ struct MoviHeader {
 // Header for base profile format files
 struct BPFHeader {
     uint32_t magic;      // Magic number to identify BPF files
-    uint8_t version;     // Version number for future compatibility
+    uint8_t version = BPF_VERSION_MAJOR; // Major version number for future compatibility
+    uint8_t version_minor = BPF_VERSION_MINOR; // Minor version number for future compatibility
+    uint8_t version_patch = BPF_VERSION_PATCH; // Patch version number for future compatibility
     uint8_t entry_size;  // Size of each entry in bits (16, 32, or 64)
     uint16_t reserved;   // Reserved for future use
 
     // Initialize header with entry size
     void init(uint8_t size) {
         magic = BPF_MAGIC;
-        version = 1;
         entry_size = size;
         reserved = 0;
     }

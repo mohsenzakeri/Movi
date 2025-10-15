@@ -377,7 +377,7 @@ void view(MoviOptions& movi_options) {
         if (header.magic != BPF_MAGIC) {
             throw std::runtime_error("Invalid BPF header.");
         }
-        if (header.version != 1) {
+        if (header.version != BPF_VERSION_MAJOR) {
             throw std::runtime_error("Invalid BPF version.");
         }
         entry_size = header.entry_size;
