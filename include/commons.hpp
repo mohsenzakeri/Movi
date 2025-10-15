@@ -35,6 +35,14 @@ inline void TIMING_MSG(const std::chrono::nanoseconds& elapsed_ns, const std::st
     INFO_MSG(oss.str());
 }
 
+// In case we want to call the timing message with a uint64_t instead of a std::chrono::nanoseconds
+inline void TIMING_MSG(const uint64_t& elapsed_ns_int, const std::string& description) {
+    std::ostringstream oss;
+    oss << std::fixed << std::setprecision(3);
+    oss << "Time measured for " << description << ": " << (elapsed_ns_int * 1e-9) << " seconds.\n";
+    INFO_MSG(oss.str());
+}
+
 // Function to format numbers with commas (e.g., 1334 -> "1,334")
 inline std::string format_number_with_commas(uint64_t number) {
     std::string num_str = std::to_string(number);
