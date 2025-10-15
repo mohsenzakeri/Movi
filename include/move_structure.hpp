@@ -314,6 +314,10 @@ class MoveStructure {
         uint64_t r;
         uint64_t original_r;
 
+        void compute_number_of_build_steps();
+        uint64_t total_build_steps = 0;
+        uint64_t current_build_step = 0;
+
         // The explicit values for the end bwt row
         uint64_t end_bwt_idx;
         uint64_t end_bwt_idx_thresholds[4];
