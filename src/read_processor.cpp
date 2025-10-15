@@ -1,7 +1,8 @@
 #include "read_processor.hpp"
 #include <cpuid.h>
 
-ReadProcessor::ReadProcessor(MoveStructure& mv_, int strands_, bool verbose_, bool reverse_, OutputFiles& output_files_) : mv(mv_), output_files(output_files_) {
+ReadProcessor::ReadProcessor(MoveStructure& mv_, int strands_, bool verbose_, bool reverse_, OutputFiles& output_files_, Classifier& classifier_) :
+    mv(mv_), output_files(output_files_), classifier(classifier_) {
 
     int cpu_info[4];
     __cpuid(0x80000006, cpu_info[0], cpu_info[1], cpu_info[2], cpu_info[3]);
@@ -10,10 +11,6 @@ ReadProcessor::ReadProcessor(MoveStructure& mv_, int strands_, bool verbose_, bo
 
     verbose = verbose_;
     reverse = mv_.movi_options->is_reverse();
-
-    if (mv_.movi_options->is_classify()) {
-        classifier.initialize_report_file(*mv_.movi_options);
-    }
 
     total_kmer_count = 0;
     positive_kmer_count = 0;

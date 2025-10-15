@@ -231,7 +231,7 @@ inline char MoveRowColored::get_c() const {
 
 #if BLOCKED_MODES
 inline void MoveRowColored::print_all() {
-    INFO_MSG("id:\t" + std::bitset<16>(id) + " n:\t" + std::bitset<16>(n) + " offset:\t" + std::bitset<16>(offset));
+    INFO_MSG("id:\t" + std::bitset<16>(id).to_string() + " n:\t" + std::bitset<16>(n).to_string() + " offset:\t" + std::bitset<16>(offset).to_string());
 }
 
 inline uint64_t MoveRowColored::get_id() const {

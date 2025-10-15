@@ -232,7 +232,7 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
     if (!movi_options.no_prefetch()) {
 
-        ReadProcessor rp(mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse(), output_files);
+        ReadProcessor rp(mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse(), output_files, classifier);
 
 #pragma omp parallel
         {

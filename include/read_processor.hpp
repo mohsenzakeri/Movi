@@ -54,7 +54,7 @@ struct Strand {
 
 class ReadProcessor {
     public:
-        ReadProcessor(MoveStructure& mv_, int strands_, bool verbose_, bool reverse_, OutputFiles& output_files);
+        ReadProcessor(MoveStructure& mv_, int strands_, bool verbose_, bool reverse_, OutputFiles& output_files, Classifier& classifier);
         uint64_t get_read_processed();
         uint64_t get_total_ff_count();
         // void process_regular();
@@ -86,7 +86,7 @@ class ReadProcessor {
 #endif
     private:
         MoveStructure& mv;
-        Classifier classifier;
+        Classifier& classifier;
         int cache_line_size;
         int prefetch_step;
         int l;
