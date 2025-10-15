@@ -30,42 +30,42 @@ void test_index_creation(const std::string& index_type, const std::string& index
 
 TEST_CASE("MoveStructure - index building", "[move_structure_index_building]") {
     SECTION("Regular index creation") {
-        test_index_creation("regular", "regular", 871471);
+        test_index_creation("regular", "regular", 871479);
     }
 
     SECTION("Regular-thresholds index creation") {
-        test_index_creation("regular-thresholds", "regular_thresholds", 948111);
+        test_index_creation("regular-thresholds", "regular_thresholds", 948119);
     }
 
     SECTION("Tally index creation") {
-        test_index_creation("tally", "tally", 436998);
+        test_index_creation("tally", "tally", 437006);
     }
 
     SECTION("Tally-thresholds index creation") {
-        test_index_creation("tally-thresholds", "tally_thresholds", 475318);
+        test_index_creation("tally-thresholds", "tally_thresholds", 475326);
     }
 
     SECTION("Blocked index creation") {
-        test_index_creation("blocked", "blocked", 654245);
+        test_index_creation("blocked", "blocked", 654253);
     }
 
     SECTION("Blocked-thresholds index creation") {
-        test_index_creation("blocked-thresholds", "blocked_thresholds", 711725);
+        test_index_creation("blocked-thresholds", "blocked_thresholds", 711733);
     }
 
     SECTION("Large index creation") {
-        test_index_creation("large", "large", 1305987);
+        test_index_creation("large", "large", 1305995);
     }
 
     SECTION("Tally-thresholds index creation (preprocessed)") {
-        test_index_creation("tally-thresholds", "tally_thresholds", 475318, "--preprocessed");
+        test_index_creation("tally-thresholds", "tally_thresholds", 475326, "--preprocessed");
     }
 
     SECTION("Tally-thresholds index creation (non-preprocessed)") {
-        test_index_creation("large", "large", 1305987, "--non-preprocessed");
+        test_index_creation("large", "large", 1305995, "--non-preprocessed");
     }
 
     SECTION("Tally-thresholds index creation (non-preprocessed and preprocessed)") {
-        test_index_creation("tally-thresholds", "tally_thresholds", 475318, "--non-preprocessed --preprocessed");
+        test_index_creation("tally-thresholds", "tally_thresholds", 475326, "--non-preprocessed --preprocessed");
     }
 }
