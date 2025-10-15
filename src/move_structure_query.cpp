@@ -8,21 +8,22 @@ void MoveStructure::reconstruct_lf() {
 
     uint64_t total_elapsed = 0;
     for (; run_index != end_bwt_idx; ) {
+        if (i % 1000000 == 0) {
+            print_progress_bar(i, length - 1, "Reconstructing the original text");
+        }
+
         auto begin = std::chrono::system_clock::now();
         ff_count_tot += LF_move(offset, run_index);
         auto end = std::chrono::system_clock::now();
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
         total_elapsed += elapsed.count();
 
-        if (i % 1000000 == 0)
-            std::cerr << i << "\r";
         i += 1;
         // orig_string = rlbwt[run_index].get_c() + orig_string;
     }
-    std::printf("Time measured for reconstructing the original text: %.3f seconds.\n", total_elapsed * 1e-9);
-
-    std::cerr << "Finished reconstructing the original string.\n";
-    std::cerr << "Total fast forward: " << ff_count_tot << "\n";
+    PROGRESS_MSG("Finished reconstructing the original string.");
+    INFO_MSG("Total fast forward: " + std::to_string(ff_count_tot));
+    TIMING_MSG(total_elapsed, "reconstructing the original text");
 }
 
 void MoveStructure::sequential_lf() {
@@ -34,8 +35,10 @@ void MoveStructure::sequential_lf() {
     for (uint64_t row_index = 0; row_index < r; row_index++) {
         auto& current = rlbwt[row_index];
         for (uint64_t j = 0; j < current.get_n(); j ++) {
-            if (line_index % 1000000 == 0)
-                std::cerr << line_index << "\r";
+            if (line_index % 1000000 == 0) {
+                print_progress_bar(line_index, length - 1, "LF-mapping for all the BWT characters");
+            }
+
             uint64_t offset = j;
             uint64_t i = row_index;
             auto begin = std::chrono::system_clock::now();
@@ -47,11 +50,9 @@ void MoveStructure::sequential_lf() {
         }
 
     }
-    std::printf("Time measured for LF-mapping of all the characters: %.3f seconds.\n", total_elapsed * 1e-9);
-
-    std::cerr << line_index << "\n";
-    std::cerr << "Finished performing LF-mapping for all the BWT characters.\n";
-    std::cerr << "Total fast forward: " << ff_count_tot << "\n";
+    PROGRESS_MSG("Finished performing LF-mapping for all the BWT characters.");
+    INFO_MSG("Total fast forward: " + std::to_string(ff_count_tot));
+    TIMING_MSG(total_elapsed, "LF-mapping for all the BWT characters");
 }
 
 void MoveStructure::random_lf() {
@@ -80,8 +81,9 @@ void MoveStructure::random_lf() {
 
     uint64_t total_elapsed = 0;
     for (uint64_t i = 0; i < length; i++) {
-        if (i % 1000000 == 0)
-            std::cerr << i << "\r";
+        if (i % 1000000 == 0) {
+            print_progress_bar(i, length - 1, "LF-mapping for all the BWT characters in the random order");
+        }
 
         // uint64_t n = std::rand() % r;
         uint64_t n = random_order[i];
@@ -93,11 +95,9 @@ void MoveStructure::random_lf() {
         auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
         total_elapsed += elapsed.count();
     }
-    std::printf("Time measured for LF-mapping of all the characters in the random order: %.3f seconds.\n", total_elapsed * 1e-9);
-
-    std::cerr << length << "\n";
-    std::cerr << "Finished performing LF query for all the BWT characters.\n";
-    std::cerr << "Total fast forward: " << ff_count_tot << "\n";
+    PROGRESS_MSG("Finished performing LF-mapping for all the BWT characters in the random order.");
+    INFO_MSG("Total fast forward: " + std::to_string(ff_count_tot));
+    TIMING_MSG(total_elapsed, "LF-mapping for all the BWT characters in the random order");
 }
 
 void MoveStructure::verify_lfs() {
@@ -115,36 +115,36 @@ void MoveStructure::verify_lfs() {
                 uint64_t alphabet_index = rlbwt[idx_].get_c();
                 lf = LF(j, alphabet_index);
             } else {
-                std::cerr << "end_run = " << i << " len: " << rlbwt[i].get_n () << "\n";
+                WARNING_MSG("end_run = " + std::to_string(i) + " len: " + std::to_string(rlbwt[i].get_n ()));
             }
             LF_move(offset_, idx_);
             uint64_t lf_move = all_p[idx_] + offset_;
             if (lf != lf_move) {
                 not_matched += 1;
-                std::cerr << "j\t" << j << "\n";
-                std::cerr << "idx\t" << i << "\n";
-                std::cerr << "offset\t" << j - all_p[i] << "\n";
-                std::cerr << "rlbwt[idx].get_id\t" << get_id(i) << "\n";
-                std::cerr << "get_offset(i)\t" << get_offset(i) << "\n";
+                DEBUG_MSG("j\t" + std::to_string(j) + "\n");
+                DEBUG_MSG("idx\t" + std::to_string(i) + "\n");
+                DEBUG_MSG("offset\t" + std::to_string(j - all_p[i]) + "\n");
+                DEBUG_MSG("rlbwt[idx].get_id\t" + std::to_string(get_id(i)) + "\n");
+                DEBUG_MSG("get_offset(i)\t" + std::to_string(get_offset(i)) + "\n");
                 for (uint64_t k = 0; k <= i; k++) {
-                    std::cerr << rlbwt[k].get_n() << " ";
+                    DEBUG_MSG(rlbwt[k].get_n() + " ");
                 }
-                std::cerr << "\n\n";
+                DEBUG_MSG("\n\n");
 
-                std::cerr << "lf\t" << lf << "\n";
-                std::cerr << "lf_move\t" << lf_move << "\n";
-                std::cerr << "idx_\t" << idx_ << "\n";
-                std::cerr << "offset_\t" << offset_ << "\n";
-                std::cerr << "all_p[idx_]\t" << all_p[idx_] << "\n";
-                std::cerr << "\n\n\n";
+                DEBUG_MSG("lf\t" + std::to_string(lf) + "\n");
+                DEBUG_MSG("lf_move\t" + std::to_string(lf_move) + "\n");
+                DEBUG_MSG("idx_\t" + std::to_string(idx_) + "\n");
+                DEBUG_MSG("offset_\t" + std::to_string(offset_) + "\n");
+                DEBUG_MSG("all_p[idx_]\t" + std::to_string(all_p[idx_]) + "\n");
+                DEBUG_MSG("\n\n\n");
             }
         }
     }
     if (not_matched == 0) {
-        std::cerr << "All the LF_move operations are correct.\n";
+        SUCCESS_MSG("All the LF_move operations are correct.");
     } else {
         original_r = 0;
-        std::cerr << "There are " << not_matched << " LF_move operations that failed to match the true lf results.\n";
+        WARNING_MSG("There are " + std::to_string(not_matched) + " LF_move operations that failed to match the true lf results.");
     }
 }
 
@@ -159,7 +159,8 @@ void MoveStructure::verify_lf_loop() {
         bwt_offsets[i].resize(rlbwt[i].get_n(), 0);
     }
 
-    std::cerr << "Verifying that all the LF_move operations loop back to the same BWT offset.\n";
+    INFO_MSG("Verifying that all the LF_move operations loop back to the same BWT offset.");
+
     for (uint64_t i = 0; i < length; i++) {
         LF_move(offset, idx);
         bwt_offsets[idx][offset] = 1;
@@ -175,11 +176,11 @@ void MoveStructure::verify_lf_loop() {
     }
 
     if (idx == end_bwt_idx and offset == 0 and visited_offsets == length) {
-        std::cerr << "All the LF_move operations are correct.\n";
+        SUCCESS_MSG("All the LF_move operations are correct.");
     } else {
-        std::cerr << "\tlast idx: " << idx << " last offset: " << offset << "\n";
-        std::cerr << "\tNumber of visited offsets: " << visited_offsets << "\n";
-        std::cerr << "\tlength of the BWT: " << length << "\n";
+        INFO_MSG("\tlast idx: " + std::to_string(idx) + " last offset: " + std::to_string(offset));
+        INFO_MSG("\tNumber of visited offsets: " + std::to_string(visited_offsets));
+        INFO_MSG("\tlength of the BWT: " + std::to_string(length));
         throw std::runtime_error(ERROR_MSG("[verify lf_loop] LF_move operations failed to loop back to the same BWT offset."));
     }
 }
@@ -194,14 +195,16 @@ uint64_t MoveStructure::reposition_up(uint64_t idx, char c, uint64_t& scan_count
         idx -= 1;
         row_c = alphabet[rlbwt[idx].get_c()];
     }
+
     /* if (logs) {
         if (repositions.find(scan_count) != repositions.end())
             repositions[scan_count] += 1;
         else
             repositions[scan_count] = 1;
     } */
-    /* if (movi_options->is_verbose())
-        std::cerr << "\t \t \t \t idx after the while in the reposition up" << idx << "\n";*/
+
+    if (movi_options->is_debug())
+        DEBUG_MSG("\t \t \t \t idx after the while in the reposition up" + std::to_string(idx));
     return (row_c == c) ? idx : r;
 }
 
@@ -215,14 +218,16 @@ uint64_t MoveStructure::reposition_down(uint64_t idx, char c, uint64_t& scan_cou
         idx += 1;
         row_c = alphabet[rlbwt[idx].get_c()];
     }
+
     /* if (logs) {
         if (repositions.find(scan_count) != repositions.end())
             repositions[scan_count] += 1;
         else
             repositions[scan_count] = 1;
     } */
-    /*if (movi_options->is_verbose())
-        std::cerr << "\t \t \t \t idx after the while in the reposition down: " << idx << " " << c << " " << row_c << "\n";*/
+
+    if (movi_options->is_debug())
+        DEBUG_MSG("\t \t \t \t idx after the while in the reposition down: " + std::to_string(idx) + " " + c + " " + row_c);
     return (row_c == c) ? idx : r;
 }
 
@@ -238,9 +243,9 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
     uint64_t scan_count = 0;
     auto t1 = std::chrono::high_resolution_clock::now();
 
-    if (movi_options->is_verbose()) {
-        std::cerr << "beginning of the search \ton query: " << mq.query() << "\t";
-        std::cerr << "and on BWT, idx(r-1): " << idx << " offset: " << offset << "\n";
+    if (movi_options->is_debug()) {
+        DEBUG_MSG("beginning of the search \ton query: " + mq.query() + "\tand on BWT, idx(r-1): " + std::to_string(idx)
+                  + " offset: " + std::to_string(offset));
     }
 
     // Multi-class classification
@@ -264,8 +269,8 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             t1 = std::chrono::high_resolution_clock::now();
         }
 
-        if (movi_options->is_verbose())
-            std::cerr << "Searching position " << pos_on_r << " of the read:\n";
+        if (movi_options->is_debug())
+            DEBUG_MSG("Searching position " + std::to_string(pos_on_r) + " of the read:");
 
         auto& row = rlbwt[idx];
         uint64_t row_idx = idx;
@@ -275,25 +280,25 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             match_len = 0;
             scan_count = 0;
 
-            if (movi_options->is_verbose())
-                std::cerr << "\t The character " << R[pos_on_r] << " does not exist.\n";
+            if (movi_options->is_debug())
+                DEBUG_MSG("\t The character " + std::string(1, R[pos_on_r]) + " does not exist.");
         } else if (row_c == R[pos_on_r]) {
             // Case 1
             match_len += 1;
             scan_count = 0;
 
-            if (movi_options->is_verbose()) {
-                std::cerr << "\t Cas1: It was a match. \n" << "\t Continue the search...\n";
-                std::cerr << "\t match_len: " << match_len << "\n";
-                std::cerr << "\t current_id: " << idx << "\t row.id: " << get_id(row_idx) << "\n"
-                          << "\t row.get_n: " << get_n(row_idx) << " rlbwt[idx].get_n: " << get_n(get_id(row_idx)) << "\n"
-                          << "\t offset: " << offset << "\t row.get_offset(): " << get_offset(row_idx) << "\n";
+            if (movi_options->is_debug()) {
+                DEBUG_MSG("\t Case 1: It was a match.\n\t Continue the search...");
+                DEBUG_MSG("\t match_len: " + std::to_string(match_len));
+                DEBUG_MSG("\t current_id: " + std::to_string(idx) + "\t row.id: " + std::to_string(get_id(row_idx)) + "\n"
+                          + "\t row.get_n: " + std::to_string(get_n(row_idx)) + " rlbwt[idx].get_n: " + std::to_string(get_n(get_id(row_idx))) + "\n"
+                          + "\t offset: " + std::to_string(offset) + "\t row.get_offset(): " + std::to_string(get_offset(row_idx)) + "\n");
             }
         } else {
             // Case 2
             // Repositioning up or down (randomly or with thresholds)
-            if (movi_options->is_verbose())
-                std::cerr << "\t Case2: Not a match, looking for a match either up or down...\n";
+            if (movi_options->is_debug())
+                DEBUG_MSG("\t Case 2: Not a match, looking for a match either up or down...");
 
             uint64_t idx_before_reposition = idx;
 #if USE_THRESHOLDS
@@ -310,8 +315,8 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
 
             char c = alphabet[rlbwt[idx].get_c()];
 
-            if (movi_options->is_verbose())
-                std::cerr << "\t up: " << up << " idx: " << idx << " c:" << c << "\n";
+            if (movi_options->is_debug())
+                DEBUG_MSG("\t up: " + std::to_string(up) + " idx: " + std::to_string(idx) + " c:" + c);
 
             // sanity check
             if (c == R[pos_on_r]) {
@@ -320,21 +325,24 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 // min(new_lcp, match_len + 1)
                 // But we cannot compute lcp here
                 offset = up ? get_n(idx) - 1 : 0;
-                /* if (movi_options->is_verbose())
-                    std::cerr << "\t idx: " << idx << " offset: " << offset << "\n"; */
-            } else {
-                std::cerr << "\t \t pos: " << pos_on_r << " r[pos]:" <<  R[pos_on_r] << " t[pointer]:" << c << "\n";
-                std::cerr << "\t \t " << up << ", " << R[pos_on_r] << ", " << pos_on_r << "\n";
-                std::cerr << "\t \t ";
-                for (int k = 10; k > 0; --k)
-                    std::cerr << alphabet[rlbwt[idx - k].get_c()] << "-";
-                for (int k = 0; k < 10; k++)
-                    std::cerr << alphabet[rlbwt[idx + k].get_c()] << "-";
-                std::cerr << "\n";
-                auto saved_idx = idx;
 
-                movi_options->set_verbose(true);
+                if (movi_options->is_debug())
+                    DEBUG_MSG("\t idx: " + std::to_string(idx) + " offset: " + std::to_string(offset));
+
+            } else {
+                DEBUG_MSG("\t \t pos: " + std::to_string(pos_on_r) + " r[pos]:" +  R[pos_on_r] + " t[pointer]:" + c);
+                DEBUG_MSG("\t \t " + std::to_string(up) + ", " + R[pos_on_r] + ", " + std::to_string(pos_on_r));
+                DEBUG_MSG("\t \t ");
+                for (int k = 10; k > 0; --k)
+                    DEBUG_MSG(alphabet[rlbwt[idx - k].get_c()] + "-");
+                for (int k = 0; k < 10; k++)
+                    DEBUG_MSG(alphabet[rlbwt[idx + k].get_c()] + "-");
+                DEBUG_MSG("\n");
+
 #if USE_THRESHOLDS
+                movi_options->set_verbose(true);
+                movi_options->set_debug(true);
+                auto saved_idx = idx;
                 reposition_thresholds(saved_idx, offset, R[pos_on_r], scan_count);
 #endif
                 throw std::runtime_error(ERROR_MSG("[query pml] This should not happen!"));
@@ -473,9 +481,6 @@ bool MoveStructure::reposition_thresholds(uint64_t& idx, uint64_t offset, char r
     uint64_t alphabet_index = alphamap[static_cast<uint64_t>(r_char)];
     scan_count = 0;
 
-    if (movi_options->is_verbose())
-        std::cerr << "\t \t \t repositioning with thresholds ... \n";
-
     char rlbwt_char = alphabet[rlbwt[idx].get_c()];
 
     if (movi_options->is_verbose()) {
@@ -529,9 +534,12 @@ bool MoveStructure::reposition_thresholds(uint64_t& idx, uint64_t offset, char r
         }
     }
 
-    if (movi_options->is_verbose()) std::cerr << "\t \t \t rlbwt[idx].get_offset(): " << get_offset(idx)
-                            << " get_thresholds(idx, alphabet_index): " << get_thresholds(idx, alphamap_3[alphamap[rlbwt_char]][alphabet_index]) 
-                            << "\n\t \t \t idx:" << idx << "\n";
+    if (movi_options->is_debug()) {
+        DEBUG_MSG("[reposition_thresholds] alphabet_index: " + std::to_string(alphabet_index) +
+                                         " r_char:" + std::to_string(r_char) + " rlbwt_char:" + std::to_string(rlbwt_char) +
+                                         " dx:" + std::to_string(idx) + " offset: " + std::to_string(offset) +
+                                         " threshold_value: " + std::to_string(threshold_value));
+    }
 
     alphabet_index = alphamap_3[alphamap[rlbwt_char]][alphabet_index];
     if (alphabet_index == 3)
@@ -557,10 +565,8 @@ bool MoveStructure::reposition_thresholds(uint64_t& idx, uint64_t offset, char r
         idx = reposition_down(saved_idx, r_char, scan_count);
 #endif
         if (r_char != alphabet[rlbwt[idx].get_c()]) {
-            std::cerr << "3: " << r_char << " " << alphabet[rlbwt[idx].get_c()] << "\n";
-            std::cerr << "idx: " << idx << " saved_idx: " << saved_idx << " tmp: " << tmp << "\n";
-            std::cerr << "offset: " << offset << "\n";
-            std::cerr << "get_thresholds(saved_idx, alphabet_index): " << get_thresholds(saved_idx, alphabet_index) << "\n";
+            throw std::runtime_error(ERROR_MSG("[reposition thresholds] r_char != alphabet[rlbwt[idx].get_c()], r_char: " + std::to_string(r_char) +
+                                               ", alphabet[rlbwt[idx].get_c()]: " + std::to_string(alphabet[rlbwt[idx].get_c()])));
         }
         return false;
     } else {
@@ -580,10 +586,9 @@ bool MoveStructure::reposition_thresholds(uint64_t& idx, uint64_t offset, char r
         idx = reposition_up(saved_idx, r_char, scan_count);
 #endif
         if (r_char != alphabet[rlbwt[idx].get_c()]) {
-            std::cerr << "idx: " << idx << " saved_idx: " << saved_idx << "\n";
-            std::cerr << "4: " << r_char << " " << alphabet[rlbwt[idx].get_c()] << "\n";
-            std::cerr << "offset: " << offset << "\n";
-            std::cerr << "get_thresholds(saved_idx, alphabet_index): " << get_thresholds(saved_idx, alphabet_index) << "\n";
+            throw std::runtime_error(ERROR_MSG("[reposition thresholds] r_char != alphabet[rlbwt[idx].get_c()], r_char: " + std::to_string(r_char) +
+                                               ", alphabet[rlbwt[idx].get_c()]: " + std::to_string(alphabet[rlbwt[idx].get_c()])));
+
         }
         return true;
     }
@@ -603,8 +608,8 @@ bool MoveStructure::reposition_randomly(uint64_t& idx, uint64_t& offset, char r_
     uint16_t reposition_direction =  offset * 2 < get_n(idx) ? 1 : 0;
     bool up = false;
     scan_count = 0;
-    if (movi_options->is_verbose())
-        std::cerr << "idx before repositioning: " << idx << "\n";
+    if (movi_options->is_debug())
+        DEBUG_MSG("idx before repositioning: " + std::to_string(idx));
 
 
     // Selecting the right direction for trivial cases at the beginning and end of the move table
@@ -620,22 +625,22 @@ bool MoveStructure::reposition_randomly(uint64_t& idx, uint64_t& offset, char r_
         // repositioning up
         up = true;
 
-        if (movi_options->is_verbose())
-            std::cerr << "Repositioning up randomly:\n";
+        if (movi_options->is_debug())
+            DEBUG_MSG("Repositioning up randomly:");
 
         idx = reposition_up(saved_idx, r_char, scan_count);
-        if (movi_options->is_verbose())
-            std::cerr << "idx after repositioning up: " << idx << "\n";
+        if (movi_options->is_debug())
+            DEBUG_MSG("idx after repositioning up: " + std::to_string(idx));
 
         if (idx >= r) {
-            if (movi_options->is_verbose())
-                std::cerr << "Up didn't work, try repositioning down:\n";
+            if (movi_options->is_debug())
+                DEBUG_MSG("Up didn't work, try repositioning down:");
 
             // repositioning down
             up = false;
             idx = reposition_down(saved_idx, r_char, scan_count);
-            if (movi_options->is_verbose())
-                std::cerr << "idx after repositioning down: " << idx << "\n";
+            if (movi_options->is_debug())
+                DEBUG_MSG("idx after repositioning down: " + std::to_string(idx));
             if (idx == r) {
                 // TODO
                 throw std::runtime_error(ERROR_MSG("[reposition randomly] Neither up or down repositioning works.\n" +
@@ -648,22 +653,22 @@ bool MoveStructure::reposition_randomly(uint64_t& idx, uint64_t& offset, char r_
         // repositioning down
         up = false;
 
-        if (movi_options->is_verbose())
-            std::cerr << "Repositioning down randomly:\n";
+        if (movi_options->is_debug())
+            DEBUG_MSG("Repositioning down randomly:");
 
         idx = reposition_down(saved_idx, r_char, scan_count);
-        if (movi_options->is_verbose())
-            std::cerr << "idx after repositioning down: " << idx << "\n";
+        if (movi_options->is_debug())
+            DEBUG_MSG("idx after repositioning down: " + std::to_string(idx));
 
         if (idx >= r) {
-            if (movi_options->is_verbose())
-                std::cerr << "Down didn't work, try repositioning up:\n";
+            if (movi_options->is_debug())
+                DEBUG_MSG("Down didn't work, try repositioning up:");
 
             // repositioning up
             up = true;
             idx = reposition_up(saved_idx, r_char, scan_count);
-            if (movi_options->is_verbose())
-                std::cerr << "idx after repositioning up: " << idx << "\n";
+            if (movi_options->is_debug())
+                DEBUG_MSG("idx after repositioning up: " + std::to_string(idx));
             if (idx == r) {
                 // TODO
                 throw std::runtime_error(ERROR_MSG("[reposition randomly] Neither up or down repositioning works.\n" +

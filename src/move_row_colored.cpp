@@ -26,20 +26,20 @@ void MoveRowColored::init(uint16_t n_, uint16_t offset_, uint64_t id_) {
     if (id_ != this->get_id()) {
         throw std::runtime_error(ERROR_MSG("[MoveRowColored - init] The id setter or getter is not working properly.\n" +
                                            "id_: " + std::to_string(id_) +
-                                           " this->get_id(): " + std::to_string(this->get_id()) + "\n"));
+                                           " this->get_id(): " + std::to_string(this->get_id())));
     }
 #endif
     this->set_n(n_);
     if (n_ != this->get_n()) {
         throw std::runtime_error(ERROR_MSG("[MoveRowColored - init] The length setter or getter is not working properly.\n" +
                                            "n_: " + std::to_string(n_) +
-                                           " this->get_n(): " + std::to_string(this->get_n()) + "\n"));
+                                           " this->get_n(): " + std::to_string(this->get_n())));
     }
     this->set_offset(offset_);
     if (offset_ != this->get_offset()) {
         throw std::runtime_error(ERROR_MSG("[MoveRowColored - init] The offset setter or getter is not working properly.\n" +
                                            "offset_: " + std::to_string(offset_) +
-                                           " this->get_offset(): " + std::to_string(this->get_offset()) + "\n"));
+                                           " this->get_offset(): " + std::to_string(this->get_offset())));
     }
 }
 
@@ -109,7 +109,7 @@ void MoveRowColored::set_n(uint16_t n_) {
     if (n_ < (1U << LENGTH_BITS)) {
         n = n | n_;
     } else {
-        throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_n] The length is greater than " + std::to_string(MAX_RUN_LENGTH) + ": " + std::to_string(n_) + "\n"));
+        throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_n] The length is greater than " + std::to_string(MAX_RUN_LENGTH) + ": " + std::to_string(n_)));
     }
 }
 
@@ -118,7 +118,7 @@ void MoveRowColored::set_offset(uint16_t offset_) {
     if (offset_ < (1U << LENGTH_BITS)) {
         offset = offset | offset_;
     } else {
-        throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_offset] The offset is greater than " + std::to_string(MAX_RUN_LENGTH) + ": " + std::to_string(offset_) + "\n"));
+        throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_offset] The offset is greater than " + std::to_string(MAX_RUN_LENGTH) + ": " + std::to_string(offset_)));
     }
 }
 
@@ -131,7 +131,7 @@ void MoveRowColored::set_c(char c_, std::vector<uint64_t>& alphamap) {
 #if USE_THRESHOLDS
 void MoveRowColored::set_threshold(uint16_t i, uint16_t value) {
     if (value > 1) {
-        throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_threshold] The theshold may be either 0 or 1: " + std::to_string(i) + "\n"));
+        throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_threshold] The theshold may be either 0 or 1: " + std::to_string(i)));
     }
     switch (i) {
         case 0:
@@ -147,7 +147,7 @@ void MoveRowColored::set_threshold(uint16_t i, uint16_t value) {
             n = n | (value << 12);
             break;
         default:
-            throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_threshold] Only three thresholds may be stored: " + std::to_string(i) + "\n"));
+            throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_threshold] Only three thresholds may be stored: " + std::to_string(i)));
     }
 }
 #endif
@@ -159,7 +159,7 @@ void MoveRowColored::set_n(uint16_t n_) {
         n = n & mask_n;
         n = n | (n_ << SHIFT_N);
     } else {
-        throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_n] The length is greater than " + std::to_string(MAX_RUN_LENGTH) + ": " + std::to_string(n_) + "\n"));
+        throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_n] The length is greater than " + std::to_string(MAX_RUN_LENGTH) + ": " + std::to_string(n_)));
     }
 }
 
@@ -168,7 +168,7 @@ void MoveRowColored::set_offset(uint16_t offset_) {
         offset = offset & mask_offset;
         offset = offset | (offset_ << SHIFT_OFFSET);
     } else {
-        throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_offset] The offset is greater than " + std::to_string(MAX_RUN_LENGTH) + ": " + std::to_string(offset_) + "\n"));
+        throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_offset] The offset is greater than " + std::to_string(MAX_RUN_LENGTH) + ": " + std::to_string(offset_)));
     }
 }
 
@@ -211,7 +211,7 @@ void MoveRowColored::set_c(char c_, std::vector<uint64_t>& alphamap) {
 #if USE_THRESHOLDS
 void MoveRowColored::set_threshold(uint16_t i, uint16_t value) {
     if (value > 1) {
-        throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_threshold] The theshold may be either 0 or 1: " + std::to_string(i) + "\n"));
+        throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_threshold] The theshold may be either 0 or 1: " + std::to_string(i)));
     }
     switch (i) {
         case 0:
@@ -227,7 +227,7 @@ void MoveRowColored::set_threshold(uint16_t i, uint16_t value) {
             offset = offset | (value << 14);
             break;
         default:
-            throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_threshold] Only three thresholds may be stored: " + std::to_string(i) + "\n"));
+            throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_threshold] Only three thresholds may be stored: " + std::to_string(i)));
     }
 }
 #endif
@@ -244,7 +244,7 @@ void MoveRowColored::set_n(uint16_t n_) {
         }
     } else {
         throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_n] The length is greater than " +
-                                           std::to_string(MAX_RUN_LENGTH) + ": " + std::to_string(n_) + "\n"));
+                                           std::to_string(MAX_RUN_LENGTH) + ": " + std::to_string(n_)));
     }
 }
 
@@ -259,7 +259,7 @@ void MoveRowColored::set_offset(uint16_t offset_) {
     }
     else {
         throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_offset] The offset is greater than " +
-                                 std::to_string(MAX_RUN_LENGTH) + ": " + std::to_string(offset_) + "\n"));
+                                 std::to_string(MAX_RUN_LENGTH) + ": " + std::to_string(offset_)));
     }
 }
 
@@ -272,7 +272,7 @@ void MoveRowColored::set_c(char c_, std::vector<uint64_t>& alphamap) {
 #if USE_THRESHOLDS
 void MoveRowColored::set_threshold(uint16_t i, uint16_t value) {
     if (value > 1) {
-        throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_threshold] The theshold may be either 0 or 1: " + std::to_string(i) + "\n"));
+        throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_threshold] The theshold may be either 0 or 1: " + std::to_string(i)));
     }
     switch (i) {
         case 0:
@@ -288,7 +288,7 @@ void MoveRowColored::set_threshold(uint16_t i, uint16_t value) {
             c = c | (value << 7);
             break;
         default:
-            throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_threshold] Only three thresholds may be stored: " + std::to_string(i) + "\n"));
+            throw std::runtime_error(ERROR_MSG("[MoveRowColored - set_threshold] Only three thresholds may be stored: " + std::to_string(i)));
     }
 }
 #endif

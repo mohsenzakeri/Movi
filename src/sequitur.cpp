@@ -215,7 +215,7 @@ uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& p
                 kmer_stats.positive_skipped += 1; // c += 1;
 
                 if (movi_options->is_debug()) {
-                    std::cerr << "kmer at " << kmer_left_ext + k - 1 << " was found.\n";
+                    DEBUG_MSG("kmer at " + std::to_string(kmer_left_ext + k - 1) + " was found.");
                     dbg << "1";
                 }
             } else {
@@ -238,7 +238,8 @@ uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& p
         // If we got here, we had to start the first while by breaking because of an unsuccessfull attempt to extend to the right
         // kmers_found = 0;
         if (kmer_right != pos_on_r)
-            std::cerr << "This should not happen: " << kmer_right << "\t" << pos_on_r << "\n";
+            throw std::runtime_error(ERROR_MSG("[Sequitur - query kmers from bidirectional] This should not happen: "
+                                               + std::to_string(kmer_right) + "\t" + std::to_string(pos_on_r)));
         // pos_on_r should have already been assigned to be the last kmer_right
         // So we should never get here to do the assignment in practice
         pos_on_r = kmer_right;
@@ -397,9 +398,10 @@ void MoveStructure::query_all_kmers(MoveQuery& mq, bool kmer_counts) {
                         #pragma omp atomic
                         kmer_stats.positive_kmers += found_bidirectional;
                         if (found_regular != found_bidirectional) {
-                            std::cerr << "pos_on_r_before:" << pos_on_r_before << " pos_on_r:" << pos_on_r
-                                    << " found_regular:" << found_regular << " found_bidirectional" << found_bidirectional << "\n";
-                            std::cerr << dbg.str() << std::endl;
+                            DEBUG_MSG("pos_on_r_before:" + std::to_string(pos_on_r_before) + " pos_on_r:" + std::to_string(pos_on_r)
+                                            + " found_regular:" + std::to_string(found_regular)
+                                            + " found_bidirectional:" + std::to_string(found_bidirectional));
+                            DEBUG_MSG(dbg.str());
                         }
                     }
                 // }

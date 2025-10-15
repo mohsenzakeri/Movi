@@ -23,6 +23,7 @@ set(MOVI_SOURCES
     movi_parser.cpp
     classifier.cpp
     batch_loader.cpp
+    commons.cpp
 )
 
 set(MOVI_MAIN_SOURCES
@@ -46,7 +47,7 @@ add_executable(movi movi_launcher.cpp)
 # Main executables with their specific MODE configurations
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
-add_executable(movi-prepare-ref prepare_ref.cpp)
+add_executable(movi-prepare-ref prepare_ref.cpp commons.cpp)
 target_link_libraries(movi-prepare-ref zlibstatic)
 
 add_executable(movi-large ${MOVI_MAIN_SOURCES})

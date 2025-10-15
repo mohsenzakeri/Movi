@@ -8,8 +8,9 @@ void MoveStructure::build_doc_pats() {
     uint64_t SA_val = length;
     uint32_t doc_offset_ind = num_docs - 1;
     for (uint64_t i = 0; i < length; i++) {
-        if (i % 1000000 == 0)
-            std::cerr << "Finding suffix array entries: " << i << "\r";
+        if (i % 1000000 == 0) {
+            print_progress_bar(i, length - 1, "Building the document patterns");
+        }
         SA_val--;
         if (doc_offset_ind > 0 && SA_val < doc_offsets[doc_offset_ind - 1]) {
             doc_offset_ind--;
@@ -18,7 +19,8 @@ void MoveStructure::build_doc_pats() {
         doc_pats[row_ind] = doc_ids[doc_offset_ind];
         LF_move(offset, index);
     }
-    std::cerr << "\n";
+    PROGRESS_MSG("Done building document info for each BWT row.");
+
 }
 
 // Finds document sets for each run in the rlbwt.
@@ -31,7 +33,7 @@ void MoveStructure::build_doc_sets() {
     uint16_t temp[MAX_RUN_LENGTH];
     for (uint64_t i = 0; i < r; i++) {
         if (i % 1000000 == 0) {
-            std::cerr << "Processed " << i << " runs, " << unique_cnt << " unique doc sets so far\r";
+            print_progress_bar(i, r - 1, "Building the document sets", current_build_step, total_build_steps);
         }
 
         uint64_t n = rlbwt[i].get_n();
@@ -61,12 +63,12 @@ void MoveStructure::build_doc_sets() {
         }    
     }
 
-    std::cerr << std::endl;
-    std::cerr << "Done building and hashing doc sets" << std::endl;
     unique_doc_sets.resize(unique.size());
     for (auto it = unique.begin(); it != unique.end(); it++) {
         unique_doc_sets[it->second] = it->first.docs;
     }
+
+    PROGRESS_MSG("Done building and hashing doc sets");
 }
 
 uint32_t MoveStructure::hash_collapse(std::unordered_map<DocSet, uint32_t> &keep_set, DocSet &bv) {
@@ -131,7 +133,7 @@ void MoveStructure::compress_doc_sets() {
         sorted[i] = {unique_doc_sets[i].size() == 1, doc_set_cnts[i], i};
     }
     std::sort(sorted.begin(), sorted.end(), std::greater<>());
-    std::cerr << "Sorted document sets by frequency (ensuring singletons first)" << std::endl;
+    INFO_MSG("Sorted document sets by frequency (ensuring singletons first)");
 
     /*std::ofstream sort_freq_out("../indices/pseudomonadota/sort_freq_out.txt");
     for (size_t i = 0; i < sorted.size(); i++) {
@@ -163,7 +165,7 @@ void MoveStructure::compress_doc_sets() {
         doc_set_inds[i] = compress_to[doc_set_inds[i]];
     }
     unique_doc_sets = keep;
-    std::cerr << "Fraction of runs without doc set: " << (double) missing_cnt / r << std::endl;
+    INFO_MSG("Fraction of runs without doc set: " + std::to_string(static_cast<double>(missing_cnt) / r));
 }
 
 // Returns if x is an ancestor of y.
@@ -212,7 +214,7 @@ void MoveStructure::build_tree_doc_sets() {
     }
     fin.close();
 
-    std::cerr << "Read in similarities matrix" << std::endl;
+    INFO_MSG("Read in similarities matrix");
 
     // Set up tree for hierarchical clustering
     int nodes = num_species * 2 - 1;
@@ -229,7 +231,7 @@ void MoveStructure::build_tree_doc_sets() {
     double *height = new double[num_species - 1];
     hclust_fast(num_species, distmat, HCLUST_METHOD_AVERAGE, merge, height);
 
-    std::cerr << "Clustered documents using hierarchical clustering algorithm" << std::endl;
+    INFO_MSG("Clustered documents using hierarchical clustering algorithm");
 
     // Go through merges in hierarchical clustering, construct doc sets at each node.
     std::vector<int> last_merge(num_species, 0);
@@ -265,7 +267,7 @@ void MoveStructure::build_tree_doc_sets() {
     t_in.resize(nodes); t_out.resize(nodes);
     dfs_times(nodes - 1, timer);
 
-    std::cerr << "Built compression tree" << std::endl;
+    INFO_MSG("Built compression tree");
 
     // Compress doc sets by LCA in tree
     std::vector<uint32_t> compress_to(unique_doc_sets.size());
@@ -286,7 +288,7 @@ void MoveStructure::build_tree_doc_sets() {
         doc_set_inds[i] = compress_to[doc_set_inds[i]];
     }
     unique_doc_sets = tree_doc_sets;
-    std::cerr << "Completed tree compression of colors" << std::endl;
+    INFO_MSG("Completed tree compression of colors");
 }
 
 void MoveStructure::build_doc_set_similarities() {
@@ -320,7 +322,9 @@ void MoveStructure::build_doc_set_similarities() {
 void MoveStructure::compute_run_lcs() {
     std::cout << "run,length,lcs\n";
     for (int i = 0; i < r; i++) {
-        if (i % 1000000 == 0) std::cerr << i << "\r";
+        if (i % 1000000 == 0) {
+            print_progress_bar(i, r - 1, "Computing the run LCS", current_build_step, total_build_steps);
+        }
         if (get_n(i) > 1) {
             uint64_t id_top = i;
             uint64_t id_bottom = i;
@@ -342,6 +346,7 @@ void MoveStructure::compute_run_lcs() {
             std::cout << i << "," << 1 << "," << -1 << "\n";
         }
     }
+    PROGRESS_MSG("Done computing the run LCS");
 }
 
 void MoveStructure::add_colors_to_rlbwt() {
@@ -349,7 +354,7 @@ void MoveStructure::add_colors_to_rlbwt() {
     rlbwt_colored.resize(rlbwt.size());
     for (uint64_t i = 0; i < rlbwt.size(); i++) {
         if (i % 1000000 == 0) {
-            std::cerr << "i: " << i << "\r";
+            print_progress_bar(i, rlbwt.size() - 1, "Adding the colors to the rlbwt", current_build_step, total_build_steps);
         }
         rlbwt_colored[i].id = rlbwt[i].id;
         rlbwt_colored[i].n = rlbwt[i].n;
@@ -364,15 +369,18 @@ void MoveStructure::add_colors_to_rlbwt() {
             rlbwt_colored[i].color_id = doc_set_inds[i];
         }
     }
-    std::cerr << "\n";
+    PROGRESS_MSG("Done adding the colors to the rlbwt");
 #endif
 }
 
 void MoveStructure::compute_color_ids_from_flat() {
 
-    std::cerr << "Start computing the color id table from offsets...\n";
+    INFO_MSG("Start computing the color id table from offsets...");
 
     for (uint64_t color_offset = 0; color_offset < flat_colors.size(); ) {
+        if (num_colors % 1000000 == 0) {
+            print_progress_bar(color_offset, flat_colors.size() - 1, "Computing the color id table from offsets", current_build_step, total_build_steps);
+        }
 
         if (movi_options->is_report_color_ids()) {
             uint32_t color_id = color_offset_to_id.size();
@@ -382,18 +390,13 @@ void MoveStructure::compute_color_ids_from_flat() {
         uint64_t next_color =  color_offset + flat_colors[color_offset] + 1;
         color_offset = next_color;
 
-        if (num_colors % 1000000 == 0)
-            std::cerr << color_offset << "/" << flat_colors.size()
-                      << " (" << std::round(static_cast<double>(color_offset)/static_cast<double>(flat_colors.size()) * 100.0) << "%)\r";
         num_colors += 1;
-
     }
+    PROGRESS_MSG("Done computing the color id table from offsets");
 
-    std::cerr << "\n";
-    std::cerr << "Number of colors: " << num_colors << "\n";
-
+    INFO_MSG("Number of colors: " + std::to_string(num_colors));
     if (movi_options->is_report_color_ids()) {
-        std::cerr << "Color offset to color id table is created.\n";
+        INFO_MSG("Color offset to color id table is created.");
     }
 
 }

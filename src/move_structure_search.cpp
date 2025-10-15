@@ -260,7 +260,6 @@ MoveInterval MoveStructure::initialize_backward_search(MoveQuery& mq, int32_t& p
     size_t ftab_k = movi_options->get_ftab_k();
     if (movi_options->is_multi_ftab()) {
         while (ftab_k > 1 and pos_on_r >= ftab_k - 1) {
-            //std::cerr << ftab_k << "\n";
             MoveInterval ftab_res = try_ftab(mq, pos_on_r, match_len, ftab_k, rc);
             if (!ftab_res.is_empty())
                 return ftab_res;

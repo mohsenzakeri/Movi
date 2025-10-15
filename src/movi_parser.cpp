@@ -215,7 +215,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                     }
                     if (result.count("threads") == 1) {
                         if (!supress_messages) {
-                            std::cerr << "threads: " << result["threads"].as<int>() << "\n";
+                            INFO_MSG("threads: " + std::to_string(result["threads"].as<int>()));
                         }
                         movi_options.set_threads(static_cast<size_t>(result["threads"].as<int>()));
                     }
@@ -301,13 +301,13 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                         }
                         if (result.count("strands") == 1) {
                             if (!supress_messages) {
-                                std::cerr << "Number of strands: " << result["strands"].as<int>() << "\n";
+                                INFO_MSG("Number of strands: " + std::to_string(result["strands"].as<int>()));
                             }
                             movi_options.set_strands(static_cast<size_t>(result["strands"].as<int>()));
                         }
                         if (result.count("threads") == 1) {
                             if (!supress_messages) {
-                                std::cerr << "Number of threads: " << result["threads"].as<int>() << "\n";
+                                INFO_MSG("Number of threads: " + std::to_string(result["threads"].as<int>()));
                             }
                             movi_options.set_threads(static_cast<size_t>(result["threads"].as<int>()));
                         }
@@ -324,8 +324,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                     }
                 } catch (const cxxopts::exceptions::exception& e) {
                     if (!supress_messages) {
-                        std::cerr << "Error parsing command line options: " << e.what() << "\n";
-                        std::cerr << options.help(help_groups) << "\n";
+                        std::cerr << ERROR_MSG("Error parsing command line options: " + std::string(e.what()));
+                        INFO_MSG(options.help(help_groups));
                     }
                     return false;
                 }
@@ -439,7 +439,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
 
             if (result.count("help")) {
                 if (!supress_messages) {
-                    std::cerr << options.help(help_groups) << std::endl;
+                    INFO_MSG(options.help(help_groups));
                 }
                 return 0;
             }
@@ -451,8 +451,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
         }
     } catch (const cxxopts::exceptions::exception& e) {
         if (!supress_messages) {
-            std::cerr << "Error parsing command line options: " << e.what() << "\n";
-            std::cerr << options.help(help_groups) << "\n";
+            std::cerr << ERROR_MSG("Error parsing command line options: " + std::string(e.what()));
+            INFO_MSG(options.help(help_groups));
         }
         return false;
     }

@@ -139,10 +139,10 @@ std::string construct_movi_command(const std::string& binary,
 
 void execute_command_line(const std::string& command, const std::string& error_msg, const Args& args) {
     if (args.verbose) {
-        std::cerr << "Executing: " << command << "\n";
+        INFO_MSG("Executing: " + command);
     }
     if (std::system(command.c_str()) != 0 and args.action != "view") {
-        std::cerr << "Error executing the command: " + error_msg << "\n";
+        print_error("Error executing the command: " + error_msg);
         exit(1);
     }
 }
@@ -152,11 +152,11 @@ void throw_missing_argument(const std::string& argument) {
 }
 
 void print_error(const std::string& error_msg) {
-    std::cerr << "\033[31m" + error_msg + "\033[0m" << std::endl;
+    std::cerr << ERROR_MSG(error_msg);
 }
 
 void print_warning(const std::string& warning_msg) {
-    std::cerr << "\033[33m" + warning_msg + "\033[0m" << std::endl;
+    WARNING_MSG(warning_msg);
 }
 
 // Implementation of build-specific functionality

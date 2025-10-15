@@ -16,8 +16,7 @@ struct __attribute__((packed)) MoveTally {
 
     void set_value(uint64_t val) {
         if (val >= (static_cast<uint64_t>(1)<<40)) {
-            throw std::runtime_error(ERROR_MSG("[MoveTally - set_value] More than 40 bits are required for this value.\n" +
-                                               "value: " + std::to_string(val) + "\n"));
+            throw std::runtime_error(ERROR_MSG("[MoveTally - set_value] More than 40 bits are required for this value: " + std::to_string(val)));
         }
         left = 0;
         right = val;
@@ -308,7 +307,7 @@ inline uint16_t MoveRow::get_threshold(uint16_t i) const {
         case 2:
             return static_cast<uint16_t>((n & (~mask_thresholds3)) >> SHIFT_THRESHOLD_3);
         default:
-            throw std::runtime_error(ERROR_MSG("[MoveRow - get_threshold] Only three thresholds exist per run: " + std::to_string(i) + "\n"));
+            throw std::runtime_error(ERROR_MSG("[MoveRow - get_threshold] Only three thresholds exist per run: " + std::to_string(i)));
     }
 }
 #endif
@@ -323,7 +322,7 @@ inline uint16_t MoveRow::get_threshold(uint16_t i) const {
         case 2:
             return static_cast<uint16_t>((offset & (~mask_thresholds3)) >> SHIFT_THRESHOLD_3);
         default:
-            throw std::runtime_error(ERROR_MSG("[MoveRow - get_threshold] Only three thresholds exist per run: " + std::to_string(i) + "\n"));
+            throw std::runtime_error(ERROR_MSG("[MoveRow - get_threshold] Only three thresholds exist per run: " + std::to_string(i)));
     }
 }
 #endif
@@ -338,7 +337,7 @@ inline uint16_t MoveRow::get_threshold(uint16_t i) const {
         case 2:
             return static_cast<uint16_t>((c & (~mask_thresholds3)) >> SHIFT_THRESHOLD_3);
         default:
-            throw std::runtime_error(ERROR_MSG("[MoveRow - get_threshold] Only three thresholds exist per run: " + std::to_string(i) + "\n"));
+            throw std::runtime_error(ERROR_MSG("[MoveRow - get_threshold] Only three thresholds exist per run: " + std::to_string(i)));
     }
 }
 #endif

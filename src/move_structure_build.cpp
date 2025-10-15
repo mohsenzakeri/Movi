@@ -1,11 +1,28 @@
 #include "move_structure.hpp"
 
+void MoveStructure::compute_number_of_build_steps() {
+    current_build_step = 1;
+    total_build_steps = 4;
+#if USE_THRESHOLDS
+    total_build_steps += 1;
+#endif
+#if BLOCKED_MODES
+    total_build_steps += 1;
+#endif
+#if USE_NEXT_POINTERS
+    total_build_steps += 1;
+#endif
+}
+
 void MoveStructure::build() {
 
-    length = compute_length_from_bwt();
-    std::cerr << GENERAL_MSG("The total length of the BWT (n): " + std::to_string(length));
+    INFO_MSG("Building starts...");
+    compute_number_of_build_steps();
 
-    std::cerr << GENERAL_MSG("Building starts...");
+    length = compute_length_from_bwt();
+    if (movi_options->is_verbose()) {
+        INFO_MSG("The total length of the BWT (n): " + std::to_string(length));
+    }
 
     initialize_bits();
 
@@ -20,12 +37,16 @@ void MoveStructure::build() {
 
     find_run_heads_information();
 
-    if (alphabet.size() > 4) {
-        std::cerr << "Warning: There are more than 4 characters in the reference:\n";
-        for (uint64_t i = 0; i < alphabet.size(); i++) {
-            std::cerr << "(" << i << ")" << "\t" << alphabet[i] << "\t" << counts[i] << "\n";
+    if (movi_options->use_separators() and alphabet.size() == 5) {
+        // separators are present
+        if (alphabet[0] != SEPARATOR) {
+            throw std::runtime_error(ERROR_MSG("[build] The separator is not correct: " + std::to_string(alphabet[0]) + " != " + std::to_string(SEPARATOR)));
         }
-        std::cerr << "\n";
+    } else if (alphabet.size() > 4) {
+        WARNING_MSG("There are more than 4 characters in the reference with no separators.");
+        for (uint64_t i = 0; i < alphabet.size(); i++) {
+            INFO_MSG("(" + std::to_string(i) + ")" + "\t" + std::to_string(alphabet[i]) + "\t" + std::to_string(counts[i]));
+        }
     }
 
     build_move_rows();
@@ -37,11 +58,13 @@ void MoveStructure::build() {
 
 #if USE_NEXT_POINTERS
     if (constant) {
-        std::cerr << GENERAL_MSG("Computing the next ups and downs.");
+        if (movi_options->is_verbose()) {
+            INFO_MSG("Computing the next ups and downs..");
+        }
         compute_nexts();
     }
 #endif
-    std::cerr << INFO_MSG("The move structure building is done.");
+    SUCCESS_MSG("The Movi index building is done.");
 }
 
 void MoveStructure::find_run_heads_information() {
@@ -67,9 +90,8 @@ void MoveStructure::find_run_heads_information() {
         // Required for computing the id field of the rlbwt rows
         bits[bwt_offset] = 1;
 
-        if (i>0 && i % 1000000 == 0) {
-            std::cerr << "processed runs: " << i << "/" << r << "\t";
-            std::cerr << "bwt_offset: " << bwt_offset << "\r";
+        if (i % 1000000 == 0 or i == r - 1) {
+            print_progress_bar(i, r - 1, "Finding the run heads information", current_build_step, total_build_steps);
         }
 
         uint64_t len = lens[i];
@@ -91,8 +113,8 @@ void MoveStructure::find_run_heads_information() {
         all_p[i] = bwt_offset;
         bwt_offset += len;
     }
-
-    std::cerr << "\n";
+    PROGRESS_MSG("Successfully processed " + std::to_string(r) + " runs");
+    current_build_step++;
 }
 
 void MoveStructure::add_detected_run(uint64_t scanned_bwt_length, uint64_t run_char,  uint16_t& run_length) {
@@ -132,7 +154,7 @@ uint64_t MoveStructure::compute_length_from_bwt() {
         original_run_heads = std::vector<char>((std::istreambuf_iterator<char>(heads_file)), std::istreambuf_iterator<char>());
 
         original_r  = original_run_heads.size();
-        std::cerr << "Number of BWT runs: " << original_r << "\n";
+        INFO_MSG("Number of BWT runs: " + std::to_string(original_r));
 
         original_lens.resize(original_r);
 
@@ -142,15 +164,16 @@ uint64_t MoveStructure::compute_length_from_bwt() {
         }
 
         for (uint64_t i = 0; i < original_r; i++) {
-            if (i>0 && i % 1000000 == 0)
-                std::cerr << "Computing total length of the BWT: " << i << "/" << original_r << "\r";
-
+            if (i % 1000000 == 0 or i == original_r - 1) {
+                print_progress_bar(i, original_r - 1, "Computing total length of the BWT", current_build_step, total_build_steps);
+            }
             size_t len = 0;
             len_file.read(reinterpret_cast<char*>(&len), 5);
             original_lens[i] = len;
             total_length += len;
         }
-        std::cerr << "\n";
+        PROGRESS_MSG("Successfully computed total BWT length: " + std::to_string(total_length));
+        current_build_step++;
     } else {
         bwt_file.open(bwt_filename);
         if (!bwt_file.good()) {
@@ -163,7 +186,7 @@ uint64_t MoveStructure::compute_length_from_bwt() {
         std::streampos end_pos = bwt_file.tellg();
         total_length = static_cast<uint64_t>(end_pos);
         if (movi_options->is_verbose())
-            std::cerr << "total_length: " << total_length << "\n";
+            INFO_MSG("total_length: " + std::to_string(total_length));
 
         bwt_file.seekg(0);
     }    
@@ -180,13 +203,13 @@ void MoveStructure::initialize_bits() {
         }
 
         bits.load(splitting_file);
-        std::cerr << "bits.size after loading the d_col file: " << bits.size() << "\n";
+        INFO_MSG("bits.size after loading the d_col file: " + std::to_string(bits.size()));
         rbits = sdsl::rank_support_v<>(&bits);
-        std::cerr << "The main bit vector (bits) is loaded from the d_col file.\n";
+        INFO_MSG("The main bit vector (bits) is loaded from the d_col file.");
     } else {
         bits = sdsl::bit_vector(length + 1, 0);
         bits[0] = 1;
-        std::cerr << "The main bit vector (bits) is initialized.\n";
+        INFO_MSG("The main bit vector (bits) is initialized.");
     }
 }
 
@@ -216,8 +239,9 @@ void MoveStructure::detect_move_row_boundaries() {
 #endif
 
         for (uint64_t i = 0; i < original_r; i++) {
-            if (i>0 && i % 1000000 == 0)
-                std::cerr << "Iterating over original_r: " << i << "/" << original_r << "\r";
+            if (i % 1000000 == 0 or i == original_r - 1) {
+                print_progress_bar(i, original_r - 1, "Detecting the move row boundaries", current_build_step, total_build_steps);
+            }
 
             size_t len = static_cast<size_t>(original_lens[i]);
 
@@ -284,7 +308,8 @@ void MoveStructure::detect_move_row_boundaries() {
             }
 
         }
-        std::cerr << "\n";
+        PROGRESS_MSG("Successfully detected " + std::to_string(r) + " move row boundaries");
+        current_build_step++;
 
         r = heads.size();
 
@@ -312,7 +337,7 @@ void MoveStructure::detect_move_row_boundaries() {
         // Tracks how many characters in the BWT have been processed
         uint64_t scanned_bwt_length = 0;
 
-        std::cerr << "Reading over the uncompressed BWT...\n";
+        INFO_MSG("Reading over the uncompressed BWT...");
         while (next_char != EOF) { // && current_char != 10
             run_length += 1;
             if (next_char != END_CHARACTER) {
@@ -320,9 +345,7 @@ void MoveStructure::detect_move_row_boundaries() {
             }
 
             if (original_r % 1000000 == 0) {
-                std::cerr << "original_r: " << original_r << "\t";
-                std::cerr << "r: " << r << "\t";
-                std::cerr << "scanned_bwt_length: " << scanned_bwt_length << "/" << length << "\r";
+                print_progress_bar(scanned_bwt_length, length - 1, "Detecting the move row boundaries", current_build_step, total_build_steps);
             }
 
             // Boundary check for bits vector
@@ -364,7 +387,7 @@ void MoveStructure::detect_move_row_boundaries() {
             next_char = bwt_file.get();
             scanned_bwt_length += 1;
         }
-        std::cerr << "\n";
+        PROGRESS_MSG("Successfully detected " + std::to_string(r) + " move row boundaries");
 
         if (r != heads.size()) {
             throw std::runtime_error(ERROR_MSG("[build - finding the runs] r: " + std::to_string(r) + " heads.size(): " + std::to_string(heads.size()) +
@@ -386,12 +409,13 @@ void MoveStructure::detect_move_row_boundaries() {
     original_lens.shrink_to_fit();
 
     if (movi_options->is_thresholds()) {
-        std::cerr << GENERAL_MSG("Number of runs added by thresholds splitting: " + std::to_string(split_by_thresholds));
+        INFO_MSG("Number of runs added by thresholds splitting: " + std::to_string(split_by_thresholds));
     }
-    std::cerr << "n: " << length << "\n";
-    std::cerr << "r: " << r << "\n";
-    std::cerr << "n/r:\t" << static_cast<double>(length)/r << "\n";
-    std::cerr << "original_r: " << original_r << "\n";
+    INFO_MSG("Main statistics of the index:");
+    INFO_MSG("\tn: " + std::to_string(length));
+    INFO_MSG("\tr: " + std::to_string(r));
+    INFO_MSG("\tn/r:\t" + std::to_string(static_cast<double>(length)/r));
+    INFO_MSG("\toriginal_r: " + std::to_string(original_r));
 }
 
 void MoveStructure::build_alphabet(std::vector<uint64_t>& all_possible_chars) {
@@ -399,11 +423,12 @@ void MoveStructure::build_alphabet(std::vector<uint64_t>& all_possible_chars) {
     for (uint64_t i = 1; i < all_possible_chars.size(); i++) {
         if (all_possible_chars[i] != 0) {
             auto current_char = static_cast<unsigned char>(i);
-            if (movi_options->is_verbose())
-                std::cerr << "(" << i << ")"
-                          << "\t" << current_char
-                          << "\t index:" << alphabet_index
-                          << "\t count:" << all_possible_chars[i] << "\n";
+            if (movi_options->is_verbose()) {
+                INFO_MSG("(" + std::to_string(i) + ")"
+                          + "\t" + std::to_string(current_char)
+                          + "\t index:" + std::to_string(alphabet_index)
+                          + "\t count:" + std::to_string(all_possible_chars[i]));
+            }
 
             alphabet.push_back(current_char);
             counts.push_back(all_possible_chars[i]);
@@ -411,28 +436,44 @@ void MoveStructure::build_alphabet(std::vector<uint64_t>& all_possible_chars) {
             alphabet_index += 1;
         }
     }
-    std::cerr << GENERAL_MSG("All the characters are indexed.") << "\n";
+    INFO_MSG("All the characters are indexed.");
 }
 
 void MoveStructure::build_move_rows() {
-    if (movi_options->is_verbose() and bits.size() < 1000)
-        std::cerr << "bits: " << bits << "\n";
+    if (movi_options->is_debug()) {
+        DEBUG_MSG("Starting build_move_rows()");
+    }
+
+    if (movi_options->is_verbose() and bits.size() < 1000) {
+        std::string bits_string = "";
+        for (auto bit : bits)
+            bits_string += (bit ? '1' : '0');
+        INFO_MSG("bits: " + bits_string);
+    }
+
+    if (movi_options->is_debug()) {
+        DEBUG_MSG("Building rank support vector for " + std::to_string(bits.size()) + " bits");
+    }
 
     if (!nt_splitting) // The rank vector is already built if it was the splitting mode
         rbits = sdsl::rank_support_v<>(&bits);
+
+    if (movi_options->is_debug()) {
+        DEBUG_MSG("Rank support vector built successfully");
+    }
 
 
     rlbwt.resize(r);
 
     if (movi_options->is_verbose() ) {
-        std::cerr << "bits.size(): " << bits.size() << "\n";
-        std::cerr << "rank_support_v<>(&bits)(bits.size()): "
-                  << sdsl::rank_support_v<>(&bits)(bits.size()) << "\n";
+        INFO_MSG("bits.size(): " + std::to_string(bits.size()));
+        INFO_MSG("rank_support_v<>(&bits)(bits.size()): "
+                  + std::to_string(sdsl::rank_support_v<>(&bits)(bits.size())));
 
-        std::cerr << "r: " << r << "\t"
-                  << "rlbwt.size(): " << rlbwt.size() << "\t"
-                  << "all_p.size(): " << all_p.size() << "\n";
-        std::cerr << "end_bwt_idx: " << end_bwt_idx << "\n\n";
+        INFO_MSG("r: " + std::to_string(r) + "\t"
+                  + "rlbwt.size(): " + std::to_string(rlbwt.size()) + "\t"
+                  + "all_p.size(): " + std::to_string(all_p.size()) + "\t"
+                  + "end_bwt_idx: " + std::to_string(end_bwt_idx));
     }
 
 #if TALLY_MODES
@@ -457,20 +498,35 @@ void MoveStructure::build_move_rows() {
     uint64_t max_len = 0;
 
     // Building the move structure rows with O(r) loop
+    if (movi_options->is_debug()) {
+        DEBUG_MSG("Starting main loop for " + std::to_string(r) + " rows");
+    }
+
     for (uint64_t r_idx = 0; r_idx < r; r_idx++) {
-        if (r_idx % 1000000 == 0)
-            std::cerr << "Building Movi rows: " << r_idx << "/" << r << "\r";
+        if (r_idx % 1000000 == 0 or r_idx == r - 1) {
+            print_progress_bar(r_idx, r - 1, "Building Movi rows", current_build_step, total_build_steps);
+        }
+
+        if (movi_options->is_debug()) {
+            DEBUG_MSG("Processing row (r_idx=" + std::to_string(r_idx) + ")");
+        }
 
         uint64_t lf  = 0;
         if (r_idx != end_bwt_idx) {
             uint64_t alphabet_index = alphamap[static_cast<uint64_t>(heads[r_idx])];
             // lf = LF(all_p[r_idx], alphabet_index);
             lf = LF_heads(r_idx, alphabet_index);
+            if (movi_options->is_debug()) {
+                DEBUG_MSG("LF_heads: " + std::to_string(lf));
+            }
         } else {
             lf = 0;
         }
 
         uint64_t pp_id = rbits(lf) - 1;
+        if (movi_options->is_debug()) {
+            DEBUG_MSG("pp_id (id of lf of head of the run): " + std::to_string(pp_id));
+        }
 
         // Boundary check for bits vector
         if (lf >= bits.size()) {
@@ -497,13 +553,12 @@ void MoveStructure::build_move_rows() {
 
         offset = lf - all_p[pp_id];
 
-        if (movi_options->is_verbose() and r_idx == 0) { // 0 or any run to be inspected
-            std::cerr << "r_idx: " << r_idx
-                        << " len: " << len
-                        << " lf: " << lf
-                        << " offset: " << offset
-                        << " pp_id: " << pp_id
-                        << "\n";
+        if (movi_options->is_debug()) {
+            DEBUG_MSG("r_idx: " + std::to_string(r_idx)
+                        + " len: " + std::to_string(len)
+                        + " lf: " + std::to_string(lf)
+                        + " offset: " + std::to_string(offset)
+                        + " pp_id: " + std::to_string(pp_id));
         }
 
 #if TALLY_MODES
@@ -540,6 +595,9 @@ void MoveStructure::build_move_rows() {
 
         // rlbwt[r_idx].init(bwt_row, len, lf, offset, pp_id);
         rlbwt[r_idx].init(len, offset, pp_id);
+        if (movi_options->is_debug()) {
+            DEBUG_MSG("rlbwt[r_idx].id: " + std::to_string(rlbwt[r_idx].get_id()));
+        }
 #endif
 
         // To take care of cases where length of the run
@@ -548,10 +606,14 @@ void MoveStructure::build_move_rows() {
         if (offset > MAX_RUN_LENGTH or len > MAX_RUN_LENGTH) {
             // Should not get here in the regular mode: MODE = 3
             throw std::runtime_error(ERROR_MSG("[build rows] The length or the offset are too large.\n" +
-                                                "offset: " + std::to_string(offset) + "\tlength: " + std::to_string(length) + "\n"));
+                                                "offset: " + std::to_string(offset) + "\tlength: " + std::to_string(length)));
         }
 #endif
 #if SPLIT_THRESHOLDS_FALSE
+        if (movi_options->is_debug()) {
+            DEBUG_MSG("rlbwt[r_idx].len: " + std::to_string(rlbwt[r_idx].get_n()));
+        }
+
         if (len > MAX_RUN_LENGTH) {
             throw std::runtime_error(ERROR_MSG("[build rows] This shouldn't happen anymore, because the run splitting should be applied in every mode now."));
             n_overflow.push_back(len);
@@ -561,6 +623,17 @@ void MoveStructure::build_move_rows() {
             rlbwt[r_idx].set_n(n_overflow.size() - 1);
             rlbwt[r_idx].set_overflow_n();
         }
+
+        if (movi_options->is_debug()) {
+            DEBUG_MSG("rlbwt[r_idx].is_overflow_n: " + std::to_string(rlbwt[r_idx].is_overflow_n()));
+        }
+
+        if (movi_options->is_debug()) {
+            DEBUG_MSG("rlbwt[r_idx].offset: " + std::to_string(rlbwt[r_idx].get_offset()));
+            DEBUG_MSG("offset: " + std::to_string(offset));
+            DEBUG_MSG("MAX_RUN_LENGTH: " + std::to_string(MAX_RUN_LENGTH));
+        }
+
         if (offset > MAX_RUN_LENGTH) {
             throw std::runtime_error(ERROR_MSG("[build rows] This shouldn't happen anymore, because the run splitting should be applied in every mode now."));
             offset_overflow.push_back(offset);
@@ -570,28 +643,39 @@ void MoveStructure::build_move_rows() {
             rlbwt[r_idx].set_offset(offset_overflow.size() - 1);
             rlbwt[r_idx].set_overflow_offset();
         }
+
+        if (movi_options->is_debug()) {
+            DEBUG_MSG("offset: " + std::to_string(offset));
+            DEBUG_MSG("rlbwt[r_idx].get_offset: " + std::to_string(rlbwt[r_idx].get_offset()));
+        }
 #endif
         if (len > max_len)
             max_len = len;
+
         if (movi_options->is_logs()) {
             if (run_lengths.find(len) != run_lengths.end())
                 run_lengths[len] += 1;
             else
                 run_lengths[len] = 1;
         }
+
         rlbwt[r_idx].set_c(heads[r_idx], alphamap);
+
+        if (movi_options->is_debug()) {
+            DEBUG_MSG("rlbwt[r_idx].set_c: " + std::to_string(rlbwt[r_idx].get_c()));
+        }
     }
+    PROGRESS_MSG("Successfully built " + std::to_string(r) + " move structure rows");
+    current_build_step++;
 #if TALLY_MODES
     // Set the last tally_id using the current_tally_ids
-    std::cout << "\n";
     for (uint32_t alphabet_ind = 0; alphabet_ind < alphabet.size(); alphabet_ind++) {
         tally_ids[alphabet_ind][tally_ids[alphabet_ind].size()-1].set_value(current_tally_ids[alphabet_ind]);
     }
 #endif
-
-    std::cerr << GENERAL_MSG("Max run length (after splitting if enabled): " + std::to_string(max_len));
-
-    std::cerr << INFO_MSG("All the move rows are built.");
+    if (movi_options->is_verbose()) {
+        INFO_MSG("Max run length (after splitting if enabled): " + std::to_string(max_len));
+    }
 
     find_base_interval_data();
 
@@ -619,22 +703,22 @@ void MoveStructure::find_base_interval_data() {
         char_count += counts[i];
         // char_count points to the position of the first row with character i in the BWT
         if (movi_options->is_verbose())
-            std::cerr << i << " char_count: " << char_count << "\n";
+            INFO_MSG("\t" + std::to_string(i) + " char_count: " + std::to_string(char_count));
         auto occ_rank = rbits(char_count);
         // occ_rank is the number of set bits until and including the last row with character i - 1
         if (movi_options->is_verbose())
-            std::cerr << i << " occ_rank: " << occ_rank << "\n";
+            INFO_MSG("\t" + std::to_string(i) + " occ_rank: " + std::to_string(occ_rank));
         // The index of the run is number of set bits - 1 (because we count from 0):
         last_runs.push_back(static_cast<uint64_t>(occ_rank - 1));
         if (movi_options->is_verbose())
-            std::cerr << char_count << " " << all_p[last_runs.back()] << " " << get_n(last_runs.back()) <<  "\n";
+            INFO_MSG("\t" + std::to_string(char_count) + " " + std::to_string(all_p[last_runs.back()])
+                        + " " + std::to_string(get_n(last_runs.back())));
         last_offsets.push_back(char_count - all_p[last_runs.back()] - 1);
     }
     if (movi_options->is_verbose()) {
         for (uint64_t i = 0; i < first_runs.size(); i++) {
-            std::cerr << "<--- " << first_runs[i] << "\t" << first_offsets[i] << "\n";
-            std::cerr << "    -\n    -\n    -\n";
-            std::cerr << ">--- " << last_runs[i] << "\t" << last_offsets[i] << "\n";
+            INFO_MSG("<--- " + std::to_string(first_runs[i]) + ":" + std::to_string(first_offsets[i]) + "\t---\t"
+                        + std::to_string(last_runs[i]) + ":" + std::to_string(last_offsets[i]) + "--->" );
         }
     }
 }
@@ -650,32 +734,33 @@ void MoveStructure::fill_bits_by_thresholds() {
 
         bits[thresholds[i]] = 1;
     }
-    std::cerr << GENERAL_MSG("The bits vector is updated by thresholds.");
+    INFO_MSG("The bits vector is updated by thresholds.");
 }
 
 
 #if USE_THRESHOLDS
 void MoveStructure::debug_threshold_calculation(uint64_t i, uint64_t thr_i, uint64_t j, char rlbwt_c,
                                                const std::vector<uint64_t>& alphabet_thresholds) {
-    if (!movi_options->is_verbose() || i < rlbwt.size() - 10) return;
+    if (!movi_options->is_debug() || i < rlbwt.size() - 10) return;
 
-    std::cerr << "i: " << i << "\n"
-              << "rlbwt[i].get_offset(): " << get_offset(i) << "\n"
-              << "get_n(i): " << get_n(i) << "\n"
-              << "thresholds[thr_i]: " << thresholds[thr_i] << " "
-              << "rlbwt_c: " << rlbwt_c << "\n";
+    DEBUG_MSG("i: " + std::to_string(i) + "\n"
+              + "rlbwt[i].get_offset(): " + std::to_string(get_offset(i)) + "\n"
+              + "get_n(i): " + std::to_string(get_n(i)) + "\n"
+              + "thresholds[thr_i]: " + std::to_string(thresholds[thr_i]) + " "
+              + "rlbwt_c: " + std::to_string(rlbwt_c));
 
     if (j < alphabet.size()) {
-        std::cerr << "\t j: \t" << j << " "
-                  << "alphabet[j]: " << alphabet[j] << "  "
-                  << "alphamap_3[alphamap[rlbwt_c]][j]: " << alphamap_3[alphamap[rlbwt_c]][j] << " "
-                  << "alphabet_thresholds[j]: " << alphabet_thresholds[j] << " "
+        DEBUG_MSG("\t j: \t" + std::to_string(j) + " "
+                  + "alphabet[j]: " + std::to_string(alphabet[j]) + "  "
+                  + "alphamap_3[alphamap[rlbwt_c]][j]: " + std::to_string(alphamap_3[alphamap[rlbwt_c]][j]) + " "
+                  + "alphabet_thresholds[j]: " + std::to_string(alphabet_thresholds[j]) + " "
 #if SPLIT_THRESHOLDS_FALSE
-                  << "rlbwt[i].thresholds[j]:" << get_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j]) << "\n";
+                  + "rlbwt[i].thresholds[j]:" + std::to_string(get_rlbwt_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j]))
 #endif
 #if SPLIT_THRESHOLDS_TRUE
-                  << "rlbwt[i].thresholds[j]:" << get_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j]) << "\n";
+                  + "rlbwt[i].thresholds[j]:" + std::to_string(get_thresholds(i, alphamap_3[alphamap[rlbwt_c]][j]))
 #endif
+                  + "\n");
     }
 }
 
@@ -699,9 +784,9 @@ void MoveStructure::set_threshold_for_one_character(uint64_t i, uint16_t thresho
 #if SPLIT_THRESHOLDS_TRUE
     if (value_split == std::numeric_limits<uint16_t>::max()) {
         throw std::runtime_error(ERROR_MSG("[set_thresholds_for_dna_rows]" +
-            " This should never happen, since the runs are split at threshold boundaries.\n" +
-            " threshold_index: " + std::to_string(threshold_index) + " i:" + std::to_string(i) +
-            " value:" + std::to_string(value) + " all_p[i]:" + std::to_string(all_p[i])));
+                                           " This should never happen, since the runs are split at threshold boundaries.\n" +
+                                           " threshold_index: " + std::to_string(threshold_index) + " i:" + std::to_string(i) +
+                                           " value:" + std::to_string(value) + " all_p[i]:" + std::to_string(all_p[i])));
     }
     rlbwt[i].set_threshold(threshold_index, value_split);
 #endif
@@ -713,17 +798,11 @@ void MoveStructure::compute_thresholds() {
 
     uint64_t thr_i = original_r - 1;
 
-    if (movi_options->is_verbose()) {
-        std::cerr << "thresholds.size():" << thresholds.size() << " length: "
-                  << length << " r: " << r << " original_r: " << original_r << "\n";
-        std::cerr << "thresholds[r]: " << thresholds[original_r-1] << " r-1: "
-                  << thresholds[original_r - 2] << " r-2: " << thresholds[original_r - 3] << "\n";
-    }
-
     // Iterate over all the move rows in reverse order
     for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
-        if (i % 1000000 == 0)
-            std::cerr << "Updating the thresholds per run: " << (rlbwt.size() - i) << "/" << rlbwt.size() << "\r";
+        if (i % 1000000 == 0 or i == rlbwt.size() - 1 or i == 1) {
+            print_progress_bar(rlbwt.size() - 1 - i, rlbwt.size() - 2, "Updating the thresholds for move rows", current_build_step, total_build_steps);
+        }
 
         if (thr_i >= thresholds.size()) {
             throw std::runtime_error(ERROR_MSG("[compute thresholds] thr_i = " + std::to_string(thr_i) + " is out of bound:\n" +
@@ -781,8 +860,8 @@ void MoveStructure::compute_thresholds() {
         if (rlbwt[i].is_overflow_thresholds()) {
             if (thresholds_overflow.size() >= std::numeric_limits<uint16_t>::max()) {
                 throw std::runtime_error(ERROR_MSG("[compute thresholds] " +
-                    "Undefined behaviour: the number of runs with overflow thresholds is beyond uint16_t." +
-                    std::to_string(thresholds_overflow.size()) + "\n"));
+                    "Undefined behaviour: the number of move rows with overflow thresholds is beyond uint16_t." +
+                    std::to_string(thresholds_overflow.size())));
             }
             for (uint16_t j = 0; j < alphabet.size() - 1; j++) {
                 set_rlbwt_thresholds(i, j, thresholds_overflow.size());
@@ -826,15 +905,15 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
         bool small_block = false;
 
         for (uint64_t i = 0; i < rlbwt.size(); i++) {
-            if (i % 1000000 == 0)
-                std::cerr << "i: " << i << "\r";
+            if (i % 1000000 == 0 or i == rlbwt.size() - 1)
+                print_progress_bar(i, rlbwt.size() - 1, "Finding the blocked deltas", current_build_step, total_build_steps);
 
             uint64_t block_boundary = (block_size) * block_count; // BLOCK_SIZE = 1 << 22 - 1
 
             if (i >= block_boundary) {
 
                 if (movi_options->is_verbose())
-                    std::cerr << "\n\n" << block_count << "\t";
+                    INFO_MSG("\n" + std::to_string(block_count) + "\t");
 
                 // A new block is being initiated
                 block_count += 1;
@@ -845,14 +924,11 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
                     id_blocks[j].push_back(block_start_id[j]);
 
                     if (movi_options->is_verbose())
-                        std::cerr << id_blocks[j][block_count - 1] << "\t";
+                        INFO_MSG(std::to_string(id_blocks[j][block_count - 1]) + "\t");
 
                     if (block_count > 1)
                         max_diff = std::max(max_diff, id_blocks[j][block_count - 1] - id_blocks[j][block_count - 2] );
                 }
-
-                if (movi_options->is_verbose())
-                    std::cerr << "\n";
 
             }
 
@@ -878,15 +954,15 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
                 // Check for potential errors in blocked id computation
                 if (blocked_id > max_allowed_blocked_id) {
 
-                    std::cerr << "The number of bits in the runs are not enough for storing the blocked_id.\n";
-                    std::cerr << "adjusted_id: " << adjusted_id << " id: " << id
-                              << " first_runs[rlbwt[i].get_c() + 1]: " << first_runs[rlbwt[i].get_c() + 1] << "\n";
-                    std::cerr << "id_blocks[rlbwt[i].get_c()][block_number]: " << id_blocks[rlbwt[i].get_c()][block_number] << "\n";
-                    std::cerr << "rlbwt[i].get_c(): " << static_cast<uint32_t>(rlbwt[i].get_c()) << "\n";
-                    std::cerr << "blocked_id: " << blocked_id << " max_blocked_id: " << max_blocked_id << "\n";
-                    std::cerr << "max_allowed_blocked_id: " << max_allowed_blocked_id << "\n";
-                    std::cerr << "block_count: " << block_count << " block_number: " << block_number << "\n";
-                    std::cerr << "i: " << i << " block_size: " << block_size << "\n";
+                    INFO_MSG("The number of bits in the move rows are not enough for storing the blocked_id.");
+                    INFO_MSG("adjusted_id: " + std::to_string(adjusted_id) + " id: " + std::to_string(id)
+                              + " first_runs[rlbwt[i].get_c() + 1]: " + std::to_string(first_runs[rlbwt[i].get_c() + 1]));
+                    INFO_MSG("id_blocks[rlbwt[i].get_c()][block_number]: " + std::to_string(id_blocks[rlbwt[i].get_c()][block_number]));
+                    INFO_MSG("rlbwt[i].get_c(): " + std::to_string(static_cast<uint32_t>(rlbwt[i].get_c())));
+                    INFO_MSG("blocked_id: " + std::to_string(blocked_id) + " max_blocked_id: " + std::to_string(max_blocked_id));
+                    INFO_MSG("max_allowed_blocked_id: " + std::to_string(max_allowed_blocked_id));
+                    INFO_MSG("block_count: " + std::to_string(block_count) + " block_number: " + std::to_string(block_number));
+                    INFO_MSG("i: " + std::to_string(i) + " block_size: " + std::to_string(block_size));
 
                     small_block = true;
                     break;
@@ -898,7 +974,7 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
                 if (rlbwt[i].get_id() != blocked_id) {
                     throw std::runtime_error(ERROR_MSG("[compute blocked ids] The id was not stored in the move row correctly.\n" +
                                     "rlbwt[i].get_id(): " + std::to_string(rlbwt[i].get_id()) + "\t" +
-                                    "blocked_id: " + std::to_string(blocked_id) + "\n"));
+                                    "blocked_id: " + std::to_string(blocked_id)));
                 }
 
                 max_blocked_id = std::max(blocked_id, max_blocked_id);
@@ -908,12 +984,14 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
 
                 if (id - first_runs[rlbwt[i].get_c() + 1] > std::numeric_limits<uint32_t>::max()) {
                     throw std::runtime_error(ERROR_MSG("[compute blocked ids] The block_start_id does not fit in uint32_t\n" +
-                                    "id - first_runs[rlbwt[i].get_c() + 1]: " + std::to_string(id - first_runs[rlbwt[i].get_c() + 1]) + "\n"));
+                                    "id - first_runs[rlbwt[i].get_c() + 1]: " + std::to_string(id - first_runs[rlbwt[i].get_c() + 1])));
 
                 }
             }
 
         }
+        PROGRESS_MSG("Successfully computed blocked deltas for " + std::to_string(rlbwt.size()) + " move rows");
+        current_build_step++;
 
         if (small_block) {
             blocked_ids_computed = false;
@@ -933,11 +1011,12 @@ void MoveStructure::compute_blocked_ids(std::vector<uint64_t>& raw_ids) {
         } else {
             blocked_ids_computed = true;
 
-            std::cerr << "Blocked index:\n";
-            std::cerr << "max raw id: " << max_raw_id << "\t max blocked id: " << max_blocked_id << "\n";
-            std::cerr << "max allowed blocked id: " << max_allowed_blocked_id << "\n";
-            std::cerr << "block_size: " << block_size << "\n";
-            std::cerr << "Maximum distance between the check points: " << max_diff << "\n\n";
+            INFO_MSG("Blocked index statistics:");
+            INFO_MSG("\tmax raw id: " + std::to_string(max_raw_id));
+            INFO_MSG("\tmax blocked id: " + std::to_string(max_blocked_id));
+            INFO_MSG("\tmax allowed blocked id: " + std::to_string(max_allowed_blocked_id));
+            INFO_MSG("\tblock_size: " + std::to_string(block_size));
+            INFO_MSG("\tMaximum distance between the check points: " + std::to_string(max_diff));
         }
     }
 }
@@ -948,9 +1027,9 @@ uint64_t scan_count;
 #if USE_NEXT_POINTERS
 void MoveStructure::compute_nexts() {
     for (uint64_t i = rlbwt.size() - 1; i > 0; --i) {
-        if (i % 1000000 == 0)
-            std::cerr << i << "\r";
-
+        if (i == rlbwt.size() - 1 or i % 1000000 == 0 or i == 1) {
+            print_progress_bar(rlbwt.size() - 1 - i, rlbwt.size() - 2, "Computing the next ups and downs", current_build_step, total_build_steps);
+        }
         char rlbwt_c = alphabet[rlbwt[i].get_c()];
         for (uint64_t j = 0; j < alphabet.size(); j++) {
             if (i == end_bwt_idx) {
@@ -967,7 +1046,7 @@ void MoveStructure::compute_nexts() {
                     rlbwt[i].set_next_up(alphabet_idx, std::numeric_limits<uint16_t>::max());
                 } else {
                     if (i - idx > std::numeric_limits<uint16_t>::max())
-                        std::cerr << "Warning - reposition up " << i - idx << " does not fit in 16 bits.\n";
+                        WARNING_MSG("reposition up " + std::to_string(i - idx) + " does not fit in 16 bits.");
                     rlbwt[i].set_next_up(alphabet_idx, i - idx);
                 }
 
@@ -976,12 +1055,14 @@ void MoveStructure::compute_nexts() {
                     rlbwt[i].set_next_down(alphabet_idx, std::numeric_limits<uint16_t>::max());
                 } else {
                     if (idx - i > std::numeric_limits<uint16_t>::max())
-                        std::cerr << "Warning - reposition down " << idx - i << " does not fit in 16 bits.\n";
+                        WARNING_MSG("reposition down " + std::to_string(idx - i) + " does not fit in 16 bits.");
                     rlbwt[i].set_next_down(alphabet_idx, idx - i);
                 }
             }
         }
     }
+    PROGRESS_MSG("Successfully computed next ups and downs for " + std::to_string(rlbwt.size()) + " move rows");
+    current_build_step++;
 }
 #endif
 
@@ -989,15 +1070,15 @@ void MoveStructure::build_ftab() {
     size_t ftab_k = movi_options->get_ftab_k();
 
     uint64_t ftab_size = std::pow(4, ftab_k);
-    std::cerr << "ftab_size: " << ftab_size*sizeof(MoveInterval)*std::pow(10, -6) << " MB \n";
+    INFO_MSG("ftab_size: " + std::to_string(ftab_size*sizeof(MoveInterval)*std::pow(10, -6)) + " MB");
     ftab.clear();
     ftab.resize(ftab_size);
-    std::cerr << "Number of ftab entries (ftab-k=" << ftab_k << "): " << ftab_size << "\n";
+    INFO_MSG("Number of ftab entries (ftab-k=" + std::to_string(ftab_k) + "): " + std::to_string(ftab_size));
     for (uint64_t i = 0; i < ftab_size; i++) {
         std::string kmer = number_to_kmer(i, 2*(ftab_k), alphabet, alphamap);
         uint64_t kmer_code = kmer_to_number(ftab_k, kmer, 0, alphamap);
         if (kmer_code != i) {
-            std::cerr << kmer << " " << i << " " << kmer_code << "\n";
+            INFO_MSG(kmer + " " + std::to_string(i) + " " + std::to_string(kmer_code));
         }
         int32_t pos_on_kmer = ftab_k - 1;
         MoveInterval interval(
@@ -1009,7 +1090,9 @@ void MoveStructure::build_ftab() {
         MoveInterval kmer_interval = backward_search(kmer, pos_on_kmer, interval, std::numeric_limits<int32_t>::max());
         uint64_t match_count = kmer_interval.count(rlbwt);
         if (match_count >= 0 and pos_on_kmer == 0) {
-            // std::cerr << kmer << " " << match_count << " " << kmer_interval << "\n";
+            if (movi_options->is_debug()) {
+                DEBUG_MSG(kmer + " " + std::to_string(match_count) + " " + kmer_interval.to_string());
+            }
             // if (!(ftab[i] == kmer_interval)) {
             //     std::cerr << "ftab[i] is different from kmer_interval: " << i << "\n";
             //     std::cerr << ftab[i] << "\n" << kmer_interval << "\n";
@@ -1017,7 +1100,9 @@ void MoveStructure::build_ftab() {
             // }
             ftab[i] = kmer_interval;
         } else {
-            // std::cerr << kmer << " not found!\n";
+            if (movi_options->is_debug()) {
+                DEBUG_MSG(kmer + " not found!");
+            }
             // if (!ftab[i].is_empty()) {
             //     std::cerr << "ftab[i] is non-empty and different from kmer_interval: " << i << "\n";
             //     std::cerr << ftab[i].is_empty() << "\n" << match_count << " " << (pos_on_kmer == 0) << "\n";
@@ -1026,8 +1111,10 @@ void MoveStructure::build_ftab() {
             ftab[i].make_empty();
         }
         // if (pos_on_kmer != 0) pos_on_kmer += 1;
-        // std::cerr << kmer << "\n";
-        // std::cerr << kmer.length() - pos_on_kmer << "/" << kmer.length() << "\t" << match_count << "\n";
+        if (movi_options->is_debug()) {
+            DEBUG_MSG(kmer);
+            DEBUG_MSG(kmer.length() - pos_on_kmer << "/" << kmer.length() << "\t" << match_count);
+        }
     }
 }
 
@@ -1035,15 +1122,19 @@ void MoveStructure::build_ftab() {
 void MoveStructure::find_sampled_SA_entries() {
     uint64_t tot_len = 0;
     all_p.resize(r);
-    std::cerr << "r: " << r << "\n";
-    std::cerr << "Finding the BWT offset of run starts (the p array)..\n";
+
     for (uint64_t i = 0; i < r; i++) {
-        if (i % 1000000 == 0)
-            std::cerr << i << "\r";
+        if (i % 1000000 == 0 or i == r - 1) {
+            print_progress_bar(i, r - 1, "Finding the BWT offset of run heads");
+        }
         all_p[i] = tot_len;
         tot_len += rlbwt[i].get_n();
     }
-    std::cerr << "tot_len: " << tot_len << "\n";
+    PROGRESS_MSG("Successfully found BWT offsets for " + std::to_string(r) + " runs");
+
+    if (movi_options->is_verbose()) {
+        INFO_MSG("tot_len: " + std::to_string(tot_len));
+    }
 
     // Create a sampled SA
     uint64_t SA_sample_rate = movi_options->get_SA_sample_rate();
@@ -1053,10 +1144,11 @@ void MoveStructure::find_sampled_SA_entries() {
     uint64_t offset = 0;
     uint64_t index = 0;
     uint64_t SA_val = tot_len;
-    std::cerr << "Finding the sampled SA entries..\n";
+    INFO_MSG("Finding the sampled SA entries..");
     for (uint64_t i = 0; i < tot_len; i++) {
-        if (i % 1000000 == 0)
-            std::cerr << i << "\r";
+        if (i % 1000000 == 0 or i == tot_len - 1) {
+            print_progress_bar(i, tot_len - 1, "Iterating over all of the BWT offsets");
+        }
         SA_val--;
         uint64_t row_ind = all_p[index] + offset;
         if (row_ind % SA_sample_rate == 0) {
@@ -1064,5 +1156,5 @@ void MoveStructure::find_sampled_SA_entries() {
         }
         LF_move(offset, index);
     }
-    std::cerr << INFO_MSG("Finished building the sampled SA entries.");
+    PROGRESS_MSG("Successfully built " + std::to_string(tot_len) + " sampled SA entries");
 }

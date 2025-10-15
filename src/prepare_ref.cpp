@@ -49,7 +49,7 @@ uint64_t read_fasta(const char* file_name,
                     case 'C': seq_rc[seq->seq.l - 1 - i] = 'G'; break;
                     case 'G': seq_rc[seq->seq.l - 1 - i] = 'C'; break;
                     case 'T': seq_rc[seq->seq.l - 1 - i] = 'A'; break;
-                    default: std::cerr << "The alphabet still includes non-ACTG after cleaning!\n"; exit(0);
+                    default: WARNING_MSG("The alphabet still includes non-ACTG after cleaning!"); exit(0);
                 }
             }
         }
@@ -85,7 +85,7 @@ int main(int argc, char* argv[]) {
     bool input_type = (argc > 3 && std::string(argv[3]) == "list") || (argc > 4 && std::string(argv[4]) == "list");
     bool kmer_mode = (argc > 3 && std::string(argv[3]) == "kmer") || (argc > 4 && std::string(argv[4]) == "kmer");
     bool rc = (argc > 4 and std::string(argv[4]) == "fw") ? false : true;
-    std::cerr << rc << "\n";
+    INFO_MSG("Reverse complement: " + std::to_string(rc));
     std::ofstream clean_fasta(static_cast<std::string>(argv[2]));
     // Length of each document
     std::vector<uint64_t> doc_lengths;
@@ -93,20 +93,20 @@ int main(int argc, char* argv[]) {
         std::ifstream list_file(static_cast<std::string>(argv[1]));
         std::string fasta_file = "";
         while (std::getline(list_file, fasta_file)) {
-            std::cerr << fasta_file << "\n";
+            INFO_MSG(fasta_file);
             uint64_t length = read_fasta(fasta_file.data(), clean_fasta, input_type, rc, kmer_mode, doc_lengths);
         }
     } else {
-        std::cerr << argv[1] << "\n";
-        std::cerr << argv[2] << "\n";
+        INFO_MSG("Input fasta file: " + static_cast<std::string>(argv[1]));
+        INFO_MSG("Output fasta file: " + static_cast<std::string>(argv[2]));
         uint64_t length = read_fasta(argv[1], clean_fasta, input_type, rc, kmer_mode, doc_lengths);
     }
     clean_fasta.close();
 
     if (kmer_mode) {
-        std::cerr << "Separators between genomes are added" << "\n";
+        INFO_MSG("Separators between genomes are added");
     }
-    std::cerr << "The clean fasta with the reverse complement is stored at " << static_cast<std::string>(argv[2]) << "\n";
+    INFO_MSG("The clean fasta with the reverse complement is stored at " + static_cast<std::string>(argv[2]));
 
     // doc_offsets file stores the start index of the next run (last index of current run + 1)
     std::ofstream doc_offsets(static_cast<std::string>(argv[2]) + ".doc_offsets");

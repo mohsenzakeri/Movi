@@ -130,7 +130,7 @@ void load_color_table(MoveStructure& mv_, MoviOptions& movi_options) {
 
     auto end = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-    std::fprintf(stderr, "Time measured for loading the document sets: %.3f seconds.\n", elapsed.count() * 1e-9);
+    TIMING_MSG(elapsed, "loading the document sets");
 }
 
 void build_ftab(MoveStructure& mv_, MoviOptions& movi_options) {
@@ -140,7 +140,7 @@ void build_ftab(MoveStructure& mv_, MoviOptions& movi_options) {
             movi_options.set_ftab_k(i);
             mv_.build_ftab();
             mv_.write_ftab();
-            std::cerr << "The ftab table for k = " << i << " is built and stored in the index directory.\n";
+            SUCCESS_MSG("The ftab table for k = " + std::to_string(i) + " is built and stored in the index directory.");
         }
     } else if (movi_options.get_ftab_k() > 1) {
         mv_.build_ftab();
@@ -156,11 +156,10 @@ void color(MoveStructure& mv_, MoviOptions& movi_options) {
         // Build document patterns (full information)
         mv_.fill_run_offsets();
         mv_.build_doc_pats();
-        std::cerr << "Done building document info for each BWT row" << std::endl;
         mv_.serialize_doc_pats(movi_options.get_index_dir() + "/doc_pats.bin");
 
         mv_.build_doc_sets();
-        std::cerr << "Done building document sets" << std::endl;
+        SUCCESS_MSG("Done building document sets.");
         mv_.serialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
     } else {
         if (!movi_options.is_compressed()) {
@@ -170,19 +169,18 @@ void color(MoveStructure& mv_, MoviOptions& movi_options) {
             std::ifstream doc_pats_file(doc_pats_name);
             if (doc_pats_file.good()) {
                 mv_.deserialize_doc_pats(doc_pats_name);
+                INFO_MSG("Done reading document pattern information");
             } else {
-                std::cerr << "Doc patterns are not available, building... \n";
+                INFO_MSG("Doc patterns are not available, building...");
 
                 auto begin = std::chrono::system_clock::now();
                 mv_.build_doc_pats();
                 auto end = std::chrono::system_clock::now();
                 auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-                std::printf("Time measured for building the document patterns: %.3f seconds.\n", elapsed.count() * 1e-9);
+                TIMING_MSG(elapsed, "building the document patterns");
                 mv_.serialize_doc_pats(movi_options.get_index_dir() + "/doc_pats.bin");
             }
-            std::cerr << "Done reading document pattern information" << std::endl;
             mv_.build_doc_sets();
-            std::cerr << "Done building document sets" << std::endl;
             if (movi_options.is_doc_sets_vector_of_vectors()) {
                 mv_.serialize_doc_sets(movi_options.get_index_dir() + "/doc_sets.bin");
             } else {
@@ -201,25 +199,40 @@ void color(MoveStructure& mv_, MoviOptions& movi_options) {
 
     auto end = std::chrono::system_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-    std::printf("Time measured for building colors: %.3f seconds.\n", elapsed.count() * 1e-9);
+    TIMING_MSG(elapsed, "building colors");
 }
 
 void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
     if (movi_options.get_ftab_k() != 0) {
         mv_.read_ftab();
-        std::cerr<<"Ftab was read!\n";
+        INFO_MSG("Ftab was read!");
     }
 
     omp_set_num_threads(movi_options.get_threads());
     omp_set_nested(0);
 
+    // This is for the no-prefetch mode (the prefetch mode has its own classifier)
+    Classifier classifier;
+    mv_.set_classifier(&classifier);
+    if (movi_options.is_classify()) {
+        classifier.initialize_report_file(movi_options);
+    }
+
     std::ifstream input_file;
     setup_input_file(input_file, movi_options.get_read_file());
 
+    OutputFiles output_files;
+    open_output_files(movi_options, output_files);
+    mv_.set_output_files(&output_files);
+
+    uint64_t total_ff_count = 0;
+
+    auto begin = std::chrono::system_clock::now();
+
     if (!movi_options.no_prefetch()) {
 
-        ReadProcessor rp(mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse());
+        ReadProcessor rp(mv_, movi_options.get_strands(), movi_options.is_verbose(), movi_options.is_reverse(), output_files);
 
 #pragma omp parallel
         {
@@ -250,22 +263,18 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
             }
         }
 
+        // TODO: total ff_count is not correct in the prefetch mode.
+        total_ff_count += rp.get_total_ff_count();
         rp.end_process();
 
+        SUCCESS_MSG(format_number_with_commas(rp.get_read_processed()) + " reads are processed.");
+
     } else {
-        OutputFiles output_files;
-
-        // Open output files using the utility function
-        open_output_files(movi_options, output_files);
-
-        Classifier classifier;
-        mv_.set_classifier(&classifier);
-        mv_.set_output_files(&output_files);
-        if (movi_options.is_classify()) {
-            classifier.initialize_report_file(movi_options);
+        if (!movi_options.is_kmer()) {
+            // For kmer queries, latency hiding is disabled by default.
+            INFO_MSG("Latency hiding is disabled...");
         }
 
-        uint64_t total_ff_count = 0;
         uint64_t read_processed = 0;
 
         #pragma omp parallel
@@ -294,8 +303,9 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
                     #pragma omp critical
                     {
-                        if (read_processed % 1000 == 0)
-                            std::cerr << read_processed << "\r";
+                        if (read_processed % 1000 == 0) {
+                            QUERY_PROGRESS_MSG("Number of reads processed: " + format_number_with_commas(read_processed));
+                        }
                     }
 
                     // std::string query_seq = seq->seq.s;
@@ -331,18 +341,22 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
                 }
             }
         }
+        SUCCESS_MSG(format_number_with_commas(read_processed) + " reads are processed.");
 
-        if (movi_options.write_output_allowed()) {
-            print_query_stats(movi_options, total_ff_count, mv_);
-        }
-
-        if (movi_options.is_classify()) {
-            classifier.close_report_file();
-        }
-
-        // Close output files using the utility function
-        close_output_files(movi_options, output_files);
     }
+    auto end = std::chrono::system_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+    TIMING_MSG(elapsed, "processing the reads");
+
+    if (movi_options.write_output_allowed()) {
+        print_query_stats(movi_options, total_ff_count, mv_);
+    }
+
+    if (movi_options.is_classify()) {
+        classifier.close_report_file();
+    }
+
+    close_output_files(movi_options, output_files);
 }
 
 void view(MoviOptions& movi_options) {
@@ -446,7 +460,7 @@ void view(MoviOptions& movi_options) {
 }
 
 void build_rlbwt(MoviOptions& movi_options) {
-    std::cerr << "The run and len files are being built.\n";
+    INFO_MSG("The run and len files are being built.");
 
     std::ifstream bwt_file(movi_options.get_bwt_file());
     if (!bwt_file.good()) {
@@ -456,9 +470,11 @@ void build_rlbwt(MoviOptions& movi_options) {
     bwt_file.clear();
     bwt_file.seekg(0,std::ios_base::end);
     std::streampos end_pos = bwt_file.tellg();
-    if (movi_options.is_verbose())
-        std::cerr << "end_pos: " << end_pos << "\n";
-    std::cerr << static_cast<uint64_t>(end_pos) << "\n";
+
+    if (movi_options.is_verbose()) {
+        INFO_MSG("end_pos: " + std::to_string(end_pos));
+    }
+
     bwt_file.seekg(0);
     char current_char = bwt_file.get();
     char last_char = current_char;
@@ -478,7 +494,7 @@ void build_rlbwt(MoviOptions& movi_options) {
 
     while (current_char != EOF) {
         if (r % 1000000 == 0)
-            std::cerr << r << "\r";
+            PROGRESS_MSG(std::to_string(r));
         if (current_char != last_char) {
             r += 1;
             // write output
@@ -530,30 +546,30 @@ int main(int argc, char** argv) {
         if (command == "build") {
             MoveStructure mv_(&movi_options, SPLIT_ARRAY, CONSTANT_INDEX);
             if (movi_options.is_verify()) {
-                std::cerr << "Verifying the LF_move results...\n";
+                INFO_MSG("Verifying the LF_move results...");
                 mv_.verify_lf_loop();
             }
             mv_.serialize();
             build_ftab(mv_, movi_options);
-            std::cerr << INFO_MSG("The move structure is successfully stored at " + movi_options.get_index_dir() + "\n\n");
+            SUCCESS_MSG("The Movi index is successfully stored at " + movi_options.get_index_dir());
             if (movi_options.is_output_ids()) {
                 mv_.output_ids();
             }
 
-            std::cerr << "Generating the null statistics...\n\n";
+            INFO_MSG("Generating the null statistics...");
             Classifier classifier;
 
             // generate pml null database
-            std::cerr << "With PML:\n";
             movi_options.set_pml();
             movi_options.set_generate_null_reads(true);
             classifier.generate_null_statistics(mv_, movi_options);
+            INFO_MSG("Successfully generated null statistics with PML");
 
             // generate zml null database
-            std::cerr << "\nWith ZML:\n";
             movi_options.set_zml();
             movi_options.set_generate_null_reads(false); // do not regenerate the null reads
             classifier.generate_null_statistics(mv_, movi_options);
+            INFO_MSG("Successfully generated null statistics with ZML");
 
             if (movi_options.is_color()) {
                 color(mv_, movi_options);
@@ -564,13 +580,14 @@ int main(int argc, char** argv) {
             mv_.deserialize();
             mv_.find_sampled_SA_entries();
             mv_.serialize_sampled_SA();
+            SUCCESS_MSG("Successfully stored sampled SA entries at " + movi_options.get_index_dir());
         } else if (command == "color") {
             MoveStructure mv_(&movi_options);
             auto begin = std::chrono::system_clock::now();
             mv_.deserialize();
             auto end = std::chrono::system_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-            std::fprintf(stderr, "Time measured for loading the index: %.3f seconds.", elapsed.count() * 1e-9);
+            TIMING_MSG(elapsed, "loading the index");
 
             color(mv_, movi_options);
         } else if (command == "query") {
@@ -580,14 +597,14 @@ int main(int argc, char** argv) {
             mv_.deserialize();
             auto end = std::chrono::system_clock::now();
             auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-            std::fprintf(stderr, "Time measured for loading the index: %.3f seconds.\n", elapsed.count() * 1e-9);
+            TIMING_MSG(elapsed, "loading the index");
 
             if (movi_options.is_get_sa_entries()) {
                 begin = std::chrono::system_clock::now();
                 mv_.deserialize_sampled_SA();
                 end = std::chrono::system_clock::now();
                 elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-                std::fprintf(stderr, "Time measured for deserializing the sampled SA entries: %.3f seconds.\n", elapsed.count() * 1e-9);
+                TIMING_MSG(elapsed, "loading the sampled SA entries");
             }
 
             if (movi_options.is_multi_classify()) {
@@ -599,12 +616,7 @@ int main(int argc, char** argv) {
                 }
             }
 
-            begin = std::chrono::system_clock::now();
             query(mv_, movi_options);
-            end = std::chrono::system_clock::now();
-            elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-
-            std::fprintf(stderr, "Time measured for processing the reads: %.3f seconds.\n", elapsed.count() * 1e-9);
 
             // Avoid taking too long for dealloction of large data structures at the end of the program
             std::quick_exit(0);
@@ -626,7 +638,7 @@ int main(int argc, char** argv) {
         } else if (command == "LF") {
             MoveStructure mv_(&movi_options);
             mv_.deserialize();
-            std::cerr << "The move structure is read from the file successfully.\n";
+            INFO_MSG("The Movi index is read from the file successfully.");
             if (movi_options.get_LF_type() == "sequential")
                 mv_.sequential_lf();
             else if (movi_options.get_LF_type() == "random")
@@ -641,9 +653,8 @@ int main(int argc, char** argv) {
                 std::string fname = movi_options.get_index_dir() + "/doc_sets.bin";
                 mv_.deserialize_doc_sets(fname);
                 mv_.load_document_info();
-                std::cerr << "The color table is read successfully.\n";
+                INFO_MSG("The color table is read successfully.");
                 mv_.flat_and_serialize_colors_vectors();
-                std::cerr << "The flat color table is serialized successfully in the index directory (doc_sets_flat.bin).\n";
             }
             // mv_.compute_run_lcs();
             // mv_.analyze_rows();
@@ -664,7 +675,7 @@ int main(int argc, char** argv) {
         return 0;
 
     } catch (const std::exception& e) {
-        std::cerr << e.what() << "\n";
+        std::cerr << e.what();
         return 1;
     }
 }

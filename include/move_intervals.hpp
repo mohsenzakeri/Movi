@@ -62,6 +62,11 @@ struct MoveInterval {
         return output;
     }
 
+    std::string to_string() {
+        return std::to_string(run_start) + ":" + std::to_string(offset_start) + " --- "
+             + std::to_string(run_end) + ":" + std::to_string(offset_end);
+    }
+
     bool operator==(const MoveInterval &m) {
         if (run_start == m.run_start and offset_start == m.offset_start and
             run_end == m.run_end and offset_end == m.offset_end)

@@ -72,6 +72,7 @@ class MoveStructure {
 
         void analyze_rows();
         void print_stats();
+        void print_basic_index_info();
 
 /***************************************************************************/
 /****  Beginning of functions implemented in move_structure_search.cpp  ****/

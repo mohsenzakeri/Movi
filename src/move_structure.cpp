@@ -367,14 +367,13 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
     } else {
         status = 1;
         // [TODO] Not all the states where the multiple non-trivial thresholds exists are checked here
-        if (rlbwt[idx].get_threshold() != value and
-            rlbwt[idx].get_threshold() != 0 and
-            rlbwt[idx].get_threshold() != get_n(idx) and
-            !rlbwt[idx].is_overflow_thresholds()) {
-            // std::cerr << "idx: " << idx << " i: " << i << " value: " << value << "\n";
-            // std::cerr << rlbwt[idx].get_threshold() << " " << !rlbwt[i].is_overflow_thresholds() << "\n";
-            // std::cerr << "There are more than 1 non-trivial threshold values.\n";
-            // exit(0);
+        if (rlbwt[idx].get_threshold() != value and rlbwt[idx].get_threshold() != 0 and
+            rlbwt[idx].get_threshold() != get_n(idx) and !rlbwt[idx].is_overflow_thresholds()) {
+            if (movi_options->is_debug()) {
+                DEBUG_MSG("idx: " + std::to_string(idx) + " i: " + std::to_string(i) + " value: " + std::to_string(value));
+                DEBUG_MSG(std::to_string(rlbwt[idx].get_threshold()) + " " + std::to_string(!rlbwt[i].is_overflow_thresholds()));
+                DEBUG_MSG("There are more than 1 non-trivial threshold values.");
+            }
             rlbwt[i].set_overflow_thresholds();
             return;
         }
@@ -402,7 +401,7 @@ bool MoveStructure::check_alphabet(char& c) {
 
 void MoveStructure::analyze_rows() {
     for (int i = 0; i < first_runs.size(); i++) {
-        std::cerr << i << "\t" << first_runs[i] << "\t" << last_runs[i] << "\n";
+        INFO_MSG(std::to_string(i) + "\t" + std::to_string(first_runs[i]) + "\t" + std::to_string(last_runs[i]));
     }
     std::vector<uint64_t> counts_length(16,0);
     std::vector<uint64_t> counts_offset(16,0);
@@ -416,7 +415,7 @@ void MoveStructure::analyze_rows() {
         end_row += get_n(i);
         std::cout << end_row << "\t" << get_char(i) << "\n";
         counter += 1;
-        if (i%1000000 == 0) std::cerr << i << "\t" << split_thresholds << "\r";
+        if (i % 1000000 == 0) PROGRESS_MSG(std::to_string(i) + "\t" + std::to_string(split_thresholds));
         for (int j = 0; j < 16; j ++) {
             if (get_n(i) >= std::pow(2,j + 1)) {
                 counts_length[j] += 1;
@@ -437,59 +436,66 @@ void MoveStructure::analyze_rows() {
 #endif
         }
     }
-    std::cerr << "split_thresholds: " << split_thresholds << "\n";
-    std::cerr << "counter: " << counter << "\n";
-    std::cerr << "\ncounts_length:\n";
+    INFO_MSG("split_thresholds: " + std::to_string(split_thresholds));
+    INFO_MSG("counter: " + std::to_string(counter));
+    INFO_MSG("counts_length:");
     for (int j=0; j < 16; j++) {
-        std::cerr << j + 1 << "\t" << counts_length[j] << "\n";
+        INFO_MSG(std::to_string(j + 1) + "\t" + std::to_string(counts_length[j]));
     }
-    std::cerr << "\ncounts_offset:\n";
+    INFO_MSG("counts_offset:");
     for (int j=0; j < 16; j++) {
-        std::cerr << j + 1 << "\t" << counts_offset[j] << "\n";
+        INFO_MSG(std::to_string(j + 1) + "\t" + std::to_string(counts_offset[j]));
     }
-    std::cerr << "\ncounts_threshold0:\n";
+    INFO_MSG("counts_threshold0:");
     for (int j=0; j < 16; j++) {
-        std::cerr << j << ": " << counts_threshold0[j] << "\n";
+        INFO_MSG(std::to_string(j) + ": " + std::to_string(counts_threshold0[j]));
     }
-    std::cerr << "\ncounts_threshold1:\n";
+    INFO_MSG("counts_threshold1:");
     for (int j=0; j < 16; j++) {
-        std::cerr << j << ": " << counts_threshold1[j] << "\n";
+        INFO_MSG(std::to_string(j) + ": " + std::to_string(counts_threshold1[j]));
     }
-    std::cerr << "\ncounts_threshold2:\n";
+    INFO_MSG("counts_threshold2:");
     for (int j=0; j < 16; j++) {
-        std::cerr << j << ": " << counts_threshold2[j] << "\n";
+        INFO_MSG(std::to_string(j) + ": " + std::to_string(counts_threshold2[j]));
     }
 }
 
+
+void MoveStructure::print_basic_index_info() {
+    INFO_MSG("Basic index characteristics:");
+    INFO_MSG("\tn: " + std::to_string(length));
+    INFO_MSG("\tr: " + std::to_string(r));
+    if (original_r != 0) {
+        INFO_MSG("\toriginal_r: " + std::to_string(original_r));
+    }
+    INFO_MSG("\tend_bwt_idx ($): " + std::to_string(end_bwt_idx));
+}
+
 void MoveStructure::print_stats() {
-    std::cerr << "n:\t" << length << "\n";
-    std::cerr << "r:\t" << r << "\n";
-    std::cerr << "n/r:\t" << static_cast<double>(length)/r << "\n";
-    std::cerr << "original_r:\t" << original_r << "\n";
-    std::cerr << "end_bwt_idx:\t" << end_bwt_idx << "\n";
+    print_basic_index_info();
+    INFO_MSG("n/r:\t" + std::to_string(static_cast<double>(length)/r));
 
     for (int i = 0; i < first_runs.size(); i++) {
-        std::cerr << std::string(1, i == 0 ? '$' : alphabet[i-1])
-                  << "\t" << i
-                  << "\t" << first_runs[i] << ":" << first_offsets[i]
-                  << "\t" << last_runs[i]  << ":" << last_offsets[i]
-                  << "\n";
+        INFO_MSG(std::string(1, i == 0 ? '$' : alphabet[i-1])
+                  + "\t" + std::to_string(i)
+                  + "\t" + std::to_string(first_runs[i]) + ":" + std::to_string(first_offsets[i])
+                  + "\t" + std::to_string(last_runs[i])  + ":" + std::to_string(last_offsets[i]));
     }
 
     for (int i = 0; i < counts.size(); i++) {
-        std::cerr << "counts[" << i << "]: " << counts[i] << "\n";
+        INFO_MSG("counts[" + std::to_string(i) + "]: " + std::to_string(counts[i]));
     }
 
     if (original_r != 0) {
-        std::cerr << "original_r: " << original_r << "\n";
-        std::cerr << "n/original_r: " << static_cast<double>(length)/original_r << "\n";
+        INFO_MSG("original_r: " + std::to_string(original_r));
+        INFO_MSG("n/original_r: " + std::to_string(static_cast<double>(length)/original_r));
     }
-    std::cerr << "Size of the rlbwt table: " << sizeof(rlbwt[0]) * rlbwt.size() * (0.000000001) << "\n";
+    INFO_MSG("Size of the rlbwt table: " + std::to_string(sizeof(rlbwt[0]) * rlbwt.size() * (0.000000001)));
 #if BLOCKED_MODES
-    std::cerr << "Size of the block table: " << sizeof(id_blocks[0][0]) * id_blocks[0].size() * id_blocks.size() * (0.000000001) << "\n";
+    INFO_MSG("Size of the block table: " + std::to_string(sizeof(id_blocks[0][0]) * id_blocks[0].size() * id_blocks.size() * (0.000000001)));
 #endif
 #if TALLY_MODES
-    std::cerr << "Size of the tally table: " << sizeof(tally_ids[0][0]) * tally_ids[0].size() * tally_ids.size() * (0.000000001) << "\n";
+    INFO_MSG("Size of the tally table: " + std::to_string(sizeof(tally_ids[0][0]) * tally_ids[0].size() * tally_ids.size() * (0.000000001)));
 #endif
 
     if (movi_options->is_output_ids()) {
@@ -519,17 +525,25 @@ uint64_t MoveStructure::LF_heads(uint64_t run_number, uint64_t alphabet_index) {
 }
 
 uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx, uint64_t x) {
+
     uint64_t idx_ = idx;
-    /* if (movi_options->is_verbose()) {
-        std::cerr << "\t \t fast forwarding:\n";
-        std::cerr << " \t \t idx: " << idx << " offset: " << offset << " n:" << get_n(idx) << "\n";
-    } */
+    if (movi_options->is_debug()) {
+        DEBUG_MSG("\t \tFast forwarding:");
+        DEBUG_MSG(" \t \t idx: " + std::to_string(idx) + " offset: " + std::to_string(offset) + " n:" + std::to_string(get_n(idx)));
+    }
+
     while (idx < r - 1 && offset >= get_n(idx)) {
         offset -= get_n(idx);
         idx += 1;
-        // if (movi_options->is_verbose()) std::cerr << "\t \t ff offset based: +" << idx - idx_ << "\n";
+        if (movi_options->is_debug()) {
+            DEBUG_MSG("\t \t ff offset based: +" + std::to_string(idx - idx_));
+        }
     }
-    /* if (movi_options->is_verbose())
-        std::cerr << " \t \t idx: " << idx << " offset: " << offset << " n:" << get_n(idx) << "\n"; */
+
+    if (movi_options->is_debug()) {
+        DEBUG_MSG("After fast forwarding:");
+        DEBUG_MSG("\t \t idx: " + std::to_string(idx) + " offset: " + std::to_string(offset) + " n:" + std::to_string(get_n(idx)));
+    }
+
     return idx - idx_;
 }

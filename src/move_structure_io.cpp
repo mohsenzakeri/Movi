@@ -32,7 +32,7 @@ std::ifstream MoveStructure::open_index_read() {
     }
 
     if (movi_options->is_verbose()) {
-        std::cerr << "Index file name: " << fname << std::endl;
+        INFO_MSG("Index file name: " + fname);
     }
 
     fin.seekg(0, std::ios::beg);
@@ -62,7 +62,7 @@ void MoveStructure::write_index_header(std::ofstream& fout) {
     }
 
     if (movi_options->is_verbose()) {
-        std::cerr << "length: " << length << " r: " << r << " original_r: " << original_r << " end_bwt_idx: " << end_bwt_idx << "\n";
+        print_basic_index_info();
     }
 }
 
@@ -98,8 +98,9 @@ void MoveStructure::read_index_header(std::ifstream& fin) {
             r = header.r;
             original_r = header.original_r;
             end_bwt_idx = header.end_bwt_idx;
+            INFO_MSG("Movi index version: " + std::to_string(header.version) + "." + std::to_string(header.version_minor) + "." + std::to_string(header.version_patch));
         }
-        std::cerr << GENERAL_MSG("The " + program() + " index is being used.");
+        INFO_MSG("The " + program() + " index is being used.");
     }
 
     // Read basic index characteristics for older versions
@@ -109,7 +110,7 @@ void MoveStructure::read_index_header(std::ifstream& fin) {
         fin.read(reinterpret_cast<char*>(&end_bwt_idx), sizeof(end_bwt_idx));
     }
 
-    std::cerr << INFO_MSG("Basic index characteristics:\n\tn: " + std::to_string(length) + "\n\tr: " + std::to_string(r) + "\n\t$: " + std::to_string(end_bwt_idx));
+    print_basic_index_info();
 }
 
 void MoveStructure::write_basic_index_data(std::ofstream& fout) {
@@ -160,12 +161,12 @@ void MoveStructure::read_basic_index_data(std::ifstream& fin) {
     uint64_t alphabet_size;
     fin.read(reinterpret_cast<char*>(&alphabet_size), sizeof(alphabet_size));
     if (movi_options->is_verbose()) {
-        std::cerr << "alphabet_size: " << alphabet_size << "\n";
+        INFO_MSG("alphabet_size: " + std::to_string(alphabet_size));
     }
     alphabet.resize(alphabet_size);
     fin.read(reinterpret_cast<char*>(&alphabet[0]), alphabet_size*sizeof(alphabet[0]));
     if (alphabet.size() > 4) {
-        std::cerr << "Warning: There are more than 4 characters, the index expects only A, C, T and G in the reference.\n";
+        WARNING_MSG("There are more than 4 characters, the index expects only A, C, T and G in the reference.");
     }
 
     fin.read(reinterpret_cast<char*>(&nt_splitting), sizeof(nt_splitting));
@@ -302,7 +303,10 @@ void MoveStructure::read_id_blocks(std::ifstream& fin) {
     // Read the id blocks table for blocked indexes
     uint64_t id_blocks_size = 0;
     fin.read(reinterpret_cast<char*>(&id_blocks_size), sizeof(id_blocks_size));
-    std::cerr << "id_blocks_size: " << id_blocks_size << "\n";
+    if (movi_options->is_verbose()) {
+        INFO_MSG("Blocked index, id_blocks_size: " + std::to_string(id_blocks_size));
+    }
+
     if (id_blocks_size > 0) {
         id_blocks.resize(alphabet.size());
         for (uint64_t i = 0; i < alphabet.size(); i++) {
@@ -310,6 +314,7 @@ void MoveStructure::read_id_blocks(std::ifstream& fin) {
             fin.read(reinterpret_cast<char*>(&id_blocks[i][0]), id_blocks_size*sizeof(uint32_t));
         }
     }
+
     if (!fin.eof() and movi_options->is_adjusted_block()) {
         fin.read(reinterpret_cast<char*>(&block_size), sizeof(block_size));
     }
@@ -330,7 +335,7 @@ void MoveStructure::write_tally_table(std::ofstream& fout) {
 void MoveStructure::read_tally_table(std::ifstream& fin) {
     // Read the tally table for tally indexes
     fin.read(reinterpret_cast<char*>(&tally_checkpoints), sizeof(tally_checkpoints));
-    std::cerr << "Tally mode with tally_checkpoints = " << tally_checkpoints << "\n";
+    INFO_MSG("Tally mode with tally_checkpoints = " + std::to_string(tally_checkpoints));
     uint64_t tally_ids_len = 0;
     fin.read(reinterpret_cast<char*>(&tally_ids_len), sizeof(tally_ids_len));
     tally_ids.resize(alphabet.size());
@@ -381,7 +386,7 @@ void MoveStructure::read_main_table(std::ifstream& fin, std::streamoff rlbwt_off
     } else {
         rlbwt.resize(r);
         if (movi_options->is_verbose()) {
-            std::cerr << "sizeof(MoveRow): " << sizeof(MoveRow) << std::endl;
+            INFO_MSG("sizeof(MoveRow): " + std::to_string(sizeof(MoveRow)));
         }
         fin.read(reinterpret_cast<char*>(&rlbwt[0]), r*sizeof(MoveRow));
     }
@@ -444,7 +449,7 @@ void MoveStructure::deserialize() {
     if (movi_options->is_no_header() or movi_options->is_legacy_header()) {
         // To be able to load the indexes that haven't stored original_r
         if (fin.eof()) {
-            std::cerr << "original_r was not stored in the index!\n";
+            WARNING_MSG("original_r was not stored in the index!");
         } else {
             // Read the original_r (number of rows before splitting)
             fin.read(reinterpret_cast<char*>(&original_r), sizeof(original_r));
@@ -458,7 +463,7 @@ void MoveStructure::flat_and_serialize_colors_vectors() {
     std::unordered_map<uint32_t, uint64_t> flat_index;
     for (uint64_t i = 0; i < unique_doc_sets.size(); i++) {
         if (i % 1000000 == 0) {
-            std::cerr << "i: " << i << "\r";
+            print_progress_bar(i, unique_doc_sets.size() - 1, "Flatting the colors", current_build_step, total_build_steps);
         }
         flat_index[i] = flat_colors.size();
         flat_colors.push_back(unique_doc_sets[i].size());
@@ -466,18 +471,17 @@ void MoveStructure::flat_and_serialize_colors_vectors() {
             flat_colors.push_back(unique_doc_sets[i][j]);
         }
     }
-    std::cerr << "\n";
+    PROGRESS_MSG("Done flatting the colors.");
+    INFO_MSG("flat_colors.size(): " + std::to_string(flat_colors.size()));
 
     doc_set_flat_inds.resize(doc_set_inds.size());
     for (uint64_t i = 0; i < doc_set_inds.size(); i++) {
         if (i % 1000000 == 0) {
-            std::cerr << "i: " << i << "\r";
+            print_progress_bar(i, doc_set_inds.size() - 1, "Computing flat color indices", current_build_step, total_build_steps);
         }
         doc_set_flat_inds[i].set_value(flat_index[doc_set_inds[i]]);
     }
-    std::cerr << "\n";
-
-    std::cerr << "flat_colors.size(): " << flat_colors.size() << "\n";
+    PROGRESS_MSG("Done computing flat color indices.");
 
     std::string fname = movi_options->get_index_dir() + "/doc_sets_flat.bin";
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
@@ -489,11 +493,12 @@ void MoveStructure::flat_and_serialize_colors_vectors() {
     fout.write(reinterpret_cast<char*>(&flat_colors[0]), flat_colors.size() * sizeof(uint16_t));
     fout.write(reinterpret_cast<char*>(&doc_set_flat_inds[0]), doc_set_flat_inds.size() * sizeof(doc_set_flat_inds[0]));
     fout.close();
+    SUCCESS_MSG("The flat color table is serialized successfully in the index directory (doc_sets_flat.bin).");
 }
 
 void MoveStructure::serialize_doc_pats(std::string fname) {
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
-    std::cerr << "Writing doc pats to: " << fname << std::endl;
+    INFO_MSG("Writing doc pats to: " + fname);
 
     fout.write(reinterpret_cast<char*>(&doc_pats[0]), length * sizeof(doc_pats[0]));
     fout.close();
@@ -509,14 +514,14 @@ void MoveStructure::deserialize_doc_pats(std::string fname) {
     fin.read(reinterpret_cast<char*>(&doc_pats[0]), length * sizeof(doc_pats[0]));
     fin.close();
     
-    std::cerr << "Finished deserializing document patterns" << std::endl;
+    INFO_MSG("Finished deserializing document patterns");
 }
 
 void MoveStructure::serialize_doc_sets(std::string fname) {
     std::ofstream fout(fname, std::ios::out | std::ios::binary);
 
     size_t unique_cnt = unique_doc_sets.size();
-    std::cerr << "Number of unique document sets: " << unique_cnt << std::endl; 
+    INFO_MSG("Number of unique document sets: " + std::to_string(unique_cnt));
     fout.write(reinterpret_cast<char*>(&unique_cnt), sizeof(unique_cnt));
     for (size_t i = 0; i < unique_doc_sets.size(); i++) {
         std::vector<uint16_t> &cur = unique_doc_sets[i];
@@ -537,15 +542,15 @@ void MoveStructure::deserialize_doc_sets_flat() {
 
     uint64_t flat_colors_size = 0;
     fin.read(reinterpret_cast<char*>(&flat_colors_size), sizeof(uint64_t));
-    std::cerr << "flat_colors_size: " << flat_colors_size << "\n";
+    INFO_MSG("flat_colors_size: " + std::to_string(flat_colors_size));
 
     flat_colors.resize(flat_colors_size);
     fin.read(reinterpret_cast<char*>(&flat_colors[0]), flat_colors_size * sizeof(flat_colors[0]));
-    std::cerr << "Read flat_colors\n";
+    INFO_MSG("Read flat_colors");
 
     doc_set_flat_inds.resize(r);
     fin.read(reinterpret_cast<char*>(&doc_set_flat_inds[0]), r * sizeof(doc_set_flat_inds[0]));
-    std::cerr << "Read doc_set_flat_inds\n";
+    INFO_MSG("Read doc_set_flat_inds");
 
     fin.close();
 }
@@ -558,7 +563,7 @@ void MoveStructure::deserialize_doc_sets(std::string fname) {
 
     size_t unique_cnt = 0;
     fin.read(reinterpret_cast<char*>(&unique_cnt), sizeof(unique_cnt));
-    std::cerr << "Number of unique document sets: " << unique_cnt << std::endl; 
+    INFO_MSG("Number of unique document sets: " + std::to_string(unique_cnt));
     unique_doc_sets.resize(unique_cnt);
     for (size_t i = 0; i < unique_cnt; i++) {
         std::vector<uint16_t> &cur = unique_doc_sets[i];
@@ -597,7 +602,7 @@ void MoveStructure::load_document_info() {
     }
     doc_offsets_file.close();
     num_docs = doc_offsets.size();
-    std::cerr << "num_docs: " << num_docs << std::endl;
+    INFO_MSG("num_docs: " + std::to_string(num_docs));
     num_species = num_docs;
 
     // Read in document taxon id
@@ -612,7 +617,7 @@ void MoveStructure::load_document_info() {
         doc_ids_file.close();
     } else {
         // No doc ids information
-        std::cerr << GENERAL_MSG("No doc ids information, setting doc ids to 1...");
+        INFO_MSG("No doc ids information, setting doc ids to 1...");
         doc_ids.resize(num_docs);
         for (size_t i = 0; i < num_docs; i++) {
             doc_ids[i] = i + 1;
@@ -647,6 +652,8 @@ void MoveStructure::load_document_info() {
             pow2[i] -= MOD;
         }
     }
+
+    INFO_MSG("The color table is read successfully.");
 }
 
 void MoveStructure::serialize_sampled_SA() {
@@ -761,7 +768,7 @@ void MoveStructure::read_ftab() {
         fin.read(reinterpret_cast<char*>(&ftab_k), sizeof(ftab_k));
         uint64_t ftab_size = 0;
         fin.read(reinterpret_cast<char*>(&ftab_size), sizeof(ftab_size));
-        std::cerr << GENERAL_MSG("Reading the ftab.\nftab_k: " + std::to_string(ftab_k) + "\t" + "ftab_size: " + std::to_string(ftab_size) + "\n");
+        INFO_MSG("Reading the ftab.\nftab_k: " + std::to_string(ftab_k) + "\t" + "ftab_size: " + std::to_string(ftab_size) + "\n");
         if (ftab_size != std::pow(4, ftab_k)) {
             throw std::runtime_error(ERROR_MSG("[read ftab] The size of the ftab is not correct: " +
                                  std::to_string(ftab_size) + " != " + std::to_string(std::pow(4, ftab_k))));
@@ -775,8 +782,6 @@ void MoveStructure::read_ftab() {
 
 void MoveStructure::output_ids() {
 
-    std::cerr << "\nThe ids are being written out..\n";
-
     std::string base_name = movi_options->get_index_dir() + "/ids";
     std::vector<std::unique_ptr<std::ofstream>> id_files;
 
@@ -788,8 +793,9 @@ void MoveStructure::output_ids() {
     }
 
     for (uint64_t i = 0; i < r; i++) {
-
-        if (i%1000000 == 0) std::cerr << i << "\r";
+        if (i % 1000000 == 0) {
+            print_progress_bar(i, r - 1, "Outputting the ids", current_build_step, total_build_steps);
+        }
 
         if (i != end_bwt_idx) {
 
@@ -807,6 +813,5 @@ void MoveStructure::output_ids() {
     for (auto& id_file : id_files) {
         id_file->close();
     }
-
-    std::cerr << "\nDone.\n";
+    PROGRESS_MSG("Done outputting the ids.");
 }
