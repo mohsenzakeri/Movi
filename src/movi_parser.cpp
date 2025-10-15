@@ -233,8 +233,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                         if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
                         if (result.count("bin-width") >= 1) { movi_options.set_bin_width(static_cast<uint32_t>(result["bin-width"].as<uint32_t>())); }
                         if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
-                        if (result.count("kmer") >= 1) { movi_options.set_kmer(); }
-                        if (result.count("kmer-count") >= 1) { movi_options.set_kmer(); movi_options.set_kmer_count(true); }
+                        if (result.count("kmer") >= 1) { movi_options.set_kmer(); movi_options.set_prefetch(false); }
+                        if (result.count("kmer-count") >= 1) { movi_options.set_kmer(); movi_options.set_kmer_count(true); movi_options.set_prefetch(false); }
                         if (result.count("count") >= 1) { movi_options.set_count(); }
                         if (result.count("zml") >= 1) { movi_options.set_zml(); }
                         if (result.count("pml") >= 1) { movi_options.set_pml(); }
