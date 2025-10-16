@@ -384,11 +384,11 @@ void MoveStructure::set_rlbwt_thresholds(uint64_t idx, uint16_t i, uint16_t valu
 #endif // for all the threshold related functions
 
 bool MoveStructure::check_alphabet(char& c) {
-    // for (char c_: alphabet) {
-    //     if (c == c_)
-    //         return true;
-    // }
-    // return false;
+    if (use_separator()) {
+        if (c == SEPARATOR) {
+            return false;
+        }
+    }
     if (movi_options->ignore_illegal_chars_status() > 0) {
         if (alphamap[static_cast<uint64_t>(c)] == alphamap.size()) {
             thread_local ThreadRandom random_generator;
@@ -528,22 +528,28 @@ uint64_t MoveStructure::fast_forward(uint64_t& offset, uint64_t idx, uint64_t x)
 
     uint64_t idx_ = idx;
     if (movi_options->is_debug()) {
-        DEBUG_MSG("\t \tFast forwarding:");
-        DEBUG_MSG(" \t \t idx: " + std::to_string(idx) + " offset: " + std::to_string(offset) + " n:" + std::to_string(get_n(idx)));
+        DEBUG_MSG("\t\tFast forwarding:");
+        DEBUG_MSG("\t\tidx: " + std::to_string(idx) + " offset: " + std::to_string(offset) + " n:" + std::to_string(get_n(idx)));
     }
 
     while (idx < r - 1 && offset >= get_n(idx)) {
         offset -= get_n(idx);
         idx += 1;
         if (movi_options->is_debug()) {
-            DEBUG_MSG("\t \t ff offset based: +" + std::to_string(idx - idx_));
+            DEBUG_MSG("\t\tff offset based: +" + std::to_string(idx - idx_));
         }
     }
 
     if (movi_options->is_debug()) {
-        DEBUG_MSG("After fast forwarding:");
-        DEBUG_MSG("\t \t idx: " + std::to_string(idx) + " offset: " + std::to_string(offset) + " n:" + std::to_string(get_n(idx)));
+        DEBUG_MSG("\t\tAfter fast forwarding: idx: " + std::to_string(idx) + " offset: " + std::to_string(offset) + " n:" + std::to_string(get_n(idx)));
     }
 
     return idx - idx_;
+}
+
+bool MoveStructure::use_separator() {
+    if (movi_options->use_separators() or (alphabet[0] == SEPARATOR and alphabet.size() == 5)) {
+        return true;
+    }
+    return false;
 }

@@ -48,6 +48,7 @@ struct Args {
     bool preprocessed = true;
     bool preprocessed_flag = false;
     bool non_preprocessed_flag = false;
+    bool use_separators = false;
 };
 
 // Index type mapping
@@ -169,7 +170,8 @@ void handle_build(const Args& args, const std::vector<std::string>& all_args) {
     if (!args.skip_prepare) {
         std::string prepare_ref_command = binary_dir + "/bin/movi-prepare-ref "
                                         + args.fasta_file + " " + clean_fasta
-                                        + (args.fasta_list_provided ? " list" : "");
+                                        + (args.fasta_list_provided ? " list" : "")
+                                        + (args.use_separators ? " kmer" : "");
         execute_command_line(prepare_ref_command, "Failed in prepare fasta step", args);
     }
 
@@ -277,6 +279,9 @@ void parse_build_arguments(int argc, char* argv[],
             } else {
                 throw_missing_argument(arg);
             }
+        } else if (arg == "--separators") {
+            script_args.use_separators = true;
+            all_args.push_back(arg);
         } else {
             all_args.push_back(arg); // Collect other arguments
         }

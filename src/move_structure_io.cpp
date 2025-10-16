@@ -61,9 +61,6 @@ void MoveStructure::write_index_header(std::ofstream& fout) {
         fout.write(reinterpret_cast<char*>(&end_bwt_idx), sizeof(end_bwt_idx));
     }
 
-    if (movi_options->is_verbose()) {
-        print_basic_index_info();
-    }
 }
 
 void MoveStructure::read_index_header(std::ifstream& fin) {
@@ -109,8 +106,6 @@ void MoveStructure::read_index_header(std::ifstream& fin) {
         fin.read(reinterpret_cast<char*>(&r), sizeof(r));
         fin.read(reinterpret_cast<char*>(&end_bwt_idx), sizeof(end_bwt_idx));
     }
-
-    print_basic_index_info();
 }
 
 void MoveStructure::write_basic_index_data(std::ofstream& fout) {
@@ -141,6 +136,10 @@ void MoveStructure::write_basic_index_data(std::ofstream& fout) {
         bool onebit = false;
         fout.write(reinterpret_cast<char*>(&onebit), sizeof(onebit));
     }
+
+    if (movi_options->is_verbose()) {
+        print_basic_index_info();
+    }
 }
 
 void MoveStructure::read_basic_index_data(std::ifstream& fin) {
@@ -165,8 +164,8 @@ void MoveStructure::read_basic_index_data(std::ifstream& fin) {
     }
     alphabet.resize(alphabet_size);
     fin.read(reinterpret_cast<char*>(&alphabet[0]), alphabet_size*sizeof(alphabet[0]));
-    if (alphabet.size() > 4) {
-        WARNING_MSG("There are more than 4 characters, the index expects only A, C, T and G in the reference.");
+    if (alphabet.size() > 4 and !use_separator()) {
+        WARNING_MSG("There are more than 4 characters without separators, the index expects only A, C, T and G in the reference.");
     }
 
     fin.read(reinterpret_cast<char*>(&nt_splitting), sizeof(nt_splitting));
@@ -177,6 +176,10 @@ void MoveStructure::read_basic_index_data(std::ifstream& fin) {
         // This is not used any more as the onebit modes is deprecated
         bool onebit;
         fin.read(reinterpret_cast<char*>(&onebit), sizeof(onebit));
+    }
+
+    if (movi_options->is_verbose()) {
+        print_basic_index_info();
     }
 }
 
@@ -390,7 +393,43 @@ void MoveStructure::read_main_table(std::ifstream& fin, std::streamoff rlbwt_off
         }
         fin.read(reinterpret_cast<char*>(&rlbwt[0]), r*sizeof(MoveRow));
     }
-    std::cerr << INFO_MSG("All the move rows are read.");
+    INFO_MSG("All the move rows are read.");
+}
+
+void MoveStructure::write_separators_thresholds(std::ofstream& fout) {
+    uint64_t separators_thresholds_size = separators_thresholds.size();
+    fout.write(reinterpret_cast<char*>(&separators_thresholds_size), sizeof(separators_thresholds_size));
+    fout.write(reinterpret_cast<char*>(&separators_thresholds[0]), separators_thresholds_size*sizeof(separators_thresholds[0]));
+
+    // Write the size of the map first
+    uint64_t map_size = separators_thresholds_map.size();
+    fout.write(reinterpret_cast<char*>(&map_size), sizeof(map_size));
+
+    // Write each key-value pair
+    for (const auto& pair : separators_thresholds_map) {
+        fout.write(reinterpret_cast<const char*>(&pair.first), sizeof(pair.first));
+        fout.write(reinterpret_cast<const char*>(&pair.second), sizeof(pair.second));
+    }
+}
+
+void MoveStructure::read_separators_thresholds(std::ifstream& fin) {
+    uint64_t separators_thresholds_size;
+    fin.read(reinterpret_cast<char*>(&separators_thresholds_size), sizeof(separators_thresholds_size));
+    separators_thresholds.resize(separators_thresholds_size);
+    fin.read(reinterpret_cast<char*>(&separators_thresholds[0]), separators_thresholds_size*sizeof(separators_thresholds[0]));
+
+    // Read the size of the map first
+    uint64_t map_size;
+    fin.read(reinterpret_cast<char*>(&map_size), sizeof(map_size));
+
+    // Clear the map and read each key-value pair
+    separators_thresholds_map.clear();
+    for (size_t i = 0; i < map_size; ++i) {
+        uint64_t key, value;
+        fin.read(reinterpret_cast<char*>(&key), sizeof(key));
+        fin.read(reinterpret_cast<char*>(&value), sizeof(value));
+        separators_thresholds_map[key] = value;
+    }
 }
 
 void MoveStructure::serialize() {
@@ -419,6 +458,12 @@ void MoveStructure::serialize() {
         // Write the original_r (number of rows before splitting)
         fout.write(reinterpret_cast<char*>(&original_r), sizeof(original_r));
     }
+
+#if USE_THRESHOLDS
+    if (use_separator()) {
+        write_separators_thresholds(fout);
+    }
+#endif
 
     fout.close();
 }
@@ -455,6 +500,12 @@ void MoveStructure::deserialize() {
             fin.read(reinterpret_cast<char*>(&original_r), sizeof(original_r));
         }
     }
+
+#if USE_THRESHOLDS
+    if (use_separator()) {
+        read_separators_thresholds(fin);
+    }
+#endif
 
     fin.close();
 }

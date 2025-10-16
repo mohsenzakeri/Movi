@@ -69,3 +69,29 @@ TEST_CASE("MoveStructure - index building", "[move_structure_index_building]") {
         test_index_creation("tally-thresholds", "tally_thresholds", 475326, "--non-preprocessed --preprocessed");
     }
 }
+
+TEST_CASE("MoveStructure - index building with separators", "[move_structure_index_building_with_separators]") {
+    SECTION("Regular index creation") {
+        test_index_creation("regular", "regular", 871496, "--separators");
+    }
+
+    SECTION("Regular-thresholds index creation") {
+        test_index_creation("regular-thresholds", "regular_thresholds", 948232, "--separators");
+    }
+
+    SECTION("Tally index creation") {
+        test_index_creation("tally", "tally", 464203, "--separators");
+    }
+
+    SECTION("Tally-thresholds index creation") {
+        test_index_creation("tally-thresholds", "tally_thresholds", 505009, "--separators");
+    }
+
+    SECTION("Blocked index creation") {
+        test_index_creation("blocked", "blocked", 654280, "--separators");
+    }
+
+    SECTION("Blocked-thresholds index creation") {
+        test_index_creation("blocked-thresholds", "blocked_thresholds", 711854, "--separators");
+    }
+}

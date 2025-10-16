@@ -770,6 +770,11 @@ void MoveStructure::set_threshold_for_one_character(uint64_t i, uint16_t thresho
         end_bwt_idx_thresholds[threshold_index] = value;
         return;
     }
+
+    if (use_separator() and alphabet[rlbwt[i].get_c()] == SEPARATOR) {
+        separators_thresholds.back().values[threshold_index] = value;
+        return;
+    }
 #if SPLIT_THRESHOLDS_FALSE
     if (value > std::numeric_limits<uint16_t>::max()) {
         rlbwt[i].set_overflow_thresholds();
@@ -813,9 +818,18 @@ void MoveStructure::compute_thresholds() {
         // TODO: we are probably not looking at the right character here
         // char rlbwt_c = get_char(i);
 
+        if (use_separator() and rlbwt_c == SEPARATOR) {
+            separators_thresholds.push_back(ThresholdsRow{0, 0, 0, 0});
+            separators_thresholds_map[i] = separators_thresholds.size() - 1;
+        }
+
         // Used for non-split thresholds
         std::vector<uint64_t> current_thresholds;
         current_thresholds.resize(alphabet.size() - 1);
+        if (use_separator()) {
+            // We don't need to store a threshold for the separator character
+            current_thresholds.resize(alphabet.size() - 2);
+        }
 
         // For other move rows, store a threshold for each character other than the row's character
         for (uint64_t j = 0; j < alphabet.size(); j++) {
@@ -824,13 +838,25 @@ void MoveStructure::compute_thresholds() {
                 alphabet_thresholds[j] = thresholds[thr_i];
             } else {
                 uint16_t threshold_index = i == end_bwt_idx ? j : static_cast<uint16_t>(alphamap_3[alphamap[rlbwt_c]][j]);
+                if (use_separator()) {
+                    if (j == 0) {
+                        // No threshold for the separator character is stored
+                        continue;
+                    }
+                    // We basically assume the main charaqcters of the alphabet start at index 1 so on
+                    // Because the separator character is at the index 0
+                    threshold_index = (i == end_bwt_idx or rlbwt_c == SEPARATOR) ?
+                                            j - 1 : static_cast<uint16_t>(alphamap_3[alphamap[rlbwt_c] - 1][j - 1]);
+                }
+
                 uint64_t current_threshold = alphabet_thresholds[j];
 
-                if (threshold_index >= alphabet.size() - 1 && i != end_bwt_idx) {
+                if (threshold_index >= alphabet.size() - 1 && i != end_bwt_idx && rlbwt_c != SEPARATOR) {
                     throw std::runtime_error(ERROR_MSG("[compute thresholds] alphamap_3 is not working in general:\n"
-                                "alphabet.size() - 1 = " + std::to_string(alphabet.size() - 1) + "\n"
-                                "alphamap_3[alphamap[rlbwt_c]][j] = " + std::to_string(threshold_index)));
+                                                       "alphabet.size() - 1 = " + std::to_string(alphabet.size() - 1) + "\n"
+                                                       "alphamap_3[alphamap[rlbwt_c]][j] = " + std::to_string(threshold_index)));
                 }
+
                 uint64_t threshold_value;
                 uint16_t threshold_value_split;
                 if (current_threshold >= all_p[i] + get_n(i)) {
@@ -872,14 +898,33 @@ void MoveStructure::compute_thresholds() {
     }
 
     // since the thresholds for the first run was not calculated in the for
-    for (uint16_t j = 0; j < alphabet.size() - 1; j++) {
+    if (!use_separator()) {
+        for (uint16_t j = 0; j < alphabet.size() - 1; j++) {
 #if SPLIT_THRESHOLDS_FALSE
-        set_rlbwt_thresholds(0, j, 0);
+            set_rlbwt_thresholds(0, j, 0);
 #endif
 #if SPLIT_THRESHOLDS_TRUE
-        rlbwt[0].set_threshold(j, 0);
+            rlbwt[0].set_threshold(j, 0);
 #endif
+        }
+    } else {
+        if (alphabet[rlbwt[0].get_c()] == SEPARATOR) {
+            separators_thresholds.push_back(ThresholdsRow{0, 0, 0, 0});
+            separators_thresholds_map[0] = separators_thresholds.size() - 1;
+        } else {
+            for (uint16_t j = 0; j < alphabet.size() - 2; j++) {
+#if SPLIT_THRESHOLDS_FALSE
+                set_rlbwt_thresholds(0, j, 0);
+#endif
+#if SPLIT_THRESHOLDS_TRUE
+                rlbwt[0].set_threshold(j, 0);
+#endif
+            }
+        }
     }
+
+    PROGRESS_MSG("Successfully updated the thresholds in all the rows.");
+    current_build_step++;
 }
 #endif
 

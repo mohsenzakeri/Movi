@@ -37,6 +37,10 @@
 
 class Classifier;
 
+struct ThresholdsRow {
+    uint16_t values[4];
+};
+
 class MoveStructure {
     public:
         MoveStructure(MoviOptions* movi_options_);
@@ -47,6 +51,7 @@ class MoveStructure {
         uint64_t get_n(uint64_t idx);
         uint64_t get_offset(uint64_t idx);
         uint64_t get_id(uint64_t idx);
+        bool use_separator();
         // TODO: The following is useful for mmaping, there is a slowdown though
         // MoveRow& get_move_row(uint64_t idx);
 
@@ -146,8 +151,12 @@ class MoveStructure {
         uint64_t reposition_up(uint64_t idx, char c, uint64_t& scan_count);
         uint64_t reposition_down(uint64_t idx, char c, uint64_t& scan_count);
         bool reposition_randomly(uint64_t& idx, uint64_t& offset, char r_char, uint64_t& scan_count);
+
 #if USE_THRESHOLDS
         bool reposition_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);
+        // Helper for threshold calculation
+        void handle_reposition_up(uint64_t& idx, uint64_t saved_idx, char r_char, uint16_t next_up, uint64_t& scan_count);
+        void handle_reposition_down(uint64_t& idx, uint64_t saved_idx, char r_char, uint16_t next_down, uint64_t& scan_count);
 #endif
 /*******  End of functions implemented in move_structure_query.cpp  *******/
 /***************************************************************************/
@@ -223,6 +232,8 @@ class MoveStructure {
         void read_counts_data(std::ifstream& fin);
         void write_main_table(std::ofstream& fout);
         void read_main_table(std::ifstream& fin, std::streamoff rlbwt_offset);
+        void write_separators_thresholds(std::ofstream& fout);
+        void read_separators_thresholds(std::ifstream& fin);
         void serialize();
         void deserialize();
         void output_ids();
@@ -323,6 +334,10 @@ class MoveStructure {
         uint64_t end_bwt_idx_thresholds[4];
         uint64_t end_bwt_idx_next_up[4];
         uint64_t end_bwt_idx_next_down[4];
+
+        // The explicit thresholds for the separators
+        std::vector<ThresholdsRow> separators_thresholds;
+        std::unordered_map<uint64_t, uint64_t> separators_thresholds_map;
 
         // Map from 2bit encoded character to the actual character
         // Example: alphabet[0] -> A, alphabet[1] -> C

@@ -21,6 +21,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
         ("i,index", "Index directory", cxxopts::value<std::string>())
         ("f,fasta", "Reference file", cxxopts::value<std::string>())
         ("l,list", "List of fasta files, only works with 'movi' binary", cxxopts::value<std::string>())
+        ("separators", "Use separators in the index")
         ("color", "Add colors to the index for multi-class classification")
         ("color-vectors", "Build a vector of vectors for colors (builds \"ref.fa.doc_sets.bin\")")
         ("thresholds", "Store the threshold values in by splitting the runs at threshold boundaries")
@@ -164,6 +165,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                 if (result.count("index") == 1 and result.count("fasta") == 1) {
                     movi_options.set_index_dir(result["index"].as<std::string>());
                     movi_options.set_ref_file(result["fasta"].as<std::string>());
+                    if (result.count("separators")) { movi_options.set_use_separators(true); }
                     if (result.count("color")) { movi_options.set_color(true); }
                     if (result.count("color-vectors") == 1) { movi_options.set_doc_sets_vector_of_vectors(true); }
                     if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }

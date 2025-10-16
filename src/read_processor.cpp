@@ -190,8 +190,11 @@ void ReadProcessor::process_char(Strand& process) {
     char row_c = mv.alphabet[row.get_c()];
     std::string& R = process.mq.query();
     process.scan_count = 0;
-    if (mv.alphamap[static_cast<uint64_t>(R[process.pos_on_r])] == mv.alphamap.size()) {
+
+    if (!mv.check_alphabet(R[process.pos_on_r])) {
         process.match_len = 0;
+        if (mv.movi_options->is_debug())
+            DEBUG_MSG("[Read Processor] The character " + std::string(1, R[process.pos_on_r]) + " does not exist.");
     } else if (row_c == R[process.pos_on_r]) {
         // Case 1
         process.match_len += 1;
@@ -219,9 +222,9 @@ void ReadProcessor::process_char(Strand& process) {
             // But we cannot compute lcp here
             process.offset = up ? mv.get_n(process.idx) - 1 : 0;
             if (mv.movi_options->is_debug())
-                DEBUG_MSG("\t idx: " + std::to_string(process.idx) + " offset: " + std::to_string(process.offset));
+                DEBUG_MSG("\tidx: " + std::to_string(process.idx) + " offset: " + std::to_string(process.offset));
         } else {
-            throw std::runtime_error(ERROR_MSG("\t \t This should not happen!"));
+            throw std::runtime_error(ERROR_MSG("\t\tCharacters should not mismatch after repositioning."));
         }
     }
 
@@ -309,7 +312,7 @@ void ReadProcessor::process_char_tally(Strand& process) {
                 if (mv.movi_options->is_debug())
                     DEBUG_MSG("\t idx: " + std::to_string(process.idx) + " offset: " + std::to_string(process.offset));
             } else {
-                throw std::runtime_error(ERROR_MSG("\t \t This should not happen!"));
+                throw std::runtime_error(ERROR_MSG("[Read Processor - tally mode] Characters should not mismatch after repositioning."));
             }
         }
         process.mq.add_ml(process.match_len, mv.movi_options->write_stdout_enabled());

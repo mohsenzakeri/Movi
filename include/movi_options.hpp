@@ -54,6 +54,7 @@ class MoviOptions {
         bool is_generate_null_reads() { return generate_null_reads; }
         size_t get_bin_width() { return bin_width; }
         int ignore_illegal_chars_status() { return ilc; }
+        bool use_separators() { return separators; }
         size_t get_strands() { return strands; }
         bool is_full_color() { return full_color; }
         bool is_compressed() { return compress; }
@@ -134,6 +135,7 @@ class MoviOptions {
                 std::srand(time(0));
             return true;
         }
+        void set_use_separators(bool separators_) { separators = separators_; }
         void set_mmap(bool mmap_) { mmap = mmap_; }
         void set_prefetch(bool prefetch_) { prefetch = prefetch_; }
         void set_threads(size_t threads_) { threads = threads_; }
@@ -175,6 +177,7 @@ class MoviOptions {
             std::cerr << "adjusted_block:\t" << adjusted_block << "\n";
             std::cerr << "preprocessed:\t" << preprocessed << "\n";
             std::cerr << "ilc:\t" << ilc << "\n";
+            std::cerr << "separators:\t" << separators << "\n";
             std::cerr << "split:\t" << split << "\n";
             std::cerr << "thresholds:\t" << thresholds << "\n";
             std::cerr << "random_repositioning:\t" << random_repositioning << "\n";
@@ -222,6 +225,7 @@ class MoviOptions {
         bool adjusted_block = true;
         bool preprocessed = false;
         int ilc = 0;
+        bool separators = false;
         bool split = false;
         bool thresholds = false;
         bool random_repositioning = false;

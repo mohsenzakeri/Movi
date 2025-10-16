@@ -544,6 +544,12 @@ int main(int argc, char** argv) {
 
         std::string command = movi_options.get_command();
         if (command == "build") {
+            if (movi_options.use_separators()) {
+                if (!SUPPORTS_SEPARATORS) {
+                    // TODO: Fully support separators for large, split, and constant indexes
+                    throw std::runtime_error(ERROR_MSG("[build] Separators are not supported for the " + program() + " index."));
+                }
+            }
             MoveStructure mv_(&movi_options, SPLIT_ARRAY, CONSTANT_INDEX);
             if (movi_options.is_verify()) {
                 INFO_MSG("Verifying the LF_move results...");

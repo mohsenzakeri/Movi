@@ -3,14 +3,15 @@
 using namespace Catch::Matchers;
 
 // Helper function to test PML computation
-void test_pml_computation(const std::string& index_type, std::string reads_file_name, const std::string& extra_query_args = "") {
+void test_pml_computation(const std::string& index_type, std::string reads_file_name,
+                          const std::string& extra_query_args = "", const std::string& index_flags = "") {
     ensure_test_data_dir();
     std::string fasta_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/ref.fasta";
     const std::string index_dir = TEST_DATA_DIR + "/index_" + index_type;
     
     // Build index
     std::string cmd = std::string(BINARY_DIR) + "/movi build --type " + index_type + " --index " + index_dir +
-              " --fasta " + fasta_file + " --verify > /dev/null 2>&1";
+              " --fasta " + fasta_file + " " + index_flags + " --verify > /dev/null 2>&1";
     int exit_code = system(cmd.c_str());
     REQUIRE(exit_code == 0);
 
@@ -29,6 +30,9 @@ void test_pml_computation(const std::string& index_type, std::string reads_file_
 
     // Compare with expected results
     std::string pmls_source_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/" + reads_file_name + ".pmls.sorted";
+    if (index_flags == "--separators") {
+        pmls_source_file = std::string(BINARY_DIR) + "/../" + TEST_DATA_DIR + "/" + reads_file_name + ".separators.pmls.sorted";
+    }
     REQUIRE(std::filesystem::exists(query_output + ".sorted"));
     REQUIRE(std::filesystem::exists(pmls_source_file));
     
@@ -97,6 +101,16 @@ TEST_CASE("PML query with fastq", "[pml_query_fastq]") {
 
     SECTION("Regular thresholds PML computation with 4 strands and 4 threads (fastq)") {
         test_pml_computation("regular-thresholds", "sample.fastq", "-s4 -t4");
+    }
+}
+
+TEST_CASE("PML query with separators", "[pml_query_with_separators]") {
+    SECTION("Blocked thresholds PML computation (separators)") {
+        test_pml_computation("blocked-thresholds", "reads.fasta", "--no-prefetch -t1", "--separators");
+    }
+
+    SECTION("Regular thresholds PML computation with 4 strands and 4 threads (fastq)") {
+        test_pml_computation("regular-thresholds", "reads.fasta", "-s4 -t4", "--separators");
     }
 }
 

@@ -154,6 +154,9 @@ extern uint32_t alphamap_3[4][4];
 #define TALLY_MODES MODE == 5 or MODE == 7
 #define MOVI1_STYLE MODE == 0 or MODE == 1 or MODE == 4
 
+// Feature compatibility macros
+#define SUPPORTS_SEPARATORS (MODE == 2 or MODE == 3 or MODE == 5 or MODE == 6 or MODE == 7 or MODE == 8)
+
 #define END_CHARACTER 0
 #define THRBYTES 5
 #define MIN_MATCHING_LENGTH 3

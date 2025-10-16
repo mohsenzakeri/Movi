@@ -204,7 +204,7 @@ uint64_t MoveStructure::reposition_up(uint64_t idx, char c, uint64_t& scan_count
     } */
 
     if (movi_options->is_debug())
-        DEBUG_MSG("\t \t \t \t idx after the while in the reposition up" + std::to_string(idx));
+        DEBUG_MSG("\tidx after the while in the reposition up: " + std::to_string(idx));
     return (row_c == c) ? idx : r;
 }
 
@@ -227,7 +227,7 @@ uint64_t MoveStructure::reposition_down(uint64_t idx, char c, uint64_t& scan_cou
     } */
 
     if (movi_options->is_debug())
-        DEBUG_MSG("\t \t \t \t idx after the while in the reposition down: " + std::to_string(idx) + " " + c + " " + row_c);
+        DEBUG_MSG("\tidx after the while in the reposition down: " + std::to_string(idx) + " " + c + " " + row_c);
     return (row_c == c) ? idx : r;
 }
 
@@ -288,11 +288,11 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             scan_count = 0;
 
             if (movi_options->is_debug()) {
-                DEBUG_MSG("\t Case 1: It was a match.\n\t Continue the search...");
-                DEBUG_MSG("\t match_len: " + std::to_string(match_len));
-                DEBUG_MSG("\t current_id: " + std::to_string(idx) + "\t row.id: " + std::to_string(get_id(row_idx)) + "\n"
-                          + "\t row.get_n: " + std::to_string(get_n(row_idx)) + " rlbwt[idx].get_n: " + std::to_string(get_n(get_id(row_idx))) + "\n"
-                          + "\t offset: " + std::to_string(offset) + "\t row.get_offset(): " + std::to_string(get_offset(row_idx)) + "\n");
+                DEBUG_MSG("\tCase 1: It was a match.\n\t Continue the search...");
+                DEBUG_MSG("\tmatch_len: " + std::to_string(match_len));
+                DEBUG_MSG("\tcurrent_id: " + std::to_string(idx) + "\trow.id: " + std::to_string(get_id(row_idx)));
+                DEBUG_MSG("\trow.get_n: " + std::to_string(get_n(row_idx)) + "\trlbwt[idx].get_n: " + std::to_string(get_n(get_id(row_idx))));
+                DEBUG_MSG("\toffset: " + std::to_string(offset) + "\trow.get_offset(): " + std::to_string(get_offset(row_idx)));
             }
         } else {
             // Case 2
@@ -316,7 +316,7 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
             char c = alphabet[rlbwt[idx].get_c()];
 
             if (movi_options->is_debug())
-                DEBUG_MSG("\t up: " + std::to_string(up) + " idx: " + std::to_string(idx) + " c:" + c);
+                DEBUG_MSG("\tup: " + std::to_string(up) + " idx: " + std::to_string(idx) + " c:" + c);
 
             // sanity check
             if (c == R[pos_on_r]) {
@@ -327,12 +327,12 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
                 offset = up ? get_n(idx) - 1 : 0;
 
                 if (movi_options->is_debug())
-                    DEBUG_MSG("\t idx: " + std::to_string(idx) + " offset: " + std::to_string(offset));
+                    DEBUG_MSG("\tidx: " + std::to_string(idx) + " offset: " + std::to_string(offset));
 
             } else {
-                DEBUG_MSG("\t \t pos: " + std::to_string(pos_on_r) + " r[pos]:" +  R[pos_on_r] + " t[pointer]:" + c);
-                DEBUG_MSG("\t \t " + std::to_string(up) + ", " + R[pos_on_r] + ", " + std::to_string(pos_on_r));
-                DEBUG_MSG("\t \t ");
+                DEBUG_MSG("\t\tpos: " + std::to_string(pos_on_r) + " r[pos]:" +  R[pos_on_r] + " t[pointer]:" + c);
+                DEBUG_MSG("\t\t" + std::to_string(up) + ", " + R[pos_on_r] + ", " + std::to_string(pos_on_r));
+                DEBUG_MSG("\t\t");
                 for (int k = 10; k > 0; --k)
                     DEBUG_MSG(alphabet[rlbwt[idx - k].get_c()] + "-");
                 for (int k = 0; k < 10; k++)
@@ -474,117 +474,123 @@ uint64_t MoveStructure::query_pml(MoveQuery& mq) {
 }
 
 #if USE_THRESHOLDS
+void MoveStructure::handle_reposition_up(uint64_t& idx, uint64_t saved_idx, char r_char, uint16_t next_up, uint64_t& scan_count) {
+#if USE_NEXT_POINTERS
+    if (constant) {
+        scan_count += 1;
+        if (next_up == std::numeric_limits<uint16_t>::max())
+            idx = r;
+        else
+            idx = saved_idx - next_up;
+    } else {
+        throw std::runtime_error(ERROR_MSG("[reposition thresholds] MODE is set to " + std::to_string(MODE) +
+                                           ", but the constant variable is false."));
+   }
+#endif
+#if THRESHOLDS_WITHOUT_NEXTS
+    idx = reposition_up(saved_idx, r_char, scan_count);
+#endif
+}
+
+void MoveStructure::handle_reposition_down(uint64_t& idx, uint64_t saved_idx, char r_char, uint16_t next_down, uint64_t& scan_count) {
+#if USE_NEXT_POINTERS
+    if (constant) {
+        scan_count += 1;
+        if (next_down == std::numeric_limits<uint16_t>::max())
+            idx = r;
+        else
+            idx = saved_idx + next_down;
+    } else {
+         throw std::runtime_error(ERROR_MSG("[reposition thresholds] MODE is set to " + std::to_string(MODE) +
+                                            ", but the constant variable is false."));
+    }
+#endif
+#if THRESHOLDS_WITHOUT_NEXTS
+    idx = reposition_down(saved_idx, r_char, scan_count);
+#endif
+}
+
 bool MoveStructure::reposition_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count) {
     // If offset is greather than or equal to the threshold, reposition down
     // otherwise, reposition up
     uint64_t saved_idx = idx;
     uint64_t alphabet_index = alphamap[static_cast<uint64_t>(r_char)];
+    if (use_separator()) {
+        if (alphabet_index == 0) {
+            throw std::runtime_error(ERROR_MSG("[reposition thresholds] the alphabet index equal to 0 should not happen with separators."));
+        }
+        alphabet_index -= 1;
+    }
     scan_count = 0;
 
     char rlbwt_char = alphabet[rlbwt[idx].get_c()];
 
-    if (movi_options->is_verbose()) {
-        std::cerr << "\t \t \t alphabet_index: " << alphabet_index << " r_char:" << r_char << " rlbwt_char:" << rlbwt_char << "\n";
-        std::cerr << "\t \t \t idx:" << idx << "\n"
-                  << "\t \t \t offset: " << offset << " threshold:" << get_thresholds(idx, alphamap_3[alphamap[rlbwt_char]][alphabet_index]) << "\n";
-    }
+    uint64_t threshold_value = 0;
+
+    // Used in constant mode where we store explicit pointers for repositioning
+    uint16_t next_down = 0;
+    uint16_t next_up = 0;
 
     if (idx == end_bwt_idx) {
-        if (movi_options->is_verbose()) std::cerr << "\t \t \t idx == end_bwt_idx"
-                                << "\n\t \t \t idx: " << idx << " end_bwt_idx: " << end_bwt_idx << " alphabet_index: " << alphabet_index << "\n"
-                                << "\t \t \t end_bwt_idx_thresholds[alphabet_index]: " << end_bwt_idx_thresholds[alphabet_index] << "\n";
-        if (offset >= end_bwt_idx_thresholds[alphabet_index]) {
-            if (movi_options->is_verbose())
-                std::cerr << "\t \t \t Repositioning down with thresholds:\n";
+        threshold_value = end_bwt_idx_thresholds[alphabet_index];
 #if USE_NEXT_POINTERS
-            if (constant) {
-                scan_count += 1;
-                if (end_bwt_idx_next_down[alphabet_index] == std::numeric_limits<uint16_t>::max())
-                    idx = r;
-                else
-                    idx = saved_idx + end_bwt_idx_next_down[alphabet_index];
+        next_down = end_bwt_idx_next_down[alphabet_index];
+        next_up = end_bwt_idx_next_up[alphabet_index];
+#endif
+    } else if (use_separator() and rlbwt_char == SEPARATOR) {
+        threshold_value = separators_thresholds[separators_thresholds_map[idx]].values[alphabet_index];
+        // TODO: Next pointers with separators are not implemented yet
+        // Constant mode doesn't store next pointers for separators
+    } else {
+        if (use_separator()) {
+            if (movi_options->is_debug()) {
+                DEBUG_MSG("Use separators: rlbwt_char = " + std::string(1, rlbwt_char) +
+                          " alphabet_index before applying alphamap_3: " + std::to_string(alphabet_index));
             }
-#endif
-
-#if THRESHOLDS_WITHOUT_NEXTS
-            idx = reposition_down(saved_idx, r_char, scan_count);
-#endif
-            if (r_char != alphabet[rlbwt[idx].get_c()])
-                std::cerr << "1: " << r_char << " " << alphabet[rlbwt[idx].get_c()];
-            return false;
+            alphabet_index = alphamap_3[alphamap[rlbwt_char] - 1][alphabet_index];
         } else {
-            if (movi_options->is_verbose())
-                std::cerr << "\t \t \t Repositioning up with thresholds:\n";
-#if USE_NEXT_POINTERS
-            if (constant) {
-                scan_count += 1;
-                if (end_bwt_idx_next_up[alphabet_index] == std::numeric_limits<uint16_t>::max())
-                    idx = r;
-                else
-                    idx = saved_idx - end_bwt_idx_next_up[alphabet_index];
+            if (movi_options->is_debug()) {
+                DEBUG_MSG("No separators: rlbwt_char = " + std::string(1, rlbwt_char) + " alphabet_index: " + std::to_string(alphabet_index));
             }
-#endif
-
-#if THRESHOLDS_WITHOUT_NEXTS
-            idx = reposition_up(saved_idx, r_char, scan_count);
-#endif
-            if (r_char != alphabet[rlbwt[idx].get_c()])
-                std::cerr << "2: " << r_char << " " << alphabet[rlbwt[idx].get_c()];
-            return true;
+            alphabet_index = alphamap_3[alphamap[rlbwt_char]][alphabet_index];
         }
+
+        if (alphabet_index == 3) {
+            throw std::runtime_error(ERROR_MSG("[reposition thresholds] alphamap_3 is incorrect, alphabet_index = " + std::to_string(alphabet_index)));
+        }
+        threshold_value = get_thresholds(idx, alphabet_index);
+#if USE_NEXT_POINTERS
+        next_down = rlbwt[idx].get_next_down(alphabet_index);
+        next_up = rlbwt[idx].get_next_up(alphabet_index);
+#endif
     }
 
     if (movi_options->is_debug()) {
         DEBUG_MSG("[reposition_thresholds] alphabet_index: " + std::to_string(alphabet_index) +
                                          " r_char:" + std::to_string(r_char) + " rlbwt_char:" + std::to_string(rlbwt_char) +
-                                         " dx:" + std::to_string(idx) + " offset: " + std::to_string(offset) +
+                                         " idx:" + std::to_string(idx) + " offset: " + std::to_string(offset) +
                                          " threshold_value: " + std::to_string(threshold_value));
     }
 
-    alphabet_index = alphamap_3[alphamap[rlbwt_char]][alphabet_index];
-    if (alphabet_index == 3)
-        std::cerr << "error: alphamap_3 is not working in general - " 
-                    << alphabet_index << "!\n";
+    if (offset >= threshold_value) {
 
-    if (offset >= get_thresholds(idx, alphabet_index)) {
-        if (movi_options->is_verbose())
-            std::cerr << "\t \t \t Repositioning down with thresholds:\n";
-#if USE_NEXT_POINTERS
-        if (constant) {
-            scan_count += 1;
-            if (rlbwt[saved_idx].get_next_down(alphabet_index) == std::numeric_limits<uint16_t>::max())
-                idx = r;
-            else
-                idx = saved_idx + rlbwt[saved_idx].get_next_down(alphabet_index);
-        } else {
-            throw std::runtime_error(ERROR_MSG("[reposition thresholds] MODE is set to " + std::to_string(MODE) + ", but the constant variable is false."));
-        }
-#endif
-        auto tmp = idx;
-#if THRESHOLDS_WITHOUT_NEXTS
-        idx = reposition_down(saved_idx, r_char, scan_count);
-#endif
+        if (movi_options->is_debug())
+            DEBUG_MSG("[reposition_thresholds] Repositioning down with thresholds..:");
+
+        handle_reposition_down(idx, saved_idx, r_char, next_down, scan_count);
+
         if (r_char != alphabet[rlbwt[idx].get_c()]) {
             throw std::runtime_error(ERROR_MSG("[reposition thresholds] r_char != alphabet[rlbwt[idx].get_c()], r_char: " + std::to_string(r_char) +
                                                ", alphabet[rlbwt[idx].get_c()]: " + std::to_string(alphabet[rlbwt[idx].get_c()])));
         }
         return false;
     } else {
-        if (movi_options->is_verbose())
-            std::cerr << "\t \t \t Repositioning up with thresholds:\n";
-#if USE_NEXT_POINTERS
-        scan_count += 1;
-        if (constant) {
-            if (rlbwt[saved_idx].get_next_up(alphabet_index) == std::numeric_limits<uint16_t>::max())
-                idx = r;
-            else
-                idx = saved_idx - rlbwt[saved_idx].get_next_up(alphabet_index);
-        }
-#endif
 
-#if THRESHOLDS_WITHOUT_NEXTS
-        idx = reposition_up(saved_idx, r_char, scan_count);
-#endif
+        if (movi_options->is_debug())
+            DEBUG_MSG("[reposition_thresholds] Repositioning up with thresholds..");
+
+        handle_reposition_up(idx, saved_idx, r_char, next_up, scan_count);
+
         if (r_char != alphabet[rlbwt[idx].get_c()]) {
             throw std::runtime_error(ERROR_MSG("[reposition thresholds] r_char != alphabet[rlbwt[idx].get_c()], r_char: " + std::to_string(r_char) +
                                                ", alphabet[rlbwt[idx].get_c()]: " + std::to_string(alphabet[rlbwt[idx].get_c()])));
@@ -592,12 +598,6 @@ bool MoveStructure::reposition_thresholds(uint64_t& idx, uint64_t offset, char r
         }
         return true;
     }
-
-    // TODO: default return?
-
-    if (r_char != alphabet[rlbwt[idx].get_c()])
-        std::cerr << "5: " << r_char << " " << alphabet[rlbwt[idx].get_c()];
-    return false;
 }
 #endif
 
@@ -681,7 +681,7 @@ bool MoveStructure::reposition_randomly(uint64_t& idx, uint64_t& offset, char r_
     char c = alphabet[rlbwt[idx].get_c()];
     if (c != r_char or idx == r) {
         throw std::runtime_error(ERROR_MSG("[reposition randomly] This should never happen.""c: " + c + "\n" +
-                                           "idx: " + std::to_string(idx) + "\n"));
+                                           "\tidx: " + std::to_string(idx) + "\n"));
     }
 
     return up;
