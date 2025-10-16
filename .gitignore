@@ -39,4 +39,10 @@ test_data/*.bin
 test_data/*.txt
 thirdparty/*
 CMakeModules/*
-# test_data/test_out
+
+# test files
+tests_data/*.bpf
+tests_data/*.pmls
+tests_data/*.report
+tests_data/index*
+tests_data/*.pseudo_lengths
