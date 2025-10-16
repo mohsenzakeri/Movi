@@ -95,7 +95,7 @@ void MoveStructure::read_index_header(std::ifstream& fin) {
             r = header.r;
             original_r = header.original_r;
             end_bwt_idx = header.end_bwt_idx;
-            INFO_MSG("Movi index version: " + std::to_string(header.version) + "." + std::to_string(header.version_minor) + "." + std::to_string(header.version_patch));
+            print_index_version(header);
         }
         INFO_MSG("The " + program() + " index is being used.");
     }

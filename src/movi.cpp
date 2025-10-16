@@ -550,7 +550,11 @@ int main(int argc, char** argv) {
                     throw std::runtime_error(ERROR_MSG("[build] Separators are not supported for the " + program() + " index."));
                 }
             }
+
             MoveStructure mv_(&movi_options, SPLIT_ARRAY, CONSTANT_INDEX);
+
+            mv_.build();
+
             if (movi_options.is_verify()) {
                 INFO_MSG("Verifying the LF_move results...");
                 mv_.verify_lf_loop();

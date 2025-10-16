@@ -183,6 +183,8 @@ struct ThreadRandom {
 
 std::string program();
 
+void print_index_version(MoviHeader& header);
+
 std::string query_type(MoviOptions& movi_options);
 
 char complement(char c);

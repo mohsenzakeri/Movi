@@ -38,6 +38,13 @@ std::string program() {
     throw std::runtime_error(ERROR_MSG("[program] The mode is not defined."));
 }
 
+void print_index_version(MoviHeader& header) {
+    INFO_MSG("Movi index version: "
+            + std::to_string(header.version) + "."
+            + std::to_string(header.version_minor) + "."
+            + std::to_string(header.version_patch));
+}
+
 std::string query_type(MoviOptions& movi_options) {
     if (movi_options.is_pml()) {
         if (movi_options.is_random_repositioning()) {

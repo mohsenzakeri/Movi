@@ -15,11 +15,8 @@ MoveStructure::MoveStructure(MoviOptions* movi_options_, uint16_t nt_splitting_,
     no_ftab = 0;
     all_initializations = 0;
 
-    if (movi_options->is_thresholds()) {
-        std::string thr_filename = movi_options->get_ref_file() + std::string(".thr_pos");
-        read_thresholds(thr_filename, thresholds);
-    }
-    build();
+    MoviHeader header;
+    print_index_version(header);
 }
 
 std::vector<MoveRow> MoveStructure::get_rlbwt() {

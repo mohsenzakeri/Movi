@@ -15,6 +15,10 @@ void MoveStructure::compute_number_of_build_steps() {
 }
 
 void MoveStructure::build() {
+    if (movi_options->is_thresholds()) {
+        std::string thr_filename = movi_options->get_ref_file() + std::string(".thr_pos");
+        read_thresholds(thr_filename, thresholds);
+    }
 
     INFO_MSG("Building starts...");
     compute_number_of_build_steps();
