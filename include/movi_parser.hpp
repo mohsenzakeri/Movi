@@ -2,6 +2,7 @@
 #define MOVI_PARSER_HPP
 
 #include <iostream>
+#include <filesystem>
 
 #include <cxxopts.hpp>
 

@@ -97,6 +97,10 @@ void setup_input_file(std::ifstream& input_file, const std::string& read_file) {
         input_file.clear(std::cin.rdstate());
         input_file.basic_ios<char>::rdbuf(std::cin.rdbuf());
     } else {
+        // This check is already done in the parser too.
+        if (!std::filesystem::exists(read_file)) {
+            throw std::runtime_error(ERROR_MSG("The input file " + read_file + " does not exist."));
+        }
         input_file.open(read_file.c_str());
     }
 }
