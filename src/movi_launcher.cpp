@@ -171,7 +171,7 @@ void handle_build(const Args& args, const std::vector<std::string>& all_args) {
         std::string prepare_ref_command = binary_dir + "/bin/movi-prepare-ref "
                                         + args.fasta_file + " " + clean_fasta
                                         + (args.fasta_list_provided ? " list" : "")
-                                        + (args.use_separators ? " kmer" : "");
+                                        + (args.use_separators ? " separators" : "");
         execute_command_line(prepare_ref_command, "Failed in prepare fasta step", args);
     }
 
