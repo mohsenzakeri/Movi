@@ -605,6 +605,11 @@ int main(int argc, char** argv) {
 
             color(mv_, movi_options);
         } else if (command == "query") {
+            // Check if the input file exists
+            if (movi_options.get_read_file() != "-" and !std::filesystem::exists(movi_options.get_read_file())) {
+                throw std::runtime_error(ERROR_MSG("The input file " + movi_options.get_read_file() + " does not exist."));
+            }
+
             MoveStructure mv_(&movi_options);
 
             auto begin = std::chrono::system_clock::now();

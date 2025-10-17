@@ -230,10 +230,6 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                     if (result.count("index") == 1 and result.count("read") == 1) {
                         movi_options.set_index_dir(result["index"].as<std::string>());
                         movi_options.set_read_file(result["read"].as<std::string>());
-                        // Check if the input file exists
-                        if (movi_options.get_read_file() != "-" and !std::filesystem::exists(movi_options.get_read_file())) {
-                            throw std::runtime_error(ERROR_MSG("The input file " + movi_options.get_read_file() + " does not exist."));
-                        }
                         if (result.count("out-file")) { movi_options.set_out_file(result["out-file"].as<std::string>()); }
                         if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
                         if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
