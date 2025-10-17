@@ -165,16 +165,16 @@ TEST_CASE("MoveStructure - PML query with classification", "[move_structure_pml_
         test_classification_computation("blocked-thresholds", "blocked_thresholds", "blocked_thresholds", "--no-prefetch -t1");
     }
 
-    SECTION("Tally-thresholds PML classification") {
-        test_classification_computation("tally-thresholds", "tally_thresholds", "tally_thresholds", "--no-prefetch -t1");
+    SECTION("Sampled-thresholds PML classification") {
+        test_classification_computation("sampled-thresholds", "sampled_thresholds", "sampled_thresholds", "--no-prefetch -t1");
     }
 
     SECTION("Large PML classification") {
         test_classification_computation("large", "large", "large", "--no-prefetch -t1");
     }
 
-    SECTION("Tally-thresholds PML classification (threaded)") {
-        test_classification_computation("tally-thresholds", "tally_thresholds", "tally_thresholds", "--no-prefetch -t16");
+    SECTION("Sampled-thresholds PML classification (threaded)") {
+        test_classification_computation("sampled-thresholds", "sampled_thresholds", "sampled_thresholds", "--no-prefetch -t16");
     }
 
     SECTION("Regular thresholds PML classification with 16 strands and 1 thread") {
@@ -191,8 +191,8 @@ TEST_CASE("ReadProcessor - PML filtering", "[read_processor]") {
         test_pml_filtering("regular-thresholds", "regular_thresholds", "regular_thresholds", " -s16 -t2");
     }
 
-    SECTION("Tally thresholds PML filtering with no-prefetch and 16 thread") {
-        test_pml_filtering("tally-thresholds", "tally_thresholds", "tally_thresholds", " --no-prefetch -t1");
+    SECTION("Sampled thresholds PML filtering with no-prefetch and 16 thread") {
+        test_pml_filtering("sampled-thresholds", "sampled_thresholds", "sampled_thresholds", " --no-prefetch -t1");
     }
 
     SECTION("Large PML invert filtering with 16 strands and 1 thread") {

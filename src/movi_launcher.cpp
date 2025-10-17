@@ -60,8 +60,8 @@ const std::unordered_map<std::string, char> type_to_char = {
     {"regular-thresholds", 6},
     {"blocked", 2},
     {"blocked-thresholds", 8},
-    {"tally", 5},
-    {"tally-thresholds", 7}
+    {"sampled", 5},
+    {"sampled-thresholds", 7}
 };
 
 const std::unordered_map<char, std::string> char_to_type = {
@@ -72,8 +72,8 @@ const std::unordered_map<char, std::string> char_to_type = {
     {6, "regular-thresholds"},
     {2, "blocked"},
     {8, "blocked-thresholds"},
-    {5, "tally"},
-    {7, "tally-thresholds"}
+    {5, "sampled"},
+    {7, "sampled-thresholds"}
 };
 
 // Function declarations

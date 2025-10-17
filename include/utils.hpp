@@ -136,6 +136,7 @@ extern uint32_t alphamap_3[4][4];
 #define REGULAR_THRESHOLDS_INDEX MODE == 6
 #define BLOCKED_INDEX MODE == 2
 #define BLOCKED_THRESHOLDS_INDEX MODE == 8
+// Note: External interface uses "sampled" naming, internal code still uses in many places "tally"
 #define TALLY_INDEX MODE == 5
 #define TALLY_THRESHOLDS_INDEX MODE == 7
 

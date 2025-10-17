@@ -159,6 +159,9 @@ uint64_t MoveStructure::compute_length_from_bwt() {
 
         original_r  = original_run_heads.size();
         INFO_MSG("Number of BWT runs: " + std::to_string(original_r));
+#if TALLY_MODES
+        INFO_MSG("Checkpoint for the id field is stored every " + std::to_string(movi_options->get_tally_checkpoints()) + " move rows");
+#endif
 
         original_lens.resize(original_r);
 

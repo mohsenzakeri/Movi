@@ -63,16 +63,16 @@ TEST_CASE("MoveStructure - PML query", "[move_structure_pml]") {
         test_pml_computation("blocked-thresholds", "reads.fasta", "--no-prefetch -t1");
     }
 
-    SECTION("Tally-thresholds PML computation") {
-        test_pml_computation("tally-thresholds", "reads.fasta", "--no-prefetch -t1");
+    SECTION("Sampled-thresholds PML computation") {
+        test_pml_computation("sampled-thresholds", "reads.fasta", "--no-prefetch -t1");
     }
 
     SECTION("Large PML computation") {
         test_pml_computation("large", "reads.fasta", "--no-prefetch -t1");
     }
 
-    SECTION("Tally-thresholds PML computation (threaded)") {
-        test_pml_computation("tally-thresholds", "reads.fasta", "--no-prefetch -t16");
+    SECTION("Sampled-thresholds PML computation (threaded)") {
+        test_pml_computation("sampled-thresholds", "reads.fasta", "--no-prefetch -t16");
     }
 }
 
@@ -95,8 +95,8 @@ TEST_CASE("PML query with fastq", "[pml_query_fastq]") {
         test_pml_computation("regular-thresholds", "sample.fastq", "--no-prefetch -t4");
     }
 
-    SECTION("Tally thresholds PML computation with 4 strands and 1 thread (fastq)") {
-            test_pml_computation("tally-thresholds", "sample.fastq", "-s4 -t1");
+    SECTION("Sampled thresholds PML computation with 4 strands and 1 thread (fastq)") {
+            test_pml_computation("sampled-thresholds", "sample.fastq", "-s4 -t1");
         }
 
     SECTION("Regular thresholds PML computation with 4 strands and 4 threads (fastq)") {

@@ -37,12 +37,12 @@ TEST_CASE("MoveStructure - index building", "[move_structure_index_building]") {
         test_index_creation("regular-thresholds", "regular_thresholds", 948119);
     }
 
-    SECTION("Tally index creation") {
-        test_index_creation("tally", "tally", 437006);
+    SECTION("Sampled index creation") {
+        test_index_creation("sampled", "sampled", 437006);
     }
 
-    SECTION("Tally-thresholds index creation") {
-        test_index_creation("tally-thresholds", "tally_thresholds", 475326);
+    SECTION("Sampled-thresholds index creation") {
+        test_index_creation("sampled-thresholds", "sampled_thresholds", 475326);
     }
 
     SECTION("Blocked index creation") {
@@ -57,16 +57,16 @@ TEST_CASE("MoveStructure - index building", "[move_structure_index_building]") {
         test_index_creation("large", "large", 1305995);
     }
 
-    SECTION("Tally-thresholds index creation (preprocessed)") {
-        test_index_creation("tally-thresholds", "tally_thresholds", 475326, "--preprocessed");
+    SECTION("Sampled-thresholds index creation (preprocessed)") {
+        test_index_creation("sampled-thresholds", "sampled_thresholds", 475326, "--preprocessed");
     }
 
-    SECTION("Tally-thresholds index creation (non-preprocessed)") {
+    SECTION("Sampled-thresholds index creation (non-preprocessed)") {
         test_index_creation("large", "large", 1305995, "--non-preprocessed");
     }
 
-    SECTION("Tally-thresholds index creation (non-preprocessed and preprocessed)") {
-        test_index_creation("tally-thresholds", "tally_thresholds", 475326, "--non-preprocessed --preprocessed");
+    SECTION("Sampled-thresholds index creation (non-preprocessed and preprocessed)") {
+        test_index_creation("sampled-thresholds", "sampled_thresholds", 475326, "--non-preprocessed --preprocessed");
     }
 }
 
@@ -79,12 +79,12 @@ TEST_CASE("MoveStructure - index building with separators", "[move_structure_ind
         test_index_creation("regular-thresholds", "regular_thresholds", 948232, "--separators");
     }
 
-    SECTION("Tally index creation") {
-        test_index_creation("tally", "tally", 464203, "--separators");
+    SECTION("Sampled index creation") {
+        test_index_creation("sampled", "sampled", 464203, "--separators");
     }
 
-    SECTION("Tally-thresholds index creation") {
-        test_index_creation("tally-thresholds", "tally_thresholds", 505009, "--separators");
+    SECTION("Sampled-thresholds index creation") {
+        test_index_creation("sampled-thresholds", "sampled_thresholds", 505009, "--separators");
     }
 
     SECTION("Blocked index creation") {

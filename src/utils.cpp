@@ -30,10 +30,10 @@ std::string program() {
     return "blocked-thresholds";
 #endif
 #if MODE == 5
-    return "tally";
+    return "sampled";
 #endif
 #if MODE == 7
-    return "tally-thresholds";
+    return "sampled-thresholds";
 #endif
     throw std::runtime_error(ERROR_MSG("[program] The mode is not defined."));
 }

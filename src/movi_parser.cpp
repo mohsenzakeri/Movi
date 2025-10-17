@@ -30,7 +30,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
         ("verify", "Verify if all the LF_move operations are correct")
         ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
         ("ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>())
-        ("tally", "Sample id at every tally runs", cxxopts::value<uint32_t>())
+        ("checkpoint", "Create checkpoint for id field every n move rows", cxxopts::value<uint32_t>())
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
         ("keep", "Keep the extra files after the build step")
         ("skip-prepare", "Skip the prepare_ref step")
@@ -186,8 +186,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                         movi_options.set_thresholds(true);
                     }
 #if TALLY_MODES
-                    if (result.count("tally") >= 1) {
-                        movi_options.set_tally_checkpoints(static_cast<uint32_t>(result["tally"].as<uint32_t>()));
+                    if (result.count("checkpoint") >= 1) {
+                        movi_options.set_tally_checkpoints(static_cast<uint32_t>(result["checkpoint"].as<uint32_t>()));
                     }
 #endif
 #if USE_THRESHOLDS
