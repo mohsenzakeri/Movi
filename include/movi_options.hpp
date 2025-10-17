@@ -15,6 +15,7 @@ class MoviOptions {
             pml_query = true;
         }
 
+        bool is_validate_flags() { return validate_flags; }
         bool is_no_header() { return no_header; }
         bool is_legacy_header() { return legacy_header; }
         bool is_adjusted_block() { return adjusted_block; }
@@ -85,6 +86,7 @@ class MoviOptions {
         std::string get_index_dir() { return index_dir; }
         std::string get_out_file() { return out_file; }
 
+        void set_validate_flags(bool validate_flags_) { validate_flags = validate_flags_; }
         void set_no_header(bool no_header_) { no_header = no_header_; }
         void set_legacy_header(bool legacy_header_) { legacy_header = legacy_header_; }
         void set_adjusted_block(bool adjusted_block_) { adjusted_block = adjusted_block_; }
@@ -173,6 +175,7 @@ class MoviOptions {
             std::cerr << "mls_file:\t" << mls_file << "\n";
             std::cerr << "index_dir:\t" << index_dir << "\n";
             std::cerr << "LF_type:\t" << LF_type << "\n";
+            std::cerr << "validate_flags:\t" << validate_flags << "\n";
             std::cerr << "no_header:\t" << no_header << "\n";
             std::cerr << "adjusted_block:\t" << adjusted_block << "\n";
             std::cerr << "preprocessed:\t" << preprocessed << "\n";
@@ -221,6 +224,7 @@ class MoviOptions {
         std::string index_dir;
         std::string LF_type;
         std::string out_file = "";
+        bool validate_flags = false;
         bool no_header = false;
         bool adjusted_block = true;
         bool preprocessed = false;

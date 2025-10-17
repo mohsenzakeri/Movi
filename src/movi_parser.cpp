@@ -8,6 +8,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
 
     options.add_options()
         ("command", "Command to execute", cxxopts::value<std::string>())
+        ("validate-flags", "Validate the command line flags are valid")
         ("type", "Which index type should be built or used.", cxxopts::value<std::string>())
         ("h,help", "Print help")
         ("no-header", "Header information is not stored")
@@ -124,6 +125,10 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
 
     try {
         auto result = options.parse(argc, argv);
+
+        if (result.count("validate-flags")) {
+            movi_options.set_validate_flags(true);
+        }
 
         // Set global logs flags first
 

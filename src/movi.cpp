@@ -526,6 +526,11 @@ int main(int argc, char** argv) {
             return 1;
         }
 
+        // If validate flags is set, just return 0, no execution is needed.
+        if (movi_options.is_validate_flags()) {
+            return 0;
+        }
+
         if (movi_options.is_stdout()) {
             // Disable sync for faster I/O
             std::ios_base::sync_with_stdio(false);
@@ -547,6 +552,7 @@ int main(int argc, char** argv) {
         }
 
         std::string command = movi_options.get_command();
+
         if (command == "build") {
             if (movi_options.use_separators()) {
                 if (!SUPPORTS_SEPARATORS) {

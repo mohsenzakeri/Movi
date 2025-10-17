@@ -77,6 +77,7 @@ const std::unordered_map<char, std::string> char_to_type = {
 };
 
 // Function declarations
+void validate_flags(Args& args, const std::vector<std::string>& all_args);
 std::string construct_movi_command(const std::string& binary, const std::vector<std::string>& all_args);
 void execute_command_line(const std::string& command, const std::string& error_msg, const Args& args);
 void throw_missing_argument(const std::string& argument);
@@ -104,9 +105,11 @@ int main(int argc, char* argv[]) {
 
         if (args.action == "build") {
             parse_build_arguments(argc, argv, args, all_args);
+            validate_flags(args, all_args);
             handle_build(args, all_args);
         } else {
             parse_arguments(argc, argv, args, all_args);
+            validate_flags(args, all_args);
             handle(args, all_args);
         }
     } catch (const std::exception& e) {
@@ -121,6 +124,23 @@ int main(int argc, char* argv[]) {
     }
 
     return 0;
+}
+
+void validate_flags(Args& args, const std::vector<std::string>& all_args) {
+    std::vector<std::string> movi_args = all_args;
+    if (args.action == "build") {
+        movi_args.push_back("--fasta");
+        movi_args.push_back("dummy.fa");
+    }
+    movi_args.push_back("--validate-flags");
+
+    std::string binary = "bin/movi-" + args.index_type;
+    std::string command = construct_movi_command(binary, movi_args);
+    args.verbose = false;
+    execute_command_line(command, "Failed in movi build step", args);
+    args.verbose = true;
+
+    INFO_MSG("Flags validated successfully");
 }
 
 std::string construct_movi_command(const std::string& binary,
