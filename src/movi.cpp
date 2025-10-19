@@ -213,6 +213,13 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
         INFO_MSG("Ftab was read!");
     }
 
+#if TALLY_MODES
+    if (movi_options.is_zml() or movi_options.is_count()) {
+        //TODO: Implement tally modes for zml and count queries.
+        throw std::runtime_error(ERROR_MSG("This query type is not suppported by the sampled modes yet."));
+    }
+#endif
+
     omp_set_num_threads(movi_options.get_threads());
     omp_set_nested(0);
 
