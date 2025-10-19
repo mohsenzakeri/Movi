@@ -42,7 +42,7 @@ target_link_libraries(movi_lib_test movi_common)
 target_compile_definitions(movi_lib_test PRIVATE MODE=0 COLOR_MODE=0)
 
 
-add_executable(movi movi_launcher.cpp)
+add_executable(movi movi_launcher.cpp commons.cpp)
 
 # Main executables with their specific MODE configurations
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)

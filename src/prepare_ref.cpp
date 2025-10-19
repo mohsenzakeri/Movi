@@ -7,6 +7,7 @@
 #include "kseq.h"
 
 #include "commons.hpp"
+#include <filesystem>
 
 // STEP 1: declare the type of file handler and the read() function
 KSEQ_INIT(gzFile, gzread)
@@ -18,6 +19,9 @@ uint64_t read_fasta(const char* file_name,
                     bool rc,
                     bool separators,
                     std::vector<uint64_t>& doc_lengths) {
+    if (!std::filesystem::exists(std::string(file_name))) {
+        throw std::runtime_error(ERROR_MSG("The fasta file " + std::string(file_name) + " does not exist."));
+    }
     gzFile fp;
     kseq_t *seq;
     int l;

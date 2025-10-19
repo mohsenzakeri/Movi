@@ -1,58 +1,165 @@
 #include "movi_parser.hpp"
 
+void add_all_groups(std::vector<std::string>& all_groups, std::string command) {
+    if (command == "query" or command == "") {
+        all_groups.push_back("query (advanced)");
+        all_groups.push_back("query (color)");
+    }
+
+    if (command == "build" or command == "") {
+        all_groups.push_back("build (advanced)");
+        all_groups.push_back("build (color)");
+    }
+
+    all_groups.push_back("developer");
+}
+
+bool handle_help(int argc, char** argv, cxxopts::Options& options, std::vector<std::string>& help_groups,
+                 std::vector<std::string>& main_actions, std::vector<std::string>& all_actions) {
+
+    bool help = false;
+    bool help_all = false;
+
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "-h" || arg == "--help") {
+            help = true;
+            break;
+        } else if (arg == "--help-all") {
+            help_all = true;
+            break;
+        }
+    }
+
+    std::string command = get_action(argc, argv);
+
+    // If the command is valid but not in the main actions, add it to the main actions for the help message
+    if (command != "" and
+        std::find(main_actions.begin(), main_actions.end(), command) == main_actions.end() and
+        std::find(all_actions.begin(), all_actions.end(), command) != all_actions.end()) {
+        // Add the command to the main actions
+        main_actions.push_back(command);
+    }
+
+    // Check if the command is a valid action
+    if (command != "" and std::find(all_actions.begin(), all_actions.end(), command) != all_actions.end()) {
+        // Print the hlep message on for this action
+        help_groups.push_back("");
+        help_groups.push_back(command);
+        if (help_all) {
+            add_all_groups(help_groups, command);
+        }
+        options.set_actions(main_actions);
+    } else {
+        // When the action is missing or is not valid
+        if (help_all) {
+            help_groups = all_actions;
+            add_all_groups(help_groups, "");
+            options.set_actions(all_actions);
+        } else {
+            help_groups = main_actions;
+            options.set_actions(main_actions);
+        }
+    }
+
+    if (help or help_all) {
+        return true;
+    }
+
+    return false;
+}
+
 bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supress_messages) {
-    // movi_options.print_options();
 
     // cxxopts::Options options("movi-" + program(), "Please use the following format:");
-    cxxopts::Options options("movi", "");
+    cxxopts::Options options("movi", "Movi: A tool for indexing and querying pangenomes\n");
 
+    std::vector<std::string> all_actions;
+    std::vector<std::string> main_actions;
+
+    all_actions.push_back("");
+    main_actions.push_back("");
     options.add_options()
         ("command", "Command to execute", cxxopts::value<std::string>())
-        ("validate-flags", "Validate the command line flags are valid")
-        ("type", "Which index type should be built or used.", cxxopts::value<std::string>())
+        ("type", "The type of the index: regular-thresholds (default), regular, blocked-thresholds, blocked, sampled-thresholds, sampled", cxxopts::value<std::string>())
         ("h,help", "Print help")
+        ("help-all", "Print help with all options (including advanced)")
+        ("verbose", "Enable verbose mode");
+
+    options.add_options("developer")
+        ("validate-flags", "Validate the command line flags are valid")
         ("no-header", "Header information is not stored")
         ("legacy-header", "Use legacy single-byte header format")
         ("default-blocks", "The block size should not be read from the index (for blocked indexes)")
-        ("d,dbg", "Enable debug mode")
-        ("verbose", "Enable verbose mode")
-        ("l,logs", "Enable logs");
+        ("d,debug", "Enable debug messages")
+        ("l,logs", "Enable logging");
 
+    all_actions.push_back("build");
+    main_actions.push_back("build");
     auto buildOptions = options.add_options("build")
-        ("i,index", "Index directory", cxxopts::value<std::string>())
-        ("f,fasta", "Reference file", cxxopts::value<std::string>())
-        ("l,list", "List of fasta files, only works with 'movi' binary", cxxopts::value<std::string>())
-        ("separators", "Use separators in the index")
-        ("color", "Add colors to the index for multi-class classification")
-        ("color-vectors", "Build a vector of vectors for colors (builds \"ref.fa.doc_sets.bin\")")
-        ("thresholds", "Store the threshold values in by splitting the runs at threshold boundaries")
-        ("preprocessed", "The BWT is preprocessed into heads and lens files")
-        ("verify", "Verify if all the LF_move operations are correct")
+        ("i,index", "Index directory [REQUIRED]", cxxopts::value<std::string>())
+        ("f,fasta", "Reference file [REQUIRED unless -l is passed]", cxxopts::value<std::string>())
+        ("l,list", "List of fasta files, only works with 'movi' binary [REQUIRED unless -f is passed]", cxxopts::value<std::string>())
+        ("separators", "Use separators in between fasta entries")
+        ("checkpoint", "Create checkpoint for id field of sampled and sampled-thresholds indexes every n move rows", cxxopts::value<uint32_t>())
+        ("verify", "Verify if all the LF-move operations are correct");
+
+    auto buildAdvancedOptions = options.add_options("build (advanced)")
+        ("thresholds", "Store the threshold values by splitting the runs at threshold boundaries (default)")
         ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
         ("ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>())
-        ("checkpoint", "Create checkpoint for id field every n move rows", cxxopts::value<uint32_t>())
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
+        ("preprocessed", "The BWT is preprocessed into heads and lens files")
         ("keep", "Keep the extra files after the build step")
         ("skip-prepare", "Skip the prepare_ref step")
         ("skip-pfp", "Skip the pfp_thresholds step")
         ("skip-rlbwt", "Skip the rlbwt step -- constant and split index")
         ("skip-r-permute", "Skip the r-permute step -- constant and split index");
 
-    auto buildSAOptions = options.add_options("build-SA")
-        ("i,index", "Index directory", cxxopts::value<std::string>())
-        ("sample-rate", "The sample rate for storing the sampled SA (default: 100)", cxxopts::value<uint64_t>());
+    auto buildColorOptions = options.add_options("build (color)")
+        ("color", "Add colors to the index for multi-class classification")
+        ("color-vectors", "Build a vector of vectors for colors (builds \"ref.fa.doc_sets.bin\")");
 
+    all_actions.push_back("inspect");
+    main_actions.push_back("inspect");
+    auto inspectOptions = options.add_options("inspect")
+        ("i,index", "Index directory [REQUIRED]", cxxopts::value<std::string>())
+        ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
+        ("flat-color-vectors", "Flat and serialize the colors vectors");
+
+    all_actions.push_back("query");
+    main_actions.push_back("query");
     auto queryOptions = options.add_options("query")
-        ("pml", "Compute the pseudo-matching lengths (PMLs)")
-        ("rpml", "Compute the pseudo-matching lengths using random repositioning (RPMLs)")
-        ("zml", "Compute the Ziv-Merhav cross parsing length (ZMLs)")
+        ("i,index", "Index directory [REQUIRED]", cxxopts::value<std::string>())
+        ("r,read", "fasta/fastq Read file for query [REQUIRED]", cxxopts::value<std::string>())
+        ("o,out-file", "Output file prefix if computing PMLs for classification", cxxopts::value<std::string>())
+        ("t,threads", "Number of threads for query", cxxopts::value<int>())
+        ("pml", "Compute the pseudo-matching lengths (default)")
+        ("zml", "Compute the Ziv-Merhav cross parsing length)")
         ("count", "Compute the count queries")
-        ("kmer", "Search all the kmers")
-        ("kmer-count", "Find the count of every kmer")
-        ("sa-entries", "Find the SA entries for each read")
-        ("classify", "Classify the reads")
+        ("classify", "Enable binary classification of the reads")
         ("filter", "Filter the reads based on the matching lengths, output the filtered reads to stdout")
         ("v,invert", "Output the not found reads during filtering")
+        ("stdout", "Write the output to stdout, writes the matching lengths by default, or the report of classification if --classify is passed");
+
+    // Advanced query options (hidden by default, shown with --help-all)
+    auto queryAdvancedOptions = options.add_options("query (advanced)")
+        ("rpml", "Compute the pseudo-matching lengths using random repositioning (RPMLs)")
+        ("kmer", "Search all the kmers")
+        ("kmer-count", "Find the count of every kmer")
+        ("k,k-length", "The length of the kmer", cxxopts::value<uint32_t>())
+        ("bin-width", "The width of the bin used for binary classification", cxxopts::value<uint32_t>())
+        ("ignore-illegal-chars", "In the case of illegal characters (i.e., non-ACGT for genomic data), substitute the character with \'A\'(1) or a random character from the alphabet (2).", cxxopts::value<int>())
+        ("sa-entries", "Find the SA entries for each read (requires build-SA step before executing this command)")
+        ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
+        ("s,strands", "Number of strands for query", cxxopts::value<int>())
+        ("mmap", "Use memory mapping to read the index")
+        ("n,no-prefetch", "Disable prefetching for query")
+        ("ftab-k", "The length of the ftba kmer", cxxopts::value<uint32_t>())
+        ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
+        ("no-output", "Do not write any output, ignores other options about the output");
+
+    auto moviColorOptions = options.add_options("query (color)")
         ("multi-classify", "Multi-class classification with PMLs")
         ("early-stop", "Early stop the read processing for unclassified reads")
         ("report-all", "Report all the taxon ids for each read (default: min-diff-frac = 0.05), not available in no-prefetch mode")
@@ -67,70 +174,68 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
         ("freq-compress", "Use frequency compressed document sets for classification")
         ("tree-compress", "Use tree compressed document sets for classification")
         ("color-move-rows", "Color the move rows, query is not performed")
-        ("color-vectors", "Use vector of vectors for colors (requires \"ref.fa.doc_sets.bin\")")
-        ("bin-width", "The width of the bin used for classification", cxxopts::value<uint32_t>())
-        ("reverse", "Use the reverse (not reverse complement) of the reads to perform queries")
-        ("i,index", "Index directory", cxxopts::value<std::string>())
-        ("r,read", "fasta/fastq Read file for query", cxxopts::value<std::string>())
-        ("mmap", "Use memory mapping to read the index")
-        ("n,no-prefetch", "Disable prefetching for query")
-        ("k,k-length", "The length of the kmer", cxxopts::value<uint32_t>())
-        ("ftab-k", "The length of the ftba kmer", cxxopts::value<uint32_t>())
-        ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
-        ("s,strands", "Number of strands for query", cxxopts::value<int>())
-        ("t,threads", "Number of threads for query", cxxopts::value<int>())
-        ("o,out-file", "Output file if computing PMLs for classification", cxxopts::value<std::string>())
-        ("stdout", "Write the output to stdout, writes the matching lengths by default, or the report of classification if --classify is passed")
-        ("no-output", "Do not write any output, ignores other options about the output")
-        ("ignore-illegal-chars", "In the case of illegal characters (i.e., non-ACGT for genomic data), substitute the character with \'A\'(1) or a random character from the alphabet (2).", cxxopts::value<int>());
+        ("color-vectors", "Use vector of vectors for colors (requires \"ref.fa.doc_sets.bin\")");
 
+    all_actions.push_back("view");
+    main_actions.push_back("view");
+    auto viewOptions = options.add_options("view")
+        ("bpf", "The base profile format (BPF) file to view [REQUIRED]", cxxopts::value<std::string>())
+        ("small-bpf", "Read the file with PMLs stored as uint16_t (default: uint32_t).")
+        ("large-bpf", "Read the file with PMLs stored as uint64_t (default: uint32_t).");
+
+    all_actions.push_back("build-SA");
+    auto buildSAOptions = options.add_options("build-SA")
+        ("i,index", "Index directory [REQUIRED]", cxxopts::value<std::string>())
+        ("sample-rate", "The sample rate for storing the sampled SA (default: 100)", cxxopts::value<uint64_t>());
+
+    all_actions.push_back("color");
     auto colorOptions = options.add_options("color")
-        ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("i,index", "Index directory [REQUIRED]", cxxopts::value<std::string>())
         ("color-vectors", "Build a vector of vectors for colors (builds \"ref.fa.doc_sets.bin\")")
         ("compress", "Whether or not we compress doc sets (only keep most frequent few)")
         ("full", "Whether or not to store all document information (or just the sets for each run)")
         ("t,threads", "Number of threads for query", cxxopts::value<int>());
 
-    auto viewOptions = options.add_options("view")
-        ("bpf", "The base profile format (BPF) file to view", cxxopts::value<std::string>())
-        ("small-bpf", "Read the file with PMLs stored as uint16_t (default: uint32_t).")
-        ("large-bpf", "Read the file with PMLs stored as uint64_t (default: uint32_t).");
-
+    all_actions.push_back("rlbwt");
     auto rlbwtOptions = options.add_options("rlbwt")
         ("bwt-file", "BWT file", cxxopts::value<std::string>());
 
+    all_actions.push_back("color-move-rows");
     auto colorMoveRowsOptions = options.add_options("color-move-rows")
-        ("i,index", "Index directory", cxxopts::value<std::string>());
+        ("i,index", "Index directory [REQUIRED]", cxxopts::value<std::string>());
 
+    all_actions.push_back("LF");
     auto LFOptions = options.add_options("LF")
-        ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("i,index", "Index directory [REQUIRED]", cxxopts::value<std::string>())
         ("lf-type", "type of the LF query: \"reconstruct\", \"sequential\", or \"random\"", cxxopts::value<std::string>());
 
-    auto inspectOptions = options.add_options("inspect")
-        ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
-        ("i,index", "Index directory", cxxopts::value<std::string>())
-        ("flat-color-vectors", "Flat and serialize the colors vectors");
-
+    all_actions.push_back("ftab");
     auto ftabOptions = options.add_options("ftab")
-        ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("i,index", "Index directory [REQUIRED]", cxxopts::value<std::string>())
         ("ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>())
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails");
 
+    all_actions.push_back("null");
     auto nullOptions = options.add_options("null")
-        ("i,index", "Index directory", cxxopts::value<std::string>())
+        ("i,index", "Index directory [REQUIRED]", cxxopts::value<std::string>())
         ("gen-reads", "Generate null reads");
 
     options.parse_positional({ "command" });
     std::vector<std::string> help_groups;
 
+    std::string command = get_action(argc, argv);
+
+    if (handle_help(argc, argv, options, help_groups, main_actions, all_actions)) {
+        INFO_MSG(options.help(help_groups));
+        return false;
+    }
+
     try {
-        auto result = options.parse(argc, argv);
+        cxxopts::ParseResult result = options.parse(argc, argv);
 
         if (result.count("validate-flags")) {
             movi_options.set_validate_flags(true);
         }
-
-        // Set global logs flags first
 
         if (result.count("no-header")) {
             // For hadnling old indexes with no header
@@ -155,16 +260,16 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
             movi_options.set_logs(true);
         }
 
-        if (result.count("dbg")) {
+        if (result.count("debug")) {
             movi_options.set_debug(true);
         }
 
         // Set command-specific flags
         if (result.count("command")) {
-            std::string command = result["command"].as<std::string>();
+            // Get the command from the result (must be the same as what was computed by get_action)
+            command = result["command"].as<std::string>();
             movi_options.set_command(command);
-            help_groups.push_back("");
-            help_groups.push_back(command);
+
 
             if (command == "build") {
                 if (result.count("index") == 1 and result.count("fasta") == 1) {
@@ -231,110 +336,102 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                     cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
             } else if (command == "query") {
-                try {
-                    if (result.count("index") == 1 and result.count("read") == 1) {
-                        movi_options.set_index_dir(result["index"].as<std::string>());
-                        movi_options.set_read_file(result["read"].as<std::string>());
-                        if (result.count("out-file")) { movi_options.set_out_file(result["out-file"].as<std::string>()); }
-                        if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
-                        if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
-                        if (result.count("bin-width") >= 1) { movi_options.set_bin_width(static_cast<uint32_t>(result["bin-width"].as<uint32_t>())); }
-                        if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
-                        if (result.count("kmer") >= 1) { movi_options.set_kmer(); movi_options.set_prefetch(false); }
-                        if (result.count("kmer-count") >= 1) { movi_options.set_kmer(); movi_options.set_kmer_count(true); movi_options.set_prefetch(false); }
-                        if (result.count("count") >= 1) { movi_options.set_count(); }
-                        if (result.count("zml") >= 1) { movi_options.set_zml(); }
-                        if (result.count("pml") >= 1) { movi_options.set_pml(); }
-                        if (result.count("sa-entries") >= 1) { movi_options.set_get_sa_entries(true); }
-                        if (result.count("rpml") >= 1) { movi_options.set_random_repositioning(true); }
-                        if (result.count("classify") >= 1) { movi_options.set_classify(true); }
-                        if (result.count("filter") >= 1) { movi_options.set_filter(true); }
-                        if (result.count("invert") >= 1) { movi_options.set_invert(true); }
-                        if (result.count("multi-classify") >= 1) { movi_options.set_multi_classify(true); }
-                        if (result.count("early-stop") >= 1) { movi_options.set_early_stop(true); }
-                        if (result.count("report-all") >= 1) { movi_options.set_report_all(true); }
-                        if (result.count("min-diff-frac") >= 1) { movi_options.set_min_diff_frac(static_cast<float>(result["min-diff-frac"].as<float>())); }
-                        if (result.count("min-score-frac") >= 1) { movi_options.set_min_score_frac(static_cast<float>(result["min-score-frac"].as<float>())); }
-                        if (result.count("min-len")) { movi_options.set_min_match_len(result["min-len"].as<uint8_t>()); }
-                        if (result.count("pvalue-scoring") == 1) { movi_options.set_pvalue_scoring(true); }
-                        if (result.count("color-move-rows") == 1) { movi_options.set_color_move_rows(true); }
-                        if (result.count("color-vectors") == 1) { movi_options.set_doc_sets_vector_of_vectors(true); }
-                        if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
-                        if (result.count("report-colors") >= 1) {
-                            movi_options.set_report_colors(true);
-                            // Needs to be in the multi-classify mode to report colors
-                            movi_options.set_multi_classify(true);
+                if (result.count("index") == 1 and result.count("read") == 1) {
+                    movi_options.set_index_dir(result["index"].as<std::string>());
+                    movi_options.set_read_file(result["read"].as<std::string>());
+                    if (result.count("out-file")) { movi_options.set_out_file(result["out-file"].as<std::string>()); }
+                    if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
+                    if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
+                    if (result.count("bin-width") >= 1) { movi_options.set_bin_width(static_cast<uint32_t>(result["bin-width"].as<uint32_t>())); }
+                    if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
+                    if (result.count("kmer") >= 1) { movi_options.set_kmer(); movi_options.set_prefetch(false); }
+                    if (result.count("kmer-count") >= 1) { movi_options.set_kmer(); movi_options.set_kmer_count(true); movi_options.set_prefetch(false); }
+                    if (result.count("count") >= 1) { movi_options.set_count(); }
+                    if (result.count("zml") >= 1) { movi_options.set_zml(); }
+                    if (result.count("pml") >= 1) { movi_options.set_pml(); }
+                    if (result.count("sa-entries") >= 1) { movi_options.set_get_sa_entries(true); }
+                    if (result.count("rpml") >= 1) { movi_options.set_random_repositioning(true); }
+                    if (result.count("classify") >= 1) { movi_options.set_classify(true); }
+                    if (result.count("filter") >= 1) { movi_options.set_filter(true); }
+                    if (result.count("invert") >= 1) { movi_options.set_invert(true); }
+                    if (result.count("multi-classify") >= 1) { movi_options.set_multi_classify(true); }
+                    if (result.count("early-stop") >= 1) { movi_options.set_early_stop(true); }
+                    if (result.count("report-all") >= 1) { movi_options.set_report_all(true); }
+                    if (result.count("min-diff-frac") >= 1) { movi_options.set_min_diff_frac(static_cast<float>(result["min-diff-frac"].as<float>())); }
+                    if (result.count("min-score-frac") >= 1) { movi_options.set_min_score_frac(static_cast<float>(result["min-score-frac"].as<float>())); }
+                    if (result.count("min-len")) { movi_options.set_min_match_len(result["min-len"].as<uint8_t>()); }
+                    if (result.count("pvalue-scoring") == 1) { movi_options.set_pvalue_scoring(true); }
+                    if (result.count("color-move-rows") == 1) { movi_options.set_color_move_rows(true); }
+                    if (result.count("color-vectors") == 1) { movi_options.set_doc_sets_vector_of_vectors(true); }
+                    if (result.count("reverse") == 1) { movi_options.set_reverse(true); }
+                    if (result.count("report-colors") >= 1) {
+                        movi_options.set_report_colors(true);
+                        // Needs to be in the multi-classify mode to report colors
+                        movi_options.set_multi_classify(true);
+                    }
+                    if (result.count("report-color-ids") >= 1) {
+                        movi_options.set_report_color_ids(true);
+                        // Needs to be in the multi-classify mode to report color ids
+                        movi_options.set_multi_classify(true);
+                    }
+                    if (result.count("multi-classify")) {
+                        if (result.count("full")) {
+                            movi_options.set_full_color(true);
                         }
-                        if (result.count("report-color-ids") >= 1) {
-                            movi_options.set_report_color_ids(true);
-                            // Needs to be in the multi-classify mode to report color ids
-                            movi_options.set_multi_classify(true);
+                        if (result.count("freq-compress")) {
+                            movi_options.set_freq_compressed(true);
+                            movi_options.set_tree_compressed(false);
                         }
-                        if (result.count("multi-classify")) {
-                            if (result.count("full")) {
-                                movi_options.set_full_color(true);
-                            }
-                            if (result.count("freq-compress")) {
-                                movi_options.set_freq_compressed(true);
-                                movi_options.set_tree_compressed(false);
-                            }
-                            if (result.count("tree-compress")) {
-                                movi_options.set_tree_compressed(true);
-                                movi_options.set_freq_compressed(false);
-                            }
+                        if (result.count("tree-compress")) {
+                            movi_options.set_tree_compressed(true);
+                            movi_options.set_freq_compressed(false);
+                        }
 
-                            if (result.count("out-file") == 1) {
-                                movi_options.set_out_file(result["out-file"].as<std::string>());
-                            } else {
-                                const std::string message = "Please include the out file for multi-classify.";
-                                cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
-                            }
-                        }
-                        if (result.count("ignore-illegal-chars") == 1) {
-                            if (!movi_options.set_ignore_illegal_chars(result["ignore-illegal-chars"].as<int>())) {
-                                const std::string message = "ignore-illegal-chars should be either 1 (set illegal chars to \'A\') or 2 (set illegal chars to a random char).";
-                                cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
-                            }
-                        }
-                        if (movi_options.is_pml() and movi_options.is_count()) {
-                            const std::string message = "Please only specify count or pml as the type of queries.";
+                        if (result.count("out-file") == 1) {
+                            movi_options.set_out_file(result["out-file"].as<std::string>());
+                        } else {
+                            const std::string message = "Please include the out file for multi-classify.";
                             cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                         }
-                        if (result.count("mmap") == 1) {
-                            movi_options.set_mmap(true);
+                    }
+                    if (result.count("ignore-illegal-chars") == 1) {
+                        if (!movi_options.set_ignore_illegal_chars(result["ignore-illegal-chars"].as<int>())) {
+                            const std::string message = "ignore-illegal-chars should be either 1 (set illegal chars to \'A\') or 2 (set illegal chars to a random char).";
+                            cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                         }
-                        if (result.count("no-prefetch") == 1) {
-                            movi_options.set_prefetch(false);
-                        }
-                        if (result.count("strands") == 1) {
-                            if (!supress_messages) {
-                                INFO_MSG("Number of strands: " + std::to_string(result["strands"].as<int>()));
-                            }
-                            movi_options.set_strands(static_cast<size_t>(result["strands"].as<int>()));
-                        }
-                        if (result.count("threads") == 1) {
-                            if (!supress_messages) {
-                                INFO_MSG("Number of threads: " + std::to_string(result["threads"].as<int>()));
-                            }
-                            movi_options.set_threads(static_cast<size_t>(result["threads"].as<int>()));
-                        }
-                        if (result.count("stdout")) {
-                            // Set global verbose flag
-                            movi_options.set_stdout(true);
-                        }
-                        if (result.count("no-output")) {
-                            movi_options.set_no_output(true);
-                        }
-                    } else {
-                        const std::string message = "Please include one index directory and one read file.";
+                    }
+                    if (movi_options.is_pml() and movi_options.is_count()) {
+                        const std::string message = "Please only specify count or pml as the type of queries.";
                         cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                     }
-                } catch (const cxxopts::exceptions::exception& e) {
-                    if (!supress_messages) {
-                        std::cerr << ERROR_MSG("Error parsing command line options: " + std::string(e.what()));
-                        INFO_MSG(options.help(help_groups));
+                    if (result.count("mmap") == 1) {
+                        movi_options.set_mmap(true);
                     }
-                    return false;
+                    if (result.count("no-prefetch") == 1) {
+                        movi_options.set_prefetch(false);
+                    }
+                    if (result.count("strands") == 1) {
+                        if (!supress_messages) {
+                            INFO_MSG("Number of strands: " + std::to_string(result["strands"].as<int>()));
+                        }
+                        movi_options.set_strands(static_cast<size_t>(result["strands"].as<int>()));
+                    }
+                    if (result.count("threads") == 1) {
+                        if (!supress_messages) {
+                            INFO_MSG("Number of threads: " + std::to_string(result["threads"].as<int>()));
+                        }
+                        movi_options.set_threads(static_cast<size_t>(result["threads"].as<int>()));
+                    }
+                    if (result.count("stdout")) {
+                        // Set global verbose flag
+                        movi_options.set_stdout(true);
+                    }
+                    if (result.count("no-output")) {
+                        movi_options.set_no_output(true);
+                    }
+                } else {
+                    const std::string message = "Please include one index directory and one read file.";
+                    cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
                 }
             } else if (command == "rlbwt") {
                 if (result.count("bwt-file") == 1) {
@@ -441,26 +538,19 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                 }
             } else {
                 const std::string message = "Invalid action: \"" + command + "\"";
-                cxxopts::throw_or_mimic<cxxopts::exceptions::no_such_option>(message);
-            }
-
-            if (result.count("help")) {
-                if (!supress_messages) {
-                    INFO_MSG(options.help(help_groups));
-                }
-                return 0;
+                cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
             }
 
         } else {
-            const std::string message = "No action specified.";
-            help_groups.push_back(" ");
+            const std::string message = "The action is missing.";
             cxxopts::throw_or_mimic<cxxopts::exceptions::invalid_option_format>(message);
         }
     } catch (const cxxopts::exceptions::exception& e) {
         if (!supress_messages) {
-            std::cerr << ERROR_MSG("Error parsing command line options: " + std::string(e.what()));
+            std::cerr << ERROR_MSG("Error parsing command line options: " + std::string(e.what())) << std::endl;
             INFO_MSG(options.help(help_groups));
         }
+
         return false;
     }
     return true;

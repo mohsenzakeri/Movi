@@ -66,4 +66,6 @@ inline std::string format_number_with_commas(uint64_t number) {
 // Progress bar utility function
 void print_progress_bar(uint64_t current, uint64_t total, const std::string& operation, uint64_t step = 0, uint64_t total_steps = 0);
 
+std::string get_action(int argc, char* argv[]);
+
 #endif

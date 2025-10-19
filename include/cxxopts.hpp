@@ -1830,6 +1830,11 @@ class Options
   {
   }
 
+  std::vector<std::string> help_actions;
+  void set_actions(std::vector<std::string> actions) {
+    help_actions = std::move(actions);
+  }
+
   Options&
   positional_help(std::string help_text)
   {
@@ -2683,7 +2688,7 @@ Options::help_one_group(const std::string& g) const
   longest = (std::min)(longest, OPTION_LONGEST);
 
   //widest allowed description -- min 10 chars for helptext/line
-  std::size_t allowed = 10;
+  std::size_t allowed = 100;
   if (m_width > allowed + longest + OPTION_DESC_GAP)
   {
     allowed = m_width - longest - OPTION_DESC_GAP;
@@ -2771,7 +2776,7 @@ Options::help(const std::vector<std::string>& help_groups, bool print_usage) con
   String result = m_help_string;
   if(print_usage)
   {
-    result+= "\nUsage:\n  " + toLocalString(m_program);
+    result+= "\nUsage:\n " + toLocalString(m_program);
   }
 
   if (!m_positional.empty() && !m_positional_help.empty()) {
@@ -2785,21 +2790,36 @@ Options::help(const std::vector<std::string>& help_groups, bool print_usage) con
   result += "\n\n";
 
   if (!m_positional_help.empty() and print_usage) {
-    result += " actions:";
-    for (auto& group: m_help) {
-      result += " " + group.first;
+    result += " actions:\t";
+    bool first = true;
+    for (auto& action: help_actions) {
+
+        if (action == "") {
+            continue;
+        }
+
+        if (first) {
+            result += action;
+            first = false;
+        } else {
+            result += ", " + action;
+        }
     }
+
+    // for (auto& group: m_help) {
+    //   result += " " + group.first;
+    // }
     result += "\n\n";
   }
 
   if (help_groups.empty())
   {
-    result += " General options:\n";
+    result += " main options:\n";
     generate_all_groups_help(result);
   }
   else
   {
-    result += " General options:\n";
+    result += " main options:\n";
     generate_group_help(result, help_groups);
   }
 

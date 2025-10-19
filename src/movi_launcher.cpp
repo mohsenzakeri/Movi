@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <sys/stat.h>
 
+#include "commons.hpp"
 #include "utils.hpp"
 
 #define PFP_THRESHOLDS_PATH "/external_repos/pfp-thresholds-build/pfp_thresholds"
@@ -83,6 +84,7 @@ void execute_command_line(const std::string& command, const std::string& error_m
 void throw_missing_argument(const std::string& argument);
 void print_error(const std::string& error_msg);
 void print_warning(const std::string& warning_msg);
+bool handle_help(int argc, char* argv[], Args& args);
 void parse_build_arguments(int argc, char* argv[], Args& args, std::vector<std::string>& all_args);
 void parse_arguments(int argc, char* argv[], Args& args, std::vector<std::string>& all_args);
 void handle_build(const Args& args, const std::vector<std::string>& all_args);
@@ -97,10 +99,12 @@ int main(int argc, char* argv[]) {
     std::vector<std::string> all_args;
 
     try {
-        if (argc < 2) {
-            throw std::runtime_error("Error parsing command line options: The action is missing.");
-        } else {
-            args.action = argv[1];
+
+        args.action = get_action(argc, argv);
+
+        // If help or help-all is passed, ignore everything
+        if (handle_help(argc, argv, args)) {
+            return 0;
         }
 
         if (args.action == "build") {
@@ -136,11 +140,14 @@ void validate_flags(Args& args, const std::vector<std::string>& all_args) {
 
     std::string binary = "bin/movi-" + args.index_type;
     std::string command = construct_movi_command(binary, movi_args);
+    bool verbose = args.verbose;
     args.verbose = false;
     execute_command_line(command, "Failed in movi build step", args);
-    args.verbose = true;
+    args.verbose = verbose;
 
-    INFO_MSG("Flags validated successfully");
+    if (verbose) {
+        INFO_MSG("Flags validated successfully");
+    }
 }
 
 std::string construct_movi_command(const std::string& binary,
@@ -162,8 +169,7 @@ void execute_command_line(const std::string& command, const std::string& error_m
     if (args.verbose) {
         INFO_MSG("Executing: " + command);
     }
-    if (std::system(command.c_str()) != 0 and args.action != "view") {
-        print_error("Error executing the command: " + error_msg);
+    if (std::system(command.c_str()) != 0) {
         exit(1);
     }
 }
@@ -173,7 +179,7 @@ void throw_missing_argument(const std::string& argument) {
 }
 
 void print_error(const std::string& error_msg) {
-    std::cerr << ERROR_MSG(error_msg);
+    std::cerr << ERROR_MSG(error_msg) << std::endl;
 }
 
 void print_warning(const std::string& warning_msg) {
@@ -247,6 +253,47 @@ void handle(const Args& args, const std::vector<std::string>& all_args) {
     execute_command_line(command, "Failed in movi " + args.action + " step", args);
 }
 
+bool handle_help(int argc, char* argv[], Args& args) {
+    bool help = false;
+    bool help_all = false;
+
+    // First check if any special index type is provided
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--type") {
+            if (i + 1 < argc) {
+                args.index_type = argv[i + 1];
+            }
+            break;
+        }
+    }
+
+    // Construct the help command using the appropriate binary
+    std::string help_command = binary_dir + "/bin/movi-" + args.index_type + " " + args.action;
+
+    // Parse the arguments to check if help or help-all is passed
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "-h" || arg == "--help") {
+            help = true;
+            help_command += " --help";
+            break;
+        } else if (arg == "--help-all") {
+            help_all = true;
+            help_command += " --help-all";
+            break;
+        }
+    }
+
+    // If help or help-all is passed, execute the help command
+    if (help or help_all) {
+        execute_command_line(help_command, "Failed in movi help command", args);
+        return true;
+    }
+
+    return false;
+}
+
 // Function to parse the index type and filter the remaining arguments
 void parse_build_arguments(int argc, char* argv[],
                      Args& script_args,
@@ -313,7 +360,7 @@ void parse_build_arguments(int argc, char* argv[],
     }
 
     if (script_args.fasta_file.empty()) {
-        throw std::runtime_error("The fasta file or list of fasta files should be provided");
+        throw std::runtime_error("Please include either a fasta file or a list of fasta files.");
     }
 
     if (script_args.index_path.empty()) {

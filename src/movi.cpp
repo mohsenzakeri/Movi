@@ -365,8 +365,11 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
 void view(MoviOptions& movi_options) {
     std::ifstream mls_file(movi_options.get_mls_file(), std::ios::in | std::ios::binary);
-    mls_file.seekg(0, std::ios::beg);
+    if (!mls_file.good()) {
+        throw std::runtime_error(ERROR_MSG("Failed to open the MLS file: " + movi_options.get_mls_file()));
+    }
 
+    mls_file.seekg(0, std::ios::beg);
 
     Classifier classifier;
     if (movi_options.is_classify()) {
@@ -520,8 +523,11 @@ void build_rlbwt(MoviOptions& movi_options) {
 }
 
 int main(int argc, char** argv) {
+
     try {
+
         MoviOptions movi_options;
+
         if (!parse_command(argc, argv, movi_options)) {
             return 1;
         }
@@ -700,7 +706,7 @@ int main(int argc, char** argv) {
         return 0;
 
     } catch (const std::exception& e) {
-        std::cerr << e.what();
+        std::cerr << e.what() << std::endl;
         return 1;
     }
 }

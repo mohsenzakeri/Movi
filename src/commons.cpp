@@ -21,3 +21,13 @@ void print_progress_bar(uint64_t current, uint64_t total, const std::string& ope
     std::cerr << "] " << int(progress * 100.0) << "% (" << format_number_with_commas(current) << "/" << format_number_with_commas(total) << ")";
     std::cerr.flush();
 }
+
+std::string get_action(int argc, char* argv[]) {
+    if (argc < 2) {
+        return "";
+    } else if (argv[1][0] != '-') {
+        return argv[1];
+    } else {
+        return "";
+    }
+}
