@@ -225,7 +225,7 @@ void output_base_stats(DataType data_type, bool to_stdout, std::ofstream& output
 
         if (data_type == DataType::match_length) {
 
-            std::vector<uint32_t>& matching_lengths = mq.get_matching_lengths();
+            std::vector<uint16_t>& matching_lengths = mq.get_matching_lengths();
             output_binary(matching_lengths, output_file);
 
         } else if (data_type == DataType::sa_entry) {
@@ -339,7 +339,7 @@ void open_output_files(MoviOptions& movi_options, OutputFiles& output_files) {
             std::string mls_file_name = out_file_name_prefix + ".bpf";
             output_files.mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
             BPFHeader header;
-            header.init(32);
+            header.init(16);
             header.write(output_files.mls_file);
         } else if (movi_options.is_count()) {
             std::string matches_file_name = out_file_name_prefix + ".matches";

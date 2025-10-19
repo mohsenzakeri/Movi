@@ -452,9 +452,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
 
                     if (result.count("small-bpf") >= 1) {
                         movi_options.set_small_pml_lens(true);
-                    }
-
-                    if (result.count("large-bpf") >= 1) {
+                    } else if (result.count("large-bpf") >= 1) {
+                        movi_options.set_small_pml_lens(false);
                         movi_options.set_large_pml_lens(true);
                     }
 

@@ -305,13 +305,13 @@ TEST_CASE("MoveQuery", "[move_query]") {
         MoveQuery query("ATCGATCGATCG");
         
         // Test with large values
-        query.add_ml(1000000, false);
-        query.add_ml(2000000, false);
+        query.add_ml(65535, false);
+        query.add_ml(65536, false);
         
         auto& lengths = query.get_matching_lengths();
         REQUIRE(lengths.size() == 2);
-        REQUIRE(lengths[0] == 1000000);
-        REQUIRE(lengths[1] == 2000000);
+        REQUIRE(lengths[0] == 65535);
+        REQUIRE(lengths[1] == 65535);
     }
     
     SECTION("Matching lengths with stdout output") {
