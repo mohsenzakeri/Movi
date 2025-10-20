@@ -31,6 +31,7 @@
 #include "move_row_colored.hpp"
 #include "move_query.hpp"
 #include "sequitur.hpp"
+#include "mem_finder.hpp"
 #include "utils.hpp"
 #include "move_intervals.hpp"
 #include "doc_set.hpp"
@@ -87,6 +88,7 @@ class MoveStructure {
 
         uint64_t query_backward_search(MoveQuery& mq, int32_t& pos_on_r);
         bool backward_search_step(char c, MoveInterval& interval);
+        bool forward_search_step(char c, MoveInterval& rc_interval);
         uint64_t backward_search_step(std::string& R, int32_t& pos_on_r, MoveInterval& interval);
         MoveInterval backward_search(std::string& R, int32_t& pos_on_r, MoveInterval interval, int32_t max_length);
         MoveInterval initialize_backward_search(MoveQuery& mq, int32_t& pos_on_r, uint64_t& match_len, bool rc = false);
@@ -151,6 +153,10 @@ class MoveStructure {
         uint64_t reposition_up(uint64_t idx, char c, uint64_t& scan_count);
         uint64_t reposition_down(uint64_t idx, char c, uint64_t& scan_count);
         bool reposition_randomly(uint64_t& idx, uint64_t& offset, char r_char, uint64_t& scan_count);
+
+        uint64_t query_mems(MoveQuery& mq);
+        bool query_mem_bml(MoveQuery& mq, int32_t& pos_on_r,int32_t& min_mem_length, std::string& query_seq, size_t& ftab_k);
+        uint64_t query_all_mems(MoveQuery& mq);
 
 #if USE_THRESHOLDS
         bool reposition_thresholds(uint64_t& idx, uint64_t offset, char r_char, uint64_t& scan_count);

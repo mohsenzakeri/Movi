@@ -90,6 +90,18 @@ void handle_kmer(MoveQuery& mq, MoviOptions& movi_options,
     }
 }
 
+// Function to handle mem processing for a single read
+void handle_mem(MoveQuery& mq, MoviOptions& movi_options,
+                MoveStructure& mv_, OutputFiles& output_files) {
+    mv_.query_mems(mq);
+    if (movi_options.write_output_allowed()) {
+        #pragma omp critical
+        {
+            output_mems(movi_options.write_stdout_enabled(), output_files.mems_file, mq);
+        }
+    }
+}
+
 // Helper function to setup input file stream
 void setup_input_file(std::ifstream& input_file, const std::string& read_file) {
     if (read_file == "-") {
@@ -220,6 +232,20 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
     }
 #endif
 
+    if (movi_options.is_mem()) {
+        if (!movi_options.no_prefetch()) {
+            movi_options.set_prefetch(false);
+            WARNING_MSG("MEM finding does not support prefetching. Continuing with prefetching disabled.");
+        }
+        if (movi_options.get_ftab_k() == 0) {
+            throw std::runtime_error(ERROR_MSG("MEM finding requires ftab. Please build the ftab using the ./movi ftab --ftab-k <k>, then pass --ftab-k <k> to the query step."));
+        } else {
+            if (movi_options.get_min_mem_length() > movi_options.get_ftab_k()) {
+                WARNING_MSG("Setting minimum MEM (length " + std::to_string(movi_options.get_min_mem_length()) + ") greater than ftab k (" + std::to_string(movi_options.get_ftab_k()) + ") causes a slower MEM search.");
+            }
+        }
+    }
+
     omp_set_num_threads(movi_options.get_threads());
     omp_set_nested(0);
 
@@ -339,6 +365,9 @@ void query(MoveStructure& mv_, MoviOptions& movi_options) {
 
                         handle_kmer(mq, movi_options, mv_, output_files);
 
+
+                    } else if (movi_options.is_mem()) {
+                        handle_mem(mq, movi_options, mv_, output_files);
                     }
 
                     if (movi_options.is_logs()) {

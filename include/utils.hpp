@@ -96,6 +96,7 @@ enum class DataType {
 struct OutputFiles {
     std::ofstream mls_file;
     std::ofstream matches_file;
+    std::ofstream mems_file;
     std::ofstream costs_file;
     std::ofstream scans_file;
     std::ofstream fastforwards_file;
@@ -211,6 +212,8 @@ void output_kmers(bool to_stdout, std::ofstream& kmer_file, size_t all_kmer_coun
 void output_logs(std::ofstream& costs_file, std::ofstream& scans_file, std::ofstream& fastforwards_file, MoveQuery& mq);
 
 void output_read(MoveQuery& mq);
+
+void output_mems(bool to_stdout, std::ofstream& mems_file, MoveQuery& mq);
 
 void open_output_files(MoviOptions& movi_options, OutputFiles& output_files);
 

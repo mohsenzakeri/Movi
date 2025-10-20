@@ -39,6 +39,14 @@ class MoveQuery {
         void add_sa_entries(uint64_t sa_entry) {
             sa_entries.push_back(sa_entry);
         }
+        struct mem_t {
+            uint32_t start;
+            uint32_t end;
+            uint16_t count;
+        };
+        void add_mem(uint32_t start, uint32_t end, uint16_t count) {
+            mems.push_back(mem_t(start, end, count));
+        }
 
         void add_cost(std::chrono::nanoseconds cost) { costs.push_back(cost); }
         void add_scan(uint64_t scan) { scans.push_back(scan); }
@@ -47,6 +55,7 @@ class MoveQuery {
         std::vector<uint64_t>& get_matching_colors() { return matching_colors; }
         std::vector<uint64_t>& get_sa_entries() { return sa_entries; }
         std::string& get_matching_lengths_string() { return matching_lengths_string; }
+        std::vector<mem_t>& get_mems() { return mems; }
         std::vector<uint16_t>& get_scans() { return scans; }
         std::vector<uint16_t>& get_fastforwards() { return fastforwards; }
         std::vector<std::chrono::nanoseconds>& get_costs() { return costs; }
@@ -70,6 +79,8 @@ class MoveQuery {
         std::vector<uint64_t> sa_entries;
         std::vector<uint16_t> matching_lens;
         std::vector<uint64_t> matching_colors;
+        std::vector<mem_t> mems;
+
         std::vector<uint16_t> scans;
         std::vector<uint16_t> fastforwards;
         std::vector<std::chrono::nanoseconds> costs;

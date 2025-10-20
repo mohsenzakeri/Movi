@@ -92,7 +92,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
         ("legacy-header", "Use legacy single-byte header format")
         ("default-blocks", "The block size should not be read from the index (for blocked indexes)")
         ("d,debug", "Enable debug messages")
-        ("l,logs", "Enable logging");
+        ("logs", "Enable logging");
 
     all_actions.push_back("build");
     main_actions.push_back("build");
@@ -144,6 +144,8 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
 
     // Advanced query options (hidden by default, shown with --help-all)
     auto queryAdvancedOptions = options.add_options("query (advanced)")
+        ("mem", "Compute the maximal exact matches (MEMs)")
+        ("l,min-mem-length", "The minimum length of the MEMs", cxxopts::value<uint32_t>())
         ("rpml", "Compute the pseudo-matching lengths using random repositioning (RPMLs)")
         ("kmer", "Search all the kmers")
         ("kmer-count", "Find the count of every kmer")
@@ -341,11 +343,13 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                     movi_options.set_read_file(result["read"].as<std::string>());
                     if (result.count("out-file")) { movi_options.set_out_file(result["out-file"].as<std::string>()); }
                     if (result.count("k") >= 1) { movi_options.set_k(static_cast<uint32_t>(result["k"].as<uint32_t>())); }
+                    if (result.count("min-mem-length") >= 1) { movi_options.set_min_mem_length(static_cast<uint32_t>(result["min-mem-length"].as<uint32_t>())); }
                     if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
                     if (result.count("bin-width") >= 1) { movi_options.set_bin_width(static_cast<uint32_t>(result["bin-width"].as<uint32_t>())); }
                     if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
                     if (result.count("kmer") >= 1) { movi_options.set_kmer(); movi_options.set_prefetch(false); }
                     if (result.count("kmer-count") >= 1) { movi_options.set_kmer(); movi_options.set_kmer_count(true); movi_options.set_prefetch(false); }
+                    if (result.count("mem") >= 1) { movi_options.set_mem(); }
                     if (result.count("count") >= 1) { movi_options.set_count(); }
                     if (result.count("zml") >= 1) { movi_options.set_zml(); }
                     if (result.count("pml") >= 1) { movi_options.set_pml(); }

@@ -58,7 +58,10 @@ std::string query_type(MoviOptions& movi_options) {
         return "count";
     } else if (movi_options.is_kmer()) {
         return "kmers";
+    } else if (movi_options.is_mem()) {
+        return "mems";
     } else {
+        std::cerr << "Query_type: " << movi_options.is_pml() << " " << movi_options.is_zml() << " " << movi_options.is_count() << " " << movi_options.is_kmer() << " " << movi_options.is_mem() << "\n";
         throw std::runtime_error("Invalid query type");
     }
 }
@@ -300,6 +303,19 @@ void print_query_stats(MoviOptions& movi_options, uint64_t total_ff_count, MoveS
     }
 }
 
+void output_mems(bool to_stdout, std::ofstream& mems_file, MoveQuery& mq) {
+    if (to_stdout) {
+        for (auto& mem : mq.get_mems()) {
+            std::cout << mq.get_query_id() << "\t" << mem.start << "\t" << mem.end << "\t" << mem.count << "\n";
+        }
+    } else {
+        for (auto& mem : mq.get_mems()) {
+            mems_file << mq.get_query_id() << "\t" << mem.start << "\t" << mem.end << "\t" << mem.count << "\n";
+        }
+    }
+}
+
+
 void open_output_files(MoviOptions& movi_options, OutputFiles& output_files) {
 
     std::string index_type = program();
@@ -347,6 +363,9 @@ void open_output_files(MoviOptions& movi_options, OutputFiles& output_files) {
         } else if (movi_options.is_kmer()) {
             std::string kmer_file_name = out_file_name_prefix + "." + std::to_string(movi_options.get_k());
             output_files.kmer_file = std::ofstream(kmer_file_name);
+        } else if (movi_options.is_mem()) {
+            std::string mems_file_name = out_file_name_prefix;
+            output_files.mems_file = std::ofstream(mems_file_name);
         }
 
         // Handle SA entries file
