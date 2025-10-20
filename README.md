@@ -5,7 +5,7 @@
 <!-- badges: end -->
 
 <p align="center">
-<img src="logo.svg" alt="DNA Film Strip" width="300">
+<img src="logo.svg" alt="Movi Logo" width="300">
 </p>
 
 # Movi
