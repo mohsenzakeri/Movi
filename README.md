@@ -3,6 +3,13 @@
 [![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://shields.io/)
 <!-- badges: end -->
 
+# Movi
+<p align="center">
+  <img src="./logo.svg" alt="Movi Logo" width="300">
+</p>
+
+**Fast, Cache-Efficient, and Scalable Queries on Pangenomes**
+
 ## Overview 
 Movi is a full text index for pangenomes. It takes advantage of the move data structure. The high locality of the reference and latency hiding in Movi results in low and predictabile query latencies. These properties make Movi ideal for applications like Nanopore Adaptive sampling which requires real-time classification of the reads.
 
