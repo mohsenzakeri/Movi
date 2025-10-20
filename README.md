@@ -1,6 +1,9 @@
-# Movi 2 ![GitHub](https://img.shields.io/github/license/mohsenzakeri/movi?color=green)
+<!-- badges: start -->
+![GitHub](https://img.shields.io/github/license/mohsenzakeri/movi?color=green) 
+<!-- badges: end -->
 
-Movi is a full text index for pangenomes. It takes advantage of the move data structure (by Nishimoto and Tabei). The high locality of the reference and latency hiding in Movi results in low and predictabile query latencies. These properties make Movi ideal for applications like Nanopore Adaptive sampling which requires real-time classification of the reads.
+## Overview 
+Movi is a full text index for pangenomes. It takes advantage of the move data structure. The high locality of the reference and latency hiding in Movi results in low and predictabile query latencies. These properties make Movi ideal for applications like Nanopore Adaptive sampling which requires real-time classification of the reads.
 
 ## Getting Started
 
