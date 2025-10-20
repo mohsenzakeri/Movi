@@ -1,5 +1,6 @@
 <!-- badges: start -->
 ![GitHub](https://img.shields.io/github/license/mohsenzakeri/movi?color=green) 
+[![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://shields.io/)
 <!-- badges: end -->
 
 ## Overview 
