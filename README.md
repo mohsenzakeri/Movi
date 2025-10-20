@@ -4,10 +4,6 @@
 
 <!-- badges: end -->
 
-<p align="center">
-<img src="logo.svg" alt="Movi Logo" width="300">
-</p>
-
 # Movi
 
 **Fast, Cache-Efficient, and Scalable Queries on Pangenomes**
