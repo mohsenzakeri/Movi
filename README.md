@@ -1,10 +1,16 @@
 <!-- badges: start -->
-![GitHub](https://img.shields.io/github/license/mohsenzakeri/movi?color=green) 
+[![GitHub](https://img.shields.io/github/license/mohsenzakeri/movi?color=green)](https://github.com/mohsenzakeri/movi)
 [![Version](https://img.shields.io/badge/version-2.0.0-blue.svg)](https://shields.io/)
+
 <!-- badges: end -->
 
+# Movi 🧬...🧬🎞️
+**Fast, Cache-Efficient, and Scalable Queries on Pangenomes**
+
 ## Overview 
-Movi is a full text index for pangenomes. It takes advantage of the move data structure. The high locality of the reference and latency hiding in Movi results in low and predictabile query latencies. These properties make Movi ideal for applications like Nanopore Adaptive sampling which requires real-time classification of the reads.
+Movi is a full text index for pangenomes. It takes advantage of the [move data structure](https://arxiv.org/abs/2006.05104). The high locality of the reference and latency hiding in Movi results in low and predictabile query latencies. These properties make Movi ideal for applications like Nanopore Adaptive sampling which requires real-time classification of the reads.
+
+The latest version (*Movi 2.0.0*) offers modes (`sampled` and `sampled-thresholds`) that outperform other full-text pangenome methods (e.g., those based on the r-index) in both memory usage and query time on datasets such as the human pangenome from the [Human Pangenome Reference Consortium (HPRC)](https://humanpangenome.org/hprc-data-release-2/).
 
 ## Getting Started
 
@@ -119,9 +125,8 @@ If you use  Movi in yoour research project, please cite:
 >[Nishimoto, Takaaki, and Yasuo Tabei. "Optimal-time queries on BWT-runs compressed indexes." arXiv preprint arXiv:2006.05104 (2020)](https://arxiv.org/abs/2006.05104).
 
 
-# Multi-class classification with Movi Color
-
-Movi Color augments the Movi index with information about the origin of sequences, enabling multi-class and taxonomic classification.
+# Movi Color
+For multi-class classification Movi Color augments the Movi index with information about the origin of sequences, enabling multi-class and taxonomic classification.
 
 >[Tan, Steven, Sina Majidian, Ben Langmead, and Mohsen Zakeri. "Movi Color: fast and accurate long-read classification with the move structure." bioRxiv (2025)](https://www.biorxiv.org/content/10.1101/2025.05.22.655637v1.abstract)
 ### Add colors to an existing Movi index
