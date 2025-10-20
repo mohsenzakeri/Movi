@@ -28,7 +28,7 @@ public:
 
     void generate_stats(MoviOptions& movi_options, MoveStructure& mv_, std::string pattern_file);
 
-    void compute_stats();
+    void compute_stats(MoviOptions& movi_options);
 
     void serialize(MoviOptions& movi_options);
 

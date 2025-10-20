@@ -15,10 +15,6 @@ uint64_t MoveStructure::query_mems(MoveQuery& mq) {
     // At the time, the initialization works if ftab with ftab_k exists only
     // And the multi-ftab strategy must be turned off
     movi_options->set_multi_ftab(false);
-
-    if (min_mem_length > ftab_k) {
-        std::cerr << "Warning: Setting minimum MEM (length " << min_mem_length << ") greater than ftab k (" << ftab_k << ") causes a slower MEM search.\n";
-    }
     
     uint64_t mems_found = 0;
     do {

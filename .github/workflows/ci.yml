@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # strategy:
+    #   matrix:
+    #     compiler: [gcc, clang]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    # - name: Install Clang (if needed)
+    #   run: |
+    #     if [ "${{ matrix.compiler }}" == "clang" ]; then
+    #       sudo apt-get install -y clang
+    #     fi
+
+    # - name: Set compiler
+    #   run: |
+    #     if [ "${{ matrix.compiler }}" == "clang" ]; then
+    #       echo "CC=clang" >> $GITHUB_ENV
+    #       echo "CXX=clang++" >> $GITHUB_ENV
+    #     fi
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake pkg-config
+        
+    - name: Install Catch2
+      run: |
+        git clone https://github.com/catchorg/Catch2.git
+        cd Catch2
+        cmake -Bbuild -H. -DBUILD_TESTING=OFF
+        sudo cmake --build build/ --target install
+        
+    - name: Build the binaries and Run tests
+      run: |
+        ./run_tests.sh -j$(nproc)

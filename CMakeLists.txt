@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
-project(movi)
+project(movi VERSION 2.0.0)
 
 # C++ standard settings
 set(CMAKE_CXX_STANDARD 20)
@@ -8,6 +8,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Output directory
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/)
+
+# Suppress deprecation warnings from SDSL library
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated")
 
 # Dependencies
 include_directories("include")
@@ -77,7 +81,7 @@ if (NOT EXISTS ${EXTERNAL_REPOS_DIR}/pfp-thresholds-build/pfp_thresholds)
   ExternalProject_Add(
     pfp-thresholds
     GIT_REPOSITORY https://github.com/mohsenzakeri/pfp-thresholds
-    GIT_TAG probing
+    GIT_TAG movi
     PREFIX ${EXTERNAL_REPOS_DIR}
     SOURCE_DIR ${EXTERNAL_REPOS_DIR}/pfp-thresholds
     BINARY_DIR ${EXTERNAL_REPOS_DIR}/pfp-thresholds-build
@@ -93,20 +97,24 @@ endif()
 #----------------------------------------
 # Add r-permute
 #----------------------------------------
-#if (NOT EXISTS ${EXTERNAL_REPOS_DIR}/r-permute-build/test/src/run_constructor)
-#  ExternalProject_Add(
-#    r-permute
-#    GIT_REPOSITORY https://github.com/drnatebrown/r-permute
-#    GIT_TAG main
-#    PREFIX ${EXTERNAL_REPOS_DIR}
-#    SOURCE_DIR ${EXTERNAL_REPOS_DIR}/r-permute
-#    BINARY_DIR ${EXTERNAL_REPOS_DIR}/r-permute-build
-#    STAMP_DIR ${EXTERNAL_REPOS_DIR}/r-permute-stamp
-#    TMP_DIR ${EXTERNAL_REPOS_DIR}/r-permute-tmp
-#    CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_REPOS_DIR}/r-permute/install
-#    BUILD_ALWAYS OFF
-#    INSTALL_COMMAND make install
-#  )
-#endif()
+if (NOT EXISTS ${EXTERNAL_REPOS_DIR}/r-permute-build/test/src/run_constructor)
+ ExternalProject_Add(
+   r-permute
+   GIT_REPOSITORY https://github.com/drnatebrown/r-permute
+   GIT_TAG main
+   PREFIX ${EXTERNAL_REPOS_DIR}
+   SOURCE_DIR ${EXTERNAL_REPOS_DIR}/r-permute
+   BINARY_DIR ${EXTERNAL_REPOS_DIR}/r-permute-build
+   STAMP_DIR ${EXTERNAL_REPOS_DIR}/r-permute-stamp
+   TMP_DIR ${EXTERNAL_REPOS_DIR}/r-permute-tmp
+   CMAKE_ARGS -DCMAKE_INSTALL_PREFIX=${EXTERNAL_REPOS_DIR}/r-permute/install
+   BUILD_ALWAYS OFF
+   INSTALL_COMMAND make install
+ )
+endif()
 
 add_subdirectory(src)
+
+if (BUILD_TEST STREQUAL "1")
+    add_subdirectory(tests)
+endif()

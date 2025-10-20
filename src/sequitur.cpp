@@ -49,11 +49,11 @@ uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& p
 
     if (ftab_right_initialize != kmer_left) {
         // Sanity check: to make sure ftab and initialization is working
-        std::cerr << "ftab_right_initialize is now updated and should have been equal to kmer_left.\n";
-        std::cerr << "ftab_right: " << ftab_right
-                  << "\tftab_right_initialize:" << ftab_right_initialize
-                  << "\tkmer_left:" << kmer_left << "\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[Sequitur - query kmers from bidirectional] " +
+                                           "ftab_right_initialize is now updated and should have been equal to kmer_left.\n" +
+                                           "ftab_right: " + std::to_string(ftab_right) +
+                                           "\tftab_right_initialize:" + std::to_string(ftab_right_initialize) +
+                                           "\tkmer_left:" + std::to_string(kmer_left) + "\n"));
     }
 
     // pos_on_r and pos_on_r_saved point to the beginning of the kmer for which the bidirectional initialization was performed above
@@ -108,24 +108,27 @@ uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& p
 
             if (match_len != bi_interval.match_len) {
                 // Sanity check: to make sure match_len is computed correctly
-                std::cerr << "The interval's match_len is not set correctly.\n";
-                std::cerr << bi_interval.match_len << " " << match_len << "\n";
-                exit(0);
+                throw std::runtime_error(ERROR_MSG("[Sequitur - query kmers from bidirectional] The interval's match_len is not set correctly.\n" +
+                                                   "bi_interval.match_len: " + std::to_string(bi_interval.match_len) +
+                                                   " match_len: " + std::to_string(match_len) + "\n"));
             }
 
             // store the intervals for matches beyond half point of the kmer
             if (kmer_right > kmer_middle and kmer_right != pos_on_r_saved) {
 
                 if (bi_interval.match_len - non_extension_count - 1 >= partial_matches.size()) {
-                    std::cerr << bi_interval.match_len - partial_count - 1 << "\t" << partial_matches.size() << "\n";
-                    std::cerr << kmer_middle << "\t" << kmer_right << "\t" << pos_on_r_saved << "\n";
-                    exit(0);
+                    throw std::runtime_error(ERROR_MSG("[Sequitur - query kmers from bidirectional] The interval's match_len is not set correctly.\n" +
+                                                       "bi_interval.match_len: " + std::to_string(bi_interval.match_len) +
+                                                       " non_extension_count: " + std::to_string(non_extension_count) +
+                                                       "partial_matches.size(): " + std::to_string(partial_matches.size()) + "\n"));
                 }
 
                 if (partial_saved_count != bi_interval.match_len - non_extension_count - 1) {
                     // Sanity check
-                    std::cerr << partial_saved_count << "\t" << "\n";
-                    exit(0);
+                    throw std::runtime_error(ERROR_MSG("[Sequitur - query kmers from bidirectional] Partial saved count is not set correctly.\n" +
+                                                       "partial_saved_count: " + std::to_string(partial_saved_count) +
+                                                       " bi_interval.match_len: " + std::to_string(bi_interval.match_len) +
+                                                       " non_extension_count: " + std::to_string(non_extension_count) + "\n"));
                 }
 
                 partial_matches[bi_interval.match_len - non_extension_count - 1] = bi_interval;
@@ -142,8 +145,9 @@ uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& p
         kmer_stats.total_counts += kmers_count;
         if (pos_on_r != pos_on_r_saved) {
             // pos_on_r should be equal to pos_on_r_saved at this point
-            std::cerr << "pos_on_r: " << pos_on_r << "\tpos_on_r_saved" << pos_on_r_saved << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[Sequitur - query kmers from bidirectional] Pos_on_r is not equal to pos_on_r_saved.\n" +
+                                               "pos_on_r: " + std::to_string(pos_on_r) +
+                                               " pos_on_r_saved: " + std::to_string(pos_on_r_saved) + "\n"));
         }
 
         // To avoid searching this kmer again in the next step
@@ -211,7 +215,7 @@ uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& p
                 kmer_stats.positive_skipped += 1; // c += 1;
 
                 if (movi_options->is_debug()) {
-                    std::cerr << "kmer at " << kmer_left_ext + k - 1 << " was found.\n";
+                    DEBUG_MSG("kmer at " + std::to_string(kmer_left_ext + k - 1) + " was found.");
                     dbg << "1";
                 }
             } else {
@@ -234,7 +238,8 @@ uint64_t MoveStructure::query_kmers_from_bidirectional(MoveQuery& mq, int32_t& p
         // If we got here, we had to start the first while by breaking because of an unsuccessfull attempt to extend to the right
         // kmers_found = 0;
         if (kmer_right != pos_on_r)
-            std::cerr << "This should not happen: " << kmer_right << "\t" << pos_on_r << "\n";
+            throw std::runtime_error(ERROR_MSG("[Sequitur - query kmers from bidirectional] This should not happen: "
+                                               + std::to_string(kmer_right) + "\t" + std::to_string(pos_on_r)));
         // pos_on_r should have already been assigned to be the last kmer_right
         // So we should never get here to do the assignment in practice
         pos_on_r = kmer_right;
@@ -393,16 +398,19 @@ void MoveStructure::query_all_kmers(MoveQuery& mq, bool kmer_counts) {
                         #pragma omp atomic
                         kmer_stats.positive_kmers += found_bidirectional;
                         if (found_regular != found_bidirectional) {
-                            std::cerr << "pos_on_r_before:" << pos_on_r_before << " pos_on_r:" << pos_on_r
-                                    << " found_regular:" << found_regular << " found_bidirectional" << found_bidirectional << "\n";
-                            std::cerr << dbg.str() << std::endl;
+                            DEBUG_MSG("pos_on_r_before:" + std::to_string(pos_on_r_before) + " pos_on_r:" + std::to_string(pos_on_r)
+                                            + " found_regular:" + std::to_string(found_regular)
+                                            + " found_bidirectional:" + std::to_string(found_bidirectional));
+                            DEBUG_MSG(dbg.str());
                         }
                     }
                 // }
             } else {
-                uint64_t kmers_found = query_kmers_from(mq, pos_on_r);
+                uint64_t found_kmer_count = query_kmers_from(mq, pos_on_r);
+                // Outputing the kmer matches only works for the non-count mode (for now)
+                mq.add_kmer(pos_on_r + 2 - k, found_kmer_count);
                 #pragma omp atomic
-                kmer_stats.positive_kmers += kmers_found;
+                kmer_stats.positive_kmers += found_kmer_count;
             }
         }
 

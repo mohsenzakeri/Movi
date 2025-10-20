@@ -37,4 +37,13 @@ debug*/*
 .vscode/
 test_data/*.bin
 test_data/*.txt
-# test_data/test_out
+thirdparty/*
+CMakeModules/*
+
+# test files
+tests_data/*.bpf
+tests_data/*.mems
+tests_data/*.pmls
+tests_data/*.report
+tests_data/index*
+tests_data/*.pseudo_lengths

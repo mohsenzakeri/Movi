@@ -9,13 +9,11 @@
 struct Strand {
     Strand() {}
     uint16_t st_length;
-    std::string read_name;
-    std::string read;
     MoveQuery mq;
     MoveInterval range;
     MoveInterval range_prev;
 
-#if TALLY_MODE
+#if TALLY_MODES
     bool tally_state = false;
     uint64_t tally_b;
     uint64_t rows_until_tally;
@@ -56,7 +54,9 @@ struct Strand {
 
 class ReadProcessor {
     public:
-        ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_, bool verbose_, bool reverse_);
+        ReadProcessor(MoveStructure& mv_, int strands_, bool verbose_, bool reverse_, OutputFiles& output_files, Classifier& classifier);
+        uint64_t get_read_processed();
+        uint64_t get_total_ff_count();
         // void process_regular();
         uint64_t initialize_strands(std::vector<Strand>& processes, BatchLoader& reader);
         void process_latency_hiding(BatchLoader& reader);
@@ -77,7 +77,7 @@ class ReadProcessor {
         void next_kmer_search_negative_skip_all_heuristic(Strand& process, BatchLoader& reader);
         bool verify_kmer(Strand& process, uint64_t k);
 
-#if TALLY_MODE
+#if TALLY_MODES
         void process_char_tally(Strand& process);
         void find_next_id(Strand& process);
         void count_rows_untill_tally(Strand& process);
@@ -86,16 +86,11 @@ class ReadProcessor {
 #endif
     private:
         MoveStructure& mv;
-        Classifier classifier;
+        Classifier& classifier;
         int cache_line_size;
         int prefetch_step;
-        gzFile fp;
-        kseq_t *seq;
         int l;
-        std::ofstream mls_file;
-        std::ofstream matches_file;
-        std::ofstream out_file;
-        std::ofstream colors_file;
+        OutputFiles& output_files;
         int strands;
         uint32_t k;
         bool verbose = false;
@@ -107,9 +102,7 @@ class ReadProcessor {
         uint64_t kmer_extension_count;
         uint64_t kmer_extension_stopped_count;
         uint64_t negative_kmer_extension_count;
-        std::ofstream costs_file;
-        std::ofstream scans_file;
-        std::ofstream fastforwards_file;
+        uint64_t total_ff_count;
         std::chrono::time_point<std::chrono::high_resolution_clock> t1;
 };
 

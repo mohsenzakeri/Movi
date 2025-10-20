@@ -6,6 +6,9 @@
 
 #include "kseq.h"
 
+#include "commons.hpp"
+#include <filesystem>
+
 // STEP 1: declare the type of file handler and the read() function
 KSEQ_INIT(gzFile, gzread)
 
@@ -14,8 +17,11 @@ uint64_t read_fasta(const char* file_name,
                     std::ofstream& clean_fasta,
                     bool input_type,
                     bool rc,
-                    bool kmer_mode,
+                    bool separators,
                     std::vector<uint64_t>& doc_lengths) {
+    if (!std::filesystem::exists(std::string(file_name))) {
+        throw std::runtime_error(ERROR_MSG("The fasta file " + std::string(file_name) + " does not exist."));
+    }
     gzFile fp;
     kseq_t *seq;
     int l;
@@ -47,16 +53,16 @@ uint64_t read_fasta(const char* file_name,
                     case 'C': seq_rc[seq->seq.l - 1 - i] = 'G'; break;
                     case 'G': seq_rc[seq->seq.l - 1 - i] = 'C'; break;
                     case 'T': seq_rc[seq->seq.l - 1 - i] = 'A'; break;
-                    default: std::cerr << "The alphabet still includes non-ACTG after cleaning!\n"; exit(0);
+                    default: WARNING_MSG("The alphabet still includes non-ACTG after cleaning!"); exit(0);
                 }
             }
         }
 
-        if (kmer_mode) {
-            // Adding the separators (#) for the kmer mode
-            clean_fasta << '>' << seq->name.s << '\n' << seq->seq.s << '#' << '\n';
+        if (separators) {
+            // Adding the separators (%)
+            clean_fasta << '>' << seq->name.s << '\n' << seq->seq.s << SEPARATOR << '\n';
             if (rc)
-                clean_fasta << '>' << seq->name.s << "_rev_comp" << '\n' << seq_rc << '#' << '\n';
+                clean_fasta << '>' << seq->name.s << "_rev_comp" << '\n' << seq_rc << SEPARATOR << '\n';
             total_length += rc ? 2 : 1;
         } else {
             clean_fasta << '>' << seq->name.s << '\n' << seq->seq.s << '\n';
@@ -79,11 +85,17 @@ uint64_t read_fasta(const char* file_name,
 }
 
 int main(int argc, char* argv[]) {
+    if (argc < 2 or std::string(argv[1]) == "--help") {
+        INFO_MSG("Usage: movi-prepare-ref <fasta_file> <clean_fasta_file> [list] [separators]");
+        return 0;
+    }
     // Fasta/q reader from http://lh3lh3.users.sourceforge.net/parsefastq.shtml
     bool input_type = (argc > 3 && std::string(argv[3]) == "list") || (argc > 4 && std::string(argv[4]) == "list");
-    bool kmer_mode = (argc > 3 && std::string(argv[3]) == "kmer") || (argc > 4 && std::string(argv[4]) == "kmer");
+    bool separators = (argc > 3 && std::string(argv[3]) == "separators") || (argc > 4 && std::string(argv[4]) == "separators");
+    // TODO: rc flag settting should be fixed
     bool rc = (argc > 4 and std::string(argv[4]) == "fw") ? false : true;
-    std::cerr << rc << "\n";
+
+    INFO_MSG("Reverse complement: " + std::to_string(rc));
     std::ofstream clean_fasta(static_cast<std::string>(argv[2]));
     // Length of each document
     std::vector<uint64_t> doc_lengths;
@@ -91,20 +103,20 @@ int main(int argc, char* argv[]) {
         std::ifstream list_file(static_cast<std::string>(argv[1]));
         std::string fasta_file = "";
         while (std::getline(list_file, fasta_file)) {
-            std::cerr << fasta_file << "\n";
-            uint64_t length = read_fasta(fasta_file.data(), clean_fasta, input_type, rc, kmer_mode, doc_lengths);
+            INFO_MSG(fasta_file);
+            uint64_t length = read_fasta(fasta_file.data(), clean_fasta, input_type, rc, separators, doc_lengths);
         }
     } else {
-        std::cerr << argv[1] << "\n";
-        std::cerr << argv[2] << "\n";
-        uint64_t length = read_fasta(argv[1], clean_fasta, input_type, rc, kmer_mode, doc_lengths);
+        INFO_MSG("Input fasta file: " + static_cast<std::string>(argv[1]));
+        INFO_MSG("Output fasta file: " + static_cast<std::string>(argv[2]));
+        uint64_t length = read_fasta(argv[1], clean_fasta, input_type, rc, separators, doc_lengths);
     }
     clean_fasta.close();
 
-    if (kmer_mode) {
-        std::cerr << "Separators between genomes are added" << "\n";
+    if (separators) {
+        INFO_MSG("Separators between genomes are added");
     }
-    std::cerr << "The clean fasta with the reverse complement is stored at " << static_cast<std::string>(argv[2]) << "\n";
+    INFO_MSG("The clean fasta with the reverse complement is stored at " + static_cast<std::string>(argv[2]));
 
     // doc_offsets file stores the start index of the next run (last index of current run + 1)
     std::ofstream doc_offsets(static_cast<std::string>(argv[2]) + ".doc_offsets");

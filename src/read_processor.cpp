@@ -1,7 +1,8 @@
 #include "read_processor.hpp"
 #include <cpuid.h>
 
-ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, int strands_ = 4, bool verbose_ = false, bool reverse_ = false) : mv(mv_) {
+ReadProcessor::ReadProcessor(MoveStructure& mv_, int strands_, bool verbose_, bool reverse_, OutputFiles& output_files_, Classifier& classifier_) :
+    mv(mv_), output_files(output_files_), classifier(classifier_) {
 
     int cpu_info[4];
     __cpuid(0x80000006, cpu_info[0], cpu_info[1], cpu_info[2], cpu_info[3]);
@@ -10,65 +11,6 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
 
     verbose = verbose_;
     reverse = mv_.movi_options->is_reverse();
-    // Solution for handling the stdin input: https://biowize.wordpress.com/2013/03/05/using-kseq-h-with-stdin/
-    if (reads_file_name == "-") {
-        FILE *instream = stdin;
-        fp = gzdopen(fileno(instream), "r"); // STEP 2: open the file handler
-    } else {
-        fp = gzopen(reads_file_name.c_str(), "r"); // STEP 2: open the file handler
-    }
-
-    if (!mv_.movi_options->is_filter()) {
-
-        // seq = kseq_init(fp); // STEP 3: initialize seq
-        std::string index_type = program();
-        if (mv_.movi_options->is_multi_classify()) {
-            out_file = std::ofstream(mv_.movi_options->get_out_file());
-        }
-
-        if (!mv_.movi_options->is_stdout() and !mv_.movi_options->is_no_output()) {
-
-            if (mv_.movi_options->is_report_colors()) {
-                std::string colors_file_name = reads_file_name + "." + index_type + ".colors.bin";
-                colors_file = std::ofstream(colors_file_name, std::ios::out | std::ios::binary);
-
-                // Copmuter color ids for the output
-                mv.compute_color_ids_from_flat();
-                std::cerr << "Color offset to color id table is created.\n";
-
-            }
-
-            if (mv_.movi_options->is_pml()) {
-                std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
-                mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
-            } else if (mv_.movi_options->is_zml()) {
-                std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
-                mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
-            } else if (mv_.movi_options->is_count()) {
-                std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
-                matches_file = std::ofstream(matches_file_name);
-            }
-
-            if (mv_.movi_options->is_pml()) {
-                std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
-                mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
-            } else if (mv_.movi_options->is_zml()) {
-                std::string mls_file_name = reads_file_name + "." + index_type + "." + query_type(*(mv_.movi_options)) + ".bin";
-                mls_file = std::ofstream(mls_file_name, std::ios::out | std::ios::binary);
-            } else if (mv_.movi_options->is_count()) {
-                std::string matches_file_name = reads_file_name + "." + index_type + ".matches";
-                matches_file = std::ofstream(matches_file_name);
-            }
-            if (mv_.movi_options->is_logs()) {
-                costs_file = std::ofstream(reads_file_name + "." + index_type + ".costs");
-                scans_file = std::ofstream(reads_file_name + "." + index_type + ".scans");
-                fastforwards_file = std::ofstream(reads_file_name + "." + index_type + ".fastforwards");
-            }
-        }
-    }
-    if (mv_.movi_options->is_classify() or mv_.movi_options->is_filter()) {
-        classifier.initialize_report_file(*mv_.movi_options);
-    }
 
     total_kmer_count = 0;
     positive_kmer_count = 0;
@@ -78,11 +20,19 @@ ReadProcessor::ReadProcessor(std::string reads_file_name, MoveStructure& mv_, in
     negative_kmer_extension_count = 0;
     read_processed = 0;
     strands = strands_;
+    total_ff_count = 0;
+}
+
+uint64_t ReadProcessor::get_read_processed() {
+    return read_processed;
+}
+
+uint64_t ReadProcessor::get_total_ff_count() {
+    return total_ff_count;
 }
 
 bool ReadProcessor::next_read(Strand& process, BatchLoader& reader) {
 
-    // l = kseq_read(seq); // STEP 4: read sequence
     bool valid_read = false;
     Read read_struct;
     valid_read = reader.grabNextRead(read_struct);
@@ -90,23 +40,24 @@ bool ReadProcessor::next_read(Strand& process, BatchLoader& reader) {
     if (valid_read) {
         #pragma omp atomic
         read_processed += 1;
-    // if (l >= 0) {
+
         // process.st_length = seq->name.m;
         process.st_length = read_struct.id.length();
-        // process.read_name = seq->name.s;
-        process.read_name = read_struct.id;
-        // process.read = seq->seq.s;
-        process.read = std::string(read_struct.seq);
+        // Read name is now stored in MoveQuery via set_query_id()
+        // Create sequence string and optionally reverse it
+        std::string sequence = std::string(read_struct.seq);
         if (reverse) {
-            std::reverse(process.read.begin(), process.read.end());
+            std::reverse(sequence.begin(), sequence.end());
         }
         process.match_len = 0;
         process.ff_count = 0;
         process.scan_count = 0;
-        process.mq = MoveQuery(process.read);
+
+        process.mq = MoveQuery(sequence);
+        process.mq.set_query_id(read_struct.id);
+
         return false;
     } else {
-        // std::cerr << "No more reads to process!\n";
         return true;
     }
 }
@@ -115,7 +66,7 @@ void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
     process.finished = next_read(process, reader);
     if (!process.finished) {
         process.length_processed = 0;
-        process.pos_on_r = process.read.length() - 1;
+        process.pos_on_r = process.mq.query().length() - 1;
         process.idx = mv.r - 1;
         process.offset = mv.get_n(process.idx) - 1;
 
@@ -127,7 +78,7 @@ void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
         if (mv.movi_options->is_multi_classify()) {
             std::fill(process.classify_cnts.begin(), process.classify_cnts.end(), 0);
         }
-#if TALLY_MODE
+#if TALLY_MODES
         // This is necessary
         process.tally_state = false;
         // These shouldn't matter
@@ -146,7 +97,7 @@ void ReadProcessor::reset_process(Strand& process, BatchLoader& reader) {
 
 // This function is for computing PMLs
 void ReadProcessor::process_char(Strand& process) {
-    if (process.pos_on_r < process.read.length() - 1) {
+    if (process.pos_on_r < process.mq.query().length() - 1) {
         // LF step
         // if (mv.logs)
         //     process.t3 = std::chrono::high_resolution_clock::now();
@@ -217,9 +168,20 @@ void ReadProcessor::process_char(Strand& process) {
                 }
             }
 
-            process.mq.add_color(mv.color_offset_to_id[color_id]);
+            if (mv.movi_options->is_report_color_ids()) {
+                process.mq.add_color(mv.color_offset_to_id[color_id]);
+            } else if (mv.movi_options->is_report_colors()) {
+                process.mq.add_color(color_id);
+            }
+
         } else {
-            process.mq.add_color(mv.color_offset_to_id.size());
+
+            if (mv.movi_options->is_report_color_ids()) {
+                process.mq.add_color(mv.num_colors);
+            } else if (mv.movi_options->is_report_colors()) {
+                process.mq.add_color(mv.flat_colors.size());
+            }
+
         }
     }
 
@@ -228,8 +190,11 @@ void ReadProcessor::process_char(Strand& process) {
     char row_c = mv.alphabet[row.get_c()];
     std::string& R = process.mq.query();
     process.scan_count = 0;
-    if (mv.alphamap[static_cast<uint64_t>(R[process.pos_on_r])] == mv.alphamap.size()) {
+
+    if (!mv.check_alphabet(R[process.pos_on_r])) {
         process.match_len = 0;
+        if (mv.movi_options->is_debug())
+            DEBUG_MSG("[Read Processor] The character " + std::string(1, R[process.pos_on_r]) + " does not exist.");
     } else if (row_c == R[process.pos_on_r]) {
         // Case 1
         process.match_len += 1;
@@ -256,21 +221,26 @@ void ReadProcessor::process_char(Strand& process) {
             // min(new_lcp, match_len + 1)
             // But we cannot compute lcp here
             process.offset = up ? mv.get_n(process.idx) - 1 : 0;
-            if (verbose)
-                std::cerr << "\t idx: " << process.idx << " offset: " << process.offset << "\n";
+            if (mv.movi_options->is_debug())
+                DEBUG_MSG("\tidx: " + std::to_string(process.idx) + " offset: " + std::to_string(process.offset));
         } else {
-            std::cerr << "\t \t This should not happen!\n";
+            throw std::runtime_error(ERROR_MSG("\t\tCharacters should not mismatch after repositioning."));
         }
     }
 
-    process.mq.add_ml(process.match_len, mv.movi_options->is_stdout());
+    process.mq.add_ml(process.match_len, mv.movi_options->write_stdout_enabled());
+    if (mv.movi_options->is_get_sa_entries()) {
+        uint64_t sa_entry = mv.get_SA_entries(process.idx, process.offset);
+        process.mq.add_sa_entries(sa_entry);
+    }
+
     process.sum_matching_lengths += process.match_len;
     process.pos_on_r -= 1;
 
     // Check for early stopping if the read is unclassified
     if ( mv.movi_options->is_early_stop() and mv.movi_options->is_multi_classify() ) {
-        if ( process.pos_on_r < process.read.length() / 2 and process.pos_on_r % 100 == 0 ) {
-            float PML_mean = static_cast<float>(process.sum_matching_lengths) / (process.read.length() - process.pos_on_r);
+        if ( process.pos_on_r < process.mq.query().length() / 2 and process.pos_on_r % 100 == 0 ) {
+            float PML_mean = static_cast<float>(process.sum_matching_lengths) / (process.mq.query().length() - process.pos_on_r);
             if (PML_mean < UNCLASSIFIED_THRESHOLD) {
                 // setting the pos_on_r to -1 will stop the read processing
                 process.pos_on_r = -1;
@@ -285,11 +255,11 @@ void ReadProcessor::process_char(Strand& process) {
     // process.ff_count_tot += ff_count;
 }
 
-#if TALLY_MODE
+#if TALLY_MODES
 void ReadProcessor::process_char_tally(Strand& process) {
     if (process.tally_state == false) {
 
-        if (process.pos_on_r < process.read.length() - 1) {
+        if (process.pos_on_r < process.mq.query().length() - 1) {
 
             // First find the id if not found already
             if (process.id_found == false) {
@@ -339,13 +309,18 @@ void ReadProcessor::process_char_tally(Strand& process) {
                 // min(new_lcp, match_len + 1)
                 // But we cannot compute lcp here
                 process.offset = up ? mv.get_n(process.idx) - 1 : 0;
-                if (verbose)
-                    std::cerr << "\t idx: " << process.idx << " offset: " << process.offset << "\n";
+                if (mv.movi_options->is_debug())
+                    DEBUG_MSG("\t idx: " + std::to_string(process.idx) + " offset: " + std::to_string(process.offset));
             } else {
-                std::cerr << "\t \t This should not happen!\n";
+                throw std::runtime_error(ERROR_MSG("[Read Processor - tally mode] Characters should not mismatch after repositioning."));
             }
         }
-        process.mq.add_ml(process.match_len, mv.movi_options->is_stdout());
+        process.mq.add_ml(process.match_len, mv.movi_options->write_stdout_enabled());
+        if (mv.movi_options->is_get_sa_entries()) {
+            uint64_t sa_entry = mv.get_SA_entries(process.idx, process.offset);
+            process.mq.add_sa_entries(sa_entry);
+        }
+
         process.pos_on_r -= 1;
 
         // get_id is called at the beginning of the next LF
@@ -376,8 +351,9 @@ void ReadProcessor::find_next_id(Strand& process) {
 
     // Sanity check, the offset in the destination run should be always smaller than the length of that run
     if (process.tally_offset >= mv.get_n(process.run_id)) {
-        std::cout << "tally_offset: " << process.tally_offset << " n: " << mv.get_n(process.run_id) << "\n"; // << dbg.str() << "\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[Read Processor - find next tally id] tally_offset: " +std::to_string(process.tally_offset) +
+                                           " n: " + std::to_string(mv.get_n(process.run_id)) +
+                                           "\nThe offset in the destination run should be always smaller than the length of that run."));
     }
 
     if (process.find_next_id_attempt == 0) {
@@ -444,8 +420,7 @@ void ReadProcessor::count_rows_untill_tally(Strand& process) {
     // }
 
     if (process.last_id == mv.r) {
-        std::cerr << "last_id should never be equal to r.\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[Read Processor - count rows until tally] last_id should never be equal to r = " + std::to_string(mv.r) + "\n"));
     }
 
     // We should know what will be the offset of the run head in the destination run (id)
@@ -512,43 +487,26 @@ void ReadProcessor::find_tally_b(Strand& process) {
 #endif
 
 void ReadProcessor::write_mls(Strand& process) {
-    bool write_stdout = mv.movi_options->is_stdout();
-    if (mv.movi_options->is_classify() or mv.movi_options->is_filter()) {
-
-        std::vector<uint16_t> matching_lens;
-
-        // TODO: Classify for the large pml lens is not supported yet.
-        if (mv.movi_options->is_small_pml_lens()) {
-            for (uint32_t i = 0;  i < process.mq.get_matching_lengths().size(); i++) {
-                matching_lens.push_back(static_cast<uint16_t>(process.mq.get_matching_lengths()[i]));
-            }
-        }
-
-        bool found = classifier.classify(process.read_name, matching_lens, *mv.movi_options);
-        if (found and mv.movi_options->is_filter()) {
-            output_read(process.read_name, process.read, mv.movi_options->is_no_output());
-        }
-    }
 
     if (mv.movi_options->is_multi_classify()) {
-        out_file << process.read_name << ",";
+        output_files.out_file << process.mq.get_query_id() << ",";
         // binary classification in the multi-class classification mode is handled at a different part of the code
         // if (mv.movi_options->is_classify() && !mv.classifier->is_present(process.mq.get_matching_lengths(), *mv.movi_options)) {
-        float PML_mean = static_cast<float>(process.sum_matching_lengths) / process.read.length();
+        float PML_mean = static_cast<float>(process.sum_matching_lengths) / process.mq.query().length();
         if (PML_mean < UNCLASSIFIED_THRESHOLD || process.best_doc == std::numeric_limits<uint16_t>::max()) {
             // Not present
             if (mv.movi_options->is_report_all()) {
-                out_file << "0\n";
+                output_files.out_file << "0\n";
             } else {
-                out_file << "0,0\n";
+                output_files.out_file << "0,0\n";
             }
         } else {
-            if (mv.movi_options->is_report_colors()) {
+            if ((mv.movi_options->is_report_colors() or mv.movi_options->is_report_color_ids()) && mv.movi_options->write_output_allowed()) {
                 // Writing the PMLs
-                output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, false, false);
+                output_base_stats(DataType::match_length, mv.movi_options->write_stdout_enabled(), output_files.mls_file, process.mq);
 
                 // Writing the colors
-                output_matching_lengths(write_stdout, colors_file, process.read_name, process.mq, true, false);
+                output_base_stats(DataType::color, mv.movi_options->write_stdout_enabled(), output_files.colors_file, process.mq);
             }
 
             // If the second most occurring document is more than 95% of the most occurring one,
@@ -559,7 +517,7 @@ void ReadProcessor::write_mls(Strand& process) {
                 if (mv.movi_options->get_min_score_frac() == 0) {
                     // For the min_diff_frac mode, we write the best document no matter what
                     // For the min_score_frac mode, the best document is outputed only if its score is high enough
-                    out_file << mv.to_taxon_id[process.best_doc];
+                    output_files.out_file << mv.to_taxon_id[process.best_doc];
                 }
 
                 uint32_t output_document_count = 0;
@@ -570,23 +528,23 @@ void ReadProcessor::write_mls(Strand& process) {
                         float diff_best = static_cast<float>(best_doc_cnt - process.classify_cnts[i]);
 
                         if (i!= process.best_doc and diff_best < mv.movi_options->get_min_diff_frac() * best_doc_cnt) {
-                                out_file << "," << mv.to_taxon_id[i];
+                                output_files.out_file << "," << mv.to_taxon_id[i];
                         }
                     } else {
 
                         if (static_cast<float>(process.classify_cnts[i]) >= mv.movi_options->get_min_score_frac() * process.colors_count) {
-                            out_file << "," << mv.to_taxon_id[i]; // << ":" << process.classify_cnts[i] << "/" << process.colors_count << "/" << process.read.length();
+                            output_files.out_file << "," << mv.to_taxon_id[i]; // << ":" << process.classify_cnts[i] << "/" << process.colors_count << "/" << process.mq.query().length();
                             output_document_count += 1;
                         }
                     }
                 }
 
                 if (mv.movi_options->get_min_score_frac() != 0 and output_document_count == 0) {
-                    out_file << "0";
+                    output_files.out_file << "0";
                 }
             } else {
                 if (process.second_best_doc == std::numeric_limits<uint16_t>::max()) {
-                    out_file << mv.to_taxon_id[process.best_doc] << ",0";
+                    output_files.out_file << mv.to_taxon_id[process.best_doc] << ",0";
                 } else {
 
                     uint32_t best_doc_cnt = process.classify_cnts[process.best_doc];
@@ -594,17 +552,39 @@ void ReadProcessor::write_mls(Strand& process) {
                     float second_best_diff = static_cast<float>(best_doc_cnt - second_best_doc_cnt);
 
                     if (second_best_diff < 0.05 * best_doc_cnt) {
-                        out_file << mv.to_taxon_id[process.best_doc] << "," << mv.to_taxon_id[process.second_best_doc];
+                        output_files.out_file << mv.to_taxon_id[process.best_doc] << "," << mv.to_taxon_id[process.second_best_doc];
                     } else {
-                        out_file << mv.to_taxon_id[process.best_doc] << ",0";
+                        output_files.out_file << mv.to_taxon_id[process.best_doc] << ",0";
                     }
                 }
             }
-            out_file << "\n";
+            output_files.out_file << "\n";
         }
     } else {
-        if (!mv.movi_options->is_filter()) {
-            bool write_stdout = mv.movi_options->is_stdout() and !mv.movi_options->is_classify() and !mv.movi_options->is_filter();
+
+        if (mv.movi_options->is_classify()) {
+
+            // Classification with 32 bits pmls works if the pml values are less than 2^16.
+            std::vector<uint16_t> matching_lens_16(process.mq.get_matching_lengths().begin(), process.mq.get_matching_lengths().end());
+
+            bool found = classifier.classify(process.mq.get_query_id(), matching_lens_16, *mv.movi_options);
+            if (mv.movi_options->is_filter() && !mv.movi_options->is_no_output()) {
+                if (found && !mv.movi_options->is_invert()) {
+                    output_read(process.mq);
+                } else if (!found && mv.movi_options->is_invert()) {
+                    output_read(process.mq);
+                }
+            }
+        }
+
+        if (mv.movi_options->write_output_allowed()) {
+
+            output_base_stats(DataType::match_length, mv.movi_options->write_stdout_enabled(), output_files.mls_file, process.mq);
+
+            if (mv.movi_options->is_get_sa_entries()) {
+                output_base_stats(DataType::sa_entry, mv.movi_options->write_stdout_enabled(), output_files.sa_entries_file, process.mq);
+            }
+
             bool logs = mv.movi_options->is_logs();
             if (logs) {
                 auto t2 = std::chrono::high_resolution_clock::now();
@@ -612,19 +592,19 @@ void ReadProcessor::write_mls(Strand& process) {
                 process.mq.add_cost(elapsed);
                 process.mq.add_fastforward(process.ff_count);
                 process.mq.add_scan(process.scan_count);
-                output_logs(costs_file, scans_file, fastforwards_file, process.read_name, process.mq, mv.movi_options->is_no_output());
+                output_logs(output_files.costs_file, output_files.scans_file, output_files.fastforwards_file, process.mq);
             }
 
-            output_matching_lengths(write_stdout, mls_file, process.read_name, process.mq, false, mv.movi_options->is_no_output());
         }
     }
 }
 
 void ReadProcessor::write_count(Strand& process) {
     compute_match_count(process);
-    auto& R = process.mq.query();
-    bool write_stdout = mv.movi_options->is_stdout();
-    output_counts(write_stdout, matches_file, process.read_name, R.length(), process.pos_on_r, process.match_count, mv.movi_options->is_no_output());
+    if (mv.movi_options->write_output_allowed()) {
+        auto& R = process.mq.query();
+        output_counts(mv.movi_options->write_stdout_enabled(), output_files.matches_file, R.length(), process.pos_on_r, process.match_count, process.mq);
+    }
 }
 
 void ReadProcessor::compute_match_count(Strand& process) {
@@ -635,15 +615,16 @@ void ReadProcessor::compute_match_count(Strand& process) {
     else if (!process.range.is_empty())
         process.match_count = process.range.count(mv.rlbwt);
     else {
-        std::cerr << "This should not happen, for match count computation.\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[Read Processor - compute match count] This should not happen, for match count computation.\n"));
     }
 }
 
 void ReadProcessor::end_process() {
 
-    std::cerr << "no_ftab: " << mv.no_ftab << "\n";
-    std::cerr << "all_initializations: " << mv.all_initializations << "\n";
+    if (mv.movi_options->is_debug()) {
+        DEBUG_MSG("no_ftab: " + std::to_string(mv.no_ftab));
+        DEBUG_MSG("all_initializations: " + std::to_string(mv.all_initializations));
+    }
 
 
     if (!mv.movi_options->is_filter()) {
@@ -651,29 +632,8 @@ void ReadProcessor::end_process() {
         bool is_zml = mv.movi_options->is_zml();
         bool is_count = mv.movi_options->is_count();
 
-        if (!mv.movi_options->is_stdout()) {
-            if (is_pml or is_zml) {
-                mls_file.close();
-                std::cerr << "Matching lengths file is closed!\n";
-            } else if (is_count) {
-                matches_file.close();
-                std::cerr << "match_file file closed!\n";
-            }
-        }
-
         if (mv.movi_options->is_classify()) {
             classifier.close_report_file();
-        }
-
-        // kseq_destroy(seq); // STEP 5: destroy seq
-        // std::cerr << "kseq destroyed!\n";
-        // gzclose(fp); // STEP 6: close the file handler
-        // std::cerr << "fp file closed!\n";
-
-        if (mv.movi_options->is_logs()) {
-            costs_file.close();
-            scans_file.close();
-            fastforwards_file.close();
         }
     }
 }
@@ -684,8 +644,7 @@ void ReadProcessor::process_latency_hiding(BatchLoader& reader) {
     bool is_count = mv.movi_options->is_count();
 
     if ((is_pml and is_count) or (is_pml and is_zml) or (is_count and is_zml)) {
-        std::cerr << "Error parsing the input, multipe types of queries cannot be processed at the same time.\n";
-        exit(0);
+        throw std::runtime_error(ERROR_MSG("[Read Processor - process latency hiding] Multipe types of queries cannot be processed at the same time.\n"));
     }
 
     std::vector<Strand> processes;
@@ -693,7 +652,6 @@ void ReadProcessor::process_latency_hiding(BatchLoader& reader) {
     #pragma omp critical
     {
         finished_count = initialize_strands(processes, reader);
-        // std::cerr << strands << " processes are initiated.\n";
     }
 
     while (finished_count != strands) {
@@ -716,8 +674,10 @@ void ReadProcessor::process_latency_hiding(BatchLoader& reader) {
                     (is_zml and (processes[i].pos_on_r <= 0))) {
                     #pragma omp critical
                     {
-                        if (read_processed % 1000 == 0)
-                            std::cerr << read_processed << "\r";
+                        if (read_processed % 1000 == 0) {
+                            QUERY_PROGRESS_MSG("Number of reads processed: " + format_number_with_commas(read_processed));
+                        }
+
                         if (is_pml) {
                             write_mls(processes[i]);
                             reset_process(processes[i], reader);
@@ -727,13 +687,23 @@ void ReadProcessor::process_latency_hiding(BatchLoader& reader) {
                             reset_backward_search(processes[i]);
                         } else if (is_zml) {
                             if (backward_search_finished and processes[i].pos_on_r > 0) {
-                                processes[i].mq.add_ml(processes[i].match_len, mv.movi_options->is_stdout());
+                                processes[i].mq.add_ml(processes[i].match_len, mv.movi_options->write_stdout_enabled());
+                                if (mv.movi_options->is_get_sa_entries()) {
+                                    uint64_t sa_entry = mv.get_SA_entries(processes[i].idx, processes[i].offset);
+                                    processes[i].mq.add_sa_entries(sa_entry);
+                                }
+
                                 processes[i].pos_on_r -= 1;
                                 reset_backward_search(processes[i]);
                                 processes[i].kmer_end = processes[i].pos_on_r;
                                 // continue;
                             } else if (processes[i].pos_on_r <= 0) {
-                                processes[i].mq.add_ml(processes[i].match_len, mv.movi_options->is_stdout());
+                                processes[i].mq.add_ml(processes[i].match_len, mv.movi_options->write_stdout_enabled());
+                                if (mv.movi_options->is_get_sa_entries()) {
+                                    uint64_t sa_entry = mv.get_SA_entries(processes[i].idx, processes[i].offset);
+                                    processes[i].mq.add_sa_entries(sa_entry);
+                                }
+
                                 write_mls(processes[i]);
                                 reset_process(processes[i], reader);
                                 reset_backward_search(processes[i]);
@@ -759,13 +729,16 @@ void ReadProcessor::process_latency_hiding(BatchLoader& reader) {
     }
 }
 
-#if TALLY_MODE
+#if TALLY_MODES
 void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
     bool is_pml = mv.movi_options->is_pml();
 
     std::vector<Strand> processes;
-    uint64_t finished_count = initialize_strands(processes, reader);
-    std::cerr << strands << " processes are initiated.\n";
+    uint64_t finished_count = 0;
+    #pragma omp critical
+    {
+        finished_count = initialize_strands(processes, reader);
+    }
 
     while (finished_count != strands) {
         for (uint64_t i = 0; i < strands; i++) {
@@ -775,8 +748,15 @@ void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
                 }
                 // 2: if the read is done -> Write the pmls and go to next read
                 if (is_pml and processes[i].pos_on_r <= -1) {
-                    write_mls(processes[i]);
-                    reset_process(processes[i], reader);
+                    #pragma omp critical
+                    {
+                        if (read_processed % 1000 == 0) {
+                            QUERY_PROGRESS_MSG("Number of reads processed: " + format_number_with_commas(read_processed));
+                        }
+
+                        write_mls(processes[i]);
+                        reset_process(processes[i], reader);
+                    }
                 }
                 // 3: -- check if it was the last read in the file -> finished_count++
                 if (processes[i].finished) {
@@ -805,7 +785,6 @@ void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
 /* void ReadProcessor::ziv_merhav_latency_hiding() {
     std::vector<Strand> processes;
     for(int i = 0; i < strands; i++) processes.emplace_back(Strand());
-    std::cerr << strands << " processes are created.\n";
 
     uint64_t finished_count = 0;
     for (uint64_t i = 0; i < strands; i++) {
@@ -867,11 +846,6 @@ void ReadProcessor::process_latency_hiding_tally(BatchLoader& reader) {
     std::cerr << "total_bs for ziv_merhav: " << total_bs << "\n";
 
     std::cerr << "The output file for the matching lengths closed.\n";
-
-    kseq_destroy(seq); // STEP 5: destroy seq
-    std::cerr << "kseq destroyed!\n";
-    gzclose(fp); // STEP 6: close the file handler
-    std::cerr << "fp file closed!\n";
 } */
 
 uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes, BatchLoader& reader) {
@@ -884,7 +858,6 @@ uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes, Batch
         }
     }
 
-    // std::cerr << strands << " processes are created.\n";
     for (uint64_t i = 0; i < strands; i++) {
         if (finished_count == 0) {
             if (mv.movi_options->is_kmer()) {
@@ -910,9 +883,6 @@ uint64_t ReadProcessor::initialize_strands(std::vector<Strand>& processes, Batch
         }
     }
 
-    if (empty_strands > 0) {
-        // std::cerr << "Warning: there are fewer reads (" << strands - empty_strands << ") than the number of strands (" << strands << ").\n";
-    }
     return finished_count;
 }
 
@@ -921,7 +891,9 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k_, BatchLoader& reader)
 
     std::vector<Strand> processes;
     uint64_t finished_count = initialize_strands(processes, reader);
-    std::cerr << strands << " processes are initiated.\n";
+    if (mv.movi_options->is_debug()) {
+        INFO_MSG(std::to_string(strands) + " processes are initiated.");
+    }
 
     uint64_t total_bs = 0;
     // Assuming all the reads > k
@@ -931,20 +903,20 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k_, BatchLoader& reader)
                 // 1: process next character
                 bool backward_search_finished = backward_search(processes[i], processes[i].kmer_end);
                 total_bs += 1;
-                if (verbose)
-                    std::cerr << backward_search_finished << " " << processes[i].kmer_start << " "
-                              << processes[i].kmer_end << " " << processes[i].pos_on_r << "\n";
+                if (mv.movi_options->is_debug())
+                    DEBUG_MSG(backward_search_finished + " " + std::to_string(processes[i].kmer_start) + " "
+                              + std::to_string(processes[i].kmer_end) + " " + std::to_string(processes[i].pos_on_r));
                 // if ((processes[i].pos_on_r == processes[i].kmer_start and processes[i].kmer_start != 0) or (processes[i].pos_on_r == -1 and processes[i].kmer_start == 0)) {
                 if (processes[i].pos_on_r == processes[i].kmer_start - 1) {
                     // 2: if the kmer is found
-                    if (verbose)
-                        std::cerr << processes[i].pos_on_r << " " << processes[i].kmer_start << "\n";
-                    /*if (!verify_kmer(processes[i], k)) {
-                        std::cerr << "kmer not verified!\n";
-                        exit(0);
-                    }*/
-                    if (verbose)
-                        std::cerr << "+ ";
+                    if (mv.movi_options->is_debug())
+                        DEBUG_MSG(std::to_string(processes[i].pos_on_r) + " " + std::to_string(processes[i].kmer_start));
+                        /*if (!verify_kmer(processes[i], k)) {
+                            std::cerr << "kmer not verified!\n";
+                            exit(0);
+                        }*/
+                    if (mv.movi_options->is_debug())
+                        DEBUG_MSG("+ ");
                     if (processes[i].kmer_start >= 0) {
                         positive_kmer_count += 1;
                         if (processes[i].kmer_extension)
@@ -991,8 +963,8 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k_, BatchLoader& reader)
                         }
                     }
                 } else if (processes[i].kmer_start < 0) {
-                    if (verbose)
-                        std::cerr << "- ";
+                    if (mv.movi_options->is_debug())
+                        DEBUG_MSG("- ");
                     reset_kmer_search(processes[i], reader);
                     next_kmer_search(processes[i]);
                     // 3: -- check if it was the last read in the file -> finished_count++
@@ -1008,19 +980,13 @@ void ReadProcessor::kmer_search_latency_hiding(uint32_t k_, BatchLoader& reader)
         }
     }
 
-    std::cerr << "\n";
-    std::cerr << "total_bs: " << total_bs << "\n";
-    std::cerr << "positive_kmer_count: " << positive_kmer_count << "\n";
-    std::cerr << "negative_kmer_count: " << negative_kmer_count << "\n";
-    std::cerr << "total_kmer_count: " << total_kmer_count << "\n";
-    std::cerr << "kmer_extension_stopped_count: " << kmer_extension_stopped_count << "\n";
-    std::cerr << "kmer_extension_count: " << kmer_extension_count << "\n";
-    std::cerr << "negative_kmer_extension_count: " << negative_kmer_extension_count << "\n\n";
-
-    kseq_destroy(seq); // STEP 5: destroy seq
-    std::cerr << "kseq destroyed!\n";
-    gzclose(fp); // STEP 6: close the file handler
-    std::cerr << "fp file closed!\n";
+    INFO_MSG("total_bs: " + std::to_string(total_bs));
+    INFO_MSG("positive_kmer_count: " + std::to_string(positive_kmer_count));
+    INFO_MSG("negative_kmer_count: " + std::to_string(negative_kmer_count));
+    INFO_MSG("total_kmer_count: " + std::to_string(total_kmer_count));
+    INFO_MSG("kmer_extension_stopped_count: " + std::to_string(kmer_extension_stopped_count));
+    INFO_MSG("kmer_extension_count: " + std::to_string(kmer_extension_count));
+    INFO_MSG("negative_kmer_extension_count: " + std::to_string(negative_kmer_extension_count));
 }
 
 void ReadProcessor::reset_backward_search(Strand& process) {
@@ -1037,7 +1003,11 @@ void ReadProcessor::reset_backward_search(Strand& process) {
         return;
     }
     while (!mv.check_alphabet(query_seq[process.pos_on_r]) and process.pos_on_r >= 0) {
-        process.mq.add_ml(0, mv.movi_options->is_stdout());
+        process.mq.add_ml(0, mv.movi_options->write_stdout_enabled());
+        if (mv.movi_options->is_get_sa_entries()) {
+            uint64_t sa_entry = mv.get_SA_entries(process.idx, process.offset);
+            process.mq.add_sa_entries(sa_entry);
+        }
         process.pos_on_r -= 1;
     }
     if (process.pos_on_r < 0) {
@@ -1055,12 +1025,12 @@ void ReadProcessor::reset_kmer_search(Strand& process, BatchLoader& reader) {
     process.finished = next_read(process, reader);
     if (!process.finished) {
         process.length_processed = 0;
-        process.kmer_start = process.read.length() - k + 1;
-        process.kmer_end = process.read.length() - 1 + 1;
+        process.kmer_start = process.mq.query().length() - k + 1;
+        process.kmer_end = process.mq.query().length() - 1 + 1;
         process.pos_on_r = process.kmer_end;
 
         // Find the first position where the character is legal
-        while (!mv.check_alphabet(process.read[process.pos_on_r])) {
+        while (!mv.check_alphabet(process.mq.query()[process.pos_on_r])) {
             process.pos_on_r -= 1;
         }
     }
@@ -1133,11 +1103,11 @@ bool ReadProcessor::backward_search(Strand& process, uint64_t end_pos) {
     // 2) No character on the read exists in the alphabet
     // The first_iteration condition should be only true after the reset_backward_search function
     std::string& R = process.mq.query();
-    if (verbose)
-        std::cerr << "backward search begins:\n" << process.pos_on_r << " "
-                    << R[process.pos_on_r] << " "
-                    << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
-                    << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
+    if (mv.movi_options->is_debug())
+        DEBUG_MSG("backward search begins:" + std::to_string(process.pos_on_r) + " "
+                    + std::string(1, R[process.pos_on_r]) + " "
+                    + std::string(1, static_cast<char>(mv.alphabet[mv.rlbwt[process.range.run_start].get_c()])) + " "
+                    + std::string(1, static_cast<char>(mv.alphabet[mv.rlbwt[process.range.run_end].get_c()])));
     bool first_iteration = process.pos_on_r == end_pos;
     if (first_iteration) {
         if (process.range.is_empty()) {
@@ -1161,7 +1131,7 @@ bool ReadProcessor::backward_search(Strand& process, uint64_t end_pos) {
         // Therefore, we can safely say that the read at position pos_on_r - 1 is matched now.
         process.pos_on_r -= 1;
         if (mv.movi_options->is_zml()) {
-            process.mq.add_ml(process.match_len, mv.movi_options->is_stdout());
+            process.mq.add_ml(process.match_len, mv.movi_options->write_stdout_enabled());
             process.match_len += 1;
         }
         // To make the pos_on_r match the range currently represented after the two LF steps.
@@ -1175,8 +1145,8 @@ bool ReadProcessor::backward_search(Strand& process, uint64_t end_pos) {
         // If we are at position 0 after the last LF step, we can finish the procedure
         // Very expensive operation: process.match_count = process.range.count(mv.rlbwt);
         if (process.pos_on_r < 0) {
-            std::cerr << "This should never happen.\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[Read Processor - backward search] This should never happen pos_on_r: " +
+                                               std::to_string(process.pos_on_r) + "\n"));
         }
         return true;
     }
@@ -1190,16 +1160,16 @@ bool ReadProcessor::backward_search(Strand& process, uint64_t end_pos) {
     // Store the current range as range_prev in case the range becomes empty after the update
     // If the range becomes empty, it means that the match cannot be extended.
     process.range_prev = process.range;
-    if (verbose)
-        std::cerr << "before: " << process.range.run_start << " " << process.range.run_end << " "
-                    << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
-                    << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
+    if (mv.movi_options->is_debug())
+        DEBUG_MSG("before: " + std::to_string(process.range.run_start) + " " + std::to_string(process.range.run_end) + " "
+                    + std::to_string(static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c())) + " "
+                    + std::string(1, static_cast<char>(mv.alphabet[mv.rlbwt[process.range.run_end].get_c()])));
     mv.update_interval(process.range, R[process.pos_on_r - 1]);
-    if (verbose)
-        std::cerr << "after: " << process.range.run_start << " " << process.range.run_end << " "
-                    << static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c()) << " "
-                    << mv.alphabet[mv.rlbwt[process.range.run_start].get_c()] << " "
-                    << mv.alphabet[mv.rlbwt[process.range.run_end].get_c()] << "\n";
+    if (mv.movi_options->is_debug())
+        DEBUG_MSG("after: " + std::to_string(process.range.run_start) + " " + std::to_string(process.range.run_end) + " "
+                    + std::to_string(static_cast<uint64_t>(mv.rlbwt[process.range.run_start].get_c())) + " "
+                    + std::string(1, static_cast<char>(mv.alphabet[mv.rlbwt[process.range.run_start].get_c()])) + " "
+                    + std::string(1, static_cast<char>(mv.alphabet[mv.rlbwt[process.range.run_end].get_c()])));
 
     return false;
 }

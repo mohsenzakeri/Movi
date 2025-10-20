@@ -1,5 +1,6 @@
 // This file defines a class MoveRowColored, which is just a duplicate of
 // MoveRow (in move_row.hpp) with the addition of color_id
+// It's only for the purpose of testing and not still used in the main version
 
 #ifndef MOVE_ROW_COLORED_HPP
 #define MOVE_ROW_COLORED_HPP
@@ -16,22 +17,22 @@
 
 class __attribute__((packed)) MoveRowColored {
     public:
-#if MODE == 0 or MODE == 1 or MODE == 4
+#if MOVI1_STYLE
         MoveRowColored () {n = 0; id = 0; overflow_bits = 0;}
 #endif
-#if MODE == 3 or MODE == 6 or MODE == 2 or MODE == 8
+#if REGULAR_MODES or BLOCKED_MODES
         MoveRowColored () {n = 0; id = 0; offset = 0;}
 #endif
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4 or MODE == 8 or MODE == 3 or MODE == 6
+#if NO_SAMPPLED_ID
         MoveRowColored(uint16_t n_, uint16_t offset_, uint64_t id_);
         void init(uint16_t n_, uint16_t offset_, uint64_t id_);
 #endif
-#if MODE == 5 or MODE == 7
+#if TALLY_MODES
         MoveRowColored () {n = 0; offset = 0;}
         MoveRowColored(uint16_t n_, uint16_t offset_);
         void init(uint16_t n_, uint16_t offset_);
 #endif
-#if MODE == 2 or MODE == 8
+#if BLOCKED_MODES
         void print_all();
 #endif
         friend std::ostream& operator<<(std::ostream& os, const MoveRowColored& mr);
@@ -43,12 +44,12 @@ class __attribute__((packed)) MoveRowColored {
         uint16_t get_offset() const;
         char get_c() const;
 
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4 or MODE == 8 or MODE == 3 or MODE == 6
+#if NO_SAMPPLED_ID
         void set_id(uint64_t id_);
         uint64_t get_id() const;
 #endif
 
-#if MODE == 0 or MODE == 1 or MODE == 4
+#if MOVI1_STYLE
         uint8_t get_threshold_status(uint16_t i) const;
         void set_threshold_status(uint16_t i, uint8_t status);
         bool is_overflow_thresholds() const;
@@ -69,24 +70,24 @@ class __attribute__((packed)) MoveRowColored {
         void set_next_down(uint32_t i, uint16_t t) { next_down[i] = t; }
 #endif
 
-#if MODE == 8 or MODE == 7 or MODE == 6
+#if SPLIT_THRESHOLDS_TRUE
         uint16_t get_threshold(uint16_t i) const;
         void set_threshold(uint16_t i, uint16_t value);
 #endif
         uint64_t row_size() {
-#if MODE == 0 or MODE == 4
+#if LARGE_INDEX or SPLIT_INDEX
             return 12;
 #endif
-#if MODE == 1
+#if CONSTANT_INDEX
             return 24;
 #endif
-#if MODE == 3 or MODE == 6
+#if REGULAR_INDEX or REGULAR_THRESHOLDS_INDEX
             return 8;
 #endif
-#if MODE == 2 or MODE == 8
+#if BLOCKED_INDEX or BLOCKED_THRESHOLDS_INDEX
             return 6;
 #endif
-#if MODE == 5 or MODE == 7
+#if TALLY_INDEX or TALLY_THRESHOLDS_INDEX
             return 3;
 #endif
         }
@@ -95,37 +96,37 @@ class __attribute__((packed)) MoveRowColored {
         void set_color_id(uint32_t color_id_) { color_id = color_id_; }
 
     // private:
-#if MODE == 5 or MODE == 7
+#if TALLY_MODES
         uint8_t n; // length of the run
         uint8_t offset; // offset of the bwt row head of the current run in the new run after the LF-jump
         uint8_t c;
 #endif
 
-#if MODE == 2 or MODE == 8
+#if BLOCKED_MODES
         uint16_t id;        // The least significant bits of the bwt run after the LF-jump (distance from the block check point)
 #endif
-#if MODE == 0 or MODE == 1 or MODE == 4 or MODE == 3 or MODE == 6
+#if NO_EXTRA_TABLE
         uint32_t id;        // The least significant bits of the bwt run after the LF-jump
 #endif
         uint32_t color_id;  // The color id of the bwt run
-#if MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4 or MODE == 8 or MODE == 3 or MODE == 6
+#if NO_SAMPPLED_ID
         uint16_t n;         // length of the run
         uint16_t offset;    // offset of the bwt row head of the current run in the new run after the LF-jump
 #endif
   
-#if MODE == 0 or MODE == 1 or MODE == 4
+#if MOVI1_STYLE
         uint16_t threshold;
         uint8_t overflow_bits;
         uint8_t thresholds_status; // Whether each threshold is at the boundary or it's a non-trivial value
 #endif
-#if MODE == 1
+#if CONSTANT_INDEX
         // to store pointers for avoiding scanning
         uint16_t next_up[3];
         uint16_t next_down[3];
 #endif
 };
 
-#if MODE == 0 or MODE == 1 or MODE == 4
+#if MOVI1_STYLE
 // inline uint8_t extract_value(uint8_t source, uint8_t mask, uint16_t shift) {
 //     uint8_t res = (source & (~mask)) >> shift;
 //     return res;
@@ -177,7 +178,7 @@ inline bool MoveRowColored::is_overflow_thresholds() const{
 }
 #endif
 
-#if MODE == 5 or MODE == 7
+#if TALLY_MODES
 inline uint16_t MoveRowColored::get_n() const{
     uint16_t res = n;
     return res | (static_cast<uint16_t>((c & (~mask_n)) >> SHIFT_N) << 8);
@@ -193,14 +194,14 @@ inline char MoveRowColored::get_c() const{
 }
 #endif
 
-#if MODE == 2 or MODE == 8 or MODE == 3 or MODE == 6
+#if REGULAR_MODES or BLOCKED_MODES
 // inline uint16_t extract_value(uint16_t source, uint16_t mask, uint16_t shift) {
 //     uint16_t res = (source & (~mask)) >> shift;
 //     return res;
 // }
 #endif
 
-#if MODE == 3 or MODE == 6
+#if REGULAR_MODES
 inline uint64_t MoveRowColored::get_id() const {
     if (offset >= (1U << SHIFT_ID)) {
         uint64_t res = static_cast<uint64_t>(extract_value(offset, mask_id, SHIFT_ID));
@@ -228,11 +229,9 @@ inline char MoveRowColored::get_c() const {
 }
 #endif
 
-#if MODE == 2 or MODE == 8
+#if BLOCKED_MODES
 inline void MoveRowColored::print_all() {
-    std::cerr << "id:\t" << std::bitset<16>(id) <<
-                 "\nn:\t" << std::bitset<16>(n) <<
-                 "\noffset:\t" << std::bitset<16>(offset) << "\n";
+    INFO_MSG("id:\t" + std::bitset<16>(id).to_string() + " n:\t" + std::bitset<16>(n).to_string() + " offset:\t" + std::bitset<16>(offset).to_string());
 }
 
 inline uint64_t MoveRowColored::get_id() const {
@@ -270,7 +269,7 @@ inline char MoveRowColored::get_c() const{
 }
 #endif
 
-#if MODE == 6
+#if REGULAR_THRESHOLDS_INDEX
 inline uint16_t MoveRowColored::get_threshold(uint16_t i) const {
     switch (i) {
         case 0:
@@ -280,13 +279,12 @@ inline uint16_t MoveRowColored::get_threshold(uint16_t i) const {
         case 2:
             return static_cast<uint16_t>((n & (~mask_thresholds3)) >> 12);
         default:
-            std::cerr << "Only three thresholds exist per run: " << i << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[MoveRowColored - get_threshold] Only three thresholds exist per run: " + std::to_string(i) + "\n"));
     }
 }
 #endif
 
-#if MODE == 8
+#if BLOCKED_THRESHOLDS_INDEX
 inline uint16_t MoveRowColored::get_threshold(uint16_t i) const {
     switch (i) {
         case 0:
@@ -296,13 +294,12 @@ inline uint16_t MoveRowColored::get_threshold(uint16_t i) const {
         case 2:
             return static_cast<uint16_t>((offset & (~mask_thresholds3)) >> 14);
         default:
-            std::cerr << "Only three thresholds exist per run: " << i << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[MoveRowColored - get_threshold] Only three thresholds exist per run: " + std::to_string(i) + "\n"));
     }
 }
 #endif
 
-#if MODE == 7
+#if TALLY_THRESHOLDS_INDEX
 inline uint16_t MoveRowColored::get_threshold(uint16_t i) const {
     switch (i) {
         case 0:
@@ -312,8 +309,7 @@ inline uint16_t MoveRowColored::get_threshold(uint16_t i) const {
         case 2:
             return static_cast<uint16_t>((c & (~mask_thresholds3)) >> 7);
         default:
-            std::cerr << "Only three thresholds exist per run: " << i << "\n";
-            exit(0);
+            throw std::runtime_error(ERROR_MSG("[MoveRowColored - get_threshold] Only three thresholds exist per run: " + std::to_string(i) + "\n"));
     }
 }
 #endif

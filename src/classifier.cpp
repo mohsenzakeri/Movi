@@ -17,7 +17,7 @@ void Classifier::generate_null_statistics(MoveStructure& mv_, MoviOptions& movi_
 
     EmpNullDatabase nulldb;
     nulldb.generate_stats(movi_options, mv_, pattern_file);
-    nulldb.compute_stats();
+    nulldb.compute_stats(movi_options);
     nulldb.serialize(movi_options);
 }
 
@@ -28,9 +28,13 @@ size_t Classifier::initialize_report_file(MoviOptions& movi_options) {
     // load the threshold from the null database
     EmpNullDatabase null_db;
     null_db.deserialize(movi_options);
-    std::cerr << "null_db.get_percentile_value(): " << null_db.get_percentile_value() << "\n";
+
     max_value_thr = std::max(null_db.get_percentile_value(), static_cast<size_t>(MIN_MATCHING_LENGTH)) + 1;
-    std::cerr << "max_value_thr: " << max_value_thr << "\n";
+    if (movi_options.is_verbose()) {
+        INFO_MSG("\tmax_value_thr: " + std::to_string(max_value_thr));
+        INFO_MSG("\tnull_db.get_percentile_value(): " + std::to_string(null_db.get_percentile_value()));
+    }
+
     // initial the report file
     if (!movi_options.is_filter()) {
         if (!movi_options.is_stdout()) {
@@ -40,7 +44,7 @@ size_t Classifier::initialize_report_file(MoviOptions& movi_options) {
             } else {
                 report_file_name = movi_options.get_mls_file() + ".report";
             }
-            std::cerr << "Report file name: " << report_file_name << "\n";
+            INFO_MSG("Report file name: " + report_file_name);
             report_file = std::ofstream(report_file_name);
         }
 
@@ -123,7 +127,7 @@ bool Classifier::classify(std::string& read_name, std::vector<uint16_t>& matchin
 
     // #pragma omp critical --> this is now handled by the method that call classify
     {
-        if (!movi_options.is_filter()) {
+        if (movi_options.write_output_allowed()) {
             std::ostream& out = movi_options.is_stdout() ? std::cout : report_file;
             out.precision(3);
             out << std::setw(30) << std::left << read_name

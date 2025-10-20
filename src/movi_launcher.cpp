@@ -9,6 +9,9 @@
 #include <filesystem>
 #include <sys/stat.h>
 
+#include "commons.hpp"
+#include "utils.hpp"
+
 #define PFP_THRESHOLDS_PATH "/external_repos/pfp-thresholds-build/pfp_thresholds"
 #define R_PERMUTE_PATH "/external_repos/r-permute-build/test/src/"
 #define DEFAULT_INDEX_TYPE "regular-thresholds"
@@ -23,6 +26,7 @@ arguments specific to the launcher:
 --skip-r-permute: skip the r-permute step
 --type: the index type to build
 --list or -l: the list of fasta files
+--non-preprocessed: undo the default behavior of writing the BWT in the run length compressed format (ignored if --preprocessed is set)
  * * * * * * * * * * * * */
 
 std::string binary_dir; // set from argv[0]
@@ -41,6 +45,11 @@ struct Args {
     bool skip_pfp = false;
     bool skip_rlbwt = false;
     bool skip_r_permute = false;
+    // By default, write the BWT in the run length compressed format
+    bool preprocessed = true;
+    bool preprocessed_flag = false;
+    bool non_preprocessed_flag = false;
+    bool use_separators = false;
 };
 
 // Index type mapping
@@ -52,8 +61,8 @@ const std::unordered_map<std::string, char> type_to_char = {
     {"regular-thresholds", 6},
     {"blocked", 2},
     {"blocked-thresholds", 8},
-    {"tally", 5},
-    {"tally-thresholds", 7}
+    {"sampled", 5},
+    {"sampled-thresholds", 7}
 };
 
 const std::unordered_map<char, std::string> char_to_type = {
@@ -64,16 +73,18 @@ const std::unordered_map<char, std::string> char_to_type = {
     {6, "regular-thresholds"},
     {2, "blocked"},
     {8, "blocked-thresholds"},
-    {5, "tally"},
-    {7, "tally-thresholds"}
+    {5, "sampled"},
+    {7, "sampled-thresholds"}
 };
 
 // Function declarations
+void validate_flags(Args& args, const std::vector<std::string>& all_args);
 std::string construct_movi_command(const std::string& binary, const std::vector<std::string>& all_args);
 void execute_command_line(const std::string& command, const std::string& error_msg, const Args& args);
 void throw_missing_argument(const std::string& argument);
 void print_error(const std::string& error_msg);
 void print_warning(const std::string& warning_msg);
+bool handle_help(int argc, char* argv[], Args& args);
 void parse_build_arguments(int argc, char* argv[], Args& args, std::vector<std::string>& all_args);
 void parse_arguments(int argc, char* argv[], Args& args, std::vector<std::string>& all_args);
 void handle_build(const Args& args, const std::vector<std::string>& all_args);
@@ -88,31 +99,55 @@ int main(int argc, char* argv[]) {
     std::vector<std::string> all_args;
 
     try {
-        if (argc < 2) {
-            throw std::runtime_error("Error parsing command line options: The action is missing.");
-        } else {
-            args.action = argv[1];
+
+        args.action = get_action(argc, argv);
+
+        // If help or help-all is passed, ignore everything
+        if (handle_help(argc, argv, args)) {
+            return 0;
         }
 
         if (args.action == "build") {
             parse_build_arguments(argc, argv, args, all_args);
+            validate_flags(args, all_args);
             handle_build(args, all_args);
         } else {
             parse_arguments(argc, argv, args, all_args);
+            validate_flags(args, all_args);
             handle(args, all_args);
         }
     } catch (const std::exception& e) {
-        if (std::filesystem::exists(binary_dir + "/movi-" + args.index_type)) {
+        if (std::filesystem::exists(binary_dir + "/bin/movi-" + args.index_type)) {
             print_error(std::string(e.what()));
-            std::string help_command = binary_dir + "/movi-" + args.index_type + " " + args.action + " -h";
+            std::string help_command = binary_dir + "/bin/movi-" + args.index_type + " " + args.action + " -h";
             execute_command_line(help_command, "Failed in movi " + args.action + " step", args);
         } else {
-            print_error("Error parsing command line options: The binary '" + binary_dir + "/movi-" + args.index_type + "' does not exist.");
+            print_error("Error parsing command line options: The binary '" + binary_dir + "/bin/movi-" + args.index_type + "' does not exist.");
         }
         return 1;
     }
 
     return 0;
+}
+
+void validate_flags(Args& args, const std::vector<std::string>& all_args) {
+    std::vector<std::string> movi_args = all_args;
+    if (args.action == "build") {
+        movi_args.push_back("--fasta");
+        movi_args.push_back("dummy.fa");
+    }
+    movi_args.push_back("--validate-flags");
+
+    std::string binary = "bin/movi-" + args.index_type;
+    std::string command = construct_movi_command(binary, movi_args);
+    bool verbose = args.verbose;
+    args.verbose = false;
+    execute_command_line(command, "Failed in movi build step", args);
+    args.verbose = verbose;
+
+    if (verbose) {
+        INFO_MSG("Flags validated successfully");
+    }
 }
 
 std::string construct_movi_command(const std::string& binary,
@@ -132,10 +167,10 @@ std::string construct_movi_command(const std::string& binary,
 
 void execute_command_line(const std::string& command, const std::string& error_msg, const Args& args) {
     if (args.verbose) {
-        std::cerr << "Executing: " << command << "\n";
+        INFO_MSG("Executing: " + command);
     }
-    if (std::system(command.c_str()) != 0 and args.action != "view") {
-        throw std::runtime_error("Error parsing command line options: " + error_msg);
+    if (std::system(command.c_str()) != 0) {
+        exit(1);
     }
 }
 
@@ -144,11 +179,11 @@ void throw_missing_argument(const std::string& argument) {
 }
 
 void print_error(const std::string& error_msg) {
-    std::cerr << "\033[31m" + error_msg + "\033[0m" << std::endl;
+    std::cerr << ERROR_MSG(error_msg) << std::endl;
 }
 
 void print_warning(const std::string& warning_msg) {
-    std::cerr << "\033[33m" + warning_msg + "\033[0m" << std::endl;
+    WARNING_MSG(warning_msg);
 }
 
 // Implementation of build-specific functionality
@@ -159,21 +194,26 @@ void handle_build(const Args& args, const std::vector<std::string>& all_args) {
     // Prepare reference
     std::string clean_fasta = args.index_path + "/ref.fa";
     if (!args.skip_prepare) {
-        std::string preprocess_command = binary_dir + "/prepare_ref "
+        std::string prepare_ref_command = binary_dir + "/bin/movi-prepare-ref "
                                         + args.fasta_file + " " + clean_fasta
-                                        + (args.fasta_list_provided ? " list" : "");
-        execute_command_line(preprocess_command, "Failed in prepare fasta step", args);
+                                        + (args.fasta_list_provided ? " list" : "")
+                                        + (args.use_separators ? " separators" : "");
+        execute_command_line(prepare_ref_command, "Failed in prepare fasta step", args);
     }
 
     // Execute pfp_thresholds
     if (!args.skip_pfp) {
-        std::string pfp_command = binary_dir + PFP_THRESHOLDS_PATH + " -f " + clean_fasta;
+        std::string pfp_command = binary_dir + PFP_THRESHOLDS_PATH + " -P ";
+        if (args.preprocessed) {
+            pfp_command += " -r ";
+        }
+        pfp_command += " -f " + clean_fasta;
         execute_command_line(pfp_command, "Failed in pfp_thresholds step", args);
     }
 
     // Handle special cases for constant/split indexes
     if (args.index_type == "constant" || args.index_type == "split") {
-        std::string binary = "movi-" + args.index_type;
+        std::string binary = "bin/movi-" + args.index_type;
         if (!args.skip_rlbwt) {
             std::string rlbwt_command = binary_dir + "/" + binary + " rlbwt --bwt-file " + clean_fasta + ".bwt";
             execute_command_line(rlbwt_command, "Failed in rlbwt step", args);
@@ -191,7 +231,7 @@ void handle_build(const Args& args, const std::vector<std::string>& all_args) {
     build_args.push_back("--fasta");
     build_args.push_back(clean_fasta);
     
-    std::string binary = "movi-" + args.index_type;
+    std::string binary = "bin/movi-" + args.index_type;
     std::string build_command = construct_movi_command(binary, build_args);
     execute_command_line(build_command, "Failed in movi build step", args);
 
@@ -203,14 +243,55 @@ void handle_build(const Args& args, const std::vector<std::string>& all_args) {
 
 void handle(const Args& args, const std::vector<std::string>& all_args) {
     char index_type_char = args.index_provided ? get_index_type(args.index_path) : type_to_char.at(args.index_type);
-    
+
     if (char_to_type.find(index_type_char) == char_to_type.end()) {
-        throw std::runtime_error("Errorparsing command line options: Unrecognized index_type '" + std::to_string(index_type_char) + "'");
+        throw std::runtime_error("Error parsing command line options: Unrecognized index_type '" + std::to_string(index_type_char) + "'");
     }
 
-    std::string binary = "movi-" + char_to_type.at(index_type_char);
+    std::string binary = "bin/movi-" + char_to_type.at(index_type_char);
     std::string command = construct_movi_command(binary, all_args);
     execute_command_line(command, "Failed in movi " + args.action + " step", args);
+}
+
+bool handle_help(int argc, char* argv[], Args& args) {
+    bool help = false;
+    bool help_all = false;
+
+    // First check if any special index type is provided
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--type") {
+            if (i + 1 < argc) {
+                args.index_type = argv[i + 1];
+            }
+            break;
+        }
+    }
+
+    // Construct the help command using the appropriate binary
+    std::string help_command = binary_dir + "/bin/movi-" + args.index_type + " " + args.action;
+
+    // Parse the arguments to check if help or help-all is passed
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "-h" || arg == "--help") {
+            help = true;
+            help_command += " --help";
+            break;
+        } else if (arg == "--help-all") {
+            help_all = true;
+            help_command += " --help-all";
+            break;
+        }
+    }
+
+    // If help or help-all is passed, execute the help command
+    if (help or help_all) {
+        execute_command_line(help_command, "Failed in movi help command", args);
+        return true;
+    }
+
+    return false;
 }
 
 // Function to parse the index type and filter the remaining arguments
@@ -233,6 +314,10 @@ void parse_build_arguments(int argc, char* argv[],
             script_args.skip_rlbwt = true;
         } else if (arg == "--skip-r-permute") {
             script_args.skip_r_permute = true;
+        } else if (arg == "--non-preprocessed") {
+            script_args.non_preprocessed_flag = true;
+        } else if (arg == "--preprocessed") {
+            script_args.preprocessed_flag = true;
         } else if (arg == "--type") {
             if (i + 1 < argc) {
                 script_args.index_type = argv[++i]; // Get the next argument as the index type
@@ -261,6 +346,9 @@ void parse_build_arguments(int argc, char* argv[],
             } else {
                 throw_missing_argument(arg);
             }
+        } else if (arg == "--separators") {
+            script_args.use_separators = true;
+            all_args.push_back(arg);
         } else {
             all_args.push_back(arg); // Collect other arguments
         }
@@ -272,11 +360,19 @@ void parse_build_arguments(int argc, char* argv[],
     }
 
     if (script_args.fasta_file.empty()) {
-        throw std::runtime_error("The fasta file or list of fasta files should be provided");
+        throw std::runtime_error("Please include either a fasta file or a list of fasta files.");
     }
 
     if (script_args.index_path.empty()) {
         throw std::runtime_error("The index directory should be provided");
+    }
+
+    // By default, write the BWT in the run length compressed format
+    // Only write the uncompressed BWT if the --non-preprocessed flag is set and the --preprocessed flag is not set
+    script_args.preprocessed = script_args.preprocessed_flag or !script_args.non_preprocessed_flag;
+    if (script_args.preprocessed) {
+        all_args.push_back("--preprocessed");
+        script_args.skip_rlbwt = true;
     }
 }
 
@@ -318,6 +414,17 @@ char get_index_type(const std::string& index_dir) {
     for (const auto& fname : possible_filenames) {
         std::ifstream fin(fname, std::ios::binary);
         if (fin) {
+            // Try to read as modern header first
+            MoviHeader header;
+            fin.read(reinterpret_cast<char*>(&header), sizeof(MoviHeader));
+
+            // Check if it's a modern header by verifying magic number
+            if (header.magic == MOVI_MAGIC) {
+                return static_cast<char>(header.type);
+            }
+
+            // If not a modern header, try as legacy header
+            fin.seekg(0, std::ios::beg);
             char index_type;
             fin.read(reinterpret_cast<char*>(&index_type), sizeof(index_type));
             return index_type;
