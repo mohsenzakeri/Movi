@@ -13,7 +13,7 @@
 ## Overview 
 Movi is a full text index for pangenomes. It takes advantage of the move data structure. The high locality of the reference and latency hiding in Movi results in low and predictabile query latencies. These properties make Movi ideal for applications like Nanopore Adaptive sampling which requires real-time classification of the reads.
 
-Movi offers different modes for building index which offers time-space tradeoff.
+Movi offers multiple index-building modes, each providing a different time–space tradeoff.
 
 ## Getting Started
 
