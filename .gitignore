@@ -42,6 +42,7 @@ CMakeModules/*
 
 # test files
 tests_data/*.bpf
+tests_data/*.mems
 tests_data/*.pmls
 tests_data/*.report
 tests_data/index*
