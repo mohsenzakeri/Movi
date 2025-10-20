@@ -1,13 +1,8 @@
-# Movi ![GitHub](https://img.shields.io/github/license/mohsenzakeri/movi?color=green)
+# Movi 2 ![GitHub](https://img.shields.io/github/license/mohsenzakeri/movi?color=green)
 
 Movi is a full text index for pangenomes. It takes advantage of the move data structure (by Nishimoto and Tabei). The high locality of the reference and latency hiding in Movi results in low and predictabile query latencies. These properties make Movi ideal for applications like Nanopore Adaptive sampling which requires real-time classification of the reads.
 
-
->[Zakeri, Mohsen, Brown, Nathaniel K., Ahmed, Omar Y., Gagie, Travis, and Langmead, Ben. "Movi: a fast and cache-efficient full-text pangenome index". iScience (2024)](https://www.cell.com/iscience/fulltext/S2589-0042(24)02691-9)
-
->[Nishimoto, Takaaki, and Yasuo Tabei. "Optimal-time queries on BWT-runs compressed indexes." arXiv preprint arXiv:2006.05104 (2020)](https://arxiv.org/abs/2006.05104).
-
-## Install Movi and its dependencies from source
+## Getting Started
 
 Required dependences: `sdsl`, `zlib`, `cmake`, and `gcc` with C++20 support.
 
@@ -20,6 +15,51 @@ cmake ..
 make -j4
 ```
 
+## Usage
+```
+ movi <action> [OPTION...]
+
+ actions:       build, inspect, query, view
+
+ main options:
+      --type arg  The type of the index: regular-thresholds (default), regular, blocked-thresholds, blocked,
+                  sampled-thresholds, sampled
+  -h, --help      Print help
+      --help-all  Print help with all options (including advanced)
+      --verbose   Enable verbose mode
+
+ build options:
+  -i, --index arg       Index directory [REQUIRED]
+  -f, --fasta arg       Reference file [REQUIRED unless -l is passed]
+  -l, --list arg        List of fasta files, only works with 'movi' binary [REQUIRED unless -f is passed]
+      --separators      Use separators in between fasta entries
+      --checkpoint arg  Create checkpoint for id field of sampled and sampled-thresholds indexes every n move rows
+      --verify          Verify if all the LF-move operations are correct
+
+ inspect options:
+  -i, --index arg           Index directory [REQUIRED]
+      --output-ids          Output the adjusted ids of all the runs to ids.* files, one file per character
+      --flat-color-vectors  Flat and serialize the colors vectors
+
+ query options:
+  -i, --index arg     Index directory [REQUIRED]
+  -r, --read arg      fasta/fastq Read file for query [REQUIRED]
+  -o, --out-file arg  Output file prefix if computing PMLs for classification
+  -t, --threads arg   Number of threads for query
+      --pml           Compute the pseudo-matching lengths (default)
+      --zml           Compute the Ziv-Merhav cross parsing length)
+      --count         Compute the count queries
+      --classify      Enable binary classification of the reads
+      --filter        Filter the reads based on the matching lengths, output the filtered reads to stdout
+  -v, --invert        Output the not found reads during filtering
+      --stdout        Write the output to stdout, writes the matching lengths by default, or the report of classification
+                      if --classify is passed
+
+ view options:
+      --bpf arg    The base profile format (BPF) file to view [REQUIRED]
+      --small-bpf  Read the file with PMLs stored as uint16_t (default: uint32_t).
+      --large-bpf  Read the file with PMLs stored as uint64_t (default: uint32_t)
+```
 
 ## Build the Movi index
 
@@ -67,7 +107,15 @@ For binary classification you should pass the `--classify` flag to the query ste
 ```
 Then, a file called `<reads file>.<index type>.<query type>.report` will be generated.
 
-## Multi-class classification with Movi Color
+## Citing Movi
+If you use  Movi in yoour research project, please cite:
+
+>[Zakeri, Mohsen, Brown, Nathaniel K., Ahmed, Omar Y., Gagie, Travis, and Langmead, Ben. "Movi: a fast and cache-efficient full-text pangenome index". iScience (2024)](https://www.cell.com/iscience/fulltext/S2589-0042(24)02691-9)
+
+>[Nishimoto, Takaaki, and Yasuo Tabei. "Optimal-time queries on BWT-runs compressed indexes." arXiv preprint arXiv:2006.05104 (2020)](https://arxiv.org/abs/2006.05104).
+
+
+# Multi-class classification with Movi Color
 
 Movi Color augments the Movi index with information about the origin of sequences, enabling multi-class and taxonomic classification.
 
