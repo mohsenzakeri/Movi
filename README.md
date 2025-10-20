@@ -4,7 +4,12 @@
 
 <!-- badges: end -->
 
-# Movi 🧬...🧬🎞️
+<p align="center">
+<img src="logo.svg" alt="DNA Film Strip" width="300">
+</p>
+
+# Movi
+
 **Fast, Cache-Efficient, and Scalable Queries on Pangenomes**
 
 ## Overview 
