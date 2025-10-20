@@ -129,11 +129,11 @@ To get the reads which are not present, you cann pass `-v` to the above command.
 ## Citing Movi
 If you use  Movi in yoour research project, please cite:
 
->[Zakeri, Mohsen, Brown, Nathaniel K., Gagie, Travis, and Langmead, Ben. "Movi 2: Fast and Space-Efficient Queries on Pangenomes". bioRxiv (2025)](https://www.biorxiv.org/content/10.1101/2025.10.16.682873v1).
+>[Zakeri, Mohsen, Brown, Nathaniel K., Gagie, Travis, and Langmead, Ben. "Movi 2: Fast and Space-Efficient Queries on Pangenomes". bioRxiv (2025)](https://www.biorxiv.org/content/10.1101/2025.10.16.682873v1)
 
 >[Zakeri, Mohsen, Brown, Nathaniel K., Ahmed, Omar Y., Gagie, Travis, and Langmead, Ben. "Movi: a fast and cache-efficient full-text pangenome index". iScience (2024)](https://www.cell.com/iscience/fulltext/S2589-0042(24)02691-9)
 
->[Nishimoto, Takaaki, and Yasuo Tabei. "Optimal-time queries on BWT-runs compressed indexes." arXiv preprint arXiv:2006.05104 (2020)](https://arxiv.org/abs/2006.05104).
+>[Nishimoto, Takaaki, and Yasuo Tabei. "Optimal-time queries on BWT-runs compressed indexes." arXiv preprint arXiv:2006.05104 (2020)](https://arxiv.org/abs/2006.05104)
 
 
 # Multi-class classification with Movi Color
