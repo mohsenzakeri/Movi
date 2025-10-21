@@ -28,13 +28,13 @@
   <rect x="310" y="162" width="12" height="12" fill="#343838" rx="2"/>
   
   <!-- Film cell 1 -->
-  <rect x="80" y="45" width="68" height="110" fill="#9fede6" rx="2"/>
+  <rect x="80" y="45" width="68" height="110" fill="#ebfcfb" rx="2"/>
   
   <!-- Film cell 2 -->
-  <rect x="165" y="45" width="68" height="110" fill="#9fede6" rx="2"/>
+  <rect x="165" y="45" width="68" height="110" fill="#ebfcfb" rx="2"/>
   
   <!-- Film cell 3 -->
-  <rect x="250" y="45" width="68" height="110" fill="#9fede6" rx="2"/>
+  <rect x="250" y="45" width="68" height="110" fill="#ebfcfb" rx="2"/>
   
   <!-- DNA Helix 1 -->
   <g transform="translate(114, 100)">
@@ -120,4 +120,5 @@
              T 10,50" 
           stroke="#e74c3c" stroke-width="2.5" fill="none"/>
   </g>
+
 </svg>
