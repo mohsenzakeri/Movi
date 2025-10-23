@@ -123,7 +123,7 @@ To directly output the reads which are found in the index to stdout, you can pas
 To get the reads which are not present, you cann pass `-v` to the above command.
 
 ## Citing Movi
-If you use  Movi in yoour research project, please cite:
+If you use  Movi in your research project, please cite:
 
 >[Zakeri, Mohsen, Brown, Nathaniel K., Gagie, Travis, and Langmead, Ben. "Movi 2: Fast and Space-Efficient Queries on Pangenomes". bioRxiv (2025)](https://www.biorxiv.org/content/10.1101/2025.10.16.682873v1)
 
