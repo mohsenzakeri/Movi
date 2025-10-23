@@ -70,8 +70,6 @@ make -j4
 
  view options:
       --bpf arg    The base profile format (BPF) file to view [REQUIRED]
-      --small-bpf  Read the file with PMLs stored as uint16_t (default: uint32_t).
-      --large-bpf  Read the file with PMLs stored as uint64_t (default: uint32_t)
 ```
 
 ## Build the Movi index
