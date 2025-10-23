@@ -96,6 +96,8 @@ int main(int argc, char* argv[]) {
     bool rc = (argc > 4 and std::string(argv[4]) == "fw") ? false : true;
 
     INFO_MSG("Reverse complement: " + std::to_string(rc));
+    INFO_MSG("Separator: " + std::to_string(separators));
+
     std::ofstream clean_fasta(static_cast<std::string>(argv[2]));
     // Length of each document
     std::vector<uint64_t> doc_lengths;
