@@ -35,8 +35,7 @@ make -j4
  actions:       build, inspect, query, view
 
  main options:
-      --type arg  The type of the index: regular-thresholds (default), regular, blocked-thresholds, blocked,
-                  sampled-thresholds, sampled
+      --type arg  The type of the index: regular-thresholds (default), regular, blocked-thresholds, blocked, sampled-thresholds, sampled
   -h, --help      Print help
       --help-all  Print help with all options (including advanced)
       --verbose   Enable verbose mode
@@ -51,8 +50,7 @@ make -j4
 
  inspect options:
   -i, --index arg           Index directory [REQUIRED]
-      --output-ids          Output the adjusted ids of all the runs to ids.* files, one file per character
-      --flat-color-vectors  Flat and serialize the colors vectors
+      --output-ids          Output the adjusted ids of all the move rows to ids.* files, one file per character
 
  query options:
   -i, --index arg     Index directory [REQUIRED]
