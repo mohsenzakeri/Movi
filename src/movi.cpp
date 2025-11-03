@@ -706,12 +706,17 @@ int main(int argc, char** argv) {
             MoveStructure mv_(&movi_options);
             mv_.deserialize();
             INFO_MSG("The Movi index is read from the file successfully.");
-            if (movi_options.get_LF_type() == "sequential")
+            auto begin = std::chrono::system_clock::now();
+            if (movi_options.get_LF_type() == "sequential") {
                 mv_.sequential_lf();
-            else if (movi_options.get_LF_type() == "random")
+            } else if (movi_options.get_LF_type() == "random") {
                 mv_.random_lf();
-            else if (movi_options.get_LF_type() == "reconstruct")
+            } else if (movi_options.get_LF_type() == "reconstruct") {
                 mv_.reconstruct_lf();
+            }
+            auto end = std::chrono::system_clock::now();
+            auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+            TIMING_MSG(elapsed, "LF-mapping for all the BWT characters in the" + movi_options.get_LF_type() + " order");
         } else if (command == "inspect") {
             MoveStructure mv_(&movi_options);
             mv_.deserialize();

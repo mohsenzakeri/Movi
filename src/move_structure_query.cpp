@@ -7,20 +7,20 @@ void MoveStructure::reconstruct_lf() {
     uint64_t ff_count_tot = 0;
 
     uint64_t total_elapsed = 0;
+    // auto begin = std::chrono::system_clock::now();
     for (; run_index != end_bwt_idx; ) {
         if (i % 1000000 == 0) {
             print_progress_bar(i, length - 1, "Reconstructing the original text");
         }
 
-        auto begin = std::chrono::system_clock::now();
         ff_count_tot += LF_move(offset, run_index);
-        auto end = std::chrono::system_clock::now();
-        auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
-        total_elapsed += elapsed.count();
 
         i += 1;
         // orig_string = rlbwt[run_index].get_c() + orig_string;
     }
+    // auto end = std::chrono::system_clock::now();
+    // auto elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(end - begin);
+    // total_elapsed = elapsed.count();
     PROGRESS_MSG("Finished reconstructing the original string.");
     INFO_MSG("Total fast forward: " + std::to_string(ff_count_tot));
     TIMING_MSG(total_elapsed, "reconstructing the original text");
