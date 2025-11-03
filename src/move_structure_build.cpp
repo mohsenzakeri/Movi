@@ -232,7 +232,7 @@ void MoveStructure::detect_move_row_boundaries() {
     // Counter for the number of occurrences of each character in the BWT
     std::vector<uint64_t> all_possible_chars(all_chars_count, 0);
 
-    // Counters for the number of runs split by MAX_RUN_LENGTH and by thresholds
+    // Counters for the number of runs split by the maximum run length and by thresholds
     uint64_t split_by_max_run = 0;
     uint64_t split_by_thresholds = 0;
 
@@ -279,12 +279,12 @@ void MoveStructure::detect_move_row_boundaries() {
                         split_by_thresholds += 1;
 #endif
 
-                        // Check if the run length is greater than MAX_RUN_LENGTH
-                        while (current_run_length > MAX_RUN_LENGTH) {
+                        // Check if the run length is greater than the maximum run length
+                        while (current_run_length > movi_options->get_max_run_length()) {
                             split_by_max_run += 1;
-                            uint16_t run_length = static_cast<uint16_t>(MAX_RUN_LENGTH);
+                            uint16_t run_length = static_cast<uint16_t>(movi_options->get_max_run_length());
                             add_detected_run(bwt_offset, original_run_heads[i], run_length);
-                            current_run_length -= MAX_RUN_LENGTH;
+                            current_run_length -= movi_options->get_max_run_length();
                         }
 
                         // Anything remaining will be added as a separate run
@@ -300,12 +300,12 @@ void MoveStructure::detect_move_row_boundaries() {
 
             bwt_offset += len;
 
-            // Split the remaining length by MAX_RUN_LENGTH
-            while (remaining_length > MAX_RUN_LENGTH) {
+            // Split the remaining length by the maximum run length
+            while (remaining_length > movi_options->get_max_run_length()) {
                 split_by_max_run += 1;
-                uint16_t run_length = static_cast<uint16_t>(MAX_RUN_LENGTH);
+                uint16_t run_length = static_cast<uint16_t>(movi_options->get_max_run_length());
                 add_detected_run(bwt_offset, original_run_heads[i], run_length);
-                remaining_length -= MAX_RUN_LENGTH;
+                remaining_length -= movi_options->get_max_run_length();
             }
 
             // Anything remaining will be added as a separate run
@@ -383,8 +383,8 @@ void MoveStructure::detect_move_row_boundaries() {
 #if SPLIT_THRESHOLDS_TRUE
                 split_by_thresholds += 1;
 #endif
-            } else if (run_length == MAX_RUN_LENGTH) {
-                // 3) A new run is detected if the length of the run is greater than MAX_RUN_LENGTH
+            } else if (run_length == movi_options->get_max_run_length()) {
+                // 3) A new run is detected if the length of the run is greater than the maximum run length
 
                 add_detected_run(scanned_bwt_length, next_char, run_length);
                 split_by_max_run += 1;
@@ -610,7 +610,7 @@ void MoveStructure::build_move_rows() {
         // To take care of cases where length of the run
         // does not fit in uint16_t
 #if SPLIT_MAX_RUN
-        if (offset > MAX_RUN_LENGTH or len > MAX_RUN_LENGTH) {
+        if (offset > movi_options->get_max_run_length() or len > movi_options->get_max_run_length()) {
             // Should not get here in the regular mode: MODE = 3
             throw std::runtime_error(ERROR_MSG("[build rows] The length or the offset are too large.\n" +
                                                 "offset: " + std::to_string(offset) + "\tlength: " + std::to_string(length)));
@@ -621,11 +621,11 @@ void MoveStructure::build_move_rows() {
             DEBUG_MSG("rlbwt[r_idx].len: " + std::to_string(rlbwt[r_idx].get_n()));
         }
 
-        if (len > MAX_RUN_LENGTH) {
+        if (len > movi_options->get_max_run_length()) {
             throw std::runtime_error(ERROR_MSG("[build rows] This shouldn't happen anymore, because the run splitting should be applied in every mode now."));
             n_overflow.push_back(len);
-            if (n_overflow.size() - 1 >= MAX_RUN_LENGTH) {
-                throw std::runtime_error(ERROR_MSG("[build rows] The number of runs with overflow n is beyond " + std::to_string(MAX_RUN_LENGTH) + "! " + std::to_string(n_overflow.size() - 1)));
+            if (n_overflow.size() - 1 >= movi_options->get_max_run_length()) {
+                throw std::runtime_error(ERROR_MSG("[build rows] The number of runs with overflow n is beyond " + std::to_string(movi_options->get_max_run_length()) + "! " + std::to_string(n_overflow.size() - 1)));
             }
             rlbwt[r_idx].set_n(n_overflow.size() - 1);
             rlbwt[r_idx].set_overflow_n();
@@ -638,14 +638,14 @@ void MoveStructure::build_move_rows() {
         if (movi_options->is_debug()) {
             DEBUG_MSG("rlbwt[r_idx].offset: " + std::to_string(rlbwt[r_idx].get_offset()));
             DEBUG_MSG("offset: " + std::to_string(offset));
-            DEBUG_MSG("MAX_RUN_LENGTH: " + std::to_string(MAX_RUN_LENGTH));
+            DEBUG_MSG("max_run_length: " + std::to_string(movi_options->get_max_run_length()));
         }
 
-        if (offset > MAX_RUN_LENGTH) {
+        if (offset > movi_options->get_max_run_length()) {
             throw std::runtime_error(ERROR_MSG("[build rows] This shouldn't happen anymore, because the run splitting should be applied in every mode now."));
             offset_overflow.push_back(offset);
-            if (offset_overflow.size() - 1 >= MAX_RUN_LENGTH) {
-                throw std::runtime_error(ERROR_MSG("[build rows] The number of runs with overflow offset is beyond " + std::to_string(MAX_RUN_LENGTH) + "! " + std::to_string(offset_overflow.size() - 1)));
+            if (offset_overflow.size() - 1 >= movi_options->get_max_run_length()) {
+                throw std::runtime_error(ERROR_MSG("[build rows] The number of runs with overflow offset is beyond " + std::to_string(movi_options->get_max_run_length()) + "! " + std::to_string(offset_overflow.size() - 1)));
             }
             rlbwt[r_idx].set_offset(offset_overflow.size() - 1);
             rlbwt[r_idx].set_overflow_offset();

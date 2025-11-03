@@ -30,7 +30,7 @@ void MoveStructure::build_doc_sets() {
     doc_set_inds.resize(r);
 
     uint64_t unique_cnt = 0;
-    uint16_t temp[MAX_RUN_LENGTH];
+    uint16_t temp[movi_options->get_max_run_length()];
     for (uint64_t i = 0; i < r; i++) {
         if (i % 1000000 == 0) {
             print_progress_bar(i, r - 1, "Building the document sets", current_build_step, total_build_steps);

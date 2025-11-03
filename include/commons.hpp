@@ -5,6 +5,45 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include <cstdint>
+
+#define LARGE_INDEX MODE == 0
+#define CONSTANT_INDEX MODE == 1
+#define SPLIT_INDEX MODE == 4
+#define REGULAR_INDEX MODE == 3
+#define REGULAR_THRESHOLDS_INDEX MODE == 6
+#define BLOCKED_INDEX MODE == 2
+#define BLOCKED_THRESHOLDS_INDEX MODE == 8
+// Note: External interface uses "sampled" naming, internal code still uses in many places "tally"
+#define TALLY_INDEX MODE == 5
+#define TALLY_THRESHOLDS_INDEX MODE == 7
+
+#define NO_SAMPPLED_ID MODE == 0 or MODE == 1 or MODE == 2 or MODE == 4 or MODE == 8 or MODE == 3 or MODE == 6
+#define USE_THRESHOLDS MODE == 0 or MODE == 1 or MODE == 4 or MODE == 6 or MODE == 7 or MODE == 8
+#define NO_THRESHOLDS MODE == 2 or MODE == 3 or MODE == 5
+#define THRESHOLDS_WITHOUT_NEXTS MODE == 0 or MODE == 4 or MODE == 8 or MODE == 7 or MODE == 6
+#define USE_NEXT_POINTERS MODE == 1
+#define SPLIT_THRESHOLDS_FALSE MODE == 0 or MODE == 1 or MODE == 4
+#define SPLIT_THRESHOLDS_TRUE MODE == 8 or MODE == 7 or MODE == 6
+#define SPLIT_MAX_RUN MODE == 3 or MODE == 6 or MODE == 2 or MODE == 8 or MODE == 5 or MODE == 7
+#define SPLIT_ARRAY MODE == 1 or MODE == 4
+#define NO_EXTRA_TABLE MODE == 0 or MODE == 1 or MODE == 4 or MODE == 3 or MODE == 6
+#define REGULAR_MODES MODE == 3 or MODE == 6
+#define BLOCKED_MODES MODE == 2 or MODE == 8
+#define TALLY_MODES MODE == 5 or MODE == 7
+#define MOVI1_STYLE MODE == 0 or MODE == 1 or MODE == 4
+
+// Feature compatibility macros
+#define SUPPORTS_SEPARATORS (MODE == 2 or MODE == 3 or MODE == 5 or MODE == 6 or MODE == 7 or MODE == 8)
+
+#define END_CHARACTER 0
+#define THRBYTES 5
+#define MIN_MATCHING_LENGTH 3
+#define NULL_READ_CHUNK 150
+#define NUM_NULL_READS 800 // 150,000 = 150 bp * 1000 reads
+#define NULL_READ_BOUND 1000
+
+#define UNCLASSIFIED_THRESHOLD 0.4
 
 // Utility function to get current timestamp
 inline std::string get_timestamp() {

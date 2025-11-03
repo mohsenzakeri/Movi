@@ -3,6 +3,9 @@
 
 #include <iostream>
 
+#include "commons.hpp"
+#include "move_row_configs.hpp"
+
 class MoviOptions {
     public:
         MoviOptions() {
@@ -55,6 +58,7 @@ class MoviOptions {
         bool is_multi_classify() { return multi_classify; }
         bool is_generate_null_reads() { return generate_null_reads; }
         size_t get_bin_width() { return bin_width; }
+        uint64_t get_max_run_length() { return max_run_length; }
         int ignore_illegal_chars_status() { return ilc; }
         bool use_separators() { return separators; }
         size_t get_strands() { return strands; }
@@ -133,6 +137,7 @@ class MoviOptions {
         void set_min_score_frac(float min_score_frac_) { min_score_frac = min_score_frac_; }
         void set_generate_null_reads(bool generate_null_reads_) { generate_null_reads = generate_null_reads_; }
         void set_bin_width(size_t bin_width_) { bin_width = bin_width_; }
+        void set_max_run_length(uint64_t max_run_length_) { max_run_length = max_run_length_; }
         bool set_ignore_illegal_chars(int ilc_) {
             if (ilc_ > 2 or ilc_ < 1)
                 return false;
@@ -212,6 +217,7 @@ class MoviOptions {
             std::cerr << "invert:\t" << invert << "\n";
             std::cerr << "generate_null_reads:\t" << generate_null_reads << "\n";
             std::cerr << "bin_width:\t" << bin_width << "\n";
+            std::cerr << "max_run_length:\t" << max_run_length << "\n";
             std::cerr << "no_output:\t" << no_output << "\n";
             std::cerr << "small_pml_lens:\t" << small_pml_lens << "\n";
             std::cerr << "large_pml_lens:\t" << large_pml_lens << "\n";
@@ -270,6 +276,7 @@ class MoviOptions {
         float min_score_frac = 0;
         bool generate_null_reads = false;
         size_t bin_width = 150;
+        uint64_t max_run_length = MAX_RUN_LENGTH;
 
         bool no_output = false;
         bool small_pml_lens = false;

@@ -107,6 +107,7 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
     auto buildAdvancedOptions = options.add_options("build (advanced)")
         ("thresholds", "Store the threshold values by splitting the runs at threshold boundaries (default)")
         ("output-ids", "Output the adjusted ids of all the runs to ids.* files, one file per character")
+        ("max-run-length", "The maximum length of the run", cxxopts::value<uint64_t>())
         ("ftab-k", "The length of the ftab kmer", cxxopts::value<uint32_t>())
         ("multi-ftab", "Use ftabs with smaller k values if the largest one fails")
         ("preprocessed", "The BWT is preprocessed into heads and lens files")
@@ -283,6 +284,14 @@ bool parse_command(int argc, char** argv, MoviOptions& movi_options, bool supres
                     if (result.count("ftab-k") >= 1) { movi_options.set_ftab_k(static_cast<uint32_t>(result["ftab-k"].as<uint32_t>())); }
                     if (result.count("multi-ftab") >= 1) { movi_options.set_multi_ftab(true); }
                     if (result.count("output-ids") >= 1) { movi_options.set_output_ids(true); }
+                    if (result.count("max-run-length") >= 1) {
+                        if (static_cast<uint64_t>(result["max-run-length"].as<uint64_t>()) > MAX_RUN_LENGTH) {
+                            WARNING_MSG("The input maximum run length is greater than the maximum allowed, setting it to " + std::to_string(MAX_RUN_LENGTH) + ".");
+                            movi_options.set_max_run_length(MAX_RUN_LENGTH);
+                        } else {
+                            movi_options.set_max_run_length(static_cast<uint64_t>(result["max-run-length"].as<uint64_t>()));
+                        }
+                    }
                     if (result.count("verify")) {
                         movi_options.set_verify(true);
                     }
