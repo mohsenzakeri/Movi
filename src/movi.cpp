@@ -513,6 +513,7 @@ void build_rlbwt(MoviOptions& movi_options) {
     bwt_file.clear();
     bwt_file.seekg(0,std::ios_base::end);
     std::streampos end_pos = bwt_file.tellg();
+    uint64_t length = static_cast<uint64_t>(end_pos);
 
     if (movi_options.is_verbose()) {
         INFO_MSG("end_pos: " + std::to_string(end_pos));
@@ -535,9 +536,12 @@ void build_rlbwt(MoviOptions& movi_options) {
         throw std::runtime_error(ERROR_MSG("[build_rlbwt] Failed to open the heads file: " + movi_options.get_bwt_file() + ".heads"));
     }
 
+    uint64_t i = 0;
     while (current_char != EOF) {
-        if (r % 1000000 == 0)
-            PROGRESS_MSG(std::to_string(r));
+        if (i % 1000000 == 0 or i == length - 1 or i == 1) {
+            print_progress_bar(i, length - 1, "Building the rlbwt", 1, 1);
+        }
+
         if (current_char != last_char) {
             r += 1;
             // write output
@@ -548,7 +552,13 @@ void build_rlbwt(MoviOptions& movi_options) {
         len += 1;
         last_char = current_char;
         current_char = bwt_file.get();
+
+        i += 1;
     }
+    PROGRESS_MSG("Successfully built the rlbwt.");
+    INFO_MSG("n:\t" + std::to_string(length));
+    INFO_MSG("r:\t" + std::to_string(r));
+    INFO_MSG("n/r:\t" + std::to_string(static_cast<double>(length)/r));
 
     // write output
     heads_file << last_char;
@@ -556,6 +566,8 @@ void build_rlbwt(MoviOptions& movi_options) {
 
     heads_file.close();
     len_file.close();
+
+    SUCCESS_MSG("The rlbwt is successfully stored at \n" + movi_options.get_bwt_file() + ".heads and \n" + movi_options.get_bwt_file() + ".len");
 }
 
 int main(int argc, char** argv) {
