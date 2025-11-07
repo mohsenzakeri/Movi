@@ -811,6 +811,7 @@ void MoveStructure::read_ftab() {
             ftab_k -= 1;
         }
     } else {
+        INFO_MSG("Reading the ftab..");
         std::string fname = movi_options->get_index_dir() + "/ftab." + std::to_string(ftab_k) + ".bin";
         std::ifstream fin(fname, std::ios::in | std::ios::binary);
         if (!fin.good()) {
@@ -819,7 +820,8 @@ void MoveStructure::read_ftab() {
         fin.read(reinterpret_cast<char*>(&ftab_k), sizeof(ftab_k));
         uint64_t ftab_size = 0;
         fin.read(reinterpret_cast<char*>(&ftab_size), sizeof(ftab_size));
-        INFO_MSG("Reading the ftab.\nftab_k: " + std::to_string(ftab_k) + "\t" + "ftab_size: " + std::to_string(ftab_size) + "\n");
+        INFO_MSG("ftab-k:\t" + std::to_string(ftab_k));
+        INFO_MSG("Number of ftab rows:\t" + std::to_string(ftab_size));
         if (ftab_size != std::pow(4, ftab_k)) {
             throw std::runtime_error(ERROR_MSG("[read ftab] The size of the ftab is not correct: " +
                                  std::to_string(ftab_size) + " != " + std::to_string(std::pow(4, ftab_k))));

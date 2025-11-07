@@ -358,6 +358,8 @@ void MoveStructure::query_all_kmers(MoveQuery& mq, bool kmer_counts) {
             if (kmer_counts) {
                 // Let's get rid of the special case for count queries -- commented below for now
                 /* if (pos_on_r <= 2*k) {
+                    // The following searches every kmer beyond 2*k point separately isntead of the bidirectional search
+
                     uint64_t kmers_found = query_kmers_from(mq, pos_on_r, true);
                     #pragma omp atomic
                     kmer_stats.positive_kmers += kmers_found;
