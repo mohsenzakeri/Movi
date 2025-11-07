@@ -86,7 +86,7 @@ void close_kseq(kseq_t *seq, gzFile& fp) {
 
 char complement(char c) {
     // # is the separator, complement(#) = #
-    char c_comp = c == '#' ? '#' : (c == 'A' ? 'T' : ( c == 'C' ? 'G' : (c == 'G' ? 'C' : 'A')));
+    char c_comp = c == SEPARATOR? SEPARATOR : (c == 'A' ? 'T' : ( c == 'C' ? 'G' : (c == 'G' ? 'C' : 'A')));
     return c_comp;
 }
 
