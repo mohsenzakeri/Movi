@@ -83,7 +83,7 @@ make -j4
 Note: The flag `--type <index type>` determines the strategy to build the main table of the Movi index. If no value is passed, the `regular-thresholds` index is built.
 Possible index types: `large` `constant` `split` `regular` `regular-thresholds` `blocked` `blocked-thresholds` `sampled` `sampled-thresholds`.  Index types are described further in the next sub-section.
 
-If the thresholds are note available, please pass `--type regular` to build an index without the thresholds data structure.
+If the thresholds are not available, please pass `--type regular` to build an index without the thresholds data structure.
 
 ## Movi 2 indexing modes
 
