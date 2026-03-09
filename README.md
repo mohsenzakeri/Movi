@@ -81,9 +81,23 @@ make -j4
 `<index directory>` is the directory where you want the Movi index to be located.
 
 Note: The flag `--type <index type>` determines the strategy to build the main table of the Movi index. If no value is passed, the `regular-thresholds` index is built.
-Possible index types: `large` `constant` `split` `regular` `regular-thresholds` `blocked` `blocked-thresholds` `sampled` `sampled-thresholds`
+Possible index types: `large` `constant` `split` `regular` `regular-thresholds` `blocked` `blocked-thresholds` `sampled` `sampled-thresholds`.  Index types are described further in the next sub-section.
 
-If the thresholds are note available, please pass `--type regular` to build an index without the thresholds data structure.
+If the thresholds are not available, please pass `--type regular` to build an index without the thresholds data structure.
+
+## Movi 2 indexing modes
+
+Movi 2 provides a range of indexing modes that trade between index size and query speed.
+
+| Mode | Bytes / Row | `--type` | Query Speed | Memory Footprint | Best For |
+|------|-------------|--------|------------|------------------|----------|
+| Movi 2 (Threshold-Split) | 8 | `regular-thresholds` | Very fast | Moderate | Recommended default |
+| Movi 2 (Blocked) | 6 | `blocked-thresholds` | Fast | Low | Large datasets with moderate RAM |
+| Movi 2 (Sampled) | 3+ | `sampled-thresholds` | Slowest | Lowest | Memory-constrained environments |
+
+The (Sampled) mode is described as requiring 3+ bytes/row because it depends on a separate "S Table" not included in this ratio.
+
+Unless keeping memory footprint very low is a prime concern, we recommend using `regular` mode.
 
 ## Compute Pseudo Matching Lengths (PML)
 
