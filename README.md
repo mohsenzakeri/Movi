@@ -89,15 +89,18 @@ If the thresholds are not available, please pass `--type regular` to build an in
 
 Movi 2 provides a range of indexing modes that trade between index size and query speed.
 
-| Mode | Bytes / Row | `--type` | Query Speed | Memory Footprint | Best For |
-|------|-------------|--------|------------|------------------|----------|
-| Movi 2 (Threshold-Split) | 8 | `regular-thresholds` | Very fast | Moderate | Recommended default |
-| Movi 2 (Blocked) | 6 | `blocked-thresholds` | Fast | Low | Large datasets with moderate RAM |
-| Movi 2 (Sampled) | 3+ | `sampled-thresholds` | Slowest | Lowest | Memory-constrained environments |
+| Mode | Bytes / Row | Query Speed | Memory Footprint | Best For | PML | MEM |
+|------|-------------|------------|------------------|----------|----------|----------|
+| Regular-threshold (default) | 8 |  Very fast | Moderate | Recommended default | Yes | Yes |
+| Blocked-thresholds | 6 |  Fast | Low | Large datasets with moderate RAM | Yes | Yes |
+| Sampled-thresholds | 3+ |  Slowest | Lowest | Memory-constrained environments | Yes | Yes|
+| Regular | 8 | Very fast | Moderate | Recommended default for MEM queries | No | Yes |
+| Blocked | 6 | Fast | Low | Large datasets with moderate RAM for MEM queries | No | Yes |
+| Sampled | 3+ | Slowest | Lowest | Memory-constrained environments for MEM queries | No | Yes|
 
 The (Sampled) mode is described as requiring 3+ bytes/row because it depends on a separate "S Table" not included in this ratio.
 
-Unless keeping memory footprint very low is a prime concern, we recommend using `regular` mode.
+Unless keeping memory footprint very low is a prime concern, we recommend using `regular-thresholds` mode.
 
 ## Compute Pseudo Matching Lengths (PML)
 
